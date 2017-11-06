@@ -52,6 +52,7 @@ import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
+import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -671,13 +672,13 @@ public class BuldreinfoRepository {
 		return regionMap.values();
 	}
 
-	public List<Search> getSearch(String token, int regionId, String str) throws SQLException {
+	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.hidden, p.name FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.hidden, p.name ORDER BY p.name LIMIT 10");
-		ps.setInt(1, regionId);
-		ps.setInt(2, regionId);
-		ps.setString(3, str + "%");
-		ps.setString(4, "% " + str + "%");
+		ps.setInt(1, sr.getRegionId());
+		ps.setInt(2, sr.getRegionId());
+		ps.setString(3, sr.getValue() + "%");
+		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setString(5, token);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {

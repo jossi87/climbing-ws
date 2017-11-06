@@ -113,7 +113,7 @@ public class V1Test {
 	@Test
 	public void testGetSearch() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.postSearch(null, REGION_ID, new SearchRequest("Pan"));
+		Response r = tester.postSearch(null, new SearchRequest(REGION_ID, "Pan"));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		@SuppressWarnings("unchecked")

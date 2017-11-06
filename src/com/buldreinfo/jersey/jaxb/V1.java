@@ -351,10 +351,10 @@ public class V1 {
 	@GET
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, SearchRequest sr) throws ExecutionException, IOException {
+	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, SearchRequest sr) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Search> res = c.getBuldreinfoRepo().getSearch(token, regionId, sr.getValue());
+			List<Search> res = c.getBuldreinfoRepo().getSearch(token, sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
