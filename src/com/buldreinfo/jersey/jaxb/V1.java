@@ -45,6 +45,7 @@ import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
+import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -211,20 +212,6 @@ public class V1 {
 	}
 
 	@GET
-	@Path("/search")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("value") String value) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Search> res = c.getBuldreinfoRepo().getSearch(token, regionId, value);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -311,7 +298,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -341,7 +328,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -356,6 +343,20 @@ public class V1 {
 			p = c.getBuldreinfoRepo().setProblem(token, regionId, p, multiPart);
 			c.setSuccess();
 			return Response.ok().entity(p).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/search")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, SearchRequest sr) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			List<Search> res = c.getBuldreinfoRepo().getSearch(token, regionId, sr.getValue());
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

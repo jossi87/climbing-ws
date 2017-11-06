@@ -17,6 +17,7 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
+import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
@@ -112,7 +113,7 @@ public class V1Test {
 	@Test
 	public void testGetSearch() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getSearch(null, REGION_ID, "Pan");
+		Response r = tester.postSearch(null, REGION_ID, new SearchRequest("Pan"));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		@SuppressWarnings("unchecked")
