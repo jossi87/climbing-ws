@@ -11,6 +11,9 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
@@ -26,6 +29,8 @@ import com.google.common.html.HtmlEscapers;
  */
 @Path("/v1/static/")
 public class V1Html {
+	private static final Logger logger = LogManager.getLogger();
+	
 	private class Config {
 		private final int idRegion;
 		private final String title;
@@ -123,7 +128,9 @@ public class V1Html {
 	    else if (url.contains("brattelinjer.no")) {
 	    	return new Config(4, "Bratte linjer", "https://brattelinjer.no");
 	    }
-	    return new Config(1, "buldreinfo", "https://buldreinfo.com");
+	    Config conf = new Config(1, "buldreinfo", "https://buldreinfo.com");
+	    logger.debug("getConfig(request={}) - conf={}", request, conf);
+	    return conf;
 	}
 
 	private String getHtml(String url, String title, String description) {
