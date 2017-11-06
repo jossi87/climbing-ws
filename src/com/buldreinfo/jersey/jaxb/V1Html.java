@@ -154,7 +154,7 @@ public class V1Html {
 		}
 		builder.append("<meta property='og:type' content='article' />");
 		builder.append("<meta property='og:title' content='" + HtmlEscapers.htmlEscaper().escape(title) + "' />");
-		builder.append("<meta property='og:url' content='" + url + "' />");
+		//builder.append("<meta property='og:url' content='" + url + "' />");
 		if (description != null) {
 			builder.append("<meta property='og:description' content='" + HtmlEscapers.htmlEscaper().escape(description) + "' />");
 		}
