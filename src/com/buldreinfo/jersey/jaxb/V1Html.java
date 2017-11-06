@@ -60,7 +60,7 @@ public class V1Html {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			c.setSuccess();
 			Config conf = getConfig(base);
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, conf.getTitle() + " | " + a.getName(), a.getComment())).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, conf.getTitle() + " | " + a.getName(), a.getComment(), null)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -137,10 +137,6 @@ public class V1Html {
 	    return conf;
 	}
 
-	private String getHtml(String url, String title, String description) {
-		return getHtml(url, title, description, null);
-	}
-
 	private String getHtml(String url, String title, String description, OpenGraphImage image) {
 		StringBuilder builder = new StringBuilder();
 		builder.append("<!DOCTYPE html>");
@@ -154,7 +150,7 @@ public class V1Html {
 		}
 		builder.append("<meta property='og:type' content='article' />");
 		builder.append("<meta property='og:title' content='" + HtmlEscapers.htmlEscaper().escape(title) + "' />");
-		//builder.append("<meta property='og:url' content='" + url + "' />");
+		builder.append("<meta property='og:url' content='" + url + "' />");
 		if (description != null) {
 			builder.append("<meta property='og:description' content='" + HtmlEscapers.htmlEscaper().escape(description) + "' />");
 		}
