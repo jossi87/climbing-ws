@@ -348,7 +348,7 @@ public class V1 {
 		}
 	}
 	
-	@GET
+	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, SearchRequest sr) throws ExecutionException, IOException {
