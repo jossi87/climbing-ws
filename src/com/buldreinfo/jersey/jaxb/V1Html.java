@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,11 +57,11 @@ public class V1Html {
 	
 	@GET
 	@Path("/areas")
-	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getAreas(@Context UriInfo uriInfo, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			c.setSuccess();
-			Config conf = getConfig(request);
+			Config conf = getConfig(uriInfo);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, conf.getTitle() + " | " + a.getName(), a.getComment())).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -70,9 +70,9 @@ public class V1Html {
 	
 	@GET
 	@Path("/frontpage")
-	public Response getFrontpage(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getFrontpage(@Context UriInfo uriInfo) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(request);
+			Config conf = getConfig(uriInfo);
 			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, conf.getIdRegion());
 			String description = String.format("Total: %d | With coordinates: %d | Public ascents: %d | Images: %d | Ascents on video: %d", f.getNumProblems(), f.getNumProblemsWithCoordinates(), f.getNumTicks(), f.getNumImages(), f.getNumMovies());
 			OpenGraphImage image = c.getBuldreinfoRepo().getImage(f.getRandomMedia().getIdMedia());
@@ -85,7 +85,7 @@ public class V1Html {
 
 	@GET
 	@Path("/problems")
-	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProblems(@Context UriInfo uriInfo, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, 0, id, 0);
 			String name = "";
@@ -100,7 +100,7 @@ public class V1Html {
 				}
 			}
 			c.setSuccess();
-			Config conf = getConfig(request);
+			Config conf = getConfig(uriInfo);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/problem/" + id, conf.getTitle() + " | " + name, description, image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -109,31 +109,34 @@ public class V1Html {
 
 	@GET
 	@Path("/sectors")
-	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getSectors(@Context UriInfo uriInfo, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Sector s = c.getBuldreinfoRepo().getSector(null, 0, id);
 			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
-			Config conf = getConfig(request);
+			Config conf = getConfig(uriInfo);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, conf.getTitle() + " | " + s.getName(), s.getComment(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
 
-	private Config getConfig(HttpServletRequest request) {
-		String url = request.getRequestURL().toString();
+	private Config getConfig(UriInfo uriInfo) {
+		Config conf = null;
+		final String url = uriInfo.getRequestUri().toString();
 	    if (url.contains("buldring.bergen-klatreklubb.no")) {
-	    	return new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
+	    	conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
 	    }
 	    else if (url.contains("buldring.fredrikstadklatreklubb.org")) {
-	    	return new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
+	    	conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
 	    }
 	    else if (url.contains("brattelinjer.no")) {
-	    	return new Config(4, "Bratte linjer", "https://brattelinjer.no");
+	    	conf = new Config(4, "Bratte linjer", "https://brattelinjer.no");
 	    }
-	    Config conf = new Config(1, "buldreinfo", "https://buldreinfo.com");
-	    logger.debug("getConfig(request.getRequestURI()={}, request.getRequestURL().toString()={}) - conf={}", request.getRequestURI(), request.getRequestURL().toString(), conf);
+	    else {
+	    	conf = new Config(1, "buldreinfo", "https://buldreinfo.com");
+	    }
+	    logger.debug("getConfig(uriInfo={}, uriInfo.getRequestUri().toString()={}) - conf={}", uriInfo, uriInfo.getRequestUri().toString(), conf);
 	    return conf;
 	}
 
