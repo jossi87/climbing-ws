@@ -49,6 +49,10 @@ public class V1Html {
 		public String getTitle() {
 			return title;
 		}
+		@Override
+		public String toString() {
+			return "Config [idRegion=" + idRegion + ", title=" + title + ", baseUrl=" + baseUrl + "]";
+		}
 	}
 	
 	@GET
@@ -129,7 +133,7 @@ public class V1Html {
 	    	return new Config(4, "Bratte linjer", "https://brattelinjer.no");
 	    }
 	    Config conf = new Config(1, "buldreinfo", "https://buldreinfo.com");
-	    logger.debug("getConfig(request={}) - conf={}", request, conf);
+	    logger.debug("getConfig(request.getRequestURI()={}, request.getRequestURL().toString()={}) - conf={}", request.getRequestURI(), request.getRequestURL().toString(), conf);
 	    return conf;
 	}
 
