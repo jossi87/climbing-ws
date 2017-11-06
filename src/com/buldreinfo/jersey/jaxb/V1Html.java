@@ -68,7 +68,7 @@ public class V1Html {
 			String description = String.format("Total: %d | With coordinates: %d | Public ascents: %d | Images: %d | Ascents on video: %d", f.getNumProblems(), f.getNumProblemsWithCoordinates(), f.getNumTicks(), f.getNumImages(), f.getNumMovies());
 			OpenGraphImage image = c.getBuldreinfoRepo().getImage(f.getRandomMedia().getIdMedia());
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl(), "buldreinfo", description, image)).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl(), conf.getTitle(), description, image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
