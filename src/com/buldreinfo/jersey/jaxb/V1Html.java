@@ -114,17 +114,16 @@ public class V1Html {
 
 	private Config getConfig(HttpServletRequest request) {
 		String url = request.getRequestURL().toString();
-		throw new RuntimeException(url);
-//	    if (url.contains("buldring.bergen-klatreklubb.no")) {
-//	    	return new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
-//	    }
-//	    else if (url.contains("buldring.fredrikstadklatreklubb.org")) {
-//	    	return new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
-//	    }
-//	    else if (url.contains("brattelinjer.no")) {
-//	    	return new Config(4, "Bratte linjer", "https://brattelinjer.no");
-//	    }
-//	    return new Config(1, "buldreinfo", "https://buldreinfo.com");
+	    if (url.contains("buldring.bergen-klatreklubb.no")) {
+	    	return new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
+	    }
+	    else if (url.contains("buldring.fredrikstadklatreklubb.org")) {
+	    	return new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
+	    }
+	    else if (url.contains("brattelinjer.no")) {
+	    	return new Config(4, "Bratte linjer", "https://brattelinjer.no");
+	    }
+	    return new Config(1, "buldreinfo", "https://buldreinfo.com");
 	}
 
 	private String getHtml(String url, String title, String description) {
