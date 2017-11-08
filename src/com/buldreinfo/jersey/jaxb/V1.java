@@ -259,10 +259,10 @@ public class V1 {
 	@GET
 	@Path("/users/forgotPassword")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersForgotPassword(@QueryParam("username") String username) throws ExecutionException, IOException {
+	public Response getUsersForgotPassword(@QueryParam("username") String username, @QueryParam("hostname") String hostname) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(Strings.emptyToNull(username));
-			c.getBuldreinfoRepo().forgotPassword(username);
+			c.getBuldreinfoRepo().forgotPassword(username, hostname);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -273,7 +273,7 @@ public class V1 {
 	@GET
 	@Path("/users/password")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersForgotPassword(@QueryParam("token") String token, @QueryParam("password") String password) throws ExecutionException, IOException {
+	public Response getUsersPassword(@QueryParam("token") String token, @QueryParam("password") String password) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(Strings.emptyToNull(token));
 			Preconditions.checkNotNull(Strings.emptyToNull(password));

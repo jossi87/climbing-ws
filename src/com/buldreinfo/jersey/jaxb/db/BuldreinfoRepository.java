@@ -141,7 +141,7 @@ public class BuldreinfoRepository {
 		ps.close();
 	}
 
-	public void forgotPassword(String username) throws SQLException, AddressException, UnsupportedEncodingException, MessagingException {
+	public void forgotPassword(String username, String hostname) throws SQLException, AddressException, UnsupportedEncodingException, MessagingException {
 		final String token = UUID.randomUUID().toString();
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET recover_token=? WHERE username=?");
 		ps.setString(1, token);
@@ -149,9 +149,10 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 		StringBuilder builder = new StringBuilder();
-		builder.append("Follow the instructions on https://buldreinfo.com/recover/" + token + " to reset your password\n\n");
-		builder.append("Please ignore this email if you did not request a new password from https://buldreinfo.com");
-		MailSender.sendMail(username, "Reset password (buldreinfo.com)", builder.toString());
+		String baseUrl = "https://" + hostname;
+		builder.append("Follow the instructions on " + baseUrl + "/recover/" + token + " to reset your password\n\n");
+		builder.append("Please ignore this email if you did not request a new password from " + baseUrl);
+		MailSender.sendMail(username, "Reset password (" + baseUrl + ")", builder.toString());
 	}
 	
 	public Area getArea(String token, int reqId) throws IOException, SQLException {
