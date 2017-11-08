@@ -25,7 +25,7 @@ public class MailSender {
 
 		Session session = Session.getInstance(p, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
-				return new PasswordAuthentication("buldreinfo2", "A%7/M>Gq");
+				return new PasswordAuthentication("jossiorg1", "fp-forme-700-skyts-Unikt");
 			}
 		});
 
@@ -33,7 +33,7 @@ public class MailSender {
 		to[0] = new InternetAddress(toRecipient);
 
 		Message message = new MimeMessage(session);
-		message.setFrom(new InternetAddress("no-reply@buldreinfo.com", "no-reply@buldreinfo.com"));
+		message.setFrom(new InternetAddress("no-reply@jossi.org", "no-reply@jossi.org"));
 		message.setRecipients(Message.RecipientType.TO, to);
 		message.setSubject(subject);
 
