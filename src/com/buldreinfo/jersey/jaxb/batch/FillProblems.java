@@ -72,31 +72,31 @@ public class FillProblems {
 	public FillProblems() {
 		List<Data> data = new ArrayList<>();
 		// FA-Date sdf="yyyy-MM-dd" TODO
-		data.add(new Data(1, "Sirevåg", "Sirevåg", "Avsporing", "(nat)", "6", "L. Jensen", null));
-		data.add(new Data(2, "Sirevåg", "Sirevåg", "Det store togrøveriet 1", "Klassisk oppvarming", "7-", "S. Brokvam & K. Juhl", null));
-		data.add(new Data(3, "Sirevåg", "Sirevåg", "Det store togrøveriet 2", null, "7+", "S. Brokvam & P. Markestad", null));
-		data.add(new Data(4, "Sirevåg", "Sirevåg", "Où est la gare", null, "7", "V. Aksnes", null));
-		data.add(new Data(5, "Sirevåg", "Sirevåg", "Gladiators Wall", "(nat)", "7", "R. Harrison", null));
-		data.add(new Data(6, "Sirevåg", "Sirevåg", "Bahnhoff Zoo", "Stilig rute", "7+/8-", "V. Aksnes", null));
-		data.add(new Data(7, "Sirevåg", "Sirevåg", "Amphitheater", "(nat)", "6", "D. Roberts", null));
-		data.add(new Data(8, "Sirevåg", "Sirevåg", "På Skinner", null, "7", "H. J. Moe", null));
-		data.add(new Data(9, "Sirevåg", "Sirevåg", "Jærbahn", "Flott i toppen", "8-", "H. J. Moe", null));
-		data.add(new Data(10, "Sirevåg", "Sirevåg", "TGV", "Variert klatring på store formasjoner", "6+", "H. J. Moe", null));
-		data.add(new Data(11, "Sirevåg", "Sirevåg", "Stasjonsmesteren", null, "8", "S. Brandsberg-Dahl & H. Hansen", null));
-		data.add(new Data(12, "Sirevåg", "Sirevåg", "Märklin", null, "7-", "H. J. Moe", null));
-		data.add(new Data(13, "Sirevåg", "Sirevåg", "Sesam stasjon", "Fin klatring på toppveggen", "8-/8", "S. Bransberg-Dahl", null));
-		data.add(new Data(14, "Sirevåg", "Sirevåg", "Fyrbøteren", "Klassikeren på feltet", "7+", "H. Julsrud", null));
-		data.add(new Data(15, "Sirevåg", "Sirevåg", "Kvalme ved reisens slutt", "Nydelig klatring på tøffe og unike tak", "7+", "H. J. Moe", null));
-		data.add(new Data(16, "Sirevåg", "Sirevåg", "Maks Mekker", "Hard for graden", "7+/8-", "S. Bransberg-Dahl", null));
-		data.add(new Data(17, "Sirevåg", "Sirevåg", "Jernhesten", null, "7+/8-", "V. Aksnes", null));
-		data.add(new Data(18, "Sirevåg", "Sirevåg", "Localmotives", null, "7+", "H. J. Moe", null));
-		data.add(new Data(19, "Sirevåg", "Sirevåg", "Z", "(nat)", "7-", "T.A. Sæland", null));
-		data.add(new Data(20, "Sirevåg", "Sirevåg", "Nordlandsbanen", "Pumpende!", "8", "H. J. Moe", null));
-		data.add(new Data(21, "Sirevåg", "Sirevåg", "Seniormoderasjon", null, "7-", "H. J. Moe", null));
-		data.add(new Data(22, "Sirevåg", "Sirevåg", "Judas", "(nat)", "7", "T. A. Sæland", null));
-		data.add(new Data(23, "Sirevåg", "Sirevåg", "Ohm", "Tungt og styggbratt gjennom taket", "8", "S. Engelsvoll", null));
-		data.add(new Data(24, "Sirevåg", "Sirevåg", "Himmelfart", null, "7", "H. J. Moe", null));
-		data.add(new Data(25, "Sirevåg", "Sirevåg", "Fader War", "Bratt start på tøffe tak", "7-/7", "D.S. Kaada", null));
+//		data.add(new Data(1, "Sirevåg", "Sirevåg", "Avsporing", "(nat)", "6", "L. Jensen", null));
+//		data.add(new Data(2, "Sirevåg", "Sirevåg", "Det store togrøveriet 1", "Klassisk oppvarming", "7-", "S. Brokvam & K. Juhl", null));
+//		data.add(new Data(3, "Sirevåg", "Sirevåg", "Det store togrøveriet 2", null, "7+", "S. Brokvam & P. Markestad", null));
+//		data.add(new Data(4, "Sirevåg", "Sirevåg", "Où est la gare", null, "7", "V. Aksnes", null));
+//		data.add(new Data(5, "Sirevåg", "Sirevåg", "Gladiators Wall", "(nat)", "7", "R. Harrison", null));
+//		data.add(new Data(6, "Sirevåg", "Sirevåg", "Bahnhoff Zoo", "Stilig rute", "7+/8-", "V. Aksnes", null));
+//		data.add(new Data(7, "Sirevåg", "Sirevåg", "Amphitheater", "(nat)", "6", "D. Roberts", null));
+//		data.add(new Data(8, "Sirevåg", "Sirevåg", "På Skinner", null, "7", "H. J. Moe", null));
+//		data.add(new Data(9, "Sirevåg", "Sirevåg", "Jærbahn", "Flott i toppen", "8-", "H. J. Moe", null));
+//		data.add(new Data(10, "Sirevåg", "Sirevåg", "TGV", "Variert klatring på store formasjoner", "6+", "H. J. Moe", null));
+//		data.add(new Data(11, "Sirevåg", "Sirevåg", "Stasjonsmesteren", null, "8", "S. Brandsberg-Dahl & H. Hansen", null));
+//		data.add(new Data(12, "Sirevåg", "Sirevåg", "Märklin", null, "7-", "H. J. Moe", null));
+//		data.add(new Data(13, "Sirevåg", "Sirevåg", "Sesam stasjon", "Fin klatring på toppveggen", "8-/8", "S. Bransberg-Dahl", null));
+//		data.add(new Data(14, "Sirevåg", "Sirevåg", "Fyrbøteren", "Klassikeren på feltet", "7+", "H. Julsrud", null));
+//		data.add(new Data(15, "Sirevåg", "Sirevåg", "Kvalme ved reisens slutt", "Nydelig klatring på tøffe og unike tak", "7+", "H. J. Moe", null));
+//		data.add(new Data(16, "Sirevåg", "Sirevåg", "Maks Mekker", "Hard for graden", "7+/8-", "S. Bransberg-Dahl", null));
+//		data.add(new Data(17, "Sirevåg", "Sirevåg", "Jernhesten", null, "7+/8-", "V. Aksnes", null));
+//		data.add(new Data(18, "Sirevåg", "Sirevåg", "Localmotives", null, "7+", "H. J. Moe", null));
+//		data.add(new Data(19, "Sirevåg", "Sirevåg", "Z", "(nat)", "7-", "T.A. Sæland", null));
+//		data.add(new Data(20, "Sirevåg", "Sirevåg", "Nordlandsbanen", "Pumpende!", "8", "H. J. Moe", null));
+//		data.add(new Data(21, "Sirevåg", "Sirevåg", "Seniormoderasjon", null, "7-", "H. J. Moe", null));
+//		data.add(new Data(22, "Sirevåg", "Sirevåg", "Judas", "(nat)", "7", "T. A. Sæland", null));
+//		data.add(new Data(23, "Sirevåg", "Sirevåg", "Ohm", "Tungt og styggbratt gjennom taket", "8", "S. Engelsvoll", null));
+//		data.add(new Data(24, "Sirevåg", "Sirevåg", "Himmelfart", null, "7", "H. J. Moe", null));
+//		data.add(new Data(25, "Sirevåg", "Sirevåg", "Fader War", "Bratt start på tøffe tak", "7-/7", "D.S. Kaada", null));
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			for (Data d : data) {
 				final int idArea = upsertArea(c, d);
@@ -134,7 +134,7 @@ public class FillProblems {
 			}
 		}
 		Area a = new Area(REGION_ID, -1, 0, d.getArea(), null, 0, 0, -1);
-		c.getBuldreinfoRepo().setArea(TOKEN, a);
+		a = c.getBuldreinfoRepo().setArea(TOKEN, a);
 		return a.getId();
 	}
 
@@ -146,7 +146,7 @@ public class FillProblems {
 			}
 		}
 		Sector s = new Sector(idArea, 0, a.getName(), -1, 0, d.getSector(), null, 0, 0, null, null, null);
-		c.getBuldreinfoRepo().setSector(TOKEN, REGION_ID, s, null);
+		s = c.getBuldreinfoRepo().setSector(TOKEN, REGION_ID, s, null);
 		return s.getId();
 	}
 }

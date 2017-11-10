@@ -1113,7 +1113,7 @@ public class BuldreinfoRepository {
 			ps.setInt(1, idProblem);
 			ps.close();
 		}
-		return getProblem(token, 0, idProblem, 0).get(0);
+		return getProblem(token, regionId, idProblem, 0).get(0);
 	}
 
 	public Sector setSector(String token, int regionId, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
