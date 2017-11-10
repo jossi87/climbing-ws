@@ -14,6 +14,7 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -109,13 +110,18 @@ public class FillProblems {
 		}
 	}
 	
-	private List<FaUser> getFas(DbConnection c, String fa) {
+	private List<FaUser> getFas(DbConnection c, String fa) throws SQLException {
 		List<FaUser> res = new ArrayList<>();
 		if (!Strings.isNullOrEmpty(fa)) {
 			for (String user : fa.split("&")) {
 				user = user.trim();
+				int id = -1;
+				List<User> users = c.getBuldreinfoRepo().getUserSearch(TOKEN, user);
+				if (!users.isEmpty()) {
+					id = users.get(0).getId();
+				}
 				int ix = user.lastIndexOf(" ");
-				res.add(new FaUser(-1, user.substring(0, ix), user.substring(ix+1), null));
+				res.add(new FaUser(id, user.substring(0, ix), user.substring(ix+1), null));
 			}
 		}
 		return res;
