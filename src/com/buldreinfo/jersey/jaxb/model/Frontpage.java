@@ -11,13 +11,15 @@ public class Frontpage {
 		private final String date;
 		private final int idUser;
 		private final String user;
-		public Ascent(int idProblem, String problem, String grade, String date, int idUser, String user) {
+		private final int typeId;
+		public Ascent(int idProblem, String problem, String grade, String date, int idUser, String user, int typeId) {
 			this.idProblem = idProblem;
 			this.problem = problem;
 			this.grade = grade;
 			this.date = date;
 			this.idUser = idUser;
 			this.user = user;
+			this.typeId = typeId;
 		}
 		public String getDate() {
 			return date;
@@ -37,10 +39,13 @@ public class Frontpage {
 		public String getUser() {
 			return user;
 		}
+		public int getTypeId() {
+			return typeId;
+		}
 		@Override
 		public String toString() {
 			return "Ascent [idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", date=" + date
-					+ ", idUser=" + idUser + ", user=" + user + "]";
+					+ ", idUser=" + idUser + ", user=" + user + ", typeId=" + typeId + "]";
 		}
 	}
 	
@@ -73,7 +78,8 @@ public class Frontpage {
 		private final String problem;
 		private final String grade;
 		private final String date;
-		public Fa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date) {
+		private final int typeId;
+		public Fa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date, int typeId) {
 			this.idArea = idArea;
 			this.area = area;
 			this.idSector = idSector;
@@ -82,6 +88,7 @@ public class Frontpage {
 			this.problem = problem;
 			this.grade = grade;
 			this.date = date;
+			this.typeId = typeId;
 		}
 		public String getArea() {
 			return area;
@@ -107,10 +114,14 @@ public class Frontpage {
 		public String getSector() {
 			return sector;
 		}
+		public int getTypeId() {
+			return typeId;
+		}
 		@Override
 		public String toString() {
 			return "Fa [idArea=" + idArea + ", area=" + area + ", idSector=" + idSector + ", sector=" + sector
-					+ ", idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", date=" + date + "]";
+					+ ", idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", date=" + date
+					+ ", typeId=" + typeId + "]";
 		}
 	}
 	
@@ -203,16 +214,16 @@ public class Frontpage {
 	public Frontpage() {
 	}
 	
-	public void addAscent(int idProblem, String problem, String grade, String date, int idUser, String user) {
-		this.ascents.add(new Ascent(idProblem, problem, grade, date, idUser, user));
+	public void addAscent(int idProblem, String problem, String grade, String date, int idUser, String user, int typeId) {
+		this.ascents.add(new Ascent(idProblem, problem, grade, date, idUser, user, typeId));
 	}
 	
 	public void addComment(String date, int idProblem, String problem) {
 		this.comments.add(new Comment(date, idProblem, problem));
 	}
 	
-	public void addFa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date) {
-		this.fas.add(new Fa(idArea, area, idSector, sector, idProblem, problem, grade, date));
+	public void addFa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date, int typeId) {
+		this.fas.add(new Fa(idArea, area, idSector, sector, idProblem, problem, grade, date, typeId));
 	}
 	
 	public void addMedia(int idProblem, String problem, String grade, String type) {
