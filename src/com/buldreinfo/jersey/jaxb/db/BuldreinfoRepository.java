@@ -198,7 +198,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		List<Area> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors FROM (((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND ((a.region_id=? AND a.hidden=0) OR (ut.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.hidden, a.name, a.description, a.latitude, a.longitude ORDER BY a.name");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND ((a.region_id=? AND a.hidden=0) OR (ut.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.hidden, a.name, a.description, a.latitude, a.longitude ORDER BY a.name");
 		ps.setString(1, token);
 		ps.setInt(2, reqIdRegion);
 		ps.setInt(3, reqIdRegion);
@@ -222,7 +222,7 @@ public class BuldreinfoRepository {
 	public Frontpage getFrontpage(String token, int regionId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
 		ps.setInt(3, regionId);
@@ -233,7 +233,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND m.deleted_user_id IS NULL AND (a.region_id=? OR ut.user_id IS NOT NULL)");
+		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM (((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND m.deleted_user_id IS NULL AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
 		ps.setInt(3, regionId);
@@ -244,7 +244,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
+		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM ((((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
 		ps.setInt(3, regionId);
@@ -266,7 +266,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Ascents
 		 */
-		String sqlStr = "SELECT p.id id_problem, p.name, DATE_FORMAT(t.date,'%y-%m-%d') date, u.id id_user, CONCAT(u.firstname, ' ', u.lastname) user, t.grade FROM (((((tick t INNER JOIN problem p ON (t.problem_id=p.id AND p.hidden=0)) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name, t.date, u.id, u.firstname, u.lastname, t.grade ORDER BY t.date DESC, t.id DESC LIMIT 30";
+		String sqlStr = "SELECT p.id id_problem, p.name, DATE_FORMAT(t.date,'%y-%m-%d') date, u.id id_user, CONCAT(u.firstname, ' ', u.lastname) user, t.grade FROM ((((((tick t INNER JOIN problem p ON (t.problem_id=p.id AND p.hidden=0)) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name, t.date, u.id, u.firstname, u.lastname, t.grade ORDER BY t.date DESC, t.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
@@ -288,8 +288,8 @@ public class BuldreinfoRepository {
 		 * FAs
 		 */
 		sqlStr = "SELECT a.id id_area, a.name area, s.id id_sector, s.name sector, p.id, p.name, DATE_FORMAT(p.fa_date,'%y-%m-%d') date, p.grade"
-				+ " FROM ((((problem p INNER JOIN sector s ON p.sector_id=s.id AND p.hidden=0) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
-				+ " WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL)"
+				+ " FROM (((((problem p INNER JOIN sector s ON p.sector_id=s.id AND p.hidden=0) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL)"
 				+ " GROUP BY a.id, a.name, s.id, s.name, p.id, p.name, p.fa_date, p.grade"
 				+ " ORDER BY p.fa_date DESC, p.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
@@ -315,8 +315,8 @@ public class BuldreinfoRepository {
 		 * Medias
 		 */
 		sqlStr = "SELECT p.id, p.name, m.is_movie, p.grade"
-				+ " FROM ((((((media m INNER JOIN media_problem mp ON (m.deleted_user_id IS NULL AND m.id=mp.media_id)) INNER JOIN problem p ON (mp.problem_id=p.id AND p.hidden=0)) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
-				+ " WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL)"
+				+ " FROM (((((((media m INNER JOIN media_problem mp ON (m.deleted_user_id IS NULL AND m.id=mp.media_id)) INNER JOIN problem p ON (mp.problem_id=p.id AND p.hidden=0)) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL)"
 				+ " GROUP BY m.id, p.id, p.name, m.is_movie, p.grade"
 				+ " ORDER BY m.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
@@ -337,7 +337,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Comments
 		 */
-		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%y-%m-%d %H:%i') date, p.id, p.name FROM (((((guestbook g INNER JOIN problem p ON g.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name ORDER BY MAX(g.post_time) DESC LIMIT 30");
+		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%y-%m-%d %H:%i') date, p.id, p.name FROM ((((((guestbook g INNER JOIN problem p ON g.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name ORDER BY MAX(g.post_time) DESC LIMIT 30");
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
 		ps.setInt(3, regionId);
@@ -472,8 +472,8 @@ public class BuldreinfoRepository {
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked"
-				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id"
-				+ " WHERE (?=0 OR r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?))"
+				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id"
+				+ " WHERE (?=0 OR rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?))"
 				+ "   AND " + condition
 				+ "   AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND (?=0 OR r.id=? OR ut.user_id IS NOT NULL)"
@@ -568,7 +568,7 @@ public class BuldreinfoRepository {
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Sector> sectorMap = new HashMap<>();
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Problem> problemMap = new HashMap<>();
 		// Regions
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r WHERE is_bouldering=1");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE rt.type_id=1");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
@@ -579,7 +579,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Areas
-		ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.name, a.description, a.latitude, a.longitude FROM (area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE r.is_bouldering=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.region_id, a.id, a.name, a.description, a.latitude, a.longitude");
+		ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.name, a.description, a.latitude, a.longitude FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE rt.type_id=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.region_id, a.id, a.name, a.description, a.latitude, a.longitude");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -598,7 +598,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Sectors
-		ps = c.getConnection().prepareStatement("SELECT s.area_id, s.id, s.name, s.description, s.parking_latitude, s.parking_longitude FROM ((sector s INNER JOIN area a ON a.id=s.area_id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE r.is_bouldering=1 AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.area_id, s.id, s.name, s.description, s.parking_latitude, s.parking_longitude");
+		ps = c.getConnection().prepareStatement("SELECT s.area_id, s.id, s.name, s.description, s.parking_latitude, s.parking_longitude FROM (((sector s INNER JOIN area a ON a.id=s.area_id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id=1 AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.area_id, s.id, s.name, s.description, s.parking_latitude, s.parking_longitude");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -617,7 +617,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Problems
-		ps = c.getConnection().prepareStatement("SELECT p.sector_id, p.id, p.nr, p.name, p.description, p.grade, CONCAT(p.fa_date, ' ', GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname SEPARATOR ', ')) fa, p.latitude, p.longitude FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE r.is_bouldering=1 AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.sector_id, p.id, p.nr, p.name, p.description, p.grade, p.fa_date, p.latitude, p.longitude");
+		ps = c.getConnection().prepareStatement("SELECT p.sector_id, p.id, p.nr, p.name, p.description, p.grade, CONCAT(p.fa_date, ' ', GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname SEPARATOR ', ')) fa, p.latitude, p.longitude FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id=1 AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.sector_id, p.id, p.nr, p.name, p.description, p.grade, p.fa_date, p.latitude, p.longitude");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -639,7 +639,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Media (sectors)
-		ps = c.getConnection().prepareStatement("SELECT ms.sector_id, m.id, m.is_movie FROM ((((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE r.is_bouldering=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY ms.sector_id, m.id, m.is_movie ORDER BY m.is_movie, m.id");
+		ps = c.getConnection().prepareStatement("SELECT ms.sector_id, m.id, m.is_movie FROM (((((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE rt.type_id=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY ms.sector_id, m.id, m.is_movie ORDER BY m.is_movie, m.id");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -654,7 +654,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Media (problems)
-		ps = c.getConnection().prepareStatement("SELECT mp.problem_id, m.id, m.is_movie, mp.milliseconds t FROM (((((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE r.is_bouldering=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY mp.problem_id, m.id, m.is_movie, mp.milliseconds ORDER BY m.is_movie, m.id");
+		ps = c.getConnection().prepareStatement("SELECT mp.problem_id, m.id, m.is_movie, mp.milliseconds t FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY mp.problem_id, m.id, m.is_movie, mp.milliseconds ORDER BY m.is_movie, m.id");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -675,7 +675,7 @@ public class BuldreinfoRepository {
 
 	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.hidden, p.name, p.grade FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.hidden, p.name ORDER BY p.name, p.grade LIMIT 10");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.hidden, p.name, p.grade FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.hidden, p.name ORDER BY p.name, p.grade LIMIT 10");
 		ps.setInt(1, sr.getRegionId());
 		ps.setInt(2, sr.getRegionId());
 		ps.setString(3, sr.getValue() + "%");
@@ -792,8 +792,8 @@ public class BuldreinfoRepository {
 		}
 
 		sqlStr = "SELECT t.id id_tick, p.id id_problem, p.hidden, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL THEN p.fa_date ELSE t.date END,'%y-%m-%d') date, t.stars stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
-				+ " FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.user_id=?)) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
-				+ " WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?)"
+				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.user_id=?)) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)"
 				+ "   AND (a.region_id=? OR ut.user_id IS NOT NULL)"
 				+ "   AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
@@ -1571,8 +1571,8 @@ public class BuldreinfoRepository {
 	
 	private void setRandomMedia(Frontpage res, String token, int regionId, boolean fallbackSolution) throws SQLException {
 		String sqlStr = "SELECT m.id id_media, p.id id_problem, p.name problem, m.photographer_user_id id_creator, CONCAT(u.firstname, ' ', u.lastname) photographer, GROUP_CONCAT(DISTINCT CONCAT(u2.firstname, ' ', u2.lastname) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
-				+ " FROM ((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
-				+ " WHERE r.is_bouldering=(SELECT is_bouldering FROM region WHERE id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
+				+ " FROM (((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
 				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u2.firstname, u2.lastname, p.grade"
 				+ " HAVING AVG(t.stars)>=2"
 				+ " ORDER BY rand()"
