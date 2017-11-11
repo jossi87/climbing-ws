@@ -14,12 +14,14 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 public class FillProblems {
 	private class Data {
+		private final int typeId;
 		private final int nr;
 		private final String area;
 		private final String sector;
@@ -28,7 +30,8 @@ public class FillProblems {
 		private final String grade;
 		private final String fa;
 		private final String faDate;
-		public Data(int nr, String area, String sector, String problem, String comment, String grade, String fa, String faDate) {
+		public Data(int typeId, int nr, String area, String sector, String problem, String comment, String grade, String fa, String faDate) {
+			this.typeId = typeId;
 			this.nr = nr;
 			this.area = area;
 			this.sector = sector;
@@ -37,6 +40,9 @@ public class FillProblems {
 			this.grade = grade;
 			this.fa = fa;
 			this.faDate = faDate;
+		}
+		public int getTypeId() {
+			return typeId;
 		}
 		public String getArea() {
 			return area;
@@ -129,7 +135,8 @@ public class FillProblems {
 	
 	private void insertProblem(DbConnection c, int idArea, int idSector, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ParseException {
 		List<FaUser> fa = getFas(c, d.getFa());
-		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade(), d.getFaDate(), fa, 0, 0, null, 0, 0, false, null);
+		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
+		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade(), d.getFaDate(), fa, 0, 0, null, 0, 0, false, null, t);
 		c.getBuldreinfoRepo().setProblem(TOKEN, REGION_ID, p, null);
 	}
 	

@@ -48,6 +48,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Tick;
+import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
@@ -197,7 +198,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -220,6 +221,19 @@ public class V1 {
 			Sector s = c.getBuldreinfoRepo().getSector(token, regionId, id);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/types")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getTypes(@QueryParam("regionId") int regionId) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			List<Type> res = c.getBuldreinfoRepo().getTypes(regionId);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

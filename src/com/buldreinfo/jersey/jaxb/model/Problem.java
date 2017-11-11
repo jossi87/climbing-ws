@@ -109,8 +109,9 @@ public class Problem {
 	private List<Tick> ticks;
 	private List<Comment> comments;
 	private final List<NewMedia> newMedia;
+	private final Type t;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -135,6 +136,7 @@ public class Problem {
 		this.stars = stars;
 		this.ticked = ticked;
 		this.newMedia = newMedia;
+		this.t = t;
 	}
 	
 	public void addComment(String date, int idUser, String name, String message) {
@@ -239,6 +241,10 @@ public class Problem {
 		return stars;
 	}
 	
+	public Type getT() {
+		return t;
+	}
+
 	public List<Tick> getTicks() {
 		return ticks;
 	}
@@ -253,12 +259,12 @@ public class Problem {
 
 	@Override
 	public String toString() {
-		return "Problem [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName + ", sectorId="
-				+ sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName + ", sectorLat="
-				+ sectorLat + ", sectorLng=" + sectorLng + ", id=" + id + ", visibility=" + visibility + ", nr=" + nr
-				+ ", name=" + name + ", comment=" + comment + ", grade=" + grade + ", originalGrade=" + originalGrade
-				+ ", faDate=" + faDate + ", fa=" + fa + ", lat=" + lat + ", lng=" + lng + ", media=" + media
-				+ ", numTicks=" + numTicks + ", stars=" + stars + ", ticked=" + ticked + ", ticks=" + ticks
-				+ ", comments=" + comments + ", newMedia=" + newMedia + "]";
+		return "Problem [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
+				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
+				+ ", sectorLat=" + sectorLat + ", sectorLng=" + sectorLng + ", id=" + id + ", visibility=" + visibility
+				+ ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade=" + grade + ", originalGrade="
+				+ originalGrade + ", faDate=" + faDate + ", fa=" + fa + ", lat=" + lat + ", lng=" + lng + ", media="
+				+ media + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked=" + ticked + ", ticks=" + ticks
+				+ ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t + "]";
 	}
 }
