@@ -19,8 +19,9 @@ public class Sector {
 		private final int numTicks;
 		private final double stars;
 		private final boolean ticked;
+		private final Type t;
 		
-		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked) {
+		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t) {
 			this.id = id;
 			this.visibility = visibility;
 			this.nr = nr;
@@ -35,6 +36,7 @@ public class Sector {
 			this.numTicks = numTicks;
 			this.stars = stars;
 			this.ticked = ticked;
+			this.t = t;
 		}
 		
 		public String getComment() {
@@ -85,18 +87,24 @@ public class Sector {
 			return stars;
 		}
 
+		public Type getT() {
+			return t;
+		}
+		
 		public int getVisibility() {
 			return visibility;
 		}
+		
 		public boolean isTicked() {
 			return ticked;
 		}
+
 		@Override
 		public String toString() {
-			return "Problem [id=" + id + ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment=" + comment
-					+ ", grade=" + grade + ", fa=" + fa + ", numImages=" + numImages + ", numMovies=" + numMovies
-					+ ", lat=" + lat + ", lng=" + lng + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked="
-					+ ticked + "]";
+			return "Problem [id=" + id + ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment="
+					+ comment + ", grade=" + grade + ", fa=" + fa + ", numImages=" + numImages + ", numMovies="
+					+ numMovies + ", lat=" + lat + ", lng=" + lng + ", numTicks=" + numTicks + ", stars=" + stars
+					+ ", ticked=" + ticked + ", t=" + t + "]";
 		}
 	}
 	
@@ -129,8 +137,8 @@ public class Sector {
 		this.newMedia = newMedia;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked));
+	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t) {
+		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t));
 	}
 
 	public int getAreaId() {
