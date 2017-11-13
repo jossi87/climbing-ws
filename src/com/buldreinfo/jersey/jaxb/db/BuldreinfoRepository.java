@@ -267,7 +267,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Ascents
 		 */
-		String sqlStr = "SELECT p.id id_problem, p.name, DATE_FORMAT(t.date,'%y-%m-%d') date, u.id id_user, CONCAT(u.firstname, ' ', u.lastname) user, t.grade, ty.id type_id FROM (((((((tick t INNER JOIN problem p ON (t.problem_id=p.id AND p.hidden=0)) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, ty.id ORDER BY t.date DESC, t.id DESC LIMIT 30";
+		String sqlStr = "SELECT p.id id_problem, p.name, DATE_FORMAT(t.date,'%y-%m-%d') date, u.id id_user, CONCAT(u.firstname, ' ', u.lastname) user, t.grade FROM ((((((tick t INNER JOIN problem p ON (t.problem_id=p.id AND p.hidden=0)) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name, t.date, u.id, u.firstname, u.lastname, t.grade ORDER BY t.date DESC, t.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
 		ps.setInt(2, regionId);
@@ -280,8 +280,7 @@ public class BuldreinfoRepository {
 			int idUser = rst.getInt("id_user");
 			String user = rst.getString("user");
 			int grade = rst.getInt("grade");
-			int typeId = rst.getInt("type_id");
-			res.addAscent(idProblem, problem, GradeHelper.intToString(regionId, grade), date, idUser, user, typeId);
+			res.addAscent(idProblem, problem, GradeHelper.intToString(regionId, grade), date, idUser, user);
 		}
 		rst.close();
 		ps.close();
@@ -289,10 +288,10 @@ public class BuldreinfoRepository {
 		/**
 		 * FAs
 		 */
-		sqlStr = "SELECT a.id id_area, a.name area, s.id id_sector, s.name sector, p.id, p.name, DATE_FORMAT(p.fa_date,'%y-%m-%d') date, p.grade, ty.id type_id"
-				+ " FROM ((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id AND p.hidden=0) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
+		sqlStr = "SELECT a.id id_area, a.name area, s.id id_sector, s.name sector, p.id, p.name, DATE_FORMAT(p.fa_date,'%y-%m-%d') date, p.grade"
+				+ " FROM (((((problem p INNER JOIN sector s ON p.sector_id=s.id AND p.hidden=0) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL)"
-				+ " GROUP BY a.id, a.name, s.id, s.name, p.id, p.name, p.fa_date, p.grade, ty.id"
+				+ " GROUP BY a.id, a.name, s.id, s.name, p.id, p.name, p.fa_date, p.grade"
 				+ " ORDER BY p.fa_date DESC, p.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
@@ -308,8 +307,7 @@ public class BuldreinfoRepository {
 			String problem = rst.getString("name");
 			String date = rst.getString("date");
 			int grade = rst.getInt("grade");
-			int typeId = rst.getInt("type_id");
-			res.addFa(idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(regionId, grade), date, typeId);
+			res.addFa(idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(regionId, grade), date);
 		}
 		rst.close();
 		ps.close();
