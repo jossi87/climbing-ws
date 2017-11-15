@@ -1346,7 +1346,9 @@ public class BuldreinfoRepository {
 
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
-		Preconditions.checkArgument((idProblem == 0 && idSector > 0) || (idProblem > 0 && idSector == 0));
+		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
+				|| (idProblem == 0 && idSector > 0 && idArea == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea > 0));
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
 			 * DB
