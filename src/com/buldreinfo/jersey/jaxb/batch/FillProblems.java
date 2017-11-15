@@ -138,14 +138,14 @@ public class FillProblems {
 		c.getBuldreinfoRepo().setProblem(TOKEN, REGION_ID, p, null);
 	}
 	
-	private int upsertArea(DbConnection c, Data d) throws IOException, SQLException, NoSuchAlgorithmException {
+	private int upsertArea(DbConnection c, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException {
 		for (Area a : c.getBuldreinfoRepo().getAreaList(TOKEN, REGION_ID)) {
 			if (a.getName().equals(d.getArea())) {
 				return a.getId();
 			}
 		}
-		Area a = new Area(REGION_ID, -1, 0, d.getArea(), null, 0, 0, -1);
-		a = c.getBuldreinfoRepo().setArea(TOKEN, a);
+		Area a = new Area(REGION_ID, -1, 0, d.getArea(), null, 0, 0, -1, null, null);
+		a = c.getBuldreinfoRepo().setArea(TOKEN, a, null);
 		return a.getId();
 	}
 

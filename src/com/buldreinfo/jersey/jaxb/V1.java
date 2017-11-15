@@ -315,13 +315,15 @@ public class V1 {
 	
 	@POST
 	@Path("/areas")
+	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAreas(@CookieParam(COOKIE_NAME) Cookie cookie, Area a) throws ExecutionException, IOException {
+	public Response postAreas(@CookieParam(COOKIE_NAME) Cookie cookie, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
+		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			Preconditions.checkArgument(a.getRegionId() > 0);
-			a = c.getBuldreinfoRepo().setArea(token, a);
+			a = c.getBuldreinfoRepo().setArea(token, a, multiPart);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {

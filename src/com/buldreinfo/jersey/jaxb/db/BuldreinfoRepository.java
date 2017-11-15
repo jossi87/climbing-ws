@@ -170,7 +170,8 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-			a = new Area(regionId, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1);
+			List<Media> media = getMediaArea(reqId);
+			a = new Area(regionId, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, media, null);
 		}
 		rst.close();
 		ps.close();
@@ -212,7 +213,7 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 			int numSectors = rst.getInt("num_sectors");
-			res.add(new Area(idRegion, id, visibility, name, comment, l.getLat(), l.getLng(), numSectors));
+			res.add(new Area(idRegion, id, visibility, name, comment, l.getLat(), l.getLng(), numSectors, null, null));
 		}
 		rst.close();
 		ps.close();
@@ -716,7 +717,8 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
-			List<Media> media = getMediaSector(reqId);
+			List<Media> media = getMediaArea(areaId);
+			media.addAll(getMediaSector(reqId));
 			s = new Sector(areaId, areaVisibility, areaName, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
 		}
 		rst.close();
@@ -908,7 +910,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public Area setArea(String token, Area a) throws NoSuchAlgorithmException, SQLException, IOException {
+	public Area setArea(String token, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Permission auth = getPermission(token, null, null);
 		if (auth == null || !auth.getAdminRegionIds().contains(a.getRegionId())) {
 			throw new SQLException("Insufficient credentials");
@@ -1001,6 +1003,14 @@ public class BuldreinfoRepository {
 		if (idArea == -1) {
 			throw new SQLException("idArea == -1");
 		}
+		// New media
+		if (a.getNewMedia() != null) {
+			for (NewMedia m : a.getNewMedia()) {
+				final int idProblem = 0;
+				final int idSector = 0;
+				addNewMedia(getLoggedInUserId(token), idProblem, idSector, a.getId(), m, multiPart);
+			}
+		}
 		return getArea(auth.getToken(), idArea);
 	}
 
@@ -1086,7 +1096,8 @@ public class BuldreinfoRepository {
 		if (p.getNewMedia() != null) {
 			for (NewMedia m : p.getNewMedia()) {
 				final int idSector = 0;
-				addNewMedia(getLoggedInUserId(token), idProblem, idSector, m, multiPart);
+				final int idArea = 0;
+				addNewMedia(getLoggedInUserId(token), idProblem, idSector, idArea, m, multiPart);
 			}
 		}
 		// FA
@@ -1238,7 +1249,8 @@ public class BuldreinfoRepository {
 		if (s.getNewMedia() != null) {
 			for (NewMedia m : s.getNewMedia()) {
 				final int idProblem = 0;
-				addNewMedia(getLoggedInUserId(token), idProblem, idSector, m, multiPart);
+				final int idArea = 0;
+				addNewMedia(getLoggedInUserId(token), idProblem, idSector, idArea, m, multiPart);
 			}
 		}
 		return getSector(token, regionId, idSector);
@@ -1327,8 +1339,8 @@ public class BuldreinfoRepository {
 		return null;
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int idSector, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
-		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, m={}) initialized", idUser, idProblem, idSector, m);
+	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem == 0 && idSector > 0) || (idProblem > 0 && idSector == 0));
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
@@ -1362,6 +1374,14 @@ public class BuldreinfoRepository {
 				ps = c.getConnection().prepareStatement("INSERT INTO media_sector (media_id, sector_id) VALUES (?, ?)");
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idSector);
+				ps.execute();
+				ps.close();
+				ps = null;
+			}
+			else if (idArea > 0) {
+				ps = c.getConnection().prepareStatement("INSERT INTO media_area (media_id, area_id) VALUES (?, ?)");
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idArea);
 				ps.execute();
 				ps.close();
 				ps = null;
@@ -1558,6 +1578,30 @@ public class BuldreinfoRepository {
 	private List<Media> getMediaSector(int id) throws SQLException {
 		List<Media> media = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		ps.setInt(1, id);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			if (media == null) {
+				media = new ArrayList<>();
+			}
+			int itId = rst.getInt("id");
+			int tyId = rst.getBoolean("is_movie")? 2 : 1;
+			String creator = rst.getString("creator");
+			String inPhoto = rst.getString("in_photo");
+			String description = "photographer: " + creator;
+			if (!Strings.isNullOrEmpty(inPhoto)) {
+				description += ", in photo: " + inPhoto;
+			}
+			media.add(new Media(itId, description, tyId, null));
+		}
+		rst.close();
+		ps.close();
+		return media;
+	}
+	
+	private List<Media> getMediaArea(int id) throws SQLException {
+		List<Media> media = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {

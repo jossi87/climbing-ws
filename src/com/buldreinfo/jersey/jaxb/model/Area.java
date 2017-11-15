@@ -92,8 +92,10 @@ public class Area {
 	private final double lng;
 	private final int numSectors;
 	private final List<Sector> sectors;
+	private final List<Media> media;
+	private final List<NewMedia> newMedia;
 	
-	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors) {
+	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, List<Media> media, List<NewMedia> newMedia) {
 		this.regionId = regionId;
 		this.id = id;
 		this.visibility = visibility;
@@ -103,6 +105,8 @@ public class Area {
 		this.lng = lng;
 		this.numSectors = numSectors;
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
+		this.media = media;
+		this.newMedia = newMedia;
 	}
 
 	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems) {
@@ -112,7 +116,7 @@ public class Area {
 	public String getComment() {
 		return comment;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -120,13 +124,21 @@ public class Area {
 	public double getLat() {
 		return lat;
 	}
-	
+
 	public double getLng() {
 		return lng;
 	}
 	
+	public List<Media> getMedia() {
+		return media;
+	}
+	
 	public String getName() {
 		return name;
+	}
+	
+	public List<NewMedia> getNewMedia() {
+		return newMedia;
 	}
 	
 	public int getNumSectors() {
