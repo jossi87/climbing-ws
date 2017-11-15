@@ -171,6 +171,9 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 			List<Media> media = getMediaArea(reqId);
+			if (media.isEmpty()) {
+				media = null;
+			}
 			a = new Area(regionId, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, media, null);
 		}
 		rst.close();
@@ -718,11 +721,9 @@ public class BuldreinfoRepository {
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
 			List<Media> media = getMediaArea(areaId);
-			if (media == null) {
-				media = getMediaSector(reqId);
-			}
-			else {
-				media.addAll(getMediaSector(reqId));
+			media.addAll(getMediaSector(reqId));
+			if (media.isEmpty()) {
+				media = null;
 			}
 			s = new Sector(areaId, areaVisibility, areaName, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
 		}
@@ -1583,14 +1584,11 @@ public class BuldreinfoRepository {
 	}
 
 	private List<Media> getMediaSector(int id) throws SQLException {
-		List<Media> media = null;
+		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			if (media == null) {
-				media = new ArrayList<>();
-			}
 			int itId = rst.getInt("id");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String creator = rst.getString("creator");
@@ -1607,14 +1605,11 @@ public class BuldreinfoRepository {
 	}
 	
 	private List<Media> getMediaArea(int id) throws SQLException {
-		List<Media> media = null;
+		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			if (media == null) {
-				media = new ArrayList<>();
-			}
 			int itId = rst.getInt("id");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String creator = rst.getString("creator");
