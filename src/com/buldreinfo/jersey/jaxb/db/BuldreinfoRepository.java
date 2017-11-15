@@ -718,7 +718,12 @@ public class BuldreinfoRepository {
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
 			List<Media> media = getMediaArea(areaId);
-			media.addAll(getMediaSector(reqId));
+			if (media == null) {
+				media = getMediaSector(reqId);
+			}
+			else {
+				media.addAll(getMediaSector(reqId));
+			}
 			s = new Sector(areaId, areaVisibility, areaName, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
 		}
 		rst.close();
