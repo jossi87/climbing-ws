@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.mail.MessagingException;
@@ -523,7 +524,7 @@ public class BuldreinfoRepository {
 			int numTicks = rst.getInt("num_ticks");
 			double stars = rst.getDouble("stars");
 			boolean ticked = rst.getBoolean("ticked");
-			List<Media> media = getMediaProblem(id);
+			List<Media> media = getMediaProblem(sectorId, id);
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
 		}
@@ -722,7 +723,7 @@ public class BuldreinfoRepository {
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
 			List<Media> media = getMediaArea(areaId);
-			media.addAll(getMediaSector(reqId));
+			media.addAll(getMediaSector(reqId, 0));
 			if (media.isEmpty()) {
 				media = null;
 			}
@@ -1580,15 +1581,12 @@ public class BuldreinfoRepository {
 		return media;
 	}
 
-	private List<Media> getMediaProblem(int id) throws SQLException {
-		List<Media> media = null;
+	private List<Media> getMediaProblem(int sectorId, int problemId) throws SQLException {
+		List<Media> media = getMediaSector(sectorId, problemId).stream().filter(m -> !m.getSvgs().isEmpty()).collect(Collectors.toList());
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
-		ps.setInt(1, id);
+		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			if (media == null) {
-				media = new ArrayList<>();
-			}
 			int itId = rst.getInt("id");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String t = rst.getString("t");
@@ -1598,17 +1596,20 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, t, getSvgs(itId, id)));
+			media.add(new Media(itId, description, tyId, t, null));
 		}
 		rst.close();
 		ps.close();
+		if (media.isEmpty()) {
+			media = null;
+		}
 		return media;
 	}
 	
-	private List<Media> getMediaSector(int id) throws SQLException {
+	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
-		ps.setInt(1, id);
+		ps.setInt(1, idSector);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
@@ -1619,7 +1620,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, null, getSvgs(itId, 0)));
+			media.add(new Media(itId, description, tyId, null, getSvgs(itId, optionalIdProblem)));
 		}
 		rst.close();
 		ps.close();
@@ -1628,7 +1629,7 @@ public class BuldreinfoRepository {
 	
 	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.path_d, s.text_transform FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.width, s.height, s.text_transform, s.line_path_d, s.top_path_d FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
 		ps.setInt(1, idMedia);
 		if (optionalIdProblem > 0) {
 			ps.setInt(2, optionalIdProblem);
@@ -1644,9 +1645,12 @@ public class BuldreinfoRepository {
 				res = new ArrayList<>();
 			}
 			int nr = rst.getInt("nr");
-			String pathD = rst.getString("path_d");
+			int width = rst.getInt("width");
+			int height = rst.getInt("height");
 			String textTransform = rst.getString("text_transform");
-			res.add(new Svg(nr, pathD, textTransform));
+			String linePathD = rst.getString("line_path_d");
+			String topPathD = rst.getString("top_path_d");
+			res.add(new Svg(nr, width, height, textTransform, linePathD, topPathD));
 		}
 		rst.close();
 		ps.close();
