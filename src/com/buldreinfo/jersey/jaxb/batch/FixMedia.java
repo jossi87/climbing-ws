@@ -33,13 +33,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-public class FixMovies {
+public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
 	private final Path root = Paths.get("G:/gdrive/buldreinfo/buldreinfo_media");
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			FixMovies service = new FixMovies();
+			FixMedia service = new FixMedia();
 			//			// Add movie
 			//			final int idUploaderUserId = 1;			
 			//			Path src = Paths.get("C:/Users/joste_000/Desktop/new/.mp4");
@@ -56,7 +56,7 @@ public class FixMovies {
 		}
 	}
 
-	public FixMovies() {
+	public FixMedia() {
 	}
 
 	public void addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
@@ -113,12 +113,14 @@ public class FixMovies {
 
 	private void fixMovies(Connection c) throws Exception {
 		List<Path> keep = new ArrayList<>();
-		PreparedStatement ps = c.prepareStatement("SELECT id, suffix, is_movie FROM media");
+		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie FROM media");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			final int id = rst.getInt(1);
-			final String suffix = rst.getString(2);
-			final boolean isMovie = rst.getBoolean(3);
+			final int id = rst.getInt("id");
+			final int width = rst.getInt("width");
+			final int height = rst.getInt("height");
+			final String suffix = rst.getString("suffix");
+			final boolean isMovie = rst.getBoolean("is_movie");
 			final Path original = root.resolve("original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
 			final Path jpg = root.resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
 			final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
@@ -183,6 +185,17 @@ public class FixMovies {
 					g.dispose();
 					ImageIO.write(b, "jpg", jpg.toFile());
 					Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
+				}
+			}
+			else {
+				if (width == 0 || height == 0) {
+					BufferedImage b = ImageIO.read(original.toFile());
+					ps = c.prepareStatement("UPDATE media SET width=?, height=? WHERE id=?");
+					ps.setInt(1, b.getWidth());
+					ps.setInt(2, b.getHeight());
+					ps.setInt(3, id);
+					ps.execute();
+					ps.close();
 				}
 			}
 			Preconditions.checkArgument(Files.exists(jpg), jpg.toString() + " does not exist");
