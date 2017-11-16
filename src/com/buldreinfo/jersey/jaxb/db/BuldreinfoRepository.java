@@ -1582,7 +1582,7 @@ public class BuldreinfoRepository {
 	}
 
 	private List<Media> getMediaProblem(int sectorId, int problemId) throws SQLException {
-		List<Media> media = getMediaSector(sectorId, problemId).stream().filter(m -> !m.getSvgs().isEmpty()).collect(Collectors.toList());
+		List<Media> media = getMediaSector(sectorId, problemId).stream().filter(m -> m.getSvgs() != null && !m.getSvgs().isEmpty()).collect(Collectors.toList());
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
