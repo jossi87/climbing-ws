@@ -1449,18 +1449,8 @@ public class BuldreinfoRepository {
 				}
 			}
 			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-			// Create scaled jpg and webp
-			int crc32 = createScaledImages(idMedia, suffix);
-
-			/**
-			 * Final DB
-			 */
-			ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=? WHERE id=?");
-			ps.setString(1, getDateTaken(p));
-			ps.setInt(2, crc32);
-			ps.setInt(3, idMedia);
-			ps.execute();
-			ps.close();
+			// Create scaled jpg and webp + update crc32 and dimentions in db
+			createScaledImages(c, getDateTaken(p), idMedia, suffix);
 
 			return idMedia;
 		}
@@ -1485,7 +1475,7 @@ public class BuldreinfoRepository {
 		return idUser;
 	}
 
-	private int createScaledImages(int id, String suffix) throws IOException, InterruptedException {
+	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
 		final Path original = Paths.get("/home/jossi/buldreinfo_media/original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
 		final Path webp = Paths.get("/home/jossi/buldreinfo_media/web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
 		final Path jpg = Paths.get("/home/jossi/buldreinfo_media/web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
@@ -1496,6 +1486,8 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(!Files.exists(jpg), jpg.toString() + " does already exist");
 		// Scaled JPG
 		BufferedImage bOriginal = ImageIO.read(original.toFile());
+		final int width = bOriginal.getWidth();
+		final int height = bOriginal.getHeight();
 		BufferedImage bScaled = Scalr.resize(bOriginal, 1920, Scalr.OP_ANTIALIAS);
 		logger.debug("createScaledImages(original={}) - jpg={}, bOriginal={}, bScaled={}", original, jpg, bOriginal, bScaled);
 		ImageIO.write(bScaled, "jpg", jpg.toFile());
@@ -1509,7 +1501,19 @@ public class BuldreinfoRepository {
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
-		return com.google.common.io.Files.hash(webp.toFile(), Hashing.crc32()).asInt();
+		final int crc32 = com.google.common.io.Files.hash(webp.toFile(), Hashing.crc32()).asInt();
+		
+		/**
+		 * Final DB
+		 */
+		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?");
+		ps.setString(1, dateTaken);
+		ps.setInt(2, crc32);
+		ps.setInt(3, width);
+		ps.setInt(4, height);
+		ps.setInt(5, id);
+		ps.execute();
+		ps.close();
 	}
 
 	private String getDateTaken(Path p) {
@@ -1562,11 +1566,13 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaArea(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int width = rst.getInt("width");
+			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String creator = rst.getString("creator");
 			String inPhoto = rst.getString("in_photo");
@@ -1574,7 +1580,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, null, null));
+			media.add(new Media(itId, width, height, description, tyId, null, null));
 		}
 		rst.close();
 		ps.close();
@@ -1583,11 +1589,13 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaProblem(int sectorId, int problemId) throws SQLException {
 		List<Media> media = getMediaSector(sectorId, problemId).stream().filter(m -> m.getSvgs() != null && !m.getSvgs().isEmpty()).collect(Collectors.toList());
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int width = rst.getInt("width");
+			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String t = rst.getString("t");
 			String creator = rst.getString("creator");
@@ -1596,7 +1604,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, t, null));
+			media.add(new Media(itId, width, height, description, tyId, t, null));
 		}
 		rst.close();
 		ps.close();
@@ -1608,11 +1616,13 @@ public class BuldreinfoRepository {
 	
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, idSector);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int width = rst.getInt("width");
+			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String creator = rst.getString("creator");
 			String inPhoto = rst.getString("in_photo");
@@ -1620,7 +1630,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, null, getSvgs(itId, optionalIdProblem)));
+			media.add(new Media(itId, width, height, description, tyId, null, getSvgs(itId, optionalIdProblem)));
 		}
 		rst.close();
 		ps.close();
@@ -1629,7 +1639,7 @@ public class BuldreinfoRepository {
 	
 	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.width, s.height, s.text_transform, s.line_path_d, s.top_path_d FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.text_transform, s.line_path_d, s.top_path_d FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
 		ps.setInt(1, idMedia);
 		if (optionalIdProblem > 0) {
 			ps.setInt(2, optionalIdProblem);
@@ -1645,12 +1655,10 @@ public class BuldreinfoRepository {
 				res = new ArrayList<>();
 			}
 			int nr = rst.getInt("nr");
-			int width = rst.getInt("width");
-			int height = rst.getInt("height");
 			String textTransform = rst.getString("text_transform");
 			String linePathD = rst.getString("line_path_d");
 			String topPathD = rst.getString("top_path_d");
-			res.add(new Svg(nr, width, height, textTransform, linePathD, topPathD));
+			res.add(new Svg(nr, textTransform, linePathD, topPathD));
 		}
 		rst.close();
 		ps.close();
