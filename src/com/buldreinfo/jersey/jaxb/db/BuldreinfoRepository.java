@@ -54,6 +54,7 @@ import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -1558,6 +1559,27 @@ public class BuldreinfoRepository {
 		return userId;
 	}
 
+	private List<Media> getMediaArea(int id) throws SQLException {
+		List<Media> media = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		ps.setInt(1, id);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int itId = rst.getInt("id");
+			int tyId = rst.getBoolean("is_movie")? 2 : 1;
+			String creator = rst.getString("creator");
+			String inPhoto = rst.getString("in_photo");
+			String description = "photographer: " + creator;
+			if (!Strings.isNullOrEmpty(inPhoto)) {
+				description += ", in photo: " + inPhoto;
+			}
+			media.add(new Media(itId, description, tyId, null, null));
+		}
+		rst.close();
+		ps.close();
+		return media;
+	}
+
 	private List<Media> getMediaProblem(int id) throws SQLException {
 		List<Media> media = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
@@ -1576,13 +1598,13 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, t));
+			media.add(new Media(itId, description, tyId, t, getSvgs(itId, id)));
 		}
 		rst.close();
 		ps.close();
 		return media;
 	}
-
+	
 	private List<Media> getMediaSector(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
@@ -1597,32 +1619,38 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, description, tyId, null));
+			media.add(new Media(itId, description, tyId, null, getSvgs(itId, 0)));
 		}
 		rst.close();
 		ps.close();
 		return media;
 	}
 	
-	private List<Media> getMediaArea(int id) throws SQLException {
-		List<Media> media = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
-		ps.setInt(1, id);
+	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
+		List<Svg> res = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.path_d, s.text_transform FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
+		ps.setInt(1, idMedia);
+		if (optionalIdProblem > 0) {
+			ps.setInt(2, optionalIdProblem);
+			ps.setInt(3, optionalIdProblem);
+		}
+		else {
+			ps.setNull(2, Types.INTEGER);
+			ps.setNull(3, Types.INTEGER);
+		}
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			int itId = rst.getInt("id");
-			int tyId = rst.getBoolean("is_movie")? 2 : 1;
-			String creator = rst.getString("creator");
-			String inPhoto = rst.getString("in_photo");
-			String description = "photographer: " + creator;
-			if (!Strings.isNullOrEmpty(inPhoto)) {
-				description += ", in photo: " + inPhoto;
+			if (res == null) {
+				res = new ArrayList<>();
 			}
-			media.add(new Media(itId, description, tyId, null));
+			int nr = rst.getInt("nr");
+			String pathD = rst.getString("path_d");
+			String textTransform = rst.getString("path_transform");
+			res.add(new Svg(nr, pathD, textTransform));
 		}
 		rst.close();
 		ps.close();
-		return media;
+		return res;
 	}
 
 	private String hashPassword(String password) throws NoSuchAlgorithmException {
