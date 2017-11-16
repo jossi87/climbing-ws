@@ -196,6 +196,7 @@ public class FixMedia {
 					ps.setInt(3, id);
 					ps.execute();
 					ps.close();
+					b.flush();
 				}
 			}
 			Preconditions.checkArgument(Files.exists(jpg), jpg.toString() + " does not exist");
