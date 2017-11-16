@@ -1645,7 +1645,7 @@ public class BuldreinfoRepository {
 			}
 			int nr = rst.getInt("nr");
 			String pathD = rst.getString("path_d");
-			String textTransform = rst.getString("path_transform");
+			String textTransform = rst.getString("text_transform");
 			res.add(new Svg(nr, pathD, textTransform));
 		}
 		rst.close();
