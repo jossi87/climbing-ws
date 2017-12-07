@@ -102,7 +102,7 @@ public class GradeHelper {
 		while (res == null && i < Collections.max(grades.keySet())) {
 			res = grades.get(++i);
 		}
-		return Preconditions.checkNotNull(getGrades(regionId).get(grade), "Invalid grade=" + grade + " (regionId=" + regionId + ")");
+		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (regionId=" + regionId + ")");
 	}
 
 	public static int stringToInt(int regionId, String grade) throws SQLException {
