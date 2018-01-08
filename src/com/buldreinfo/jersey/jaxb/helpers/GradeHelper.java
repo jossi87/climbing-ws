@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -94,8 +95,14 @@ public class GradeHelper {
 		return ImmutableBiMap.copyOf(map);
 	}
 
-	public static String intToString(int regionId, int grade) throws SQLException {
-		return Preconditions.checkNotNull(getGrades(regionId).get(grade), "Invalid grade=" + grade + " (regionId=" + regionId + ")");
+	public static String intToString(int regionId, int grade) {
+		ImmutableBiMap<Integer, String> grades = getGrades(regionId);
+		String res = grades.get(grade);
+		int i = grade;
+		while (res == null && i < Collections.max(grades.keySet())) {
+			res = grades.get(++i);
+		}
+		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (regionId=" + regionId + ")");
 	}
 
 	public static int stringToInt(int regionId, String grade) throws SQLException {
