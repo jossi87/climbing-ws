@@ -134,7 +134,7 @@ public class FillProblems {
 		logger.debug("insert {}", d);
 		List<FaUser> fa = getFas(c, d.getFa());
 		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
-		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), fa, 0, 0, null, 0, 0, false, null, t);
+		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, 0, 0, null, 0, 0, false, null, t);
 		c.getBuldreinfoRepo().setProblem(TOKEN, REGION_ID, p, null);
 	}
 	

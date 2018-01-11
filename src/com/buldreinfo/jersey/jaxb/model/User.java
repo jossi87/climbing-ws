@@ -11,17 +11,19 @@ public class User {
 		private final String name;
 		private final String comment;
 		private final String date;
+		private final String dateHr;
 		private final double stars;
 		private final boolean fa;
 		private final String grade;
 
-		public Tick(int id, int idProblem, int visibility, String name, String comment, String date, double stars, boolean fa, String grade) {
+		public Tick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade) {
 			this.id = id;
 			this.idProblem = idProblem;
 			this.visibility = visibility;
 			this.name = name;
 			this.comment = comment;
 			this.date = date;
+			this.dateHr = dateHr;
 			this.stars = stars;
 			this.fa = fa;
 			this.grade = grade;
@@ -33,6 +35,10 @@ public class User {
 		
 		public String getDate() {
 			return date;
+		}
+		
+		public String getDateHr() {
+			return dateHr;
 		}
 
 		public String getGrade() {
@@ -90,8 +96,8 @@ public class User {
 		this.numVideoTags = numVideoTags;
 	}
 	
-	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, double stars, boolean fa, String grade) {
-		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, stars, fa, grade));
+	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade) {
+		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade));
 	}
 	
 	public int getId() {

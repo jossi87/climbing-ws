@@ -99,6 +99,7 @@ public class Problem {
 	private final String grade;
 	private final String originalGrade;
 	private final String faDate;
+	private final String faDateHr;
 	private final List<FaUser> fa;
 	private final double lat;
 	private final double lng;
@@ -111,7 +112,7 @@ public class Problem {
 	private final List<NewMedia> newMedia;
 	private final Type t;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -128,6 +129,7 @@ public class Problem {
 		this.grade = grade;
 		this.originalGrade = originalGrade;
 		this.faDate = faDate;
+		this.faDateHr = faDateHr;
 		this.fa = fa;
 		this.lat = lat;
 		this.lng = lng;
@@ -175,6 +177,10 @@ public class Problem {
 	
 	public String getFaDate() {
 		return faDate;
+	}
+	
+	public String getFaDateHr() {
+		return faDateHr;
 	}
 
 	public String getGrade() {

@@ -474,7 +474,7 @@ public class BuldreinfoRepository {
 		else {
 			condition = "p.id=?";
 		}
-		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date,"
+		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
@@ -516,6 +516,7 @@ public class BuldreinfoRepository {
 			int grade = rst.getInt("grade");
 			int originalGrade = rst.getInt("original_grade");
 			String faDate = rst.getString("fa_date");
+			String faDateHr = rst.getString("fa_date_hr");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
 			String faStr = rst.getString("fa");
@@ -526,7 +527,7 @@ public class BuldreinfoRepository {
 			boolean ticked = rst.getBoolean("ticked");
 			List<Media> media = getMediaProblem(sectorId, id);
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
+			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, faDateHr, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
 		}
 		rst.close();
 		ps.close();
@@ -822,7 +823,7 @@ public class BuldreinfoRepository {
 			return res;
 		}
 
-		sqlStr = "SELECT t.id id_tick, p.id id_problem, p.hidden, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL THEN p.fa_date ELSE t.date END,'%d-%m/%y') date, t.stars stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
+		sqlStr = "SELECT t.id id_tick, p.id id_problem, p.hidden, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL THEN p.fa_date ELSE t.date END,'%y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, t.stars stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
 				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.user_id=?)) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)"
@@ -844,10 +845,11 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			String comment = rst.getString("comment");
 			String date = rst.getString("date");
+			String dateHr = rst.getString("date_hr");
 			double stars = rst.getDouble("stars");
 			boolean fa = rst.getBoolean("fa");
 			int grade = rst.getInt("grade");
-			res.addTick(id, idProblem, visibility, name, comment, date, stars, fa, GradeHelper.intToString(regionId, grade));
+			res.addTick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(regionId, grade));
 		}
 		rst.close();
 		ps.close();
