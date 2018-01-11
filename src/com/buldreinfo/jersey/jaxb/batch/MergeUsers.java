@@ -8,8 +8,8 @@ import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 
 public class MergeUsers {
 	// SELECT * FROM user WHERE concat(firstname, ' ', lastname) IN (SELECT concat(firstname, ' ', lastname) FROM user GROUP BY concat(firstname, ' ', lastname) HAVING COUNT(concat(firstname, ' ', lastname))>1) ORDER BY concat(firstname, ' ', lastname), id;
-	private final static int USER_ID_KEEP = -1;
-	private final static int USER_ID_DELETE = -2;
+	private final static int USER_ID_KEEP = 1246;
+	private final static int USER_ID_DELETE = 1876;
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
