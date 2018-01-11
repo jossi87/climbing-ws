@@ -269,8 +269,8 @@ public class Problem {
 				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
 				+ ", sectorLat=" + sectorLat + ", sectorLng=" + sectorLng + ", id=" + id + ", visibility=" + visibility
 				+ ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade=" + grade + ", originalGrade="
-				+ originalGrade + ", faDate=" + faDate + ", fa=" + fa + ", lat=" + lat + ", lng=" + lng + ", media="
-				+ media + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked=" + ticked + ", ticks=" + ticks
-				+ ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t + "]";
+				+ originalGrade + ", faDate=" + faDate + ", faDateHr=" + faDateHr + ", fa=" + fa + ", lat=" + lat
+				+ ", lng=" + lng + ", media=" + media + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked="
+				+ ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t + "]";
 	}
 }

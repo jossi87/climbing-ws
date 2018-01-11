@@ -15,8 +15,9 @@ public class User {
 		private final double stars;
 		private final boolean fa;
 		private final String grade;
+		private final int gradeNumber;
 
-		public Tick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade) {
+		public Tick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 			this.id = id;
 			this.idProblem = idProblem;
 			this.visibility = visibility;
@@ -27,6 +28,7 @@ public class User {
 			this.stars = stars;
 			this.fa = fa;
 			this.grade = grade;
+			this.gradeNumber = gradeNumber;
 		}
 
 		public String getComment() {
@@ -43,6 +45,10 @@ public class User {
 
 		public String getGrade() {
 			return grade;
+		}
+		
+		public int getGradeNumber() {
+			return gradeNumber;
 		}
 
 		public int getId() {
@@ -72,8 +78,8 @@ public class User {
 		@Override
 		public String toString() {
 			return "Tick [id=" + id + ", idProblem=" + idProblem + ", visibility=" + visibility + ", name=" + name
-					+ ", comment=" + comment + ", date=" + date + ", stars=" + stars + ", fa=" + fa + ", grade=" + grade
-					+ "]";
+					+ ", comment=" + comment + ", date=" + date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa="
+					+ fa + ", grade=" + grade + ", gradeNumber=" + gradeNumber + "]";
 		}
 	}
 
@@ -96,8 +102,8 @@ public class User {
 		this.numVideoTags = numVideoTags;
 	}
 	
-	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade) {
-		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade));
+	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
 	public int getId() {

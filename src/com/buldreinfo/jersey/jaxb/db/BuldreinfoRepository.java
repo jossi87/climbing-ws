@@ -849,7 +849,7 @@ public class BuldreinfoRepository {
 			double stars = rst.getDouble("stars");
 			boolean fa = rst.getBoolean("fa");
 			int grade = rst.getInt("grade");
-			res.addTick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(regionId, grade));
+			res.addTick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(regionId, grade), grade);
 		}
 		rst.close();
 		ps.close();
