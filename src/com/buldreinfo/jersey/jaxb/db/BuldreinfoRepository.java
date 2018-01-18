@@ -265,7 +265,7 @@ public class BuldreinfoRepository {
 		/**
 		 * RandomMedia
 		 */
-		setRandomMedia(res, token, regionId, false);
+		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
 		if (res.getRandomMedia() == null) {
 			setRandomMedia(res, token, regionId, true);
 		}
@@ -1688,7 +1688,7 @@ public class BuldreinfoRepository {
 				+ " HAVING AVG(t.stars)>=2"
 				+ " ORDER BY rand()"
 				+ " LIMIT 1";
-		if (fallbackSolution || regionId == 4) {
+		if (fallbackSolution) {
 			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
 			sqlStr = sqlStr.replace("HAVING AVG(t.stars)>=2", "");
 		}
