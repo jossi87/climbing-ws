@@ -1688,7 +1688,7 @@ public class BuldreinfoRepository {
 				+ " HAVING AVG(t.stars)>=2"
 				+ " ORDER BY rand()"
 				+ " LIMIT 1";
-		if (fallbackSolution) {
+		if (fallbackSolution || regionId == 4) {
 			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
 			sqlStr = sqlStr.replace("HAVING AVG(t.stars)>=2", "");
 		}
