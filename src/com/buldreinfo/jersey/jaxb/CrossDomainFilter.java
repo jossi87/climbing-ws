@@ -18,7 +18,13 @@ import jersey.repackaged.com.google.common.collect.Lists;
 @Priority(Priorities.HEADER_DECORATOR)
 public class CrossDomainFilter implements ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
-	private static List<String> LEGAL_ORIGINS = Lists.newArrayList("https://buldreinfo.com", "https://buldring.bergen-klatreklubb.no", "https://sis.buldreinfo.com", "https://buldring.fredrikstadklatreklubb.org");
+	private static List<String> LEGAL_ORIGINS = Lists.newArrayList(
+			"https://buldreinfo.com",
+			"https://buldring.bergen-klatreklubb.no",
+			"https://buldring.fredrikstadklatreklubb.org",
+			"https://sis.buldreinfo.com",
+			"https://brattelinjer.no",
+			"https://jossi.org");
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
