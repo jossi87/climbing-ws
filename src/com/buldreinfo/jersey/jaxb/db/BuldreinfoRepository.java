@@ -1414,7 +1414,9 @@ public class BuldreinfoRepository {
 			long ms = System.currentTimeMillis();
 
 			// Save received file
-			final Path original = Paths.get(PATH + "temp").resolve(ms + "_" + m.getName());
+			Path original = Paths.get(PATH + "temp");
+			Files.createDirectories(original);
+			original = original.resolve(ms + "_" + m.getName());
 			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
 			Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
 			Files.copy(is, original);
