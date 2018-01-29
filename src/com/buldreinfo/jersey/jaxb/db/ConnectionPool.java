@@ -8,7 +8,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 public class ConnectionPool {
-	private static final String HOST = "127.0.0.1";
+	private static final String HOST = "45.56.87.57";
 	private static final String DATABASE = "buldreinfo";
 	private static final String USER = "buldreinfo";
 	private static final String PASSWORD = "5459OoiwqQwerJgfg12_224WrejvJqGhhJ";
