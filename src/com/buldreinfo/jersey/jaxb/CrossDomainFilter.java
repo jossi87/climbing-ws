@@ -24,7 +24,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			"https://buldring.fredrikstadklatreklubb.org",
 			"https://sis.buldreinfo.com",
 			"https://brattelinjer.no",
-			"https://jossi.org");
+			"https://dev.jossi.org");
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
