@@ -78,6 +78,7 @@ import com.verico.pictures.ThumbnailCreation;
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 public class BuldreinfoRepository {
+	private static final String PATH = "/mnt/media/";
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 	private final Gson gson = new Gson();
@@ -364,10 +365,10 @@ public class BuldreinfoRepository {
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
-			p = Paths.get("/home/jossi/buldreinfo_media/web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");		
+			p = Paths.get(PATH + "web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");		
 		}
 		else {
-			p = Paths.get("/home/jossi/buldreinfo_media/web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
+			p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
 		}
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
@@ -376,10 +377,10 @@ public class BuldreinfoRepository {
 	public OpenGraphImage getImage(int idMedia) {
 		OpenGraphImage res = null;
 		try {
-			Path p = Paths.get("/home/jossi/buldreinfo_media/web/jpg").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + ".jpg");
+			Path p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + ".jpg");
 			if (Files.exists(p)) {
 				BufferedImage b = ImageIO.read(p.toFile());
-				String http = "http://jossi.org/buldreinfo_media/jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg";
+				String http = PATH + "jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg";
 				res = new OpenGraphImage(http, String.valueOf(b.getWidth()), String.valueOf(b.getHeight()));
 				b.flush();
 			}
@@ -1413,13 +1414,13 @@ public class BuldreinfoRepository {
 			long ms = System.currentTimeMillis();
 
 			// Save received file
-			final Path original = Paths.get("/home/jossi/buldreinfo_media/temp").resolve(ms + "_" + m.getName());
+			final Path original = Paths.get(PATH + "temp").resolve(ms + "_" + m.getName());
 			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
 			Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
 			Files.copy(is, original);
 			Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
 
-			final Path p = Paths.get("/home/jossi/buldreinfo_media/original").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + "." + suffix);
+			final Path p = Paths.get(PATH + "original").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + "." + suffix);
 			Files.createDirectories(p.getParent());
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 
@@ -1478,9 +1479,9 @@ public class BuldreinfoRepository {
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
-		final Path original = Paths.get("/home/jossi/buldreinfo_media/original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
-		final Path webp = Paths.get("/home/jossi/buldreinfo_media/web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
-		final Path jpg = Paths.get("/home/jossi/buldreinfo_media/web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
+		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
+		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
+		final Path jpg = Paths.get(PATH + "web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
 		Files.createDirectories(webp.getParent());
 		Files.createDirectories(jpg.getParent());
 		Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
