@@ -8,10 +8,10 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 public class ConnectionPool {
-	private static final String HOST = "192.168.0.3";
+	private static final String HOST = "45.56.87.57";
 	private static final String DATABASE = "buldreinfo";
-	private static final String USER = "map";
-	private static final String PASSWORD = "Fasdg32ad#!\"dfawrqQQq";
+	private static final String USER = "buldreinfo";
+	private static final String PASSWORD = "5459OoiwqQwerJgfg12_224WrejvJqGhhJ";
 	private final BasicDataSource bds;
 	
 	public ConnectionPool() {

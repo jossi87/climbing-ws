@@ -1,6 +1,0 @@
-SELECT * FROM tilbakeblikk.t_android_sync_location WHERE asl_treated=0
-
-UPDATE tilbakeblikk.t_android_sync_location asl, area a, sector s, problem p
-SET asl_treated=1, s.last_updated=now(), a.last_updated=now(), p.last_updated=now(), p.latitude=asl_lo_latitude, p.longitude=asl_lo_longitude
-WHERE asl_lo_id=p.android_id AND p.sector_id=s.id AND s.area_id=a.id
-AND asl_treated=0;
