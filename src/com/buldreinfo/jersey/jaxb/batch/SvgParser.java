@@ -3,8 +3,13 @@ package com.buldreinfo.jersey.jaxb.batch;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,8 +19,7 @@ public class SvgParser {
 		private String nr;
 		private String nrTransform;
 		private String route;
-		private String ringNr;
-		private String ringTop;
+		private final Map<Float, String> rings = new TreeMap<>();
 		public Svg() {
 		}
 		public String getNr() {
@@ -30,17 +34,8 @@ public class SvgParser {
 		public void setRoute(String route) {
 			this.route = route;
 		}
-		public String getRingNr() {
-			return ringNr;
-		}
-		public void setRingNr(String ringNr) {
-			this.ringNr = ringNr;
-		}
-		public String getRingTop() {
-			return ringTop;
-		}
-		public void setRingTop(String ringTop) {
-			this.ringTop = ringTop;
+		public Map<Float, String> getRings() {
+			return rings;
 		}
 		public String getNrTransform() {
 			return nrTransform;
@@ -76,13 +71,15 @@ public class SvgParser {
 					logger.debug("deltaW={}, deltaH={}", deltaW, deltaH);
 				}
 			}
+			else if (l.contains("<g>")) {
+				x = new Svg();
+			}
 			else {
 				/**
 				 * Route
 				 */
 				int ix = l.indexOf("<path class=\"route\" d=");
 				if (ix > 0) {
-					x = new Svg();
 					svgs.add(x);
 					String r = l.substring(ix+24);
 					int diff = 1;
@@ -90,7 +87,7 @@ public class SvgParser {
 						r += lines.get(i+(diff++)).trim();
 					}
 					r = r.replace("\"/>", "");
-					x.setRoute(scaleD(deltaW, deltaH, r));
+					x.setRoute(scaleD(deltaW, deltaH, r).getValue());
 				}
 				/**
 				 * Text
@@ -139,23 +136,20 @@ public class SvgParser {
 						r += lines.get(i+(diff++)).trim();
 					}
 					r = r.replace("\"/>", "");
-					if (x.getRingNr() == null) {
-						x.setRingNr(scaleD(deltaW, deltaH, r));
-					}
-					else {
-						x.setRingTop(scaleD(deltaW, deltaH, r));
-					}
+					Entry<Float, String> ring = scaleD(deltaW, deltaH, r);
+					x.getRings().put(ring.getKey(), ring.getValue());
 				}
 			}
 		}
-		
+		Collections.sort(svgs, (a, b) -> a.getNr().compareTo(b.getNr()));
 		for (Svg y : svgs) {
-			System.out.println(String.format("nr=%s, nrTransform=%s, route=%s, ringNr=%s, ringTop=%s", y.getNr(), y.getNrTransform(), y.getRoute(), y.getRingNr(), y.getRingTop()));
+			System.out.println(String.format("nr=%s, nrTransform=%s, route=%s, rings=%s", y.getNr(), y.getNrTransform(), y.getRoute(), y.getRings()));
 		}
 	}
 	
-	private String scaleD(float deltaW, float deltaH, String d) {
+	private Entry<Float, String> scaleD(float deltaW, float deltaH, String d) {
 		String m = "M";
+		float minY = Float.MAX_VALUE;
 		boolean isW = true;
 		String temp = "";
 		for (int j = 0; j < d.length(); j++) {
@@ -166,9 +160,12 @@ public class SvgParser {
 				if (temp.length()>0) {
 					float f = Float.parseFloat(temp);
 					f *= (isW? deltaW : deltaH);
-					isW = !isW;
 					m += String.valueOf(f < 0? 0 : f);
 					temp = "";
+					if (minY == Float.MAX_VALUE && !isW) {
+						minY = f;
+					}
+					isW = !isW;
 				}
 				m += d.charAt(j);
 			}
@@ -180,7 +177,7 @@ public class SvgParser {
 			m += String.valueOf(f < 0? 0 : f);
 			temp = "";
 		}
-		return m;
+		return new AbstractMap.SimpleEntry<>(minY, m);
 	}
 
 	public static void main(String[] args) throws Exception {
