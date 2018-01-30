@@ -375,13 +375,13 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public OpenGraphImage getImage(int idMedia) {
+	public OpenGraphImage getImage(String base, int idMedia) {
 		OpenGraphImage res = null;
 		try {
 			Path p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + ".jpg");
 			if (Files.exists(p)) {
 				BufferedImage b = ImageIO.read(p.toFile());
-				String http = PATH + "jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg";
+				String http = base + "/buldreinfo_media/jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg";
 				res = new OpenGraphImage(http, String.valueOf(b.getWidth()), String.valueOf(b.getHeight()));
 				b.flush();
 			}

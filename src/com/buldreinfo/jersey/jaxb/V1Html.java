@@ -73,7 +73,7 @@ public class V1Html {
 			Config conf = getConfig(base);
 			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, conf.getIdRegion());
 			String description = String.format("Total: %d | With coordinates: %d | Public ascents: %d | Images: %d | Ascents on video: %d", f.getNumProblems(), f.getNumProblemsWithCoordinates(), f.getNumTicks(), f.getNumImages(), f.getNumMovies());
-			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(f.getRandomMedia().getIdMedia());
+			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), f.getRandomMedia().getIdMedia());
 			c.setSuccess();
 			return Response.ok().entity(getHtml(conf.getBaseUrl(), conf.getTitle(), description, image)).build();
 		} catch (Exception e) {
@@ -95,7 +95,7 @@ public class V1Html {
 				name = p.getName() + " (" + p.getGrade() + ")";
 				description = p.getComment();
 				if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-					image = c.getBuldreinfoRepo().getImage(p.getMedia().get(0).getId());	
+					image = c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), p.getMedia().get(0).getId());	
 				}
 			}
 			c.setSuccess();
@@ -111,7 +111,7 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
 			Sector s = c.getBuldreinfoRepo().getSector(null, conf.getIdRegion(), id);
-			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(s.getMedia().get(0).getId()) : null;
+			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, conf.getTitle() + " | " + s.getName(), s.getComment(), image)).build();
 		} catch (Exception e) {
