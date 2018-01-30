@@ -1644,7 +1644,7 @@ public class BuldreinfoRepository {
 	
 	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.text_transform, s.line_path_d, s.top_path_d FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.nr, s.text_transform, s.line_path_d, s.top_path_d, s.nr_path_d FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
 		ps.setInt(1, idMedia);
 		if (optionalIdProblem > 0) {
 			ps.setInt(2, optionalIdProblem);
@@ -1663,7 +1663,8 @@ public class BuldreinfoRepository {
 			String textTransform = rst.getString("text_transform");
 			String linePathD = rst.getString("line_path_d");
 			String topPathD = rst.getString("top_path_d");
-			res.add(new Svg(nr, textTransform, linePathD, topPathD));
+			String nrPathD = rst.getString("nr_path_d");
+			res.add(new Svg(nr, textTransform, linePathD, topPathD, nrPathD));
 		}
 		rst.close();
 		ps.close();
