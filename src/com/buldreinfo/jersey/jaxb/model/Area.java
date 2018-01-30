@@ -91,11 +91,12 @@ public class Area {
 	private final double lat;
 	private final double lng;
 	private final int numSectors;
+	private final int numProblems;
 	private final List<Sector> sectors;
 	private final List<Media> media;
 	private final List<NewMedia> newMedia;
 	
-	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, List<Media> media, List<NewMedia> newMedia) {
+	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia) {
 		this.regionId = regionId;
 		this.id = id;
 		this.visibility = visibility;
@@ -104,6 +105,7 @@ public class Area {
 		this.lat = lat;
 		this.lng = lng;
 		this.numSectors = numSectors;
+		this.numProblems = numProblems;
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
 		this.newMedia = newMedia;
