@@ -85,7 +85,8 @@ public class V1Html {
 	@Path("/problems")
 	public Response getProblems(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, 0, id, 0);
+			Config conf = getConfig(base);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, conf.getIdRegion(), id, 0);
 			String name = "";
 			String description = "";
 			OpenGraphImage image = null;
@@ -98,7 +99,6 @@ public class V1Html {
 				}
 			}
 			c.setSuccess();
-			Config conf = getConfig(base);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/problem/" + id, conf.getTitle() + " | " + name, description, image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -109,10 +109,10 @@ public class V1Html {
 	@Path("/sectors")
 	public Response getSectors(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Sector s = c.getBuldreinfoRepo().getSector(null, 0, id);
+			Config conf = getConfig(base);
+			Sector s = c.getBuldreinfoRepo().getSector(null, conf.getIdRegion(), id);
 			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
-			Config conf = getConfig(base);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, conf.getTitle() + " | " + s.getName(), s.getComment(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
