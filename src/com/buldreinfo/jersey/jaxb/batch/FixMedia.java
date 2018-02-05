@@ -49,7 +49,10 @@ public class FixMedia {
 			//			List<Integer> inPhoto = Lists.newArrayList(,);
 			//			service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto);
 			// Create all formats and set checksum
-			service.fixMovies(c.getConnection());
+			List<String> warnings = service.fixMovies(c.getConnection());
+			for (String warning : warnings) {
+				logger.warn(warning);
+			}
 			c.setSuccess();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -111,7 +114,8 @@ public class FixMedia {
 		Files.copy(src, dst);
 	}
 
-	private void fixMovies(Connection c) throws Exception {
+	private List<String> fixMovies(Connection c) throws Exception {
+		List<String> warnings = new ArrayList<>();
 		List<Path> keep = new ArrayList<>();
 		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie FROM media");
 		ResultSet rst = ps.executeQuery();
@@ -126,88 +130,94 @@ public class FixMedia {
 			final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
 			final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");
 			final Path webp = root.resolve("web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
-			Preconditions.checkArgument(Files.exists(original) && Files.size(original)>0, original.toString() + " does not exist (or is 0 bytes)");
 			keep.add(original);
 			keep.add(jpg);
 			keep.add(webp);
 			if (isMovie) {
 				keep.add(webm);
 				keep.add(mp4);
-				if (!Files.exists(webm) || Files.size(webm) == 0) {
-					logger.debug("Create " + webm);
-					Files.deleteIfExists(webm);
-					Files.createDirectories(webm.getParent());
-					String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
-					Process p = new ProcessBuilder().inheritIO().command(commands).start();
-					p.waitFor();
-					// Set checksum
-					HashCode crc32 = com.google.common.io.Files.hash(webm.toFile(), Hashing.crc32());
-					PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
-					ps2.setInt(1, crc32.asInt());
-					ps2.setInt(2, id);
-					ps2.execute();
-					ps2.close();
-				}
-				if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-					Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
-					logger.debug("Create " + mp4);
-					Files.deleteIfExists(mp4);
-					Files.createDirectories(mp4.getParent());
-					String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-					Process p = new ProcessBuilder().inheritIO().command(commands).start();
-					p.waitFor();
-				}
-				if (!Files.exists(jpg) || Files.size(jpg) == 0) {
-					logger.debug("Create " + jpg);
-					Files.createDirectories(jpg.getParent());
-					Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
-					Files.createDirectories(tmp.getParent());
-					String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-					Process p = new ProcessBuilder().inheritIO().command(commands).start();
-					p.waitFor();
-					Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
-
-					BufferedImage b = ImageIO.read(tmp.toFile());
-					Graphics g = b.getGraphics();
-					g.setFont(new Font("Arial", Font.BOLD, 40));
-					final String str = "VIDEO";
-					final int x = (b.getWidth()/2)-70;
-					final int y = (b.getHeight()/2)-20;
-					FontMetrics fm = g.getFontMetrics();
-					Rectangle2D rect = fm.getStringBounds(str, g);
-					g.setColor(Color.WHITE);
-					g.fillRect(x,
-							y - fm.getAscent(),
-							(int) rect.getWidth(),
-							(int) rect.getHeight());
-					g.setColor(Color.BLUE);
-					g.drawString(str, x, y);
-					g.dispose();
-					ImageIO.write(b, "jpg", jpg.toFile());
-					Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
-				}
+			}
+			if (!Files.exists(original) || Files.size(original) == 0) {
+				warnings.add(original.toString() + " does not exist (or is 0 bytes)");
 			}
 			else {
-				if (width == 0 || height == 0) {
-					BufferedImage b = ImageIO.read(original.toFile());
-					ps = c.prepareStatement("UPDATE media SET width=?, height=? WHERE id=?");
-					ps.setInt(1, b.getWidth());
-					ps.setInt(2, b.getHeight());
-					ps.setInt(3, id);
-					ps.execute();
-					ps.close();
-					b.flush();
+				if (isMovie) {
+					if (!Files.exists(webm) || Files.size(webm) == 0) {
+						logger.debug("Create " + webm);
+						Files.deleteIfExists(webm);
+						Files.createDirectories(webm.getParent());
+						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+						Process p = new ProcessBuilder().inheritIO().command(commands).start();
+						p.waitFor();
+						// Set checksum
+						HashCode crc32 = com.google.common.io.Files.hash(webm.toFile(), Hashing.crc32());
+						PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
+						ps2.setInt(1, crc32.asInt());
+						ps2.setInt(2, id);
+						ps2.execute();
+						ps2.close();
+					}
+					if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+						Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
+						logger.debug("Create " + mp4);
+						Files.deleteIfExists(mp4);
+						Files.createDirectories(mp4.getParent());
+						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+						Process p = new ProcessBuilder().inheritIO().command(commands).start();
+						p.waitFor();
+					}
+					if (!Files.exists(jpg) || Files.size(jpg) == 0) {
+						logger.debug("Create " + jpg);
+						Files.createDirectories(jpg.getParent());
+						Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
+						Files.createDirectories(tmp.getParent());
+						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+						Process p = new ProcessBuilder().inheritIO().command(commands).start();
+						p.waitFor();
+						Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
+
+						BufferedImage b = ImageIO.read(tmp.toFile());
+						Graphics g = b.getGraphics();
+						g.setFont(new Font("Arial", Font.BOLD, 40));
+						final String str = "VIDEO";
+						final int x = (b.getWidth()/2)-70;
+						final int y = (b.getHeight()/2)-20;
+						FontMetrics fm = g.getFontMetrics();
+						Rectangle2D rect = fm.getStringBounds(str, g);
+						g.setColor(Color.WHITE);
+						g.fillRect(x,
+								y - fm.getAscent(),
+								(int) rect.getWidth(),
+								(int) rect.getHeight());
+						g.setColor(Color.BLUE);
+						g.drawString(str, x, y);
+						g.dispose();
+						ImageIO.write(b, "jpg", jpg.toFile());
+						Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
+					}
 				}
-			}
-			Preconditions.checkArgument(Files.exists(jpg), jpg.toString() + " does not exist");
-			if (!Files.exists(webp) || Files.size(webp) == 0) {
-				logger.debug("Create " + webp);
-				Files.createDirectories(webp.getParent());
-				// Scaled WebP
-				String cmd = "cmd /c C:\\Progra~1\\libwebp-0.3.0-windows-x86\\cwebp.exe \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"";
-				Process process = Runtime.getRuntime().exec(cmd);
-				process.waitFor();
-				Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+				else {
+					if (width == 0 || height == 0) {
+						BufferedImage b = ImageIO.read(original.toFile());
+						ps = c.prepareStatement("UPDATE media SET width=?, height=? WHERE id=?");
+						ps.setInt(1, b.getWidth());
+						ps.setInt(2, b.getHeight());
+						ps.setInt(3, id);
+						ps.execute();
+						ps.close();
+						b.flush();
+					}
+				}
+				Preconditions.checkArgument(Files.exists(jpg), jpg.toString() + " does not exist");
+				if (!Files.exists(webp) || Files.size(webp) == 0) {
+					logger.debug("Create " + webp);
+					Files.createDirectories(webp.getParent());
+					// Scaled WebP
+					String cmd = "cmd /c C:\\Progra~1\\libwebp-0.3.0-windows-x86\\cwebp.exe \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"";
+					Process process = Runtime.getRuntime().exec(cmd);
+					process.waitFor();
+					Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+				}
 			}
 		}
 		rst.close();
@@ -233,5 +243,6 @@ public class FixMedia {
 			}
 
 		});
+		return warnings;
 	}
 }
