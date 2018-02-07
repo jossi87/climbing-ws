@@ -1,37 +1,31 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 public class Svg {
+	private final int id;
 	private final int nr;
-	private final String textTransform;
-	private final String linePathD;
-	private final String topPathD;
-	private final String nrPathD;
+	private final String path;
+	private final boolean hasAnchor;
 	
-	public Svg(int nr, String textTransform, String linePathD, String topPathD, String nrPathD) {
+	public Svg(int id, int nr, String path, boolean hasAnchor) {
+		this.id = id;
 		this.nr = nr;
-		this.textTransform = textTransform;
-		this.linePathD = linePathD;
-		this.topPathD = topPathD;
-		this.nrPathD = nrPathD;
+		this.path = path;
+		this.hasAnchor = hasAnchor;
 	}
 
-	public String getLinePathD() {
-		return linePathD;
+	public int getId() {
+		return id;
 	}
 
 	public int getNr() {
 		return nr;
 	}
 
-	public String getNrPathD() {
-		return nrPathD;
+	public String getPath() {
+		return path;
 	}
 
-	public String getTextTransform() {
-		return textTransform;
-	}
-	
-	public String getTopPathD() {
-		return topPathD;
+	public boolean isHasAnchor() {
+		return hasAnchor;
 	}
 }
