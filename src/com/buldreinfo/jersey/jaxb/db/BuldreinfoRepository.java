@@ -526,7 +526,7 @@ public class BuldreinfoRepository {
 			int numTicks = rst.getInt("num_ticks");
 			double stars = rst.getDouble("stars");
 			boolean ticked = rst.getBoolean("ticked");
-			List<Media> media = getMediaProblem(sectorId, id);
+			List<Media> media = getMediaProblem(reqRegionId, sectorId, id);
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, faDateHr, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
 		}
@@ -1592,8 +1592,8 @@ public class BuldreinfoRepository {
 		return media;
 	}
 
-	private List<Media> getMediaProblem(int sectorId, int problemId) throws SQLException {
-		List<Media> media = getMediaSector(sectorId, problemId);
+	private List<Media> getMediaProblem(int regionId, int sectorId, int problemId) throws SQLException {
+		List<Media> media = regionId == 4? getMediaSector(sectorId, problemId) : Lists.newArrayList();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
