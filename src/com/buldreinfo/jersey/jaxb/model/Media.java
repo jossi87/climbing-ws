@@ -9,17 +9,17 @@ public class Media {
 	private final String description;
 	private final int idType;
 	private final String t;
-	private final boolean isSectorImage;
+	private final int svgProblemId;
 	private final List<Svg> svgs;
 
-	public Media(int id, int width, int height, String description, int idType, String t, boolean isSectorImage, List<Svg> svgs) {
+	public Media(int id, int width, int height, String description, int idType, String t, int svgProblemId, List<Svg> svgs) {
 		this.id = id;
 		this.width = width;
 		this.height = height;
 		this.description = description;
 		this.idType = idType;
 		this.t = t;
-		this.isSectorImage = isSectorImage;
+		this.svgProblemId = svgProblemId;
 		this.svgs = svgs;
 	}
 
@@ -50,8 +50,8 @@ public class Media {
 	public int getWidth() {
 		return width;
 	}
-
-	public boolean isSectorImage() {
-		return isSectorImage;
+	
+	public int getSvgProblemId() {
+		return svgProblemId;
 	}
 }

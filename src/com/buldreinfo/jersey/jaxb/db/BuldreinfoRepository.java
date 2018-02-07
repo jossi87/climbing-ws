@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.mail.MessagingException;
@@ -1586,7 +1585,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, null, false, null));
+			media.add(new Media(itId, width, height, description, tyId, null, 0, null));
 		}
 		rst.close();
 		ps.close();
@@ -1610,7 +1609,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, t, false, null));
+			media.add(new Media(itId, width, height, description, tyId, t, 0, null));
 		}
 		rst.close();
 		ps.close();
@@ -1636,7 +1635,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, null, true, getSvgs(itId, optionalIdProblem)));
+			media.add(new Media(itId, width, height, description, tyId, null, optionalIdProblem, getSvgs(itId, optionalIdProblem)));
 		}
 		rst.close();
 		ps.close();
