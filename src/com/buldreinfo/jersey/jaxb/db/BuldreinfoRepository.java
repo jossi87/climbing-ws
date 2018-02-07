@@ -1644,16 +1644,8 @@ public class BuldreinfoRepository {
 	
 	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.nr, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id AND (? IS NULL OR p.id=?)");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.nr, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
 		ps.setInt(1, idMedia);
-		if (optionalIdProblem > 0) {
-			ps.setInt(2, optionalIdProblem);
-			ps.setInt(3, optionalIdProblem);
-		}
-		else {
-			ps.setNull(2, Types.INTEGER);
-			ps.setNull(3, Types.INTEGER);
-		}
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			if (res == null) {
