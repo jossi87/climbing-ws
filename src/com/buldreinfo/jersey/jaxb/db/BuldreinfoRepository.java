@@ -1350,6 +1350,53 @@ public class BuldreinfoRepository {
 		return null;
 	}
 
+	public void upsertSvg(String token, int problemId, int mediaId, Svg svg) throws SQLException {
+		// Check for write permissions
+		boolean ok = false;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT 1 FROM (((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON a.region_id=auth.region_id) INNER JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=? AND auth.write>0 AND auth.write>=p.hidden) WHERE p.id=?");
+		ps.setString(1, token);
+		ps.setInt(2, problemId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			ok = true;
+		}
+		rst.close();
+		ps.close();
+		rst = null;
+		ps = null;
+		Preconditions.checkArgument(ok, "Insufficient credentials");
+		// Delete/Insert/Update
+		if (svg == null) {
+			ps = c.getConnection().prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=?");
+			ps.setInt(1, mediaId);
+			ps.setInt(2, problemId);
+			ps.execute();
+			ps.close();
+			ps = null;
+		}
+		else if (svg.getId() <= 0) {
+			ps = c.getConnection().prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor) VALUES (?, ?, ?, ?)");
+			ps.setInt(1, mediaId);
+			ps.setInt(2, problemId);
+			ps.setString(3, svg.getPath());
+			ps.setBoolean(4, svg.isHasAnchor());
+			ps.execute();
+			ps.close();
+			ps = null;
+		}
+		else {
+			ps = c.getConnection().prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=? WHERE id=?");
+			ps.setInt(1, mediaId);
+			ps.setInt(2, problemId);
+			ps.setString(3, svg.getPath());
+			ps.setBoolean(4, svg.isHasAnchor());
+			ps.setInt(5, svg.getId());
+			ps.execute();
+			ps.close();
+			ps = null;
+		}
+	}
+
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
@@ -1591,7 +1638,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return media;
 	}
-
+	
 	private List<Media> getMediaProblem(int regionId, int sectorId, int problemId) throws SQLException {
 		List<Media> media = regionId == 4? getMediaSector(sectorId, problemId) : Lists.newArrayList();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
@@ -1641,10 +1688,10 @@ public class BuldreinfoRepository {
 		ps.close();
 		return media;
 	}
-	
+
 	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.nr, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
 		ps.setInt(1, idMedia);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -1652,16 +1699,17 @@ public class BuldreinfoRepository {
 				res = new ArrayList<>();
 			}
 			int id = rst.getInt("id");
+			int problemId = rst.getInt("problem_id");
 			int nr = rst.getInt("nr");
 			String path = rst.getString("path");
 			boolean hasAnchor = rst.getBoolean("has_anchor");
-			res.add(new Svg(id, nr, path, hasAnchor));
+			res.add(new Svg(id, problemId, nr, path, hasAnchor));
 		}
 		rst.close();
 		ps.close();
 		return res;
 	}
-
+	
 	private String hashPassword(String password) throws NoSuchAlgorithmException {
 		MessageDigest m = MessageDigest.getInstance("MD5");
 		m.reset();
@@ -1674,7 +1722,7 @@ public class BuldreinfoRepository {
 		}
 		return hashtext;
 	}
-	
+
 	private void setRandomMedia(Frontpage res, String token, int regionId, boolean fallbackSolution) throws SQLException {
 		String sqlStr = "SELECT m.id id_media, p.id id_problem, p.name problem, m.photographer_user_id id_creator, CONCAT(u.firstname, ' ', u.lastname) photographer, GROUP_CONCAT(DISTINCT CONCAT(u2.firstname, ' ', u2.lastname) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
 				+ " FROM (((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"

@@ -47,6 +47,7 @@ import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -359,6 +360,19 @@ public class V1 {
 			p = c.getBuldreinfoRepo().setProblem(token, regionId, p, multiPart);
 			c.setSuccess();
 			return Response.ok().entity(p).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
+	@Path("/problems/svg")
+	public Response postProblemsSvg(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			c.getBuldreinfoRepo().upsertSvg(token, problemId, mediaId, svg);
+			c.setSuccess();
+			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
