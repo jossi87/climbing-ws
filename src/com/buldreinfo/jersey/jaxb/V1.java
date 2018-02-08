@@ -370,6 +370,7 @@ public class V1 {
 	public Response postProblemsSvg(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Preconditions.checkArgument(problemId>0 && mediaId>0, "Invalid problemId=" + problemId + " or mediaId=" + mediaId);
 			c.getBuldreinfoRepo().upsertSvg(token, problemId, mediaId, svg);
 			c.setSuccess();
 			return Response.ok().build();
