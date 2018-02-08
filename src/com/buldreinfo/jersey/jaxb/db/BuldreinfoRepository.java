@@ -1366,7 +1366,7 @@ public class BuldreinfoRepository {
 		ps = null;
 		Preconditions.checkArgument(ok, "Insufficient credentials");
 		// Delete/Insert/Update
-		if (svg == null) {
+		if (svg.isDelete() || Strings.emptyToNull(svg.getPath()) == null) {
 			ps = c.getConnection().prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=?");
 			ps.setInt(1, mediaId);
 			ps.setInt(2, problemId);
@@ -1703,7 +1703,7 @@ public class BuldreinfoRepository {
 			int nr = rst.getInt("nr");
 			String path = rst.getString("path");
 			boolean hasAnchor = rst.getBoolean("has_anchor");
-			res.add(new Svg(id, problemId, nr, path, hasAnchor));
+			res.add(new Svg(false, id, problemId, nr, path, hasAnchor));
 		}
 		rst.close();
 		ps.close();
