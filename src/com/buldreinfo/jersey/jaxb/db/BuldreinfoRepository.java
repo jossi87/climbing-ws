@@ -831,7 +831,7 @@ public class BuldreinfoRepository {
 				+ "   AND (a.region_id=? OR ut.user_id IS NOT NULL)"
 				+ "   AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ " GROUP BY t.id, p.id, p.hidden, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade"
-				+ " ORDER BY t.date DESC, t.id DESC";
+				+ " ORDER BY t.date DESC, p.fa_date DESC, p.id DESC";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ps.setInt(2, reqId);
