@@ -75,7 +75,7 @@ public class V1Html {
 			String description = String.format("Total: %d (%d with coordinates, %d on topo) | Public ascents: %d | Images: %d | Ascents on video: %d", 
 					f.getNumProblems(), 
 					f.getNumProblemsWithCoordinates(), 
-					f.getNumProblemsOnTopo(),
+					f.getNumProblemsWithTopo(),
 					f.getNumTicks(), f.getNumImages(), 
 					f.getNumMovies());
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), f.getRandomMedia().getIdMedia());

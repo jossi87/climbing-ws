@@ -236,8 +236,8 @@ public class Frontpage {
 		return numProblemsWithCoordinates;
 	}
 	
-	public int getNumProblemsOnTopo() {
-		return getNumProblemsOnTopo();
+	public int getNumProblemsWithTopo() {
+		return numProblemsWithTopo;
 	}
 
 	public int getNumTicks() {
