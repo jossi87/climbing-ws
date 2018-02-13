@@ -72,7 +72,12 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
 			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, conf.getIdRegion());
-			String description = String.format("Total: %d | With coordinates: %d | Public ascents: %d | Images: %d | Ascents on video: %d", f.getNumProblems(), f.getNumProblemsWithCoordinates(), f.getNumTicks(), f.getNumImages(), f.getNumMovies());
+			String description = String.format("Total: %d (%d with coordinates, %d on topo) | Public ascents: %d | Images: %d | Ascents on video: %d", 
+					f.getNumProblems(), 
+					f.getNumProblemsWithCoordinates(), 
+					f.getNumProblemsOnTopo(),
+					f.getNumTicks(), f.getNumImages(), 
+					f.getNumMovies());
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), f.getRandomMedia().getIdMedia());
 			c.setSuccess();
 			return Response.ok().entity(getHtml(conf.getBaseUrl(), conf.getTitle(), description, image)).build();
