@@ -191,6 +191,7 @@ public class Frontpage {
 	
 	private int numProblems;
 	private int numProblemsWithCoordinates;
+	private int numProblemsWithTopo;
 	private int numTicks;
 	private int numImages;
 	private int numMovies;
@@ -234,6 +235,10 @@ public class Frontpage {
 	public int getNumProblemsWithCoordinates() {
 		return numProblemsWithCoordinates;
 	}
+	
+	public int getNumProblemsOnTopo() {
+		return getNumProblemsOnTopo();
+	}
 
 	public int getNumTicks() {
 		return numTicks;
@@ -258,6 +263,10 @@ public class Frontpage {
 	public void setNumProblemsWithCoordinates(int numProblemsWithCoordinates) {
 		this.numProblemsWithCoordinates = numProblemsWithCoordinates;
 	}
+	
+	public void setNumProblemsWithTopo(int numProblemsWithTopo) {
+		this.numProblemsWithTopo = numProblemsWithTopo;
+	}
 
 	public void setNumTicks(int numTicks) {
 		this.numTicks = numTicks;
@@ -270,6 +279,7 @@ public class Frontpage {
 	@Override
 	public String toString() {
 		return "Frontpage [numProblems=" + numProblems + ", numProblemsWithCoordinates=" + numProblemsWithCoordinates
+				+ ", numProblemsWithTopo=" + numProblemsWithTopo
 				+ ", numTicks=" + numTicks + ", numImages=" + numImages + ", numMovies=" + numMovies + ", randomMedia="
 				+ randomMedia + ", ascents=" + ascents + ", fas=" + fas + ", medias=" + medias + ", comments="
 				+ comments + "]";
