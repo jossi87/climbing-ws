@@ -1,0 +1,78 @@
+package com.buldreinfo.jersey.jaxb.batch.svg;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.common.base.Joiner;
+
+import jersey.repackaged.com.google.common.base.Preconditions;
+
+public class Path {
+	private final String path;
+	private final List<Element> elements = new ArrayList<>();
+	private final double[][] matrix;
+	
+	public Path(String path, double[][] matrix) {
+		this.matrix = matrix;
+		path = path.replaceAll(",", " ");
+		path = path.replaceAll("-", " -");
+		this.path = path;
+		String temp = "";
+		for (int i = 0; i < path.length(); i++) {
+			if (temp.length() > 0 && (path.charAt(i) == 'm' || path.charAt(i) == 'c' || path.charAt(i) == 'l')) {
+				addElement(temp);
+				temp = "";
+			}
+			temp += path.charAt(i);
+		}
+		addElement(temp);
+	}
+
+	private void addElement(String temp) {
+		switch (temp.charAt(0)) {
+		case 'M':
+			String[] parts = temp.substring(1).trim().split(" ");
+			Preconditions.checkArgument(parts.length == 2, "M: Invalid parts=" + temp.substring(1) + ", path=" + path);
+			elements.add(new M(Double.parseDouble(parts[0]), Double.parseDouble(parts[1])));
+			break;
+		case 'l':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i+=2) {
+				double startX = elements.get(elements.size()-1).getX();
+				double startY = elements.get(elements.size()-1).getY();
+				double x = startX + Double.parseDouble(parts[i]);
+				double y = startY + Double.parseDouble(parts[i+1]);
+				elements.add(new L(x, y));
+			}
+			break;
+		case 'c':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i+=6) {
+				double startX = elements.get(elements.size()-1).getX();
+				double startY = elements.get(elements.size()-1).getY();
+				double x = startX + Double.parseDouble(parts[i+4]);
+				double y = startY + Double.parseDouble(parts[i+5]);
+				double x1 = startX + Double.parseDouble(parts[i]);
+				double y1 = startY + Double.parseDouble(parts[i+1]);
+				double x2 = startX + Double.parseDouble(parts[i+2]);
+				double y2 = startY + Double.parseDouble(parts[i+3]);
+				elements.add(new C(x1, y1, x2, y2, x, y));
+			}
+			break;
+		default:
+			throw new RuntimeException("Invalid temp=" + temp);
+		}
+	}
+	
+	@Override
+	public String toString() {
+		for (Element e : elements) {
+			e.applyMatrix(matrix);
+		}
+		return Joiner.on(" ").join(elements).replaceAll(",", ".");
+	}
+
+	public double getMinX() {
+		return elements.stream().min((a, b) -> Double.compare(a.getX(), b.getX())).get().getX();
+	}
+}
