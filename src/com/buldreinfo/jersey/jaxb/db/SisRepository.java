@@ -133,9 +133,10 @@ public class SisRepository {
 		int numDeleted = ps.executeUpdate();
 		ps.close();
 		if (numDeleted == 0) {
-			ps = c.getConnection().prepareStatement("INSERT INTO sis_tick (user_id, problem_id) VALUES (?, ?)");
+			ps = c.getConnection().prepareStatement("INSERT INTO sis_tick (user_id, problem_id, stars) VALUES (?, ?, ?)");
 			ps.setInt(1, t.getUserId());
 			ps.setInt(2, t.getProblemId());
+			ps.setInt(3, t.getStars());
 			ps.execute();
 			ps.close();
 		}
@@ -144,13 +145,14 @@ public class SisRepository {
 
 	private List<SisTick> getTicks(int idProblem) throws SQLException {
 		List<SisTick> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.user_id, u.name FROM sis_tick t, sis_user u WHERE t.user_id=u.id AND t.problem_id=? ORDER BY u.name");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.user_id, u.name, t.stars FROM sis_tick t, sis_user u WHERE t.user_id=u.id AND t.problem_id=? ORDER BY u.name");
 		ps.setInt(1, idProblem);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int userId = rst.getInt("user_id");
 			String name = rst.getString("name");
-			res.add(new SisTick(idProblem, userId, name));
+			int stars = rst.getInt("stars");
+			res.add(new SisTick(idProblem, userId, name, stars));
 		}
 		rst.close();
 		ps.close();
