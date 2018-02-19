@@ -22,7 +22,7 @@ public class SvgParser {
 				}
 				r = r.replace("\"/>", "");
 				
-				double[][] matrix = new double[2][3];
+				double[][] matrix = new double[2][3]; // TODO FIX
 				matrix[0][0] = 0.1532; // a
 				matrix[1][0] = 0; // b
 				matrix[0][1] = 0; // c
