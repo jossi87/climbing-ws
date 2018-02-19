@@ -130,9 +130,9 @@ public class SisRepository {
 		PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sis_tick WHERE user_id=? AND problem_id=?");
 		ps.setInt(1, t.getUserId());
 		ps.setInt(2, t.getProblemId());
-		int numDeleted = ps.executeUpdate();
+		ps.executeUpdate();
 		ps.close();
-		if (numDeleted == 0) {
+		if (t.getStars() >= 0) {
 			ps = c.getConnection().prepareStatement("INSERT INTO sis_tick (user_id, problem_id, stars) VALUES (?, ?, ?)");
 			ps.setInt(1, t.getUserId());
 			ps.setInt(2, t.getProblemId());
