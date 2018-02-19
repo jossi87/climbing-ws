@@ -19,7 +19,7 @@ public class Path {
 		this.path = path;
 		String temp = "";
 		for (int i = 0; i < path.length(); i++) {
-			if (temp.length() > 0 && (path.charAt(i) == 'm' || path.charAt(i) == 'c' || path.charAt(i) == 'l')) {
+			if (temp.length() > 0 && Character.isLetter(path.charAt(i))) {
 				addElement(temp);
 				temp = "";
 			}
