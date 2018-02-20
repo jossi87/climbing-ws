@@ -84,11 +84,8 @@ public class Path {
 				double y2 = startY + Double.parseDouble(parts[i+1]);
 				double x = startX + Double.parseDouble(parts[i+2]);
 				double y = startY + Double.parseDouble(parts[i+3]);
-				double x1 = 0;
-				double y1 = 0;
-					x1 = x;
-					y1 = y;
-				
+				double x1 = x;
+				double y1 = y;
 				elements.add(new C(x1, y1, x2, y2, x, y));
 			}
 			break;
