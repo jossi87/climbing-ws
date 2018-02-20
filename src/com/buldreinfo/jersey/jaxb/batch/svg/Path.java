@@ -5,10 +5,7 @@ import java.util.List;
 
 import com.google.common.base.Joiner;
 
-import jersey.repackaged.com.google.common.base.Preconditions;
-
 public class Path {
-	private final String path;
 	private final List<Element> elements = new ArrayList<>();
 	private final double[][] matrix;
 	
@@ -16,7 +13,6 @@ public class Path {
 		this.matrix = matrix;
 		path = path.replaceAll(",", " ");
 		path = path.replaceAll("-", " -");
-		this.path = path;
 		String temp = "";
 		for (int i = 0; i < path.length(); i++) {
 			if (temp.length() > 0 && Character.isLetter(path.charAt(i))) {

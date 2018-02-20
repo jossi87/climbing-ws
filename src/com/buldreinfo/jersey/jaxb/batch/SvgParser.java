@@ -11,7 +11,7 @@ import jersey.repackaged.com.google.common.base.Preconditions;
 
 public class SvgParser {
 	public static void main(String[] args) throws Exception {
-		Path svg = Paths.get("C:/Users/jostein/Dropbox/klatrefører/Bersagel/Storveggen.svg");
+		Path svg = Paths.get("C:/Users/jostein/Dropbox/klatrefører/Bersagel/nedre gullvegg.svg");
 		new SvgParser(svg);
 	}
 	
