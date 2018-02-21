@@ -43,7 +43,12 @@ public class Path {
 			for (int i = 0; i < parts.length; i+=2) {
 				double x = Double.parseDouble(parts[i]);
 				double y = Double.parseDouble(parts[i+1]);
-				elements.add(new M(x, y));
+				if (i == 0) {
+					elements.add(new M(x, y));
+				}
+				else {
+					elements.add(new L(x, y));
+				}
 			}
 			break;
 		case 'l':
