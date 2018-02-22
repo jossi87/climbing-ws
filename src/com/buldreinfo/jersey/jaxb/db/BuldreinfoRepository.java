@@ -1683,14 +1683,23 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, null, optionalIdProblem, getSvgs(itId, optionalIdProblem)));
+			List<Svg> svgs = getSvgs(itId);
+			Media m = new Media(itId, width, height, description, tyId, null, optionalIdProblem, svgs);
+			if (optionalIdProblem != 0 && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
+				media.clear();
+				media.add(m);
+				break;
+			}
+			else {
+				media.add(m);
+			}
 		}
 		rst.close();
 		ps.close();
 		return media;
 	}
 
-	private List<Svg> getSvgs(int idMedia, int optionalIdProblem) throws SQLException {
+	private List<Svg> getSvgs(int idMedia) throws SQLException {
 		List<Svg> res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
 		ps.setInt(1, idMedia);
