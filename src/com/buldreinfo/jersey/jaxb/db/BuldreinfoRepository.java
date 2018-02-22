@@ -1685,7 +1685,7 @@ public class BuldreinfoRepository {
 			}
 			List<Svg> svgs = getSvgs(itId);
 			Media m = new Media(itId, width, height, description, tyId, null, optionalIdProblem, svgs);
-			if (optionalIdProblem != 0 && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
+			if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 				media.clear();
 				media.add(m);
 				break;
