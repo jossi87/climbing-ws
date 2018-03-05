@@ -1619,7 +1619,7 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaArea(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, TRIM(CONCAT(c.firstname, ' ', c.lastname)) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', u.lastname)) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -1627,8 +1627,8 @@ public class BuldreinfoRepository {
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
-			String creator = rst.getString("creator").trim();
-			String inPhoto = rst.getString("in_photo").trim();
+			String creator = rst.getString("creator");
+			String inPhoto = rst.getString("in_photo");
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
@@ -1642,7 +1642,7 @@ public class BuldreinfoRepository {
 	
 	private List<Media> getMediaProblem(int regionId, int sectorId, int problemId) throws SQLException {
 		List<Media> media = regionId == 4? getMediaSector(sectorId, problemId) : Lists.newArrayList();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', c.lastname)) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', u.lastname)) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -1651,8 +1651,8 @@ public class BuldreinfoRepository {
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String t = rst.getString("t");
-			String creator = rst.getString("creator").trim();
-			String inPhoto = rst.getString("in_photo").trim();
+			String creator = rst.getString("creator");
+			String inPhoto = rst.getString("in_photo");
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
@@ -1669,7 +1669,7 @@ public class BuldreinfoRepository {
 	
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, CONCAT(CONCAT(c.firstname, ' '), c.lastname) creator, GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', u.lastname) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, TRIM(CONCAT(c.firstname, ' ', c.lastname)) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', u.lastname)) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, idSector);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -1677,8 +1677,8 @@ public class BuldreinfoRepository {
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
-			String creator = rst.getString("creator").trim();
-			String inPhoto = rst.getString("in_photo").trim();
+			String creator = rst.getString("creator");
+			String inPhoto = rst.getString("in_photo");
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
