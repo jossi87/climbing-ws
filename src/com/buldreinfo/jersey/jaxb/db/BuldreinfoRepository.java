@@ -1627,8 +1627,8 @@ public class BuldreinfoRepository {
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
-			String creator = rst.getString("creator");
-			String inPhoto = rst.getString("in_photo");
+			String creator = rst.getString("creator").trim();
+			String inPhoto = rst.getString("in_photo").trim();
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
@@ -1651,8 +1651,8 @@ public class BuldreinfoRepository {
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
 			String t = rst.getString("t");
-			String creator = rst.getString("creator");
-			String inPhoto = rst.getString("in_photo");
+			String creator = rst.getString("creator").trim();
+			String inPhoto = rst.getString("in_photo").trim();
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
@@ -1677,8 +1677,8 @@ public class BuldreinfoRepository {
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie")? 2 : 1;
-			String creator = rst.getString("creator");
-			String inPhoto = rst.getString("in_photo");
+			String creator = rst.getString("creator").trim();
+			String inPhoto = rst.getString("in_photo").trim();
 			String description = "photographer: " + creator;
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
