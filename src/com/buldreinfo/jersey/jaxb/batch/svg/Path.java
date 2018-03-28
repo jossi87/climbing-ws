@@ -95,6 +95,18 @@ public class Path {
 				elements.add(new C(x1, y1, x2, y2, x, y));
 			}
 			break;
+		case 'C':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i+=6) {
+				double x1 = Double.parseDouble(parts[i]);
+				double y1 = Double.parseDouble(parts[i+1]);
+				double x2 = Double.parseDouble(parts[i+2]);
+				double y2 = Double.parseDouble(parts[i+3]);
+				double x = Double.parseDouble(parts[i+4]);
+				double y = Double.parseDouble(parts[i+5]);
+				elements.add(new C(x1, y1, x2, y2, x, y));
+			}
+			break;
 		case 's':
 			parts = temp.substring(1).trim().split(" ");
 			for (int i = 0; i < parts.length; i+=4) {
@@ -105,6 +117,18 @@ public class Path {
 				double y2 = startY + Double.parseDouble(parts[i+1]);
 				double x = startX + Double.parseDouble(parts[i+2]);
 				double y = startY + Double.parseDouble(parts[i+3]);
+				double x1 = x;
+				double y1 = y;
+				elements.add(new C(x1, y1, x2, y2, x, y));
+			}
+			break;
+		case 'S':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i+=4) {
+				double x2 = Double.parseDouble(parts[i]);
+				double y2 = Double.parseDouble(parts[i+1]);
+				double x = Double.parseDouble(parts[i+2]);
+				double y = Double.parseDouble(parts[i+3]);
 				double x1 = x;
 				double y1 = y;
 				elements.add(new C(x1, y1, x2, y2, x, y));
