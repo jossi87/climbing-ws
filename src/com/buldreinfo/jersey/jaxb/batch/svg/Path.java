@@ -61,6 +61,14 @@ public class Path {
 				elements.add(new L(x, y));
 			}
 			break;
+		case 'L':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i+=2) {
+				double x = Double.parseDouble(parts[i]);
+				double y = Double.parseDouble(parts[i+1]);
+				elements.add(new L(x, y));
+			}
+			break;
 		case 'v':
 			parts = temp.substring(1).trim().split(" ");
 			for (int i = 0; i < parts.length; i++) {
@@ -68,6 +76,14 @@ public class Path {
 				double startY = elements.get(elements.size()-1).getY();
 				double x = startX;
 				double y = startY + Double.parseDouble(parts[i]);
+				elements.add(new L(x, y));
+			}
+			break;
+		case 'V':
+			parts = temp.substring(1).trim().split(" ");
+			for (int i = 0; i < parts.length; i++) {
+				double x = elements.get(elements.size()-1).getX();
+				double y = Double.parseDouble(parts[i]);
 				elements.add(new L(x, y));
 			}
 			break;
