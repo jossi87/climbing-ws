@@ -725,8 +725,8 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
-			List<Media> media = getMediaArea(areaId);
-			media.addAll(getMediaSector(reqId, 0));
+			List<Media> media = getMediaSector(reqId, 0);
+			media.addAll(getMediaArea(areaId));
 			if (media.isEmpty()) {
 				media = null;
 			}
