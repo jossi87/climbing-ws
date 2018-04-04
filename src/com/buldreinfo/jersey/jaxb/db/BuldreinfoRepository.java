@@ -197,6 +197,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		a.orderSectors();
 		logger.debug("getArea(token={}, reqId={}) - duration={}", token, reqId, stopwatch);
 		return a;
 	}

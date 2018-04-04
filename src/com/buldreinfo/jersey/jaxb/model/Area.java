@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class Area {
@@ -126,11 +127,11 @@ public class Area {
 	public double getLat() {
 		return lat;
 	}
-
+	
 	public double getLng() {
 		return lng;
 	}
-	
+
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -141,6 +142,10 @@ public class Area {
 	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
+	}
+	
+	public int getNumProblems() {
+		return numProblems;
 	}
 	
 	public int getNumSectors() {
@@ -157,6 +162,30 @@ public class Area {
 	
 	public int getVisibility() {
 		return visibility;
+	}
+
+	public void orderSectors() {
+		sectors.sort(new Comparator<Sector>() {
+			@Override
+			public int compare(Sector o1, Sector o2) {
+				return getName(o1).compareTo(getName(o2));
+			}
+			private String getName(Sector s) {
+				return s.getName().toLowerCase()
+						.replace("første", "1første")
+						.replace("sør", "1sør")
+						.replace("vest", "1vest")
+						.replace("venstre", "1venstre")
+						.replace("andre", "2andre")
+						.replace("midt", "2midt")
+						.replace("tredje", "3tredje")
+						.replace("hoved", "3hoved")
+						.replace("fjerde", "4fjerde")
+						.replace("høyre", "4høyre")
+						.replace("øst", "5øst")
+						.replace("nord", "6nord");
+			}
+		});
 	}
 
 	@Override
