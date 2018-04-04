@@ -7,6 +7,7 @@ import java.awt.Graphics;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -237,7 +238,11 @@ public class FixMedia {
 						System.out.println("rm \"" + unixPath + "\"");
 					}
 					Files.setAttribute(file, "dos:readonly", false); // Remove read only
-					Files.deleteIfExists(file);
+					try {
+						Files.deleteIfExists(file);
+					} catch (FileSystemException e) {
+						logger.warn(e.toString());
+					}
 				}
 				return FileVisitResult.CONTINUE;
 			}
