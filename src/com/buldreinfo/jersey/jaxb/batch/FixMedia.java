@@ -209,8 +209,10 @@ public class FixMedia {
 						b.flush();
 					}
 				}
-				Preconditions.checkArgument(Files.exists(jpg), jpg.toString() + " does not exist");
-				if (!Files.exists(webp) || Files.size(webp) == 0) {
+				if (!Files.exists(jpg) || Files.size(jpg) == 0) {
+					warnings.add(jpg.toString() + " does not exist (or is 0 bytes)");
+				}
+				else if (!Files.exists(webp) || Files.size(webp) == 0) {
 					logger.debug("Create " + webp);
 					Files.createDirectories(webp.getParent());
 					// Scaled WebP
