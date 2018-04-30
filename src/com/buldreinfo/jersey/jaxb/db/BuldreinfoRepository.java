@@ -701,7 +701,7 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
 			String value = name + " " +  GradeHelper.intToString(sr.getRegionId(), grade);
-			res.add(new Search(id, visibility, value));
+			res.add(new Search("/problem/" + id, id, visibility, value));
 		}
 		rst.close();
 		ps.close();
