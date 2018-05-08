@@ -39,7 +39,7 @@ public class Path {
 	private void addElement(String temp) {
 		switch (temp.charAt(0)) {
 		case 'M':
-			String[] parts = temp.substring(1).trim().split(" ");
+			String[] parts = temp.substring(1).trim().replaceAll("  ", " ").split(" ");
 			for (int i = 0; i < parts.length; i+=2) {
 				double x = Double.parseDouble(parts[i]);
 				double y = Double.parseDouble(parts[i+1]);
