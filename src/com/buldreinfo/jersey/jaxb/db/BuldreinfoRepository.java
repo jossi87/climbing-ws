@@ -1590,7 +1590,6 @@ public class BuldreinfoRepository {
 		ps.setString(1, name);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			Preconditions.checkArgument(usId == -1, "Found more than one user with name=" + name);
 			usId = rst.getInt("id");
 		}
 		rst.close();
