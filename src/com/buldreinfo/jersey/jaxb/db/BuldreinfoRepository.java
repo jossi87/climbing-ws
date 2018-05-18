@@ -197,6 +197,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		a.orderSectors();
 		logger.debug("getArea(token={}, reqId={}) - duration={}", token, reqId, stopwatch);
 		return a;
 	}
@@ -700,7 +701,7 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
 			String value = name + " " +  GradeHelper.intToString(sr.getRegionId(), grade);
-			res.add(new Search(id, visibility, value));
+			res.add(new Search("/problem/" + id, visibility, value));
 		}
 		rst.close();
 		ps.close();
@@ -1589,7 +1590,6 @@ public class BuldreinfoRepository {
 		ps.setString(1, name);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			Preconditions.checkArgument(usId == -1, "Found more than one user with name=" + name);
 			usId = rst.getInt("id");
 		}
 		rst.close();

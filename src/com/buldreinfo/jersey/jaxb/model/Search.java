@@ -1,18 +1,18 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 public class Search {
-	private final int id;
+	private final String url;
 	private final int visibility;
 	private final String value;
 	
-	public Search(int id, int visibility, String value) {
-		this.id = id;
+	public Search(String url, int visibility, String value) {
+		this.url = url;
 		this.visibility = visibility;
 		this.value = value;
 	}
 
-	public int getId() {
-		return id;
+	public String getUrl() {
+		return url;
 	}
 	
 	public String getValue() {
@@ -25,6 +25,6 @@ public class Search {
 
 	@Override
 	public String toString() {
-		return "Search [id=" + id + ", visibility=" + visibility + ", value=" + value + "]";
+		return "Search [url=" + url + ", visibility=" + visibility + ", value=" + value + "]";
 	}
 }
