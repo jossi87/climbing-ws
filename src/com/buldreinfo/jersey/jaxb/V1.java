@@ -366,6 +366,24 @@ public class V1 {
 	}
 	
 	@POST
+	@Path("/problems/media")
+	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postProblemsMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
+		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Preconditions.checkArgument(p.getId() > 0);
+			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
+			c.getBuldreinfoRepo().addProblemMedia(token, p, multiPart);
+			c.setSuccess();
+			return Response.ok().entity(p).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;

@@ -115,6 +115,17 @@ public class BuldreinfoRepository {
 		ps.close();
 	}
 
+	public void addProblemMedia(String token, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(token), "Insufficient permissions");
+		int loggedInUserId = getLoggedInUserId(token);
+		Preconditions.checkArgument(loggedInUserId > 0, "Insufficient permissions");
+		for (NewMedia m : p.getNewMedia()) {
+			final int idSector = 0;
+			final int idArea = 0;
+			addNewMedia(loggedInUserId, p.getId(), idSector, idArea, m, multiPart);
+		}
+	}
+
 	public void deleteMedia(String token, int id) throws SQLException {
 		boolean ok = false;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON a.region_id=auth.region_id) INNER JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
@@ -143,7 +154,7 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 	}
-
+	
 	public void forgotPassword(String username, String hostname) throws SQLException, AddressException, UnsupportedEncodingException, MessagingException {
 		final String token = UUID.randomUUID().toString();
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET recover_token=? WHERE username=?");
@@ -201,7 +212,7 @@ public class BuldreinfoRepository {
 		logger.debug("getArea(token={}, reqId={}) - duration={}", token, reqId, stopwatch);
 		return a;
 	}
-	
+
 	public Collection<Area> getAreaList(String token, int reqIdRegion) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -461,7 +472,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return new Permission(token, adminRegionIds, superAdminRegionIds);
 	}
-
+	
 	public List<Problem> getProblem(String token, int reqRegionId, int reqId, int reqGrade) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int loggedInUser = getLoggedInUserId(token);
@@ -572,7 +583,7 @@ public class BuldreinfoRepository {
 		logger.debug("getProblem(token={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", token, reqRegionId, reqId, reqGrade, stopwatch, res.size());
 		return res;
 	}
-	
+
 	public Collection<Region> getRegions(String uniqueId, String accountName) throws SQLException {
 		final int idUser = upsertUserReturnId(uniqueId, accountName);
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -685,7 +696,7 @@ public class BuldreinfoRepository {
 		// Return
 		return regionMap.values();
 	}
-
+	
 	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.hidden, p.name, p.grade FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.hidden, p.name ORDER BY p.name, p.grade LIMIT 10");
@@ -707,7 +718,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-	
+
 	public Sector getSector(String token, int regionId, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int loggedInUser = getLoggedInUserId(token);
@@ -919,7 +930,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("Invalid token. Password was not reset...");
 		}
 	}
-
+	
 	public Area setArea(String token, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Permission auth = getPermission(token, null, null);
 		if (auth == null || !auth.getAdminRegionIds().contains(a.getRegionId())) {
