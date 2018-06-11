@@ -4,11 +4,13 @@ public class Search {
 	private final String avatar;
 	private final String url;
 	private final String value;
+	private final int visibility;
 	
-	public Search(String avatar, String url, String value) {
+	public Search(String avatar, String url, String value, int visibility) {
 		this.avatar = avatar;
 		this.url = url;
 		this.value = value;
+		this.visibility = visibility;
 	}
 	
 	public String getAvatar() {
@@ -22,9 +24,13 @@ public class Search {
 	public String getValue() {
 		return value;
 	}
+	
+	public int getVisibility() {
+		return visibility;
+	}
 
 	@Override
 	public String toString() {
-		return "Search [avatar=" + avatar + ", url=" + url + ", value=" + value + "]";
+		return "Search [avatar=" + avatar + ", url=" + url + ", value=" + value + ", visibility=" + visibility + "]";
 	}
 }
