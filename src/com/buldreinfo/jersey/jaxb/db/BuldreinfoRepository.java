@@ -700,7 +700,7 @@ public class BuldreinfoRepository {
 	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (ut.token=? AND (a.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.id, a.name ORDER BY a.name LIMIT 3");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (ut.token=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name ORDER BY a.name LIMIT 3");
 		ps.setInt(1, sr.getRegionId());
 		ps.setInt(2, sr.getRegionId());
 		ps.setString(3, sr.getValue() + "%");
@@ -714,8 +714,8 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		// Areas
-		ps = c.getConnection().prepareStatement("SELECT s.id, s.name FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (ut.token=? AND (s.hidden<=1 OR auth.write>=p.hidden))) GROUP BY s.id, s.name ORDER BY s.name LIMIT 3");
+		// Sectors
+		ps = c.getConnection().prepareStatement("SELECT s.id, s.name FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (ut.token=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.name ORDER BY s.name LIMIT 3");
 		ps.setInt(1, sr.getRegionId());
 		ps.setInt(2, sr.getRegionId());
 		ps.setString(3, sr.getValue() + "%");
