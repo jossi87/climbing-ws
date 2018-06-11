@@ -154,7 +154,7 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 	}
-	
+
 	public void forgotPassword(String username, String hostname) throws SQLException, AddressException, UnsupportedEncodingException, MessagingException {
 		final String token = UUID.randomUUID().toString();
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET recover_token=? WHERE username=?");
@@ -168,7 +168,7 @@ public class BuldreinfoRepository {
 		builder.append("Please ignore this email if you did not request a new password from " + baseUrl);
 		MailSender.sendMail(username, "Reset password (" + baseUrl + ")", builder.toString());
 	}
-	
+
 	public Area getArea(String token, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -461,7 +461,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		token = UUID.randomUUID().toString();
-		
+
 		// Add token to db
 		Preconditions.checkNotNull(token, "token cannot be null");
 		Preconditions.checkArgument(idUser != 0, "idUser cannot be 0");
@@ -472,7 +472,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return new Permission(token, adminRegionIds, superAdminRegionIds);
 	}
-	
+
 	public List<Problem> getProblem(String token, int reqRegionId, int reqId, int reqGrade) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int loggedInUser = getLoggedInUserId(token);
@@ -696,10 +696,11 @@ public class BuldreinfoRepository {
 		// Return
 		return regionMap.values();
 	}
-	
+
 	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, p.hidden, p.name, p.grade FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.hidden, p.name ORDER BY p.name, p.grade LIMIT 10");
+		// Areas
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (ut.token=? AND (a.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.id, a.name ORDER BY a.name LIMIT 3");
 		ps.setInt(1, sr.getRegionId());
 		ps.setInt(2, sr.getRegionId());
 		ps.setString(3, sr.getValue() + "%");
@@ -708,11 +709,40 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
-			int visibility = rst.getInt("hidden");
+			String name = rst.getString("name");
+			res.add(new Search("A", "/area/" + id, name));
+		}
+		rst.close();
+		ps.close();
+		// Areas
+		ps = c.getConnection().prepareStatement("SELECT s.id, s.name FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (ut.token=? AND (s.hidden<=1 OR auth.write>=p.hidden))) GROUP BY s.id, s.name ORDER BY s.name LIMIT 3");
+		ps.setInt(1, sr.getRegionId());
+		ps.setInt(2, sr.getRegionId());
+		ps.setString(3, sr.getValue() + "%");
+		ps.setString(4, "% " + sr.getValue() + "%");
+		ps.setString(5, token);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			int id = rst.getInt("id");
+			String name = rst.getString("name");
+			res.add(new Search("S", "/sector/" + id, name));
+		}
+		rst.close();
+		ps.close();
+		// Problems
+		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name ORDER BY p.name, p.grade LIMIT 10");
+		ps.setInt(1, sr.getRegionId());
+		ps.setInt(2, sr.getRegionId());
+		ps.setString(3, sr.getValue() + "%");
+		ps.setString(4, "% " + sr.getValue() + "%");
+		ps.setString(5, token);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			int id = rst.getInt("id");
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
 			String value = name + " " +  GradeHelper.intToString(sr.getRegionId(), grade);
-			res.add(new Search("/problem/" + id, visibility, value));
+			res.add(new Search("P", "/problem/" + id, value));
 		}
 		rst.close();
 		ps.close();
@@ -930,7 +960,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("Invalid token. Password was not reset...");
 		}
 	}
-	
+
 	public Area setArea(String token, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Permission auth = getPermission(token, null, null);
 		if (auth == null || !auth.getAdminRegionIds().contains(a.getRegionId())) {
@@ -1276,7 +1306,7 @@ public class BuldreinfoRepository {
 		}
 		return getSector(token, regionId, idSector);
 	}
-	
+
 	public void setTick(String token, int regionId, Tick t) throws SQLException, ParseException {
 		final int idUser = getLoggedInUserId(token);
 		Preconditions.checkArgument(idUser>0);
@@ -1564,7 +1594,7 @@ public class BuldreinfoRepository {
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
 		final int crc32 = com.google.common.io.Files.hash(webp.toFile(), Hashing.crc32()).asInt();
-		
+
 		/**
 		 * Final DB
 		 */
@@ -1647,7 +1677,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return media;
 	}
-	
+
 	private List<Media> getMediaProblem(int regionId, int sectorId, int problemId) throws SQLException {
 		List<Media> media = regionId == 4? getMediaSector(sectorId, problemId) : Lists.newArrayList();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', c.lastname)) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', u.lastname)) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
@@ -1674,7 +1704,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-	
+
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, TRIM(CONCAT(c.firstname, ' ', c.lastname)) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', u.lastname)) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
@@ -1727,7 +1757,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-	
+
 	private String hashPassword(String password) throws NoSuchAlgorithmException {
 		MessageDigest m = MessageDigest.getInstance("MD5");
 		m.reset();
