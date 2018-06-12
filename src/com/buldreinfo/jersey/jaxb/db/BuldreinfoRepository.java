@@ -744,9 +744,8 @@ public class BuldreinfoRepository {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
-			String value = name + " " +  GradeHelper.intToString(sr.getRegionId(), grade);
 			int visibility = rst.getInt("hidden");
-			res.add(new Search("P", "/problem/" + id, value, visibility));
+			res.add(new Search(GradeHelper.intToString(sr.getRegionId(), grade), "/problem/" + id, name, visibility));
 		}
 		rst.close();
 		ps.close();
