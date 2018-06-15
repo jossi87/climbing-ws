@@ -578,8 +578,8 @@ public class BuldreinfoRepository {
 				}
 				rst.close();
 				ps.close();
-				// Subsections
-				ps = c.getConnection().prepareStatement("SELECT id, nr, description, grade FROM problem_subsection WHERE problem_id=? ORDER BY nr");
+				// Sections
+				ps = c.getConnection().prepareStatement("SELECT id, nr, description, grade FROM problem_section WHERE problem_id=? ORDER BY nr");
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
 				while (rst.next()) {
@@ -587,7 +587,7 @@ public class BuldreinfoRepository {
 					int nr = rst.getInt("nr");
 					String description = rst.getString("description");
 					int grade = rst.getInt("grade");
-					p.addSubsections(id, nr, description, GradeHelper.intToString(reqRegionId, grade));
+					p.addSection(id, nr, description, GradeHelper.intToString(reqRegionId, grade));
 				}
 				rst.close();
 				ps.close();

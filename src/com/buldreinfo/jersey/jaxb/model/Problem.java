@@ -32,12 +32,12 @@ public class Problem {
 			return "Comment [date=" + date + ", idUser=" + idUser + ", name=" + name + ", message=" + message + "]";
 		}
 	}
-	public class Subsection {
+	public class Section {
 		private final int id;
 		private final int nr;
 		private final String description;
 		private final String grade;
-		public Subsection(int id, int nr, String description, String grade) {
+		public Section(int id, int nr, String description, String grade) {
 			this.id = id;
 			this.nr = nr;
 			this.description = description;
@@ -135,7 +135,7 @@ public class Problem {
 	private List<Comment> comments;
 	private final List<NewMedia> newMedia;
 	private final Type t;
-	private List<Subsection> subsections;
+	private List<Section> sections;
 	
 	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
@@ -173,11 +173,11 @@ public class Problem {
 		comments.add(new Comment(date, idUser, name, message));
 	}
 	
-	public void addSubsections(int id, int nr, String description, String grade) {
-		if (subsections == null) {
-			subsections = new ArrayList<>();
+	public void addSection(int id, int nr, String description, String grade) {
+		if (sections == null) {
+			sections = new ArrayList<>();
 		}
-		subsections.add(new Subsection(id, nr, description, grade));
+		sections.add(new Section(id, nr, description, grade));
 	}
 	
 	public void addTick(int id, int idUser, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
@@ -279,8 +279,8 @@ public class Problem {
 		return stars;
 	}
 
-	public List<Subsection> getSubsections() {
-		return subsections;
+	public List<Section> getSections() {
+		return sections;
 	}
 	
 	public Type getT() {
