@@ -59,6 +59,7 @@ import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
+import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
@@ -1214,6 +1215,23 @@ public class BuldreinfoRepository {
 		else {
 			ps = c.getConnection().prepareStatement("DELETE FROM fa WHERE problem_id=?");
 			ps.setInt(1, idProblem);
+			ps.close();
+		}
+		// Sections
+		ps = c.getConnection().prepareStatement("DELETE FROM problem_section WHERE problem_id=?");
+		ps.setInt(1, idProblem);
+		ps.execute();
+		ps.close();
+		if (p.getSections() != null && p.getSections().size() > 1) {
+			ps = c.getConnection().prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade) VALUES (?, ?, ?, ?)");
+			for (Section s : p.getSections()) {
+				ps.setInt(1, idProblem);
+				ps.setInt(2, s.getNr());
+				ps.setString(3, s.getDescription());
+				ps.setInt(4, GradeHelper.stringToInt(regionId, s.getGrade()));
+				ps.addBatch();
+			}
+			ps.executeBatch();
 			ps.close();
 		}
 		return getProblem(token, regionId, idProblem, 0).get(0);
