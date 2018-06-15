@@ -578,6 +578,19 @@ public class BuldreinfoRepository {
 				}
 				rst.close();
 				ps.close();
+				// Subsections
+				ps = c.getConnection().prepareStatement("SELECT id, nr, description, grade FROM problem_subsection WHERE problem_id=? ORDER BY nr");
+				ps.setInt(1, p.getId());
+				rst = ps.executeQuery();
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					int nr = rst.getInt("nr");
+					String description = rst.getString("description");
+					int grade = rst.getInt("grade");
+					p.addSubsections(id, nr, description, GradeHelper.intToString(reqRegionId, grade));
+				}
+				rst.close();
+				ps.close();
 			}
 		}
 		logger.debug("getProblem(token={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", token, reqRegionId, reqId, reqGrade, stopwatch, res.size());
