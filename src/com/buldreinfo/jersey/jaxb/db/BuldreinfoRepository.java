@@ -59,6 +59,7 @@ import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
+import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
@@ -578,6 +579,19 @@ public class BuldreinfoRepository {
 				}
 				rst.close();
 				ps.close();
+				// Sections
+				ps = c.getConnection().prepareStatement("SELECT id, nr, description, grade FROM problem_section WHERE problem_id=? ORDER BY nr");
+				ps.setInt(1, p.getId());
+				rst = ps.executeQuery();
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					int nr = rst.getInt("nr");
+					String description = rst.getString("description");
+					int grade = rst.getInt("grade");
+					p.addSection(id, nr, description, GradeHelper.intToString(reqRegionId, grade));
+				}
+				rst.close();
+				ps.close();
 			}
 		}
 		logger.debug("getProblem(token={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", token, reqRegionId, reqId, reqGrade, stopwatch, res.size());
@@ -744,9 +758,8 @@ public class BuldreinfoRepository {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
-			String value = name + " " +  GradeHelper.intToString(sr.getRegionId(), grade);
 			int visibility = rst.getInt("hidden");
-			res.add(new Search("P", "/problem/" + id, value, visibility));
+			res.add(new Search(GradeHelper.intToString(sr.getRegionId(), grade), "/problem/" + id, name, visibility));
 		}
 		rst.close();
 		ps.close();
@@ -1202,6 +1215,23 @@ public class BuldreinfoRepository {
 		else {
 			ps = c.getConnection().prepareStatement("DELETE FROM fa WHERE problem_id=?");
 			ps.setInt(1, idProblem);
+			ps.close();
+		}
+		// Sections
+		ps = c.getConnection().prepareStatement("DELETE FROM problem_section WHERE problem_id=?");
+		ps.setInt(1, idProblem);
+		ps.execute();
+		ps.close();
+		if (p.getSections() != null && p.getSections().size() > 1) {
+			ps = c.getConnection().prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade) VALUES (?, ?, ?, ?)");
+			for (Section s : p.getSections()) {
+				ps.setInt(1, idProblem);
+				ps.setInt(2, s.getNr());
+				ps.setString(3, s.getDescription());
+				ps.setInt(4, GradeHelper.stringToInt(regionId, s.getGrade()));
+				ps.addBatch();
+			}
+			ps.executeBatch();
 			ps.close();
 		}
 		return getProblem(token, regionId, idProblem, 0).get(0);

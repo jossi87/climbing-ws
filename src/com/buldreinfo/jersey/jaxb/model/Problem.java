@@ -32,6 +32,30 @@ public class Problem {
 			return "Comment [date=" + date + ", idUser=" + idUser + ", name=" + name + ", message=" + message + "]";
 		}
 	}
+	public class Section {
+		private final int id;
+		private final int nr;
+		private final String description;
+		private final String grade;
+		public Section(int id, int nr, String description, String grade) {
+			this.id = id;
+			this.nr = nr;
+			this.description = description;
+			this.grade = grade;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public String getGrade() {
+			return grade;
+		}
+		public int getId() {
+			return id;
+		}
+		public int getNr() {
+			return nr;
+		}
+	}
 	public class Tick {
 		private final int id;
 		private final int idUser;
@@ -111,6 +135,7 @@ public class Problem {
 	private List<Comment> comments;
 	private final List<NewMedia> newMedia;
 	private final Type t;
+	private List<Section> sections;
 	
 	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
@@ -140,12 +165,19 @@ public class Problem {
 		this.newMedia = newMedia;
 		this.t = t;
 	}
-	
+
 	public void addComment(String date, int idUser, String name, String message) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
 		comments.add(new Comment(date, idUser, name, message));
+	}
+	
+	public void addSection(int id, int nr, String description, String grade) {
+		if (sections == null) {
+			sections = new ArrayList<>();
+		}
+		sections.add(new Section(id, nr, description, grade));
 	}
 	
 	public void addTick(int id, int idUser, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
@@ -170,11 +202,11 @@ public class Problem {
 	public String getComment() {
 		return comment;
 	}
-
+	
 	public List<FaUser> getFa() {
 		return fa;
 	}
-	
+
 	public String getFaDate() {
 		return faDate;
 	}
@@ -182,11 +214,11 @@ public class Problem {
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-
+	
 	public String getGrade() {
 		return grade;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
@@ -206,11 +238,11 @@ public class Problem {
 	public String getName() {
 		return name;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public int getNr() {
 		return nr;
 	}
@@ -218,15 +250,15 @@ public class Problem {
 	public int getNumTicks() {
 		return numTicks;
 	}
-
+	
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-	
+
 	public int getSectorId() {
 		return sectorId;
 	}
-
+	
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -245,6 +277,10 @@ public class Problem {
 
 	public double getStars() {
 		return stars;
+	}
+
+	public List<Section> getSections() {
+		return sections;
 	}
 	
 	public Type getT() {
