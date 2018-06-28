@@ -598,8 +598,8 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Collection<Region> getRegions(String uniqueId, String accountName) throws SQLException {
-		final int idUser = upsertUserReturnId(uniqueId, accountName);
+	public Collection<Region> getRegions(String uniqueId) throws SQLException {
+		final int idUser = upsertUserReturnId(uniqueId);
 		MarkerHelper markerHelper = new MarkerHelper();
 		Map<Integer, Region> regionMap = new HashMap<>();
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Area> areaMap = new HashMap<>();
@@ -1836,16 +1836,14 @@ public class BuldreinfoRepository {
 		ps.close();
 	}
 
-	private int upsertUserReturnId(String uniqueId, String accountName) throws SQLException {
+	private int upsertUserReturnId(String uniqueId) throws SQLException {
 		int idUser = 0;
-		if (Strings.isNullOrEmpty(uniqueId) || Strings.isNullOrEmpty(accountName)) {
+		if (Strings.isNullOrEmpty(uniqueId)) {
 			return idUser;
 		}
-		String sqlStr = "INSERT INTO android_user (unique_id, account_name, last_sync) VALUES (?, ?, now()) ON DUPLICATE KEY UPDATE last_sync=now(), account_name=?";
+		String sqlStr = "INSERT INTO android_user (unique_id, last_sync) VALUES (?, now()) ON DUPLICATE KEY UPDATE last_sync=now()";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, uniqueId);
-		ps.setString(2, accountName);
-		ps.setString(3, accountName);
 		ps.execute();
 		ps.close();
 		sqlStr = "SELECT user_id FROM android_user au WHERE unique_id=?";

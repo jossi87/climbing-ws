@@ -203,9 +203,9 @@ public class V1 {
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getRegions(@QueryParam("uniqueId") String uniqueId, @QueryParam("accountName") String accountName) throws ExecutionException, IOException {
+	public Response getRegions(@QueryParam("uniqueId") String uniqueId) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Collection<Region> res = c.getBuldreinfoRepo().getRegions(uniqueId, accountName);
+			Collection<Region> res = c.getBuldreinfoRepo().getRegions(uniqueId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
