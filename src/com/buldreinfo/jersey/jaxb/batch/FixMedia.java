@@ -43,14 +43,14 @@ public class FixMedia {
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			FixMedia service = new FixMedia();
-						// Add movie
-						final int idUploaderUserId = 1;			
-						Path src = Paths.get("C:/Users/joste_000/Desktop/new/31566819_201932697083404_8909340331867111424_n.mp4");
-						int idPhotographerUserId = 516;
-						Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
-						idProblemMsMap.put(5649, 0l);
-						List<Integer> inPhoto = Lists.newArrayList(516);
-						service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto);
+			//			// Add movie
+			//			final int idUploaderUserId = 1;			
+			//			Path src = Paths.get("C:/Users/joste_000/Desktop/new/.mp4");
+			//			int idPhotographerUserId = ;
+			//			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
+			//			idProblemMsMap.put(, 0l);
+			//			List<Integer> inPhoto = Lists.newArrayList();
+			//			service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto);
 			// Create all formats and set checksum
 			List<String> warnings = service.fixMovies(c.getConnection());
 			for (String warning : warnings) {
