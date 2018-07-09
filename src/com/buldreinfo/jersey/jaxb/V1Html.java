@@ -133,10 +133,10 @@ public class V1Html {
 	    	conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
 	    }
 	    else if (base.contains("brattelinjer.no")) {
-	    	conf = new Config(4, "Bratte linjer", "https://brattelinjer.no");
+	    	conf = new Config(4, "Bratte linjer | Offisiell fører for klatring i Rogaland", "https://brattelinjer.no");
 	    }
 	    else {
-	    	conf = new Config(1, "buldreinfo", "https://buldreinfo.com");
+	    	conf = new Config(1, "buldreinfo | Offisiell fører for buldring i Rogaland og Hordaland", "https://buldreinfo.com");
 	    }
 	    logger.debug("getConfig(base={}) - conf={}", base, conf);
 	    return conf;
