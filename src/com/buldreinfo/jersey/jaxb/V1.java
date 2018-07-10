@@ -475,17 +475,21 @@ public class V1 {
 			Preconditions.checkArgument(regionId > 0);
 			Permission p = c.getBuldreinfoRepo().getPermission(token, username, password);
 			c.setSuccess();
+			int visibility = -1;
+			NewCookie newCookie = null;
 			if (p != null && !Strings.isNullOrEmpty(p.getToken())) {
-				int visibility = 0;
 				if (p.getSuperAdminRegionIds().contains(regionId)) {
 					visibility = 2;
 				}
 				else if (p.getAdminRegionIds().contains(regionId)) {
 					visibility = 1;
 				}
-				return Response.ok(visibility).cookie(getBuldreinfoCookie(p.getToken())).build();
+				else {
+					visibility = 0;
+				}
+				newCookie = getBuldreinfoCookie(p.getToken());
 			}
-			return Response.status(HttpURLConnection.HTTP_BAD_REQUEST).build();
+			return Response.ok(visibility).cookie(newCookie).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
