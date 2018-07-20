@@ -11,7 +11,7 @@ import com.google.common.collect.ImmutableBiMap;
 public class GradeHelper {
 	public static ImmutableBiMap<Integer, String> getGrades(int regionId) {
 		Map<Integer, String> map = new LinkedHashMap<>();
-		if (regionId == 4) {
+		if (regionId == 4 || regionId == 6) {
 			map.put(53, "9+");
 			map.put(52, "9/9+");
 			map.put(51, "9");
