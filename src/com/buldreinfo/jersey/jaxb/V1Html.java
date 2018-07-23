@@ -102,7 +102,7 @@ public class V1Html {
 			OpenGraphImage image = null;
 			if (!res.isEmpty()) {
 				Problem p = res.get(0);
-				name = p.getName() + " (" + p.getGrade() + ") | " + p.getAreaName() + " / " + p.getSectorName();
+				name = p.getName() + " [" + p.getGrade() + "] (" + p.getAreaName() + " / " + p.getSectorName() + ")";
 				description = p.getComment();
 				if (p.getMedia() != null && !p.getMedia().isEmpty()) {
 					image = c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), p.getMedia().get(0).getId());	
