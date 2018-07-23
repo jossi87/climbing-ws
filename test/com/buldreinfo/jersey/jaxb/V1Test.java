@@ -133,6 +133,13 @@ public class V1Test {
 		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
 	}
 	
+	@Test
+	public void testGetSitemapXml() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getSitemapXml();
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
+	
 //	@Test
 //	public void testGetMedia() throws Exception {
 //		V1 tester = new V1();

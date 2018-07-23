@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -53,6 +52,8 @@ import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.buldreinfo.jersey.jaxb.model.xml.Url;
+import com.buldreinfo.jersey.jaxb.model.xml.Urlset;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -63,7 +64,7 @@ import com.google.gson.Gson;
 @Path("/v1/")
 public class V1 {
 	private static final String COOKIE_NAME = "buldreinfo";
-	
+
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -77,7 +78,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -91,7 +92,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/areas/list")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -106,7 +107,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -121,7 +122,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/grades")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -138,7 +139,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/images")
 	public Response getImages(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
@@ -169,23 +170,23 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/logout")
 	public Response getLogout(@CookieParam(COOKIE_NAME) Cookie cookie) {
-	    if (cookie != null) {
-	    	try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		if (cookie != null) {
+			try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 				c.getBuldreinfoRepo().deleteToken(cookie.getValue());
 				c.setSuccess();
 			} catch (Exception e) {
 				throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 			}
-	        NewCookie newCookie = new NewCookie(cookie, null, 0, false);
-	        return Response.ok().cookie(newCookie).build();
-	    }
-	    return Response.ok().build();
+			NewCookie newCookie = new NewCookie(cookie, null, 0, false);
+			return Response.ok().cookie(newCookie).build();
+		}
+		return Response.ok().build();
 	}
-	
+
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -199,7 +200,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -228,6 +229,17 @@ public class V1 {
 	}
 
 	@GET
+	@Path("/sitemap.xml")
+	@Produces(MediaType.TEXT_XML)
+	public Response getSitemapXml() {
+		List<Url> urls = new ArrayList<>();
+		urls.add(new Url("https://buldreinfo.com"));
+		urls.add(new Url("https://buldreinfo.com/about"));
+		Urlset urlSet = new Urlset(urls);
+		return Response.ok(urlSet).build();
+	}
+
+	@GET
 	@Path("/types")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTypes(@QueryParam("regionId") int regionId) throws ExecutionException, IOException {
@@ -239,7 +251,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -253,7 +265,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/edit")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -270,7 +282,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/forgotPassword")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -284,7 +296,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/password")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -299,7 +311,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -313,7 +325,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -364,7 +376,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -382,7 +394,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
@@ -398,7 +410,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -412,7 +424,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/sectors")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -430,7 +442,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, Tick t) throws ExecutionException, IOException {
@@ -445,7 +457,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/users/edit")
 	public Response postUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, UserEdit u) throws ExecutionException, IOException {
@@ -494,7 +506,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/users/register")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -511,7 +523,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	private NewCookie getBuldreinfoCookie(String token) {
 		String path = "/";
 		String domain = null;
