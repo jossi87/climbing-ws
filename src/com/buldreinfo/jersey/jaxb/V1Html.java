@@ -52,9 +52,9 @@ public class V1Html {
 			return "Config [idRegion=" + idRegion + ", title=" + title + ", baseUrl=" + baseUrl + "]";
 		}
 	}
-	
+
 	private static final Logger logger = LogManager.getLogger();
-	
+
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -68,21 +68,7 @@ public class V1Html {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
-	@GET
-	@Path("/sitemap.txt")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
-	public Response getSitemapTxt(@QueryParam("base") String base) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(base);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(conf.getIdRegion());
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -130,6 +116,14 @@ public class V1Html {
 	}
 
 	@GET
+	@Path("/robots.txt")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getRobotsTxt(@QueryParam("base") String base) {
+		Config conf = getConfig(base);
+		return Response.ok().entity(conf.getBaseUrl() + "/sitemap.txt").build(); 
+	}
+
+	@GET
 	@Path("/sectors")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getSectors(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
@@ -144,22 +138,36 @@ public class V1Html {
 		}
 	}
 
+	@GET
+	@Path("/sitemap.txt")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getSitemapTxt(@QueryParam("base") String base) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Config conf = getConfig(base);
+			String res = c.getBuldreinfoRepo().getSitemapTxt(conf.getIdRegion());
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
 	private Config getConfig(String base) {
 		Config conf = null;
-	    if (base.contains("buldring.bergen-klatreklubb.no")) {
-	    	conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
-	    }
-	    else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
-	    	conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
-	    }
-	    else if (base.contains("brattelinjer.no")) {
-	    	conf = new Config(4, "Bratte linjer | Offisiell fører for klatring i Rogaland", "https://brattelinjer.no");
-	    }
-	    else {
-	    	conf = new Config(1, "buldreinfo | Offisiell fører for buldring i Rogaland og Hordaland", "https://buldreinfo.com");
-	    }
-	    logger.debug("getConfig(base={}) - conf={}", base, conf);
-	    return conf;
+		if (base.contains("buldring.bergen-klatreklubb.no")) {
+			conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
+		}
+		else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
+			conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
+		}
+		else if (base.contains("brattelinjer.no")) {
+			conf = new Config(4, "Bratte linjer | Offisiell fører for klatring i Rogaland", "https://brattelinjer.no");
+		}
+		else {
+			conf = new Config(1, "buldreinfo | Offisiell fører for buldring i Rogaland og Hordaland", "https://buldreinfo.com");
+		}
+		logger.debug("getConfig(base={}) - conf={}", base, conf);
+		return conf;
 	}
 
 	private String getHtml(String url, String title, String description, OpenGraphImage image) {
