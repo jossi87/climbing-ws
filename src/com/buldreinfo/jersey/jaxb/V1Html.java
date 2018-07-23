@@ -63,7 +63,7 @@ public class V1Html {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			c.setSuccess();
 			Config conf = getConfig(base);
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, conf.getTitle() + " | " + a.getName(), a.getComment(), null)).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, a.getName() + " | " + conf.getTitle(), a.getComment(), null)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -109,7 +109,7 @@ public class V1Html {
 				}
 			}
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/problem/" + id, conf.getTitle() + " | " + name, description, image)).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/problem/" + id, name + " | " + conf.getTitle(), description, image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -132,7 +132,7 @@ public class V1Html {
 			Sector s = c.getBuldreinfoRepo().getSector(null, conf.getIdRegion(), id);
 			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, conf.getTitle() + " | " + s.getName(), s.getComment(), image)).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, s.getName() + " | " + conf.getTitle(), s.getComment(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -155,22 +155,22 @@ public class V1Html {
 	private Config getConfig(String base) {
 		Config conf = null;
 		if (base.contains("buldring.bergen-klatreklubb.no")) {
-			conf = new Config(2, "Buldring i Hordaland | buldring.bergen-klatreklubb.no", "https://buldring.bergen-klatreklubb.no");
+			conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
 		}
 		else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
-			conf = new Config(3, "Buldring i Fredrikstad | buldring.fredrikstadklatreklubb.org", "https://buldring.fredrikstadklatreklubb.org");
+			conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
 		}
 		else if (base.contains("brattelinjer.no")) {
-			conf = new Config(4, "Klatring i Rogaland | Bratte linjer", "https://brattelinjer.no");
+			conf = new Config(4, "Bratte Linjer", "https://brattelinjer.no");
 		}
 		else if (base.contains("buldring.jotunheimenfjellsport.com")) {
-			conf = new Config(5, "Buldring i Jotunheimen | buldring.jotunheimenfjellsport.com", "https://buldring.jotunheimenfjellsport.com");
+			conf = new Config(5, "Buldring i Jotunheimen", "https://buldring.jotunheimenfjellsport.com");
 		}
 		else if (base.contains("klatring.jotunheimenfjellsport.com")) {
-			conf = new Config(6, "Klatring i Jotunheimen | klatring.jotunheimenfjellsport.com", "https://klatring.jotunheimenfjellsport.com");
+			conf = new Config(6, "Klatring i Jotunheimen", "https://klatring.jotunheimenfjellsport.com");
 		}
 		else {
-			conf = new Config(1, "Buldring i Rogaland | Buldreinfo", "https://buldreinfo.com");
+			conf = new Config(1, "Buldreinfo", "https://buldreinfo.com");
 		}
 		logger.debug("getConfig(base={}) - conf={}", base, conf);
 		return conf;
