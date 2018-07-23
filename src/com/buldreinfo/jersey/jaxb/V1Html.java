@@ -102,7 +102,7 @@ public class V1Html {
 			OpenGraphImage image = null;
 			if (!res.isEmpty()) {
 				Problem p = res.get(0);
-				name = p.getName() + " (" + p.getGrade() + ")";
+				name = p.getName() + " (" + p.getGrade() + ") | " + p.getAreaName() + " / " + p.getSectorName();
 				description = p.getComment();
 				if (p.getMedia() != null && !p.getMedia().isEmpty()) {
 					image = c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), p.getMedia().get(0).getId());	
@@ -132,7 +132,7 @@ public class V1Html {
 			Sector s = c.getBuldreinfoRepo().getSector(null, conf.getIdRegion(), id);
 			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, s.getName() + " | " + conf.getTitle(), s.getComment(), image)).build();
+			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, s.getName() + " (" + s.getAreaName() + ") | " + conf.getTitle(), s.getComment(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
