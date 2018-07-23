@@ -898,8 +898,10 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Areas, sectors, problems
-		ps = c.getConnection().prepareStatement("SELECT CONCAT(r.url, '/area/', a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT(r.url, '/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT(r.url, '/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
+		ps = c.getConnection().prepareStatement("SELECT CONCAT(r.url, '/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT(r.url, '/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT(r.url, '/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
 		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
+		ps.setInt(3, idRegion);
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			urls.add(rst.getString("url"));
