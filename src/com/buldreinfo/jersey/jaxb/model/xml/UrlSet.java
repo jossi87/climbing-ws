@@ -8,11 +8,11 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 
 @XmlAccessorType(XmlAccessType.NONE)
-public class Urlset {
+public class UrlSet {
 	@XmlAttribute private final String xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
 	private final List<Url> urls;
 
-	public Urlset(List<Url> urls) {
+	public UrlSet(List<Url> urls) {
 		this.urls = urls;
 	}
 	

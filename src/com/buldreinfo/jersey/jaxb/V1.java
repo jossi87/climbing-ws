@@ -25,6 +25,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Cookie;
+import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -53,7 +54,7 @@ import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.model.xml.Url;
-import com.buldreinfo.jersey.jaxb.model.xml.Urlset;
+import com.buldreinfo.jersey.jaxb.model.xml.UrlSet;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -230,13 +231,14 @@ public class V1 {
 
 	@GET
 	@Path("/sitemap.xml")
-	@Produces(MediaType.TEXT_XML)
+	@Produces(MediaType.TEXT_XML + "; charset=utf-8")
 	public Response getSitemapXml() {
 		List<Url> urls = new ArrayList<>();
 		urls.add(new Url("https://buldreinfo.com"));
 		urls.add(new Url("https://buldreinfo.com/about"));
-		Urlset urlSet = new Urlset(urls);
-		return Response.ok(urlSet).build();
+		UrlSet urlSet = new UrlSet(urls);
+		GenericEntity<UrlSet> entity = new GenericEntity<UrlSet>(urlSet){};
+		return Response.ok(entity).build();
 	}
 
 	@GET
