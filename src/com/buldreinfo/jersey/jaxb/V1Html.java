@@ -120,7 +120,7 @@ public class V1Html {
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getRobotsTxt(@QueryParam("base") String base) {
 		Config conf = getConfig(base);
-		return Response.ok().entity(conf.getBaseUrl() + "/sitemap.txt").build(); 
+		return Response.ok().entity("Sitemap: " + conf.getBaseUrl() + "/sitemap.txt").build(); 
 	}
 
 	@GET
