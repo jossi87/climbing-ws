@@ -25,7 +25,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Cookie;
-import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -53,8 +52,6 @@ import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
-import com.buldreinfo.jersey.jaxb.model.xml.Url;
-import com.buldreinfo.jersey.jaxb.model.xml.UrlSet;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -230,14 +227,16 @@ public class V1 {
 	}
 
 	@GET
-	@Path("/sitemap.xml")
-	@Produces(MediaType.TEXT_XML + "; charset=utf-8")
-	public Response getSitemapXml() {
-		List<Url> urls = new ArrayList<>();
-		urls.add(new Url("https://buldreinfo.com"));
-		urls.add(new Url("https://buldreinfo.com/about"));
-		UrlSet urlSet = new UrlSet(urls);
-		return Response.ok(new GenericEntity<UrlSet>(urlSet){}).build();
+	@Path("/sitemap.txt")
+	@Produces(MediaType.TEXT_PLAIN)
+	public Response getSitemapTxt() {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			String res = c.getBuldreinfoRepo().getSitemapTxt();
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
 	}
 
 	@GET

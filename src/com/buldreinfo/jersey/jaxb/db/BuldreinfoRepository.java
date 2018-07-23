@@ -74,6 +74,8 @@ import com.google.gson.reflect.TypeToken;
 import com.verico.pictures.ExifOrientation;
 import com.verico.pictures.ThumbnailCreation;
 
+import jersey.repackaged.com.google.common.base.Joiner;
+
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
@@ -864,6 +866,18 @@ public class BuldreinfoRepository {
 		ps.close();
 		logger.debug("getSector(token={}, reqId={}) - duration={}", token, reqId, stopwatch);
 		return s;
+	}
+
+	public String getSitemapTxt() throws SQLException {
+		List<String> urls = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT CONCAT(r.url, '/area/', a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT(r.url, '/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT(r.url, '/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			urls.add(rst.getString("url"));
+		}
+		rst.close();
+		ps.close();
+		return Joiner.on("\r\n").join(urls);
 	}
 
 	public List<Type> getTypes(int regionId) throws SQLException {

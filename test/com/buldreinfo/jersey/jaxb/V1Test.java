@@ -134,9 +134,9 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetSitemapXml() throws Exception {
+	public void testGetSitemapTxt() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getSitemapXml();
+		Response r = tester.getSitemapTxt();
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 	}
 	
