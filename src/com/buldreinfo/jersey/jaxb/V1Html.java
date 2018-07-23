@@ -155,16 +155,22 @@ public class V1Html {
 	private Config getConfig(String base) {
 		Config conf = null;
 		if (base.contains("buldring.bergen-klatreklubb.no")) {
-			conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
+			conf = new Config(2, "Buldring i Hordaland | buldring.bergen-klatreklubb.no", "https://buldring.bergen-klatreklubb.no");
 		}
 		else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
-			conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
+			conf = new Config(3, "Buldring i Fredrikstad | buldring.fredrikstadklatreklubb.org", "https://buldring.fredrikstadklatreklubb.org");
 		}
 		else if (base.contains("brattelinjer.no")) {
-			conf = new Config(4, "Bratte linjer | Offisiell fører for klatring i Rogaland", "https://brattelinjer.no");
+			conf = new Config(4, "Klatring i Rogaland | Bratte linjer", "https://brattelinjer.no");
+		}
+		else if (base.contains("buldring.jotunheimenfjellsport.com")) {
+			conf = new Config(5, "Buldring i Jotunheimen | buldring.jotunheimenfjellsport.com", "https://buldring.jotunheimenfjellsport.com");
+		}
+		else if (base.contains("klatring.jotunheimenfjellsport.com")) {
+			conf = new Config(6, "Klatring i Jotunheimen | klatring.jotunheimenfjellsport.com", "https://klatring.jotunheimenfjellsport.com");
 		}
 		else {
-			conf = new Config(1, "buldreinfo | Offisiell fører for buldring i Rogaland og Hordaland", "https://buldreinfo.com");
+			conf = new Config(1, "Buldring i Rogaland | Buldreinfo", "https://buldreinfo.com");
 		}
 		logger.debug("getConfig(base={}) - conf={}", base, conf);
 		return conf;
