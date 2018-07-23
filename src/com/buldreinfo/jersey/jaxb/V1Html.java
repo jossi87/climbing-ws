@@ -57,6 +57,7 @@ public class V1Html {
 	
 	@GET
 	@Path("/areas")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getAreas(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
@@ -70,7 +71,7 @@ public class V1Html {
 	
 	@GET
 	@Path("/sitemap.txt")
-	@Produces(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getSitemapTxt(@QueryParam("base") String base) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
@@ -84,6 +85,7 @@ public class V1Html {
 	
 	@GET
 	@Path("/frontpage")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getFrontpage(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
@@ -104,6 +106,7 @@ public class V1Html {
 
 	@GET
 	@Path("/problems")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getProblems(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
@@ -128,6 +131,7 @@ public class V1Html {
 
 	@GET
 	@Path("/sectors")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getSectors(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Config conf = getConfig(base);
