@@ -11,8 +11,6 @@ import javax.ws.rs.core.Response;
 
 import org.junit.Test;
 
-import com.google.common.base.Strings;
-
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -21,6 +19,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.google.common.base.Strings;
 
 public class V1Test {
 	private final static int REGION_ID = 1;
@@ -131,13 +130,6 @@ public class V1Test {
 		assertTrue(!Strings.isNullOrEmpty(s.getName()));
 		assertTrue(!s.getProblems().isEmpty());
 		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
-	}
-	
-	@Test
-	public void testGetSitemapTxt() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getSitemapTxt();
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 	}
 	
 //	@Test

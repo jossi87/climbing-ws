@@ -227,19 +227,6 @@ public class V1 {
 	}
 
 	@GET
-	@Path("/sitemap.txt")
-	@Produces(MediaType.TEXT_PLAIN)
-	public Response getSitemapTxt() {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			String res = c.getBuldreinfoRepo().getSitemapTxt();
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
 	@Path("/types")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTypes(@QueryParam("regionId") int regionId) throws ExecutionException, IOException {

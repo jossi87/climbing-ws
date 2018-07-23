@@ -6,7 +6,9 @@ import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
@@ -61,6 +63,20 @@ public class V1Html {
 			c.setSuccess();
 			Config conf = getConfig(base);
 			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, conf.getTitle() + " | " + a.getName(), a.getComment(), null)).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/sitemap.txt")
+	@Produces(MediaType.TEXT_PLAIN)
+	public Response getSitemapTxt(@QueryParam("base") String base) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Config conf = getConfig(base);
+			String res = c.getBuldreinfoRepo().getSitemapTxt(conf.getIdRegion());
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
