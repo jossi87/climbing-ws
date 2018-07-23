@@ -11,6 +11,8 @@ import javax.ws.rs.core.Response;
 
 import org.junit.Test;
 
+import com.google.common.base.Strings;
+
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -19,8 +21,6 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
-import com.buldreinfo.jersey.jaxb.model.xml.UrlSet;
-import com.google.common.base.Strings;
 
 public class V1Test {
 	private final static int REGION_ID = 1;
@@ -136,8 +136,8 @@ public class V1Test {
 	@Test
 	public void testGetSitemapXml() throws Exception {
 		V1 tester = new V1();
-		UrlSet urlSet = tester.getSitemapXml();
-		assertTrue(urlSet != null);
+		Response r = tester.getSitemapXml();
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 	}
 	
 //	@Test

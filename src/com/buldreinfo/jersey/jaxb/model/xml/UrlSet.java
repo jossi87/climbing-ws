@@ -2,12 +2,11 @@ package com.buldreinfo.jersey.jaxb.model.xml;
 
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlAccessorType(XmlAccessType.NONE)
+@XmlRootElement
 public class UrlSet {
 	@XmlAttribute private final String xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
 	private final List<Url> urls;

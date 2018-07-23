@@ -232,11 +232,12 @@ public class V1 {
 	@GET
 	@Path("/sitemap.xml")
 	@Produces(MediaType.TEXT_XML + "; charset=utf-8")
-	public UrlSet getSitemapXml() {
+	public Response getSitemapXml() {
 		List<Url> urls = new ArrayList<>();
 		urls.add(new Url("https://buldreinfo.com"));
 		urls.add(new Url("https://buldreinfo.com/about"));
-		return new UrlSet(urls);
+		UrlSet urlSet = new UrlSet(urls);
+		return Response.ok(new GenericEntity<UrlSet>(urlSet){}).build();
 	}
 
 	@GET
