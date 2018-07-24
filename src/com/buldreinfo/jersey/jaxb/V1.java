@@ -10,7 +10,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
@@ -29,6 +34,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
@@ -54,6 +61,13 @@ import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 
 /**
@@ -61,7 +75,40 @@ import com.google.gson.Gson;
  */
 @Path("/v1/")
 public class V1 {
-	private static final String COOKIE_NAME = "buldreinfo";
+	private final static String COOKIE_NAME = "buldreinfo";
+	private static Logger logger = LogManager.getLogger();
+	private final static ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("BuldreinfoCacheRefresher-pool-%d").setDaemon(true).build();
+	private final static ExecutorService parentExecutor = Executors.newSingleThreadExecutor(threadFactory);
+	private final static ListeningExecutorService executorService = MoreExecutors.listeningDecorator(parentExecutor);
+	private final static LoadingCache<String, Frontpage> frontpageCache = CacheBuilder.newBuilder()
+			.maximumSize(1000)
+			.refreshAfterWrite(8, TimeUnit.HOURS)
+			.build(new CacheLoader<String, Frontpage>() {
+				@Override
+				public Frontpage load(String key) {
+					String[] parts = key.split("_");
+					int regionId = Integer.parseInt(parts[0]);
+					String token = parts[1];
+					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, regionId);
+						c.setSuccess();
+						return f;
+					} catch (Exception e) {
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+					}    
+				}
+				@Override
+				public ListenableFuture<Frontpage> reload(final String key, Frontpage oldFrontpage) throws Exception {
+					ListenableFuture<Frontpage> task = executorService.submit(new Callable<Frontpage>() {
+						@Override
+						public Frontpage call() throws Exception {
+							logger.debug("reload(key={}) initialized", key);
+							return load(key);
+						}
+					});
+					return task;
+				}
+			});
 
 	@DELETE
 	@Path("/media")
@@ -70,13 +117,14 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkArgument(id > 0);
 			c.getBuldreinfoRepo().deleteMedia(token, id);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -111,11 +159,9 @@ public class V1 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		try {
 			Preconditions.checkArgument(regionId>0);
-			Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, regionId);
-			c.setSuccess();
-			return Response.ok().entity(f).build();
+			return Response.ok().entity(frontpageCache.get(regionId + "_" + token)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -324,6 +370,7 @@ public class V1 {
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			Preconditions.checkArgument(a.getRegionId() > 0);
 			a = c.getBuldreinfoRepo().setArea(token, a, multiPart);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -338,6 +385,7 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
 			c.getBuldreinfoRepo().addComment(token, co);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -357,6 +405,7 @@ public class V1 {
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
 			p = c.getBuldreinfoRepo().setProblem(token, regionId, p, multiPart);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
 		} catch (Exception e) {
@@ -375,6 +424,7 @@ public class V1 {
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(token, p, multiPart);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
 		} catch (Exception e) {
@@ -423,6 +473,7 @@ public class V1 {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			s = c.getBuldreinfoRepo().setSector(token, regionId, s, multiPart);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -438,6 +489,7 @@ public class V1 {
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkNotNull(token);
 			c.getBuldreinfoRepo().setTick(token, regionId, t);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -454,6 +506,7 @@ public class V1 {
 			Preconditions.checkNotNull(u);
 			Preconditions.checkArgument(u.getRegionId() > 0);
 			final Permission p = c.getBuldreinfoRepo().setUser(token, u);
+			invalidateFrontpageCache();
 			c.setSuccess();
 			if (p != null && !Strings.isNullOrEmpty(p.getToken())) { // Return new token (new password)
 				return Response.ok().cookie(getBuldreinfoCookie(p.getToken())).build();
@@ -521,5 +574,16 @@ public class V1 {
 		boolean secure = false;
 		boolean httpOnly = false;
 		return new NewCookie(COOKIE_NAME, token, path, domain, version, comment, maxAgeSeconds, expiry, secure, httpOnly);
+	}
+
+	private void invalidateFrontpageCache() {
+		for (String key : frontpageCache.asMap().keySet()) {
+			if (key.endsWith("_null")) {
+				frontpageCache.refresh(key);
+			}
+			else {
+				frontpageCache.invalidate(key);
+			}
+		}
 	}
 }
