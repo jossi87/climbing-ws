@@ -161,7 +161,19 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try {
 			Preconditions.checkArgument(regionId>0);
-			return Response.ok().entity(frontpageCache.get(regionId + "_" + token)).build();
+			Frontpage f = frontpageCache.getIfPresent(regionId + "_" + token);
+			if (f == null) {
+				f = frontpageCache.get(regionId + "_" + token);
+			}
+			else {
+				try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+					c.getBuldreinfoRepo().reloadRandomMedia(f, token, regionId);
+					c.setSuccess();
+				} catch (Exception e) {
+					throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+				}
+			}
+			return Response.ok().entity(f).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

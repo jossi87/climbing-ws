@@ -282,10 +282,7 @@ public class BuldreinfoRepository {
 		/**
 		 * RandomMedia
 		 */
-		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
-		if (res.getRandomMedia() == null) {
-			setRandomMedia(res, token, regionId, true);
-		}
+		reloadRandomMedia(res, token, regionId);
 
 		/**
 		 * Ascents
@@ -1041,6 +1038,13 @@ public class BuldreinfoRepository {
 		ps.setString(4, hashPassword(r.getPassword()));
 		ps.execute();
 		ps.close();
+	}
+
+	public void reloadRandomMedia(Frontpage res, String token, int regionId) throws SQLException {
+		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
+		if (res.getRandomMedia() == null) {
+			setRandomMedia(res, token, regionId, true);
+		}
 	}
 
 	public void resetPassword(String token, String password) throws SQLException, NoSuchAlgorithmException {
