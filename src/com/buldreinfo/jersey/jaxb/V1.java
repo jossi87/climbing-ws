@@ -82,7 +82,7 @@ public class V1 {
 	private final static ListeningExecutorService executorService = MoreExecutors.listeningDecorator(parentExecutor);
 	private final static LoadingCache<String, Frontpage> frontpageCache = CacheBuilder.newBuilder()
 			.maximumSize(1000)
-			.refreshAfterWrite(8, TimeUnit.HOURS)
+			.refreshAfterWrite(10, TimeUnit.MINUTES)
 			.build(new CacheLoader<String, Frontpage>() {
 				@Override
 				public Frontpage load(String key) {
@@ -161,19 +161,7 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try {
 			Preconditions.checkArgument(regionId>0);
-			Frontpage f = frontpageCache.getIfPresent(regionId + "_" + token);
-			if (f == null) {
-				f = frontpageCache.get(regionId + "_" + token);
-			}
-			else {
-				try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-					c.getBuldreinfoRepo().reloadRandomMedia(f, token, regionId);
-					c.setSuccess();
-				} catch (Exception e) {
-					throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-				}
-			}
-			return Response.ok().entity(f).build();
+			return Response.ok().entity(frontpageCache.get(regionId + "_" + token)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

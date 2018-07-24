@@ -282,7 +282,10 @@ public class BuldreinfoRepository {
 		/**
 		 * RandomMedia
 		 */
-		reloadRandomMedia(res, token, regionId);
+		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
+		if (res.getRandomMedia() == null) {
+			setRandomMedia(res, token, regionId, true);
+		}
 
 		/**
 		 * Ascents
@@ -1040,13 +1043,6 @@ public class BuldreinfoRepository {
 		ps.close();
 	}
 
-	public void reloadRandomMedia(Frontpage res, String token, int regionId) throws SQLException {
-		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
-		if (res.getRandomMedia() == null) {
-			setRandomMedia(res, token, regionId, true);
-		}
-	}
-
 	public void resetPassword(String token, String password) throws SQLException, NoSuchAlgorithmException {
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET password=?, recover_token=null WHERE recover_token=?");
 		ps.setString(1, hashPassword(password));
@@ -1315,6 +1311,37 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		return getProblem(token, regionId, idProblem, 0).get(0);
+	}
+
+	private void setRandomMedia(Frontpage res, String token, int regionId, boolean fallbackSolution) throws SQLException {
+		String sqlStr = "SELECT m.id id_media, p.id id_problem, p.name problem, m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', u.lastname)) photographer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', u2.lastname)) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
+				+ " FROM (((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
+				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u2.firstname, u2.lastname, p.grade"
+				+ " HAVING AVG(t.stars)>=2"
+				+ " ORDER BY rand()"
+				+ " LIMIT 1";
+		if (fallbackSolution) {
+			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
+			sqlStr = sqlStr.replace("HAVING AVG(t.stars)>=2", "");
+		}
+		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
+		ps.setString(1, token);
+		ps.setInt(2, regionId);
+		ps.setInt(3, regionId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int idMedia = rst.getInt("id_media");
+			int idProblem = rst.getInt("id_problem");
+			String problem = rst.getString("problem");
+			int grade = rst.getInt("grade");
+			int idCreator = rst.getInt("id_creator");
+			String photographer = rst.getString("photographer");
+			String inPhoto = rst.getString("in_photo");
+			res.setRandomMedia(idMedia, idProblem, problem, GradeHelper.intToString(regionId, grade), idCreator, photographer, inPhoto);
+		}
+		rst.close();
+		ps.close();
 	}
 
 	public Sector setSector(String token, int regionId, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -1883,37 +1910,6 @@ public class BuldreinfoRepository {
 			hashtext = "0" + hashtext;
 		}
 		return hashtext;
-	}
-
-	private void setRandomMedia(Frontpage res, String token, int regionId, boolean fallbackSolution) throws SQLException {
-		String sqlStr = "SELECT m.id id_media, p.id id_problem, p.name problem, m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', u.lastname)) photographer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', u2.lastname)) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
-				+ " FROM (((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)"
-				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
-				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u2.firstname, u2.lastname, p.grade"
-				+ " HAVING AVG(t.stars)>=2"
-				+ " ORDER BY rand()"
-				+ " LIMIT 1";
-		if (fallbackSolution) {
-			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
-			sqlStr = sqlStr.replace("HAVING AVG(t.stars)>=2", "");
-		}
-		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
-		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			int idMedia = rst.getInt("id_media");
-			int idProblem = rst.getInt("id_problem");
-			String problem = rst.getString("problem");
-			int grade = rst.getInt("grade");
-			int idCreator = rst.getInt("id_creator");
-			String photographer = rst.getString("photographer");
-			String inPhoto = rst.getString("in_photo");
-			res.setRandomMedia(idMedia, idProblem, problem, GradeHelper.intToString(regionId, grade), idCreator, photographer, inPhoto);
-		}
-		rst.close();
-		ps.close();
 	}
 
 	private int upsertUserReturnId(String uniqueId) throws SQLException {
