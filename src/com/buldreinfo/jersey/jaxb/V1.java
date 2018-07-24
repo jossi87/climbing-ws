@@ -110,6 +110,22 @@ public class V1 {
 				}
 			});
 
+	public V1() {
+		// Initialize cache
+		if (frontpageCache.asMap().isEmpty()) {
+			try {
+				frontpageCache.get(V1Html.REGION_1 + "_null");
+				frontpageCache.get(V1Html.REGION_2 + "_null");
+				frontpageCache.get(V1Html.REGION_3 + "_null");
+				frontpageCache.get(V1Html.REGION_4 + "_null");
+				frontpageCache.get(V1Html.REGION_5 + "_null");
+				frontpageCache.get(V1Html.REGION_6 + "_null");
+			} catch (Exception e) {
+				logger.fatal(e.getMessage(), e);
+			}
+		}
+	}
+
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -124,7 +140,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")

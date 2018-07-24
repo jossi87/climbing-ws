@@ -54,6 +54,12 @@ public class V1Html {
 	}
 
 	private static final Logger logger = LogManager.getLogger();
+	public static final int REGION_1 = 1;
+	public static final int REGION_2 = 2;
+	public static final int REGION_3 = 3;
+	public static final int REGION_4 = 4;
+	public static final int REGION_5 = 5;
+	public static final int REGION_6 = 6;
 
 	@GET
 	@Path("/areas")
@@ -155,22 +161,22 @@ public class V1Html {
 	private Config getConfig(String base) {
 		Config conf = null;
 		if (base.contains("buldring.bergen-klatreklubb.no")) {
-			conf = new Config(2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
+			conf = new Config(REGION_2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
 		}
 		else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
-			conf = new Config(3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
+			conf = new Config(REGION_3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
 		}
 		else if (base.contains("brattelinjer.no")) {
-			conf = new Config(4, "Bratte Linjer", "https://brattelinjer.no");
+			conf = new Config(REGION_4, "Bratte Linjer", "https://brattelinjer.no");
 		}
 		else if (base.contains("buldring.jotunheimenfjellsport.com")) {
-			conf = new Config(5, "Buldring i Jotunheimen", "https://buldring.jotunheimenfjellsport.com");
+			conf = new Config(REGION_5, "Buldring i Jotunheimen", "https://buldring.jotunheimenfjellsport.com");
 		}
 		else if (base.contains("klatring.jotunheimenfjellsport.com")) {
-			conf = new Config(6, "Klatring i Jotunheimen", "https://klatring.jotunheimenfjellsport.com");
+			conf = new Config(REGION_6, "Klatring i Jotunheimen", "https://klatring.jotunheimenfjellsport.com");
 		}
 		else {
-			conf = new Config(1, "Buldreinfo", "https://buldreinfo.com");
+			conf = new Config(REGION_1, "Buldreinfo", "https://buldreinfo.com");
 		}
 		logger.debug("getConfig(base={}) - conf={}", base, conf);
 		return conf;
