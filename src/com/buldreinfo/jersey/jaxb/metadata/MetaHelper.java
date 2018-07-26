@@ -57,7 +57,7 @@ public class MetaHelper {
 			Area a = (Area)m;
 			String description = null;
 			if (setup.isBouldering()) {
-				description = String.format("Bouldering in %s (%d sectors, %d problems)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
+				description = String.format("Bouldering in %s (%d sectors, %d boulders)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
@@ -67,7 +67,7 @@ public class MetaHelper {
 		else if (m instanceof Frontpage) {
 			Frontpage f = (Frontpage)m;
 			String description = String.format("%s: %d (%d with coordinates, %d on topo) | Public ascents: %d | Images: %d | Ascents on video: %d",
-					(setup.isBouldering()? "Problems" : "Routes"),
+					(setup.isBouldering()? "Boulders" : "Routes"),
 					f.getNumProblems(), 
 					f.getNumProblemsWithCoordinates(), 
 					f.getNumProblemsWithTopo(),
@@ -79,7 +79,7 @@ public class MetaHelper {
 			Problem p = (Problem)m;
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
-			if (!p.getFa().isEmpty()) {
+			if (p.getFa() != null && !p.getFa().isEmpty()) {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
@@ -90,7 +90,7 @@ public class MetaHelper {
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
 			String description = String.format("%d%s%s",
 					s.getProblems().size(),
-					(setup.isBouldering()? " problems" : " routes"),
+					(setup.isBouldering()? " boulders" : " routes"),
 					(!Strings.isNullOrEmpty(s.getComment()))? " | " + s.getComment() : "");
 			s.setMetadata(new Metadata(setup.getTitle(title), description));
 		}
