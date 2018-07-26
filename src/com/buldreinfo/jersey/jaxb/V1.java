@@ -43,6 +43,8 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
+import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -77,6 +79,7 @@ import com.google.gson.Gson;
 public class V1 {
 	private final static String COOKIE_NAME = "buldreinfo";
 	private static Logger logger = LogManager.getLogger();
+	private final static MetaHelper metaHelper = new MetaHelper();
 	private final static ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("BuldreinfoCacheRefresher-pool-%d").setDaemon(true).build();
 	private final static ExecutorService parentExecutor = Executors.newSingleThreadExecutor(threadFactory);
 	private final static ListeningExecutorService executorService = MoreExecutors.listeningDecorator(parentExecutor);
@@ -91,6 +94,7 @@ public class V1 {
 					String token = parts[1];
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, regionId);
+						metaHelper.updateMetadata(f, metaHelper.getSetup(regionId));
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -114,12 +118,9 @@ public class V1 {
 		// Initialize cache
 		if (frontpageCache.asMap().isEmpty()) {
 			try {
-				frontpageCache.get(V1Html.REGION_1 + "_null");
-				frontpageCache.get(V1Html.REGION_2 + "_null");
-				frontpageCache.get(V1Html.REGION_3 + "_null");
-				frontpageCache.get(V1Html.REGION_4 + "_null");
-				frontpageCache.get(V1Html.REGION_5 + "_null");
-				frontpageCache.get(V1Html.REGION_6 + "_null");
+				for (Setup s : metaHelper.getSetups()) {
+					frontpageCache.get(s.getIdRegion() + "_null");
+				}
 			} catch (Exception e) {
 				logger.fatal(e.getMessage(), e);
 			}
@@ -144,10 +145,11 @@ public class V1 {
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Area a = c.getBuldreinfoRepo().getArea(token, id);
+			metaHelper.updateMetadata(a, metaHelper.getSetup(regionId));
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -254,6 +256,9 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, regionId, id, grade);
+			if (res.size() == 1) {
+				metaHelper.updateMetadata(res.get(0), metaHelper.getSetup(regionId));
+			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -281,6 +286,7 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Sector s = c.getBuldreinfoRepo().getSector(token, regionId, id);
+			metaHelper.updateMetadata(s, metaHelper.getSetup(regionId));
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -308,6 +314,7 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			User res = c.getBuldreinfoRepo().getUser(token, regionId, id);
+			metaHelper.updateMetadata(res, metaHelper.getSetup(regionId));
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

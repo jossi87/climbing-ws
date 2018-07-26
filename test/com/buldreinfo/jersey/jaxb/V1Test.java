@@ -27,7 +27,7 @@ public class V1Test {
 	@Test
 	public void testGetAreas() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getAreas(null, 7);
+		Response r = tester.getAreas(null, REGION_ID, 7);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Area);
 		Area a = (Area)r.getEntity();

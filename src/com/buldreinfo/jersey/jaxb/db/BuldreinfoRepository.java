@@ -41,6 +41,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MailSender;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -50,6 +51,7 @@ import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -59,7 +61,6 @@ import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
-import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
@@ -390,13 +391,13 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public OpenGraphImage getImage(String base, int idMedia) {
+	public OpenGraphImage getImage(Setup setup, int idMedia) {
 		OpenGraphImage res = null;
 		try {
 			Path p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + ".jpg");
 			if (Files.exists(p)) {
 				BufferedImage b = ImageIO.read(p.toFile());
-				String http = base + "/buldreinfo_media/jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg";
+				String http = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg");
 				res = new OpenGraphImage(http, String.valueOf(b.getWidth()), String.valueOf(b.getHeight()));
 				b.flush();
 			}

@@ -11,55 +11,27 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.google.common.html.HtmlEscapers;
+
+import jersey.repackaged.com.google.common.base.Preconditions;
 
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 @Path("/v1/static/")
 public class V1Html {
-	private class Config {
-		private final int idRegion;
-		private final String title;
-		private final String baseUrl;
-		public Config(int idRegion, String title, String baseUrl) {
-			this.idRegion = idRegion;
-			this.title = title;
-			this.baseUrl = baseUrl;
-		}
-		public String getBaseUrl() {
-			return baseUrl;
-		}
-		public int getIdRegion() {
-			return idRegion;
-		}
-		public String getTitle() {
-			return title;
-		}
-		@Override
-		public String toString() {
-			return "Config [idRegion=" + idRegion + ", title=" + title + ", baseUrl=" + baseUrl + "]";
-		}
-	}
-
-	private static final Logger logger = LogManager.getLogger();
-	public static final int REGION_1 = 1;
-	public static final int REGION_2 = 2;
-	public static final int REGION_3 = 3;
-	public static final int REGION_4 = 4;
-	public static final int REGION_5 = 5;
-	public static final int REGION_6 = 6;
+	private final static MetaHelper metaHelper = new MetaHelper();
 
 	@GET
 	@Path("/areas")
@@ -68,8 +40,8 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			c.setSuccess();
-			Config conf = getConfig(base);
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/area/" + id, a.getName() + " | " + conf.getTitle(), a.getComment(), null)).build();
+			Setup setup = metaHelper.getSetup(base);
+			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), null)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -80,17 +52,11 @@ public class V1Html {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getFrontpage(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(base);
-			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, conf.getIdRegion());
-			String description = String.format("Total: %d (%d with coordinates, %d on topo) | Public ascents: %d | Images: %d | Ascents on video: %d", 
-					f.getNumProblems(), 
-					f.getNumProblemsWithCoordinates(), 
-					f.getNumProblemsWithTopo(),
-					f.getNumTicks(), f.getNumImages(), 
-					f.getNumMovies());
-			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), f.getRandomMedia().getIdMedia());
+			Setup setup = metaHelper.getSetup(base);
+			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup.getIdRegion());
+			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(setup, f.getRandomMedia().getIdMedia());
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl(), conf.getTitle(), description, image)).build();
+			return Response.ok().entity(getHtml(setup.getUrl(null), f.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -101,21 +67,16 @@ public class V1Html {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getProblems(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(base);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, conf.getIdRegion(), id, 0);
-			String name = "";
-			String description = "";
+			Setup setup = metaHelper.getSetup(base);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, setup.getIdRegion(), id, 0);
+			Preconditions.checkArgument(!res.isEmpty());
+			Problem p = res.get(0);
 			OpenGraphImage image = null;
-			if (!res.isEmpty()) {
-				Problem p = res.get(0);
-				name = p.getName() + " [" + p.getGrade() + "] (" + p.getAreaName() + " / " + p.getSectorName() + ")";
-				description = p.getComment();
-				if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-					image = c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), p.getMedia().get(0).getId());	
-				}
+			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
+				image = c.getBuldreinfoRepo().getImage(setup, p.getMedia().get(0).getId());	
 			}
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/problem/" + id, name + " | " + conf.getTitle(), description, image)).build();
+			return Response.ok().entity(getHtml(setup.getUrl("/problem/" + id), p.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -125,8 +86,8 @@ public class V1Html {
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getRobotsTxt(@QueryParam("base") String base) {
-		Config conf = getConfig(base);
-		return Response.ok().entity("Sitemap: " + conf.getBaseUrl() + "/sitemap.txt").build(); 
+		Setup setup = metaHelper.getSetup(base);
+		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
 
 	@GET
@@ -134,11 +95,11 @@ public class V1Html {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getSectors(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(base);
-			Sector s = c.getBuldreinfoRepo().getSector(null, conf.getIdRegion(), id);
-			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(conf.getBaseUrl(), s.getMedia().get(0).getId()) : null;
+			Setup setup = metaHelper.getSetup(base);
+			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
+			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(setup, s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
-			return Response.ok().entity(getHtml(conf.getBaseUrl() + "/sector/" + id, s.getName() + " (" + s.getAreaName() + ") | " + conf.getTitle(), s.getComment(), image)).build();
+			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -149,8 +110,8 @@ public class V1Html {
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getSitemapTxt(@QueryParam("base") String base) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Config conf = getConfig(base);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(conf.getIdRegion());
+			Setup setup = metaHelper.getSetup(base);
+			String res = c.getBuldreinfoRepo().getSitemapTxt(setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -158,46 +119,22 @@ public class V1Html {
 		}
 	}
 
-	private Config getConfig(String base) {
-		Config conf = null;
-		if (base.contains("buldring.bergen-klatreklubb.no")) {
-			conf = new Config(REGION_2, "Buldring i Hordaland", "https://buldring.bergen-klatreklubb.no");
-		}
-		else if (base.contains("buldring.fredrikstadklatreklubb.org")) {
-			conf = new Config(REGION_3, "Buldring i Fredrikstad", "https://buldring.fredrikstadklatreklubb.org");
-		}
-		else if (base.contains("brattelinjer.no")) {
-			conf = new Config(REGION_4, "Bratte Linjer", "https://brattelinjer.no");
-		}
-		else if (base.contains("buldring.jotunheimenfjellsport.com")) {
-			conf = new Config(REGION_5, "Buldring i Jotunheimen", "https://buldring.jotunheimenfjellsport.com");
-		}
-		else if (base.contains("klatring.jotunheimenfjellsport.com")) {
-			conf = new Config(REGION_6, "Klatring i Jotunheimen", "https://klatring.jotunheimenfjellsport.com");
-		}
-		else {
-			conf = new Config(REGION_1, "Buldreinfo", "https://buldreinfo.com");
-		}
-		logger.debug("getConfig(base={}) - conf={}", base, conf);
-		return conf;
-	}
-
-	private String getHtml(String url, String title, String description, OpenGraphImage image) {
+	private String getHtml(String url, Metadata metadata, OpenGraphImage image) {
 		StringBuilder builder = new StringBuilder();
 		builder.append("<!DOCTYPE html>");
 		builder.append("<html prefix='og: http://ogp.me/ns#'>");
 		builder.append("<head>");
-		builder.append("<title>" + HtmlEscapers.htmlEscaper().escape(title) + "</title>");
+		builder.append("<title>" + HtmlEscapers.htmlEscaper().escape(metadata.getTitle()) + "</title>");
 		if (image != null) {
 			builder.append("<meta property='og:image' content='" + image.getHttp() + "' />");
 			builder.append("<meta property='og:image:width' content='" + image.getWidth() + "' />");
 			builder.append("<meta property='og:image:height' content='" + image.getHeight() + "' />");
 		}
 		builder.append("<meta property='og:type' content='article' />");
-		builder.append("<meta property='og:title' content='" + HtmlEscapers.htmlEscaper().escape(title) + "' />");
+		builder.append("<meta property='og:title' content='" + HtmlEscapers.htmlEscaper().escape(metadata.getTitle()) + "' />");
 		builder.append("<meta property='og:url' content='" + url + "' />");
-		if (description != null) {
-			builder.append("<meta property='og:description' content='" + HtmlEscapers.htmlEscaper().escape(description) + "' />");
+		if (metadata.getDescription() != null) {
+			builder.append("<meta property='og:description' content='" + HtmlEscapers.htmlEscaper().escape(metadata.getDescription()) + "' />");
 		}
 		builder.append("<meta property='fb:app_id' content='1618301911826448' />");
 		builder.append("</head>");

@@ -3,7 +3,9 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Problem {
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Problem implements IMetadata {
 	public class Comment {
 		private final String date;
 		private final int idUser;
@@ -136,6 +138,7 @@ public class Problem {
 	private final List<NewMedia> newMedia;
 	private final Type t;
 	private List<Section> sections;
+	private Metadata metadata;
 	
 	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
@@ -165,7 +168,7 @@ public class Problem {
 		this.newMedia = newMedia;
 		this.t = t;
 	}
-
+	
 	public void addComment(String date, int idUser, String name, String message) {
 		if (comments == null) {
 			comments = new ArrayList<>();
@@ -179,7 +182,7 @@ public class Problem {
 		}
 		sections.add(new Section(id, nr, description, grade));
 	}
-	
+
 	public void addTick(int id, int idUser, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
@@ -206,7 +209,7 @@ public class Problem {
 	public List<FaUser> getFa() {
 		return fa;
 	}
-
+	
 	public String getFaDate() {
 		return faDate;
 	}
@@ -214,11 +217,11 @@ public class Problem {
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-	
+
 	public String getGrade() {
 		return grade;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -226,13 +229,18 @@ public class Problem {
 	public double getLat() {
 		return lat;
 	}
-	
+
 	public double getLng() {
 		return lng;
 	}
 	
 	public List<Media> getMedia() {
 		return media;
+	}
+	
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
 	
 	public String getName() {
@@ -242,17 +250,21 @@ public class Problem {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public int getNr() {
 		return nr;
 	}
-	
+
 	public int getNumTicks() {
 		return numTicks;
 	}
 	
 	public String getOriginalGrade() {
 		return originalGrade;
+	}
+	
+	public List<Section> getSections() {
+		return sections;
 	}
 
 	public int getSectorId() {
@@ -279,14 +291,10 @@ public class Problem {
 		return stars;
 	}
 
-	public List<Section> getSections() {
-		return sections;
-	}
-	
 	public Type getT() {
 		return t;
 	}
-
+	
 	public List<Tick> getTicks() {
 		return ticks;
 	}
@@ -300,6 +308,11 @@ public class Problem {
 	}
 
 	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
+	}
+
+	@Override
 	public String toString() {
 		return "Problem [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
 				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
@@ -307,6 +320,7 @@ public class Problem {
 				+ ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade=" + grade + ", originalGrade="
 				+ originalGrade + ", faDate=" + faDate + ", faDateHr=" + faDateHr + ", fa=" + fa + ", lat=" + lat
 				+ ", lng=" + lng + ", media=" + media + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked="
-				+ ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t + "]";
+				+ ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t
+				+ ", sections=" + sections + ", metadata=" + metadata + "]";
 	}
 }

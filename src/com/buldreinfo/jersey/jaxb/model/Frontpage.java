@@ -3,7 +3,9 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Frontpage {
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Frontpage implements IMetadata {
 	public class Ascent {
 		private final int idProblem;
 		private final String problem;
@@ -175,11 +177,11 @@ public class Frontpage {
 		public int getIdProblem() {
 			return idProblem;
 		}
-		public String getProblem() {
-			return problem;
-		}
 		public String getInPhoto() {
 			return inPhoto;
+		}
+		public String getProblem() {
+			return problem;
 		}
 		@Override
 		public String toString() {
@@ -200,6 +202,7 @@ public class Frontpage {
 	private final List<Fa> fas = new ArrayList<>();
 	private final List<Media> medias = new ArrayList<>();
 	private final List<Comment> comments = new ArrayList<>();
+	private Metadata metadata;
 	
 	public Frontpage() {
 	}
@@ -220,10 +223,15 @@ public class Frontpage {
 		this.medias.add(new Media(idProblem, problem, grade, type));
 	}
 	
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
+	}
+	
 	public int getNumImages() {
 		return numImages;
 	}
-
+	
 	public int getNumMovies() {
 		return numMovies;
 	}
@@ -231,7 +239,7 @@ public class Frontpage {
 	public int getNumProblems() {
 		return numProblems;
 	}
-	
+
 	public int getNumProblemsWithCoordinates() {
 		return numProblemsWithCoordinates;
 	}
@@ -239,13 +247,18 @@ public class Frontpage {
 	public int getNumProblemsWithTopo() {
 		return numProblemsWithTopo;
 	}
-
+	
 	public int getNumTicks() {
 		return numTicks;
 	}
 
 	public RandomMedia getRandomMedia() {
 		return randomMedia;
+	}
+
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 
 	public void setNumImages(int numImages) {
@@ -279,9 +292,8 @@ public class Frontpage {
 	@Override
 	public String toString() {
 		return "Frontpage [numProblems=" + numProblems + ", numProblemsWithCoordinates=" + numProblemsWithCoordinates
-				+ ", numProblemsWithTopo=" + numProblemsWithTopo
-				+ ", numTicks=" + numTicks + ", numImages=" + numImages + ", numMovies=" + numMovies + ", randomMedia="
-				+ randomMedia + ", ascents=" + ascents + ", fas=" + fas + ", medias=" + medias + ", comments="
-				+ comments + "]";
+				+ ", numProblemsWithTopo=" + numProblemsWithTopo + ", numTicks=" + numTicks + ", numImages=" + numImages
+				+ ", numMovies=" + numMovies + ", randomMedia=" + randomMedia + ", ascents=" + ascents + ", fas=" + fas
+				+ ", medias=" + medias + ", comments=" + comments + ", metadata=" + metadata + "]";
 	}
 }

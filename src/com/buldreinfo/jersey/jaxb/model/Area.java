@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public class Area {
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Area implements IMetadata {
 	public class Sector {
 		private final int areaId;
 		private final int areaVisibility;
@@ -96,6 +98,7 @@ public class Area {
 	private final List<Sector> sectors;
 	private final List<Media> media;
 	private final List<NewMedia> newMedia;
+	private Metadata metadata;
 	
 	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia) {
 		this.regionId = regionId;
@@ -131,9 +134,14 @@ public class Area {
 	public double getLng() {
 		return lng;
 	}
-
+	
 	public List<Media> getMedia() {
 		return media;
+	}
+
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
 	
 	public String getName() {
@@ -187,11 +195,17 @@ public class Area {
 			}
 		});
 	}
+	
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
+	}
 
 	@Override
 	public String toString() {
-		return "Area [regionId=" + regionId + ", id=" + id + ", visibility=" + visibility + ", name=" + name + ", comment="
-				+ comment + ", lat=" + lat + ", lng=" + lng + ", numSectors=" + numSectors + ", sectors=" + sectors
-				+ "]";
+		return "Area [regionId=" + regionId + ", id=" + id + ", visibility=" + visibility + ", name=" + name
+				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", numSectors=" + numSectors
+				+ ", numProblems=" + numProblems + ", sectors=" + sectors + ", media=" + media + ", newMedia="
+				+ newMedia + ", metadata=" + metadata + "]";
 	}
 }

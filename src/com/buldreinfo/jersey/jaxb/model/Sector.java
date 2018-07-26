@@ -3,7 +3,9 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Sector {
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Sector implements IMetadata {
 	public class Problem {
 		private final int id;
 		private final int visibility;
@@ -121,6 +123,7 @@ public class Sector {
 	private final List<Media> media;
 	private final List<Problem> problems = new ArrayList<>();
 	private final List<NewMedia> newMedia;
+	private Metadata metadata;
 	
 	public Sector(int areaId, int areaVisibility, String areaName, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
 		this.areaId = areaId;
@@ -148,19 +151,19 @@ public class Sector {
 	public String getAreaName() {
 		return areaName;
 	}
-
+	
 	public int getAreaVisibility() {
 		return areaVisibility;
 	}
-
+	
 	public String getComment() {
 		return comment;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
-	
+
 	public double getLat() {
 		return lat;
 	}
@@ -173,14 +176,19 @@ public class Sector {
 		return media;
 	}
 	
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
+	}
+	
 	public String getName() {
 		return name;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
@@ -192,12 +200,17 @@ public class Sector {
 	public int getVisibility() {
 		return visibility;
 	}
+	
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
+	}
 
 	@Override
 	public String toString() {
-		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName="
-				+ areaName + ", id=" + id + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat="
-				+ lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", media=" + media + ", problems="
-				+ problems + ", newMedia=" + newMedia + "]";
+		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName + ", id="
+				+ id + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat=" + lat
+				+ ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", media=" + media + ", problems=" + problems
+				+ ", newMedia=" + newMedia + ", metadata=" + metadata + "]";
 	}
 }

@@ -3,7 +3,9 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class User {
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class User implements IMetadata {
 	public class Tick {
 		private final int id;
 		private final int idProblem;
@@ -91,7 +93,8 @@ public class User {
 	private final int numImageTags;
 	private final int numVideoTags;
 	private final List<Tick> ticks = new ArrayList<>();
-
+	private Metadata metadata;
+	
 	public User(boolean readOnly, int id, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
 		this.readOnly = readOnly;
 		this.id = id;
@@ -105,9 +108,14 @@ public class User {
 	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
-	
+
 	public int getId() {
 		return id;
+	}
+	
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
 	
 	public String getName() {
@@ -121,7 +129,7 @@ public class User {
 	public int getNumImageTags() {
 		return numImageTags;
 	}
-
+	
 	public int getNumVideosCreated() {
 		return numVideosCreated;
 	}
@@ -139,9 +147,14 @@ public class User {
 	}
 
 	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
+	}
+
+	@Override
 	public String toString() {
 		return "User [readOnly=" + readOnly + ", id=" + id + ", name=" + name + ", numImagesCreated=" + numImagesCreated
 				+ ", numVideosCreated=" + numVideosCreated + ", numImageTags=" + numImageTags + ", numVideoTags="
-				+ numVideoTags + ", ticks=" + ticks + "]";
+				+ numVideoTags + ", ticks=" + ticks + ", metadata=" + metadata + "]";
 	}
 }
