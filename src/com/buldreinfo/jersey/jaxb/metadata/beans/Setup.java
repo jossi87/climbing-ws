@@ -7,12 +7,18 @@ public class Setup {
 	private final boolean isBouldering;
 	private final String title;
 	private final String domain;
+	private final String description;
 	
-	public Setup(int idRegion, boolean isBouldering, String title, String domain) {
+	public Setup(int idRegion, boolean isBouldering, String title, String domain, String description) {
 		this.idRegion = idRegion;
 		this.isBouldering = isBouldering;
 		this.title = title;
 		this.domain = domain;
+		this.description = description;
+	}
+	
+	public String getDescription() {
+		return description;
 	}
 	
 	public String getDomain() {

@@ -21,12 +21,12 @@ public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
-		setups.add(new Setup(1, true, "Buldreinfo", "buldreinfo.com"));
-		setups.add(new Setup(2, true, "Buldring i Hordaland", "buldring.bergen-klatreklubb.no"));
-		setups.add(new Setup(3, true, "Buldring i Fredrikstad", "buldring.fredrikstadklatreklubb.org"));
-		setups.add(new Setup(4, false, "Bratte Linjer", "brattelinjer.no"));
-		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com"));
-		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com"));
+		setups.add(new Setup(1, true, "Buldreinfo", "buldreinfo.com", "Bouldering in Rogaland (Stavanger, Western Norway)"));
+		setups.add(new Setup(2, true, "Buldring i Hordaland", "buldring.bergen-klatreklubb.no", "Bouldering in Hordaland (Bergen, Western Norway)"));
+		setups.add(new Setup(3, true, "Buldring i Fredrikstad", "buldring.fredrikstadklatreklubb.org", "Bouldering in Fredrikstad (Eastern Norway)"));
+		setups.add(new Setup(4, false, "Bratte Linjer", "brattelinjer.no", "Climbing in Rogaland (Stavanger, Western Norway)"));
+		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com", "Bouldering in Jotunheimen (Norway)"));
+		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com", "Climbing in Jotunheimen (Norway)"));
 	}
 
 	public Setup getSetup(String base) {
@@ -66,12 +66,12 @@ public class MetaHelper {
 		}
 		else if (m instanceof Frontpage) {
 			Frontpage f = (Frontpage)m;
-			String description = String.format("%s: %d (%d with coordinates, %d on topo) | Public ascents: %d | Images: %d | Ascents on video: %d",
-					(setup.isBouldering()? "Boulders" : "Routes"),
-					f.getNumProblems(), 
-					f.getNumProblemsWithCoordinates(), 
-					f.getNumProblemsWithTopo(),
-					f.getNumTicks(), f.getNumImages(), 
+			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
+					setup.getDescription(),
+					f.getNumProblems(),
+					(setup.isBouldering()? "boulders" : "routes"),
+					f.getNumTicks(),
+					f.getNumImages(),
 					f.getNumMovies());
 			f.setMetadata(new Metadata(setup.getTitle(null), description));
 		}
