@@ -89,6 +89,9 @@ public class V1Html {
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getRobotsTxt(@QueryParam("base") String base) {
+		if (base.contains("dev.jossi.org")) {
+			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
+		}
 		Setup setup = metaHelper.getSetup(base);
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
