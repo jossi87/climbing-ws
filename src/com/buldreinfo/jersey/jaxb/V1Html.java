@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.GET;
@@ -18,6 +19,7 @@ import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -40,10 +42,7 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
-			OpenGraphImage image = null;
-			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
-				image = c.getBuldreinfoRepo().getImage(setup, a.getMedia().get(a.getMedia().size()-1).getId());	
-			}
+			OpenGraphImage image = getLastImage(c, setup, a.getMedia());
 			c.setSuccess();
 			metaHelper.updateMetadata(a, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), image)).build();
@@ -67,7 +66,7 @@ public class V1Html {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -77,10 +76,7 @@ public class V1Html {
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, setup.getIdRegion(), id, 0);
 			Preconditions.checkArgument(!res.isEmpty());
 			Problem p = res.get(0);
-			OpenGraphImage image = null;
-			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-				image = c.getBuldreinfoRepo().getImage(setup, p.getMedia().get(p.getMedia().size()-1).getId());	
-			}
+			OpenGraphImage image = getLastImage(c, setup, p.getMedia());
 			c.setSuccess();
 			metaHelper.updateMetadata(p, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/problem/" + id), p.getMetadata(), image)).build();
@@ -104,7 +100,7 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
 			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
-			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(setup, s.getMedia().get(s.getMedia().size()-1).getId()) : null;
+			OpenGraphImage image = getLastImage(c, setup, s.getMedia());
 			c.setSuccess();
 			metaHelper.updateMetadata(s, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
@@ -149,5 +145,16 @@ public class V1Html {
 		builder.append("<body>OpenGraph</body>");
 		builder.append("</html>");
 		return builder.toString();
+	}
+
+	private OpenGraphImage getLastImage(DbConnection c, Setup setup, List<Media> media) {
+		if (media == null) {
+			return null;
+		}
+		Optional<Media> m = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
+		if (m.isPresent()) {
+			return c.getBuldreinfoRepo().getImage(setup, m.get().getId());
+		}
+		return null;
 	}
 }
