@@ -80,7 +80,8 @@ public class MetaHelper {
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
 			if (!p.getFa().isEmpty()) {
-				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + Joiner.on(", ").join(p.getFa().stream().collect(Collectors.toList())) + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
+				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
+				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
 			p.setMetadata(new Metadata(setup.getTitle(title), description));
 		}
