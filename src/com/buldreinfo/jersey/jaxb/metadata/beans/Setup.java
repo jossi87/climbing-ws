@@ -31,7 +31,7 @@ public class Setup {
 	}
 	
 	public String getUrl(String suffix) {
-		return "https://" + domain + "suffix";
+		return "https://" + domain + suffix;
 	}
 	
 	public boolean isBouldering() {
