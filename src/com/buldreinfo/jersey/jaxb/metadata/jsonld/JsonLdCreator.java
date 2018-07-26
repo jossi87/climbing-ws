@@ -18,21 +18,21 @@ public class JsonLdCreator {
 			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/area/" + a.getId()), a.getName())));
 			return res;
 		}
-		else if (m instanceof Problem) {
-			Problem p = (Problem)m;
-			JsonLd res = new JsonLd();
-			res.getItemListElement().add(new ItemListElement(1, new Item(setup.getUrl("/browse"), "Browse")));
-			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/area/" + p.getAreaId()), p.getAreaName())));
-			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/sector/" + p.getSectorId()), p.getSectorName())));
-			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/problem/" + p.getId()), p.getName())));
-			return res;
-		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
 			JsonLd res = new JsonLd();
 			res.getItemListElement().add(new ItemListElement(1, new Item(setup.getUrl("/browse"), "Browse")));
 			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/area/" + s.getAreaId()), s.getAreaName())));
-			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/sector/" + s.getId()), s.getName())));
+			res.getItemListElement().add(new ItemListElement(3, new Item(setup.getUrl("/sector/" + s.getId()), s.getName())));
+			return res;
+		}
+		else if (m instanceof Problem) {
+			Problem p = (Problem)m;
+			JsonLd res = new JsonLd();
+			res.getItemListElement().add(new ItemListElement(1, new Item(setup.getUrl("/browse"), "Browse")));
+			res.getItemListElement().add(new ItemListElement(2, new Item(setup.getUrl("/area/" + p.getAreaId()), p.getAreaName())));
+			res.getItemListElement().add(new ItemListElement(3, new Item(setup.getUrl("/sector/" + p.getSectorId()), p.getSectorName())));
+			res.getItemListElement().add(new ItemListElement(4, new Item(setup.getUrl("/problem/" + p.getId()), p.getName())));
 			return res;
 		}
 		else {
