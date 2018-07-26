@@ -41,6 +41,7 @@ public class V1Html {
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			c.setSuccess();
 			Setup setup = metaHelper.getSetup(base);
+			metaHelper.updateMetadata(a, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), null)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -56,6 +57,7 @@ public class V1Html {
 			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup.getIdRegion());
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(setup, f.getRandomMedia().getIdMedia());
 			c.setSuccess();
+			metaHelper.updateMetadata(f, setup);
 			return Response.ok().entity(getHtml(setup.getUrl(null), f.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -76,6 +78,7 @@ public class V1Html {
 				image = c.getBuldreinfoRepo().getImage(setup, p.getMedia().get(0).getId());	
 			}
 			c.setSuccess();
+			metaHelper.updateMetadata(p, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/problem/" + id), p.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -99,6 +102,7 @@ public class V1Html {
 			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
 			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(setup, s.getMedia().get(0).getId()) : null;
 			c.setSuccess();
+			metaHelper.updateMetadata(s, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
