@@ -88,10 +88,13 @@ public class MetaHelper {
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
-			String description = String.format("%d%s%s",
-					s.getProblems().size(),
-					(setup.isBouldering()? " boulders" : " routes"),
-					(!Strings.isNullOrEmpty(s.getComment()))? " | " + s.getComment() : "");
+			String description = String.format("%s in %s / %s (%d %s)%s",
+					(setup.isBouldering()? "Bouldering" : "Climbing"),
+					s.getAreaName(),
+					s.getName(),
+					(s.getProblems() != null? s.getProblems().size() : 0),
+					(setup.isBouldering()? "boulders" : "routes"),
+					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			s.setMetadata(new Metadata(setup.getTitle(title), description));
 		}
 		else if (m instanceof User) {
