@@ -57,10 +57,10 @@ public class MetaHelper {
 			Area a = (Area)m;
 			String description = null;
 			if (setup.isBouldering()) {
-				description = String.format("Bouldering in %s (%d sectors, %d problems)", a.getName(), a.getNumSectors(), a.getNumProblems());
+				description = String.format("Bouldering in %s (%d sectors, %d problems)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
 			else {
-				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getNumSectors(), a.getNumProblems());
+				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
 			a.setMetadata(new Metadata(setup.getTitle(a.getName()), description));
 		}
