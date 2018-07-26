@@ -38,11 +38,15 @@ public class V1Html {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getAreas(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Area a = c.getBuldreinfoRepo().getArea(null, id);
-			c.setSuccess();
 			Setup setup = metaHelper.getSetup(base);
+			Area a = c.getBuldreinfoRepo().getArea(null, id);
+			OpenGraphImage image = null;
+			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
+				image = c.getBuldreinfoRepo().getImage(setup, a.getMedia().get(a.getMedia().size()-1).getId());	
+			}
+			c.setSuccess();
 			metaHelper.updateMetadata(a, setup);
-			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), null)).build();
+			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -75,7 +79,7 @@ public class V1Html {
 			Problem p = res.get(0);
 			OpenGraphImage image = null;
 			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-				image = c.getBuldreinfoRepo().getImage(setup, p.getMedia().get(0).getId());	
+				image = c.getBuldreinfoRepo().getImage(setup, p.getMedia().get(p.getMedia().size()-1).getId());	
 			}
 			c.setSuccess();
 			metaHelper.updateMetadata(p, setup);
@@ -100,7 +104,7 @@ public class V1Html {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
 			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
-			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(setup, s.getMedia().get(0).getId()) : null;
+			OpenGraphImage image = s.getMedia() != null && !s.getMedia().isEmpty()? c.getBuldreinfoRepo().getImage(setup, s.getMedia().get(s.getMedia().size()-1).getId()) : null;
 			c.setSuccess();
 			metaHelper.updateMetadata(s, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
