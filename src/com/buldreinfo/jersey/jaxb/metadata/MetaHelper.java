@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
@@ -62,7 +63,7 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			a.setMetadata(new Metadata(setup.getTitle(a.getName()), description));
+			a.setMetadata(new Metadata(setup.getTitle(a.getName()), description, JsonLdCreator.getJsonLd(setup, a)));
 		}
 		else if (m instanceof Frontpage) {
 			Frontpage f = (Frontpage)m;
@@ -73,7 +74,7 @@ public class MetaHelper {
 					f.getNumTicks(),
 					f.getNumImages(),
 					f.getNumMovies());
-			f.setMetadata(new Metadata(setup.getTitle(null), description));
+			f.setMetadata(new Metadata(setup.getTitle(null), description, null));
 		}
 		else if (m instanceof Problem) {
 			Problem p = (Problem)m;
@@ -83,7 +84,7 @@ public class MetaHelper {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
-			p.setMetadata(new Metadata(setup.getTitle(title), description));
+			p.setMetadata(new Metadata(setup.getTitle(title), description, JsonLdCreator.getJsonLd(setup, p)));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -95,13 +96,16 @@ public class MetaHelper {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			s.setMetadata(new Metadata(setup.getTitle(title), description));
+			s.setMetadata(new Metadata(setup.getTitle(title), description, JsonLdCreator.getJsonLd(setup, s)));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
 			String title = String.format("%s (log book)", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
-			u.setMetadata(new Metadata(setup.getTitle(title), description));
+			u.setMetadata(new Metadata(setup.getTitle(title), description, null));
+		}
+		else {
+			throw new RuntimeException("Invalid m=" + m);
 		}
 	}
 }
