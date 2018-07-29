@@ -14,6 +14,7 @@ import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import jersey.repackaged.com.google.common.base.Joiner;
@@ -31,6 +32,7 @@ public class MetaHelper {
 	}
 
 	public Setup getSetup(String base) {
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(base), "Invalid base=" + base);
 		Optional<Setup> s = setups.stream().filter(x -> base.contains(x.getDomain())).findAny();
 		if (s.isPresent()) {
 			return s.get();
