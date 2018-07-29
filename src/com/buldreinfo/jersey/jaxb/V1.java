@@ -59,6 +59,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ethics;
+import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
@@ -202,6 +203,23 @@ public class V1 {
 	}
 
 	@GET
+	@Path("/finder")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getFinder(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
+			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
+			String g = GradeHelper.getGrades(setup.getIdRegion()).get(grade);
+			Finder res = new Finder(setup.getTitle("Finder [" + g + "]"), problems, setup.getDefaultCenter(), setup.isBouldering());
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
@@ -279,7 +297,7 @@ public class V1 {
 		}
 		return Response.ok().build();
 	}
-
+	
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
