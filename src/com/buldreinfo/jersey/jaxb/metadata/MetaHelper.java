@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
@@ -18,10 +21,12 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.net.HttpHeaders;
 
 import jersey.repackaged.com.google.common.base.Joiner;
 
 public class MetaHelper {
+	private static Logger logger = LogManager.getLogger();
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
@@ -35,6 +40,14 @@ public class MetaHelper {
 	
 	public Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
+		String origin = request.getHeader(HttpHeaders.ORIGIN);
+		if (!Strings.isNullOrEmpty(origin)) {
+			Optional<Setup> s = setups.stream().filter(x -> origin.contains(x.getDomain())).findAny();
+			if (s.isPresent()) {
+				return s.get();
+			}
+			logger.warn("Unknown origin=" + origin);
+		}
 		String serverName = Strings.emptyToNull(request.getServerName());
 		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
 		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
