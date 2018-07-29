@@ -184,7 +184,7 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
-			Browse res = new Browse(setup.getTitle("Browse"), areas, setup.getLat(), setup.getLng(), setup.getDefaultZoom());
+			Browse res = new Browse(setup.getTitle("Browse"), areas, setup.getDefaultCenter(), setup.getDefaultZoom());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

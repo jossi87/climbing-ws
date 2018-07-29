@@ -5,15 +5,13 @@ import java.util.Collection;
 public class Browse {
 	private final String title;
 	private final Collection<Area> areas;
-	private final double defaultLat;
-	private final double defaultLng;
+	private final LatLng defaultCenter;
 	private final int defaultZoom;
 	
-	public Browse(String title, Collection<Area> areas, double defaultLat, double defaultLng, int defaultZoom) {
+	public Browse(String title, Collection<Area> areas, LatLng defaultCenter, int defaultZoom) {
 		this.title = title;
 		this.areas = areas;
-		this.defaultLat = defaultLat;
-		this.defaultLng = defaultLng;
+		this.defaultCenter = defaultCenter;
 		this.defaultZoom = defaultZoom;
 	}
 
@@ -21,14 +19,10 @@ public class Browse {
 		return areas;
 	}
 
-	public double getDefaultLat() {
-		return defaultLat;
+	public LatLng getDefaultCenter() {
+		return defaultCenter;
 	}
-
-	public double getDefaultLng() {
-		return defaultLng;
-	}
-
+	
 	public int getDefaultZoom() {
 		return defaultZoom;
 	}

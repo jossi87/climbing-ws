@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.metadata.beans;
 
+import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;
 
 public class Setup {
@@ -8,8 +9,7 @@ public class Setup {
 	private String title;
 	private String domain;
 	private String description;
-	private double lat;
-	private double lng;
+	private LatLng defaultCenter;
 	private int defaultZoom;
 	private boolean showLogoPlay;
 	private boolean showLogoSis;
@@ -35,12 +35,8 @@ public class Setup {
 		return idRegion;
 	}
 
-	public double getLat() {
-		return lat;
-	}
-
-	public double getLng() {
-		return lng;
+	public LatLng getDefaultCenter() {
+		return defaultCenter;
 	}
 
 	public String getTitle() {
@@ -95,8 +91,7 @@ public class Setup {
 	}
 
 	public Setup setLatLng(double lat, double lng) {
-		this.lat = lat;
-		this.lng = lng;
+		this.defaultCenter = new LatLng(lat, lng);
 		return this;
 	}
 
