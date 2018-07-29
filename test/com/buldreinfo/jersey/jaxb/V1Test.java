@@ -14,7 +14,8 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Config;
+import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -23,6 +24,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Strings;
+import com.google.common.net.HttpHeaders;
 
 public class V1Test {
 	
@@ -38,25 +40,22 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetAreasList() throws Exception {
+	public void testGetBrowse() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getAreasList(null, getRequest());
+		Response r = tester.getBrowse(null, getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Collection<?>);
-		Collection<?> res = (Collection<?>) r.getEntity();
-		assertTrue(!res.isEmpty());
-		for (Object o : res) {
-			assertTrue(o instanceof Area);
-		}
+		assertTrue(r.getEntity() instanceof Browse);
+		Browse b = (Browse)r.getEntity();
+		assertTrue(!b.getAreas().isEmpty());
 	}
 	
 	@Test
-	public void testGetConfig() throws Exception {
+	public void testGetEthics() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getConfig(getRequest(), null, true, true);
+		Response r = tester.getEthics(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Config);
-		Config t = (Config)r.getEntity();
+		assertTrue(r.getEntity() instanceof Ethics);
+		Ethics t = (Ethics)r.getEntity();
 		assertTrue(!Strings.isNullOrEmpty(t.getTitle()));
 	}
 	
@@ -184,7 +183,8 @@ public class V1Test {
 	}
 	
 	private HttpServletRequest getRequest() {
-		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);		
+		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);
+		EasyMock.expect(req.getHeader(HttpHeaders.ORIGIN)).andReturn("https://buldreinfo.com").anyTimes();
 		EasyMock.expect(req.getServerName()).andReturn("buldreinfo.com").anyTimes();
 		EasyMock.replay(req);
 		return req;

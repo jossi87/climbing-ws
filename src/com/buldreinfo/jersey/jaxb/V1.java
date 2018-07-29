@@ -46,6 +46,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Grade;
@@ -57,7 +58,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
-import com.buldreinfo.jersey.jaxb.model.Config;
+import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
@@ -159,6 +160,7 @@ public class V1 {
 		}
 	}
 
+	@Deprecated
 	@GET
 	@Path("/areas/list")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -173,30 +175,30 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
-	@Path("/config")
+	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getConfig(@Context HttpServletRequest request, @QueryParam("subTitle") String subTitle, @QueryParam("incGrades") boolean incGrades, @QueryParam("incTypes") boolean incTypes) throws ExecutionException, IOException {
+	public Response getBrowse(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
-			Config res = new Config(setup.getTitle(subTitle));
-			if (incGrades) {
-				List<Grade> grades = new ArrayList<>();
-				Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
-				for (int id : lookup.keySet()) {
-					grades.add(new Grade(id, lookup.get(id)));
-				}
-				res.setGrades(grades);
-			}
-			if (incTypes) {
-				res.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion()));
-			}
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
+			Browse res = new Browse(setup.getTitle("Browse"), areas, setup.getLat(), setup.getLng(), setup.getDefaultZoom());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+	}
+
+	@GET
+	@Path("/ethics")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getEthics(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		Setup setup = metaHelper.getSetup(request);
+		Ethics res = new Ethics(setup.getTitle("Ethics"));
+		return Response.ok().entity(res).build();
 	}
 
 	@GET

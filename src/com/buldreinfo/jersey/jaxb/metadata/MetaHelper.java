@@ -30,12 +30,48 @@ public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
-		setups.add(new Setup(1, true, "Buldreinfo", "buldreinfo.com", "Bouldering in Rogaland (Stavanger, Western Norway)", true, true, true));
-		setups.add(new Setup(2, true, "Buldring i Hordaland", "buldring.bergen-klatreklubb.no", "Bouldering in Hordaland (Bergen, Western Norway)", true, false, false));
-		setups.add(new Setup(3, true, "Buldring i Fredrikstad", "buldring.fredrikstadklatreklubb.org", "Bouldering in Fredrikstad (Eastern Norway)", true, false, false));
-		setups.add(new Setup(4, false, "Bratte Linjer", "brattelinjer.no", "Climbing in Rogaland (Stavanger, Western Norway)", false, false, true));
-		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com", "Bouldering in Jotunheimen (Norway)", true, false, false));
-		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com", "Climbing in Jotunheimen (Norway)", false, false, false));
+		setups.add(new Setup(1)
+				.setBouldering(true)
+				.setTitle("Buldreinfo")
+				.setDomain("buldreinfo.com")
+				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
+				.setShowLogoPlay(true).setShowLogoSis(true).setShowLogoBrv(true)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(7));
+		setups.add(new Setup(2)
+				.setBouldering(true)
+				.setTitle("Buldring i Hordaland")
+				.setDomain("buldring.bergen-klatreklubb.no")
+				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
+				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
+				.setLatLng(60.47521, 6.83169).setDefaultZoom(7));
+		setups.add(new Setup(3)
+				.setBouldering(true)
+				.setTitle("Buldring i Fredrikstad")
+				.setDomain("buldring.fredrikstadklatreklubb.org")
+				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
+				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
+				.setLatLng(59.22844, 10.91722).setDefaultZoom(7));
+		setups.add(new Setup(4)
+				.setBouldering(false)
+				.setTitle("Bratte Linjer")
+				.setDomain("brattelinjer.no")
+				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
+				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(9));
+		setups.add(new Setup(5)
+				.setBouldering(true)
+				.setTitle("Buldring i Jotunheimen")
+				.setDomain("buldring.jotunheimenfjellsport.com")
+				.setDescription("Bouldering in Jotunheimen (Norway)")
+				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
+				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
+		setups.add(new Setup(6)
+				.setBouldering(false)
+				.setTitle("Klatring i Jotunheimen")
+				.setDomain("klatring.jotunheimenfjellsport.com")
+				.setDescription("Climbing in Jotunheimen (Norway)")
+				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(false)
+				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
 	}
 	
 	public Setup getSetup(HttpServletRequest request) {
