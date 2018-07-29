@@ -25,13 +25,6 @@ import com.google.common.base.Strings;
 
 public class V1Test {
 	
-	private HttpServletRequest getRequest() {
-		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);		
-		EasyMock.expect(req.getServerName()).andReturn("buldreinfo.com").anyTimes();
-		EasyMock.replay(req);
-		return req;
-	}
-	
 	@Test
 	public void testGetAreas() throws Exception {
 		V1 tester = new V1();
@@ -140,13 +133,13 @@ public class V1Test {
 		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
 	}
 	
-//	@Test
-//	public void testGetMedia() throws Exception {
-//		V1 tester = new V1();
-//		Response r = tester.getMedia(18323);
-//		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-//		assertTrue(r.getEntity() instanceof byte[]);
-//	}
+	@Test
+	public void testGetTitle() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getTitle(getRequest(), null);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(Strings.isNullOrEmpty((String)r.getEntity()));
+	}
 	
 	@Test
 	public void testGetUsers() throws Exception {
@@ -173,6 +166,14 @@ public class V1Test {
 		assertTrue(u.getNumVideoTags()==0);
 	}
 	
+//	@Test
+//	public void testGetMedia() throws Exception {
+//		V1 tester = new V1();
+//		Response r = tester.getMedia(18323);
+//		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+//		assertTrue(r.getEntity() instanceof byte[]);
+//	}
+	
 	private int getRegionAreas(String uniqueId) throws ExecutionException, IOException {
 		int numAreas = 0;
 		V1 tester = new V1();
@@ -187,5 +188,12 @@ public class V1Test {
 			numAreas += region.getAreas().size();
 		}
 		return numAreas;
+	}
+	
+	private HttpServletRequest getRequest() {
+		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);		
+		EasyMock.expect(req.getServerName()).andReturn("buldreinfo.com").anyTimes();
+		EasyMock.replay(req);
+		return req;
 	}
 }

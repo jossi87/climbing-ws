@@ -281,7 +281,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -296,6 +296,13 @@ public class V1 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+	}
+
+	@GET
+	@Path("/title")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getTitle(@Context HttpServletRequest request, @QueryParam("subTitle") String subTitle) throws ExecutionException, IOException {
+		return Response.ok().entity(metaHelper.getSetup(request).getTitle(subTitle)).build();
 	}
 
 	@GET
