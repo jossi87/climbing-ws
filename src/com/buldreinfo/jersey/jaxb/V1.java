@@ -145,11 +145,11 @@ public class V1 {
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Area a = c.getBuldreinfoRepo().getArea(token, id);
-			metaHelper.updateMetadata(a, metaHelper.getSetup(regionId));
+			metaHelper.updateMetadata(a, metaHelper.getSetup(base));
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -160,11 +160,11 @@ public class V1 {
 	@GET
 	@Path("/areas/list")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreasList(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId) throws ExecutionException, IOException {
+	public Response getAreasList(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Preconditions.checkArgument(regionId>0);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, regionId);
+			Setup setup = metaHelper.getSetup(base);
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(areas).build();
 		} catch (Exception e) {
@@ -175,11 +175,11 @@ public class V1 {
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId) throws ExecutionException, IOException {
+	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try {
-			Preconditions.checkArgument(regionId>0);
-			return Response.ok().entity(frontpageCache.get(regionId + "_" + token)).build();
+			Setup setup = metaHelper.getSetup(base);
+			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + token)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -188,10 +188,11 @@ public class V1 {
 	@GET
 	@Path("/grades")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getGrades(@QueryParam("regionId") int regionId) throws ExecutionException, IOException {
+	public Response getGrades(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			List<Grade> res = new ArrayList<>();
-			Map<Integer, String> grades = GradeHelper.getGrades(regionId);
+			Setup setup = metaHelper.getSetup(base);
+			Map<Integer, String> grades = GradeHelper.getGrades(setup.getIdRegion());
 			for (int id : grades.keySet()) {
 				res.add(new Grade(id, grades.get(id)));
 			}
@@ -252,12 +253,13 @@ public class V1 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
+	public Response getProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, regionId, id, grade);
+			Setup setup = metaHelper.getSetup(base);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
-				metaHelper.updateMetadata(res.get(0), metaHelper.getSetup(regionId));
+				metaHelper.updateMetadata(res.get(0), setup);
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -282,11 +284,12 @@ public class V1 {
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Sector s = c.getBuldreinfoRepo().getSector(token, regionId, id);
-			metaHelper.updateMetadata(s, metaHelper.getSetup(regionId));
+			Setup setup = metaHelper.getSetup(base);
+			Sector s = c.getBuldreinfoRepo().getSector(token, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(s, setup);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -297,9 +300,10 @@ public class V1 {
 	@GET
 	@Path("/types")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTypes(@QueryParam("regionId") int regionId) throws ExecutionException, IOException {
+	public Response getTypes(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Type> res = c.getBuldreinfoRepo().getTypes(regionId);
+			Setup setup = metaHelper.getSetup(base);
+			List<Type> res = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -310,11 +314,12 @@ public class V1 {
 	@GET
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsers(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getUsers(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			User res = c.getBuldreinfoRepo().getUser(token, regionId, id);
-			metaHelper.updateMetadata(res, metaHelper.getSetup(regionId));
+			Setup setup = metaHelper.getSetup(base);
+			User res = c.getBuldreinfoRepo().getUser(token, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -325,13 +330,13 @@ public class V1 {
 	@GET
 	@Path("/users/edit")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(base);
 			Preconditions.checkNotNull(token);
-			Preconditions.checkArgument(regionId>0);
 			Preconditions.checkArgument(id>0);
-			UserEdit res = c.getBuldreinfoRepo().getUserEdit(token, regionId, id);
+			UserEdit res = c.getBuldreinfoRepo().getUserEdit(token, setup.getIdRegion(), id);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -420,14 +425,15 @@ public class V1 {
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	public Response postProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(base);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			p = c.getBuldreinfoRepo().setProblem(token, regionId, p, multiPart);
+			p = c.getBuldreinfoRepo().setProblem(token, setup.getIdRegion(), p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
@@ -474,10 +480,11 @@ public class V1 {
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, SearchRequest sr) throws ExecutionException, IOException {
+	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, SearchRequest sr) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<Search> res = c.getBuldreinfoRepo().getSearch(token, sr);
+			Setup setup = metaHelper.getSetup(base);
+			List<Search> res = c.getBuldreinfoRepo().getSearch(token, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -489,13 +496,14 @@ public class V1 {
 	@Path("/sectors")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	public Response postSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(base);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			s = c.getBuldreinfoRepo().setSector(token, regionId, s, multiPart);
+			s = c.getBuldreinfoRepo().setSector(token, setup.getIdRegion(), s, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -506,12 +514,13 @@ public class V1 {
 
 	@POST
 	@Path("/ticks")
-	public Response postTicks(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("regionId") int regionId, Tick t) throws ExecutionException, IOException {
+	public Response postTicks(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("base") String base, Tick t) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(base);
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkNotNull(token);
-			c.getBuldreinfoRepo().setTick(token, regionId, t);
+			c.getBuldreinfoRepo().setTick(token, setup.getIdRegion(), t);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();

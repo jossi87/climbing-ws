@@ -22,12 +22,12 @@ import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Strings;
 
 public class V1Test {
-	private final static int REGION_ID = 1;
+	private final static String BASE = "https://buldreinfo.com";
 	
 	@Test
 	public void testGetAreas() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getAreas(null, REGION_ID, 7);
+		Response r = tester.getAreas(null, BASE, 7);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Area);
 		Area a = (Area)r.getEntity();
@@ -38,7 +38,7 @@ public class V1Test {
 	@Test
 	public void testGetAreasList() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getAreasList(null, REGION_ID);
+		Response r = tester.getAreasList(null, BASE);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Collection<?>);
 		Collection<?> res = (Collection<?>) r.getEntity();
@@ -51,7 +51,7 @@ public class V1Test {
 	@Test
 	public void testGetFrontpage() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getFrontpage(null, REGION_ID);
+		Response r = tester.getFrontpage(null, BASE);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Frontpage);
 		Frontpage f = (Frontpage)r.getEntity();
@@ -62,7 +62,7 @@ public class V1Test {
 	@Test
 	public void testGetGrades() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getGrades(REGION_ID);
+		Response r = tester.getGrades(BASE);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		List<?> list = (List<?>)r.getEntity();
@@ -72,7 +72,7 @@ public class V1Test {
 	@Test
 	public void testGetProblems() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getProblems(null, 0, 1193, 0);
+		Response r = tester.getProblems(null, BASE, 1193, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		List<?> list = (List<?>)r.getEntity();
@@ -82,7 +82,7 @@ public class V1Test {
 			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
 		}
 		
-		r = tester.getProblems(null, 0, 0, 19);
+		r = tester.getProblems(null, BASE, 0, 19);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		list = (List<?>)r.getEntity();
@@ -92,7 +92,7 @@ public class V1Test {
 			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
 		}
 		
-		r = tester.getProblems(null, 0, 0, -1); // SuperAdmin only!
+		r = tester.getProblems(null, BASE, 0, -1); // SuperAdmin only!
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		list = (List<?>)r.getEntity();
@@ -112,7 +112,7 @@ public class V1Test {
 	@Test
 	public void testGetSearch() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.postSearch(null, new SearchRequest(REGION_ID, "Pan"));
+		Response r = tester.postSearch(null, BASE, new SearchRequest(1, "Pan"));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		@SuppressWarnings("unchecked")
@@ -123,7 +123,7 @@ public class V1Test {
 	@Test
 	public void testGetSectors() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getSectors(null, REGION_ID, 278);
+		Response r = tester.getSectors(null, BASE, 278);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Sector);
 		Sector s = (Sector)r.getEntity();
@@ -144,7 +144,7 @@ public class V1Test {
 	public void testGetUsers() throws Exception {
 		V1 tester = new V1();
 		// User: Jostein Ø
-		Response r = tester.getUsers(null, REGION_ID, 1);
+		Response r = tester.getUsers(null, BASE, 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof User);
 		User u = (User)r.getEntity();
@@ -154,7 +154,7 @@ public class V1Test {
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
 		// User: jossi@jossi.org
-		r = tester.getUsers(null, REGION_ID, 1311);
+		r = tester.getUsers(null, BASE, 1311);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof User);
 		u = (User)r.getEntity();

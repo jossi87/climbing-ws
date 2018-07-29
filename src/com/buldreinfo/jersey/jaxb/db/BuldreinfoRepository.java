@@ -714,12 +714,12 @@ public class BuldreinfoRepository {
 		return regionMap.values();
 	}
 
-	public List<Search> getSearch(String token, SearchRequest sr) throws SQLException {
+	public List<Search> getSearch(String token, int idRegion, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.hidden FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (ut.token=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 18");
-		ps.setInt(1, sr.getRegionId());
-		ps.setInt(2, sr.getRegionId());
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setString(5, token);
@@ -734,8 +734,8 @@ public class BuldreinfoRepository {
 		ps.close();
 		// Sectors
 		ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.hidden FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (ut.token=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, a.name, s.name, a.hidden ORDER BY a.name, s.name LIMIT 18");
-		ps.setInt(1, sr.getRegionId());
-		ps.setInt(2, sr.getRegionId());
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setString(5, token);
@@ -751,8 +751,8 @@ public class BuldreinfoRepository {
 		ps.close();
 		// Problems
 		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade, p.hidden FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON auth.user_id=ut.user_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (ut.token=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name, a.hidden ORDER BY p.name, p.grade LIMIT 18");
-		ps.setInt(1, sr.getRegionId());
-		ps.setInt(2, sr.getRegionId());
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setString(5, token);
@@ -762,7 +762,7 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
 			int visibility = rst.getInt("hidden");
-			res.add(new Search(GradeHelper.intToString(sr.getRegionId(), grade), "/problem/" + id, name, visibility));
+			res.add(new Search(GradeHelper.intToString(idRegion, grade), "/problem/" + id, name, visibility));
 		}
 		rst.close();
 		ps.close();
