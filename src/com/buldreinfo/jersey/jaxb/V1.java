@@ -93,8 +93,9 @@ public class V1 {
 					int regionId = Integer.parseInt(parts[0]);
 					String token = parts[1];
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, regionId);
-						metaHelper.updateMetadata(f, metaHelper.getSetup(regionId));
+						Setup setup = metaHelper.getSetup(regionId);
+						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, setup);
+						metaHelper.updateMetadata(f, setup);
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -391,13 +392,13 @@ public class V1 {
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAreas(@CookieParam(COOKIE_NAME) Cookie cookie, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	public Response postAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			Preconditions.checkArgument(a.getRegionId() > 0);
-			a = c.getBuldreinfoRepo().setArea(token, a, multiPart);
+			a = c.getBuldreinfoRepo().setArea(token, setup.getIdRegion(), a, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(a).build();
@@ -536,7 +537,6 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(token);
 			Preconditions.checkNotNull(u);
-			Preconditions.checkArgument(u.getRegionId() > 0);
 			final Permission p = c.getBuldreinfoRepo().setUser(token, u);
 			invalidateFrontpageCache();
 			c.setSuccess();

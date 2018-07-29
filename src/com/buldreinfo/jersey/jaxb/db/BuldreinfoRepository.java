@@ -243,13 +243,13 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Frontpage getFrontpage(String token, int regionId) throws SQLException {
+	public Frontpage getFrontpage(String token, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage();
+		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			res.setNumProblems(rst.getInt("num_problems"));
@@ -260,8 +260,8 @@ public class BuldreinfoRepository {
 		ps.close();
 		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM (((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND m.deleted_user_id IS NULL AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			res.setNumImages(rst.getInt("num_images"));
@@ -271,8 +271,8 @@ public class BuldreinfoRepository {
 		ps.close();
 		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM ((((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL)");
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			res.setNumTicks(rst.getInt("num_ticks"));
@@ -283,9 +283,9 @@ public class BuldreinfoRepository {
 		/**
 		 * RandomMedia
 		 */
-		setRandomMedia(res, token, regionId, regionId == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
+		setRandomMedia(res, token, setup.getIdRegion(), setup.getIdRegion() == 4); // Show all images on region 4 (brattelinjer.no), not only routes with >2 stars
 		if (res.getRandomMedia() == null) {
-			setRandomMedia(res, token, regionId, true);
+			setRandomMedia(res, token, setup.getIdRegion(), true);
 		}
 
 		/**
@@ -294,8 +294,8 @@ public class BuldreinfoRepository {
 		String sqlStr = "SELECT p.id id_problem, p.name, DATE_FORMAT(t.date,'%d/%m-%y') date, u.id id_user, CONCAT(u.firstname, ' ', u.lastname) user, t.grade FROM ((((((tick t INNER JOIN problem p ON (t.problem_id=p.id AND p.hidden=0)) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, t.id ORDER BY t.date DESC, t.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			int idProblem = rst.getInt("id_problem");
@@ -304,7 +304,7 @@ public class BuldreinfoRepository {
 			int idUser = rst.getInt("id_user");
 			String user = rst.getString("user");
 			int grade = rst.getInt("grade");
-			res.addAscent(idProblem, problem, GradeHelper.intToString(regionId, grade), date, idUser, user);
+			res.addAscent(idProblem, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, idUser, user);
 		}
 		rst.close();
 		ps.close();
@@ -319,8 +319,8 @@ public class BuldreinfoRepository {
 				+ " ORDER BY p.fa_date DESC, p.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			int idArea = rst.getInt("id_area");
@@ -331,7 +331,7 @@ public class BuldreinfoRepository {
 			String problem = rst.getString("name");
 			String date = rst.getString("date");
 			int grade = rst.getInt("grade");
-			res.addFa(idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(regionId, grade), date);
+			res.addFa(idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date);
 		}
 		rst.close();
 		ps.close();
@@ -346,15 +346,15 @@ public class BuldreinfoRepository {
 				+ " ORDER BY m.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			int idProblem = rst.getInt("id");
 			String problem = rst.getString("name");
 			int grade = rst.getInt("grade");
 			String type = rst.getBoolean("is_movie")? "video" : "image";
-			res.addMedia(idProblem, problem, GradeHelper.intToString(regionId, grade), type);
+			res.addMedia(idProblem, problem, GradeHelper.intToString(setup.getIdRegion(), grade), type);
 		}
 		rst.close();
 		ps.close();
@@ -364,8 +364,8 @@ public class BuldreinfoRepository {
 		 */
 		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.name FROM ((((((guestbook g INNER JOIN problem p ON g.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN user_token ut ON (auth.user_id=ut.user_id AND ut.token=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ut.user_id IS NOT NULL) GROUP BY p.id, p.name ORDER BY MAX(g.post_time) DESC LIMIT 30");
 		ps.setString(1, token);
-		ps.setInt(2, regionId);
-		ps.setInt(3, regionId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			String date = rst.getString("date");
@@ -375,7 +375,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		logger.debug("getFrontpage(token={}, regionId={}) - duration={}", token, regionId, stopwatch);
+		logger.debug("getFrontpage(token={}, setup={}) - duration={}", token, setup, stopwatch);
 		return res;
 	}
 
@@ -1055,9 +1055,9 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public Area setArea(String token, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Area setArea(String token, int idRegion, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Permission auth = getPermission(token, null, null);
-		if (auth == null || !auth.getAdminRegionIds().contains(a.getRegionId())) {
+		if (auth == null || !auth.getAdminRegionIds().contains(idRegion)) {
 			throw new SQLException("Insufficient credentials");
 		}
 		int idArea = -1;
@@ -1121,7 +1121,7 @@ public class BuldreinfoRepository {
 		else {
 			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, hidden, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setLong(1, System.currentTimeMillis());
-			ps.setInt(2, a.getRegionId());
+			ps.setInt(2, idRegion);
 			ps.setString(3, a.getName());
 			ps.setString(4, Strings.emptyToNull(a.getComment()));
 			if (a.getLat() > 0) {

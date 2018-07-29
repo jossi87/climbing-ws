@@ -25,12 +25,12 @@ public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
-		setups.add(new Setup(1, true, "Buldreinfo", "buldreinfo.com", "Bouldering in Rogaland (Stavanger, Western Norway)"));
-		setups.add(new Setup(2, true, "Buldring i Hordaland", "buldring.bergen-klatreklubb.no", "Bouldering in Hordaland (Bergen, Western Norway)"));
-		setups.add(new Setup(3, true, "Buldring i Fredrikstad", "buldring.fredrikstadklatreklubb.org", "Bouldering in Fredrikstad (Eastern Norway)"));
-		setups.add(new Setup(4, false, "Bratte Linjer", "brattelinjer.no", "Climbing in Rogaland (Stavanger, Western Norway)"));
-		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com", "Bouldering in Jotunheimen (Norway)"));
-		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com", "Climbing in Jotunheimen (Norway)"));
+		setups.add(new Setup(1, true, "Buldreinfo", "buldreinfo.com", "Bouldering in Rogaland (Stavanger, Western Norway)", true, true, true));
+		setups.add(new Setup(2, true, "Buldring i Hordaland", "buldring.bergen-klatreklubb.no", "Bouldering in Hordaland (Bergen, Western Norway)", true, false, false));
+		setups.add(new Setup(3, true, "Buldring i Fredrikstad", "buldring.fredrikstadklatreklubb.org", "Bouldering in Fredrikstad (Eastern Norway)", true, false, false));
+		setups.add(new Setup(4, false, "Bratte Linjer", "brattelinjer.no", "Climbing in Rogaland (Stavanger, Western Norway)", false, false, true));
+		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com", "Bouldering in Jotunheimen (Norway)", true, false, false));
+		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com", "Climbing in Jotunheimen (Norway)", false, false, false));
 	}
 	
 	public Setup getSetup(HttpServletRequest request) {

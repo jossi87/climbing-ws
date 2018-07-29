@@ -203,8 +203,14 @@ public class Frontpage implements IMetadata {
 	private final List<Media> medias = new ArrayList<>();
 	private final List<Comment> comments = new ArrayList<>();
 	private Metadata metadata;
+	private final boolean showLogoPlay;
+	private final boolean showLogoSis;
+	private final boolean showLogoBrv;
 	
-	public Frontpage() {
+	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv) {
+		this.showLogoPlay = showLogoPlay;
+		this.showLogoSis = showLogoSis;
+		this.showLogoBrv = showLogoBrv;
 	}
 	
 	public void addAscent(int idProblem, String problem, String grade, String date, int idUser, String user) {
@@ -235,11 +241,11 @@ public class Frontpage implements IMetadata {
 	public int getNumMovies() {
 		return numMovies;
 	}
-
+	
 	public int getNumProblems() {
 		return numProblems;
 	}
-
+	
 	public int getNumProblemsWithCoordinates() {
 		return numProblemsWithCoordinates;
 	}
@@ -247,13 +253,25 @@ public class Frontpage implements IMetadata {
 	public int getNumProblemsWithTopo() {
 		return numProblemsWithTopo;
 	}
-	
+
 	public int getNumTicks() {
 		return numTicks;
 	}
 
 	public RandomMedia getRandomMedia() {
 		return randomMedia;
+	}
+	
+	public boolean isShowLogoBrv() {
+		return showLogoBrv;
+	}
+	
+	public boolean isShowLogoPlay() {
+		return showLogoPlay;
+	}
+
+	public boolean isShowLogoSis() {
+		return showLogoSis;
 	}
 
 	@Override

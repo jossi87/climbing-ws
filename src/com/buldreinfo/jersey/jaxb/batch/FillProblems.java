@@ -145,7 +145,7 @@ public class FillProblems {
 			}
 		}
 		Area a = new Area(REGION_ID, -1, 0, d.getArea(), null, 0, 0, -1, -1, null, null);
-		a = c.getBuldreinfoRepo().setArea(TOKEN, a, null);
+		a = c.getBuldreinfoRepo().setArea(TOKEN, REGION_ID, a, null);
 		return a.getId();
 	}
 

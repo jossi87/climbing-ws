@@ -57,7 +57,7 @@ public class V1Html {
 	public Response getFrontpage(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup.getIdRegion());
+			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup);
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(setup, f.getRandomMedia().getIdMedia());
 			c.setSuccess();
 			metaHelper.updateMetadata(f, setup);
