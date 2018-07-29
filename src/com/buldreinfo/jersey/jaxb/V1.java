@@ -57,6 +57,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
+import com.buldreinfo.jersey.jaxb.model.Title;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
@@ -300,9 +301,10 @@ public class V1 {
 
 	@GET
 	@Path("/title")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTitle(@Context HttpServletRequest request, @QueryParam("subTitle") String subTitle) throws ExecutionException, IOException {
-		return Response.ok().entity(metaHelper.getSetup(request).getTitle(subTitle)).build();
+		Title t = new Title(metaHelper.getSetup(request).getTitle(subTitle));
+		return Response.ok().entity(t).build();
 	}
 
 	@GET
