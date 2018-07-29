@@ -14,12 +14,12 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Config;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Title;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Strings;
@@ -51,6 +51,16 @@ public class V1Test {
 	}
 	
 	@Test
+	public void testGetConfig() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getConfig(getRequest(), null, true, true);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof Config);
+		Config t = (Config)r.getEntity();
+		assertTrue(!Strings.isNullOrEmpty(t.getTitle()));
+	}
+	
+	@Test
 	public void testGetFrontpage() throws Exception {
 		V1 tester = new V1();
 		Response r = tester.getFrontpage(null, getRequest());
@@ -59,16 +69,6 @@ public class V1Test {
 		Frontpage f = (Frontpage)r.getEntity();
 		assertTrue(f.getNumImages()>0);
 		assertTrue(f.getRandomMedia() != null);
-	}
-	
-	@Test
-	public void testGetGrades() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getGrades(getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		List<?> list = (List<?>)r.getEntity();
-		assertTrue(!list.isEmpty());
 	}
 	
 	@Test
@@ -132,16 +132,6 @@ public class V1Test {
 		assertTrue(!Strings.isNullOrEmpty(s.getName()));
 		assertTrue(!s.getProblems().isEmpty());
 		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
-	}
-	
-	@Test
-	public void testGetTitle() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getTitle(getRequest(), null);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Title);
-		Title t = (Title)r.getEntity();
-		assertTrue(!Strings.isNullOrEmpty(t.getTitle()));
 	}
 	
 	@Test

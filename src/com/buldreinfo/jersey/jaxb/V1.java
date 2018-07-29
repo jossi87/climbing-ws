@@ -57,7 +57,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
-import com.buldreinfo.jersey.jaxb.model.Title;
+import com.buldreinfo.jersey.jaxb.model.Config;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
@@ -175,6 +175,31 @@ public class V1 {
 	}
 
 	@GET
+	@Path("/config")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getConfig(@Context HttpServletRequest request, @QueryParam("subTitle") String subTitle, @QueryParam("incGrades") boolean incGrades, @QueryParam("incTypes") boolean incTypes) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
+			Config res = new Config(setup.getTitle(subTitle));
+			if (incGrades) {
+				List<Grade> grades = new ArrayList<>();
+				Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+				for (int id : lookup.keySet()) {
+					grades.add(new Grade(id, lookup.get(id)));
+				}
+				res.setGrades(grades);
+			}
+			if (incTypes) {
+				res.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion()));
+			}
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
@@ -187,6 +212,7 @@ public class V1 {
 		}
 	}
 
+	@Deprecated
 	@GET
 	@Path("/grades")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -269,7 +295,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -282,7 +308,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -299,14 +325,7 @@ public class V1 {
 		}
 	}
 
-	@GET
-	@Path("/title")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTitle(@Context HttpServletRequest request, @QueryParam("subTitle") String subTitle) throws ExecutionException, IOException {
-		Title t = new Title(metaHelper.getSetup(request).getTitle(subTitle));
-		return Response.ok().entity(t).build();
-	}
-
+	@Deprecated
 	@GET
 	@Path("/types")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
