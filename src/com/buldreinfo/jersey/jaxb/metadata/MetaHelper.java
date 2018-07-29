@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
@@ -30,10 +32,12 @@ public class MetaHelper {
 		setups.add(new Setup(5, true, "Buldring i Jotunheimen", "buldring.jotunheimenfjellsport.com", "Bouldering in Jotunheimen (Norway)"));
 		setups.add(new Setup(6, false, "Klatring i Jotunheimen", "klatring.jotunheimenfjellsport.com", "Climbing in Jotunheimen (Norway)"));
 	}
-
-	public Setup getSetup(String base) {
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(base), "Invalid base=" + base);
-		Optional<Setup> s = setups.stream().filter(x -> base.contains(x.getDomain())).findAny();
+	
+	public Setup getSetup(HttpServletRequest request) {
+		Preconditions.checkNotNull(request);
+		String serverName = Strings.emptyToNull(request.getServerName());
+		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
+		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
 		if (s.isPresent()) {
 			return s.get();
 		}
@@ -42,6 +46,15 @@ public class MetaHelper {
 
 	public Setup getSetup(int regionId) {
 		Optional<Setup> s = setups.stream().filter(x -> x.getIdRegion() == regionId).findAny();
+		if (s.isPresent()) {
+			return s.get();
+		}
+		return setups.get(0);
+	}
+
+	public Setup getSetup(String base) {
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(base), "Invalid base=" + base);
+		Optional<Setup> s = setups.stream().filter(x -> base.contains(x.getDomain())).findAny();
 		if (s.isPresent()) {
 			return s.get();
 		}
