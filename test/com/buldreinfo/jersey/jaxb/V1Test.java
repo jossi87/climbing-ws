@@ -19,6 +19,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Title;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Strings;
@@ -138,7 +139,9 @@ public class V1Test {
 		V1 tester = new V1();
 		Response r = tester.getTitle(getRequest(), null);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(Strings.isNullOrEmpty((String)r.getEntity()));
+		assertTrue(r.getEntity() instanceof Title);
+		Title t = (Title)r.getEntity();
+		assertTrue(!Strings.isNullOrEmpty(t.getTitle()));
 	}
 	
 	@Test
