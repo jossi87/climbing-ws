@@ -177,8 +177,8 @@ public class MetaHelper {
 			e.setMetadata(new Metadata(setup.getTitle("Ethics"), null, null));
 		}
 		else if (m instanceof Login) {
-			Ethics e = (Ethics)m;
-			e.setMetadata(new Metadata(setup.getTitle("Login"), "Log in with username and password", null));
+			Login l = (Login)m;
+			l.setMetadata(new Metadata(setup.getTitle("Login"), "Log in with username and password", null));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
