@@ -74,13 +74,6 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetGrades() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getGrades(getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-	}
-	
-	@Test
 	public void testGetMeta() throws Exception {
 		V1 tester = new V1();
 		Response r = tester.getMeta(getRequest());

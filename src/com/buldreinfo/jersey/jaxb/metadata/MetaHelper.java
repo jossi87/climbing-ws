@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.metadata;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -10,6 +11,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
@@ -17,6 +19,7 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -156,10 +159,16 @@ public class MetaHelper {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
+			List<Grade> grades = new ArrayList<>();
+			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+			for (int id : lookup.keySet()) {
+				grades.add(new Grade(id, lookup.get(id)));
+			}
 			p.setMetadata(new Metadata(setup.getTitle(title))
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
-					.setIsBouldering(setup.isBouldering()));
+					.setIsBouldering(setup.isBouldering())
+					.setGrades(grades));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -182,8 +191,14 @@ public class MetaHelper {
 			User u = (User)m;
 			String title = String.format("%s (log book)", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
+			List<Grade> grades = new ArrayList<>();
+			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+			for (int id : lookup.keySet()) {
+				grades.add(new Grade(id, lookup.get(id)));
+			}
 			u.setMetadata(new Metadata(setup.getTitle(title))
-					.setDescription(description));
+					.setDescription(description)
+					.setGrades(grades));
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;

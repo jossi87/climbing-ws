@@ -1,5 +1,7 @@
 package com.buldreinfo.jersey.jaxb.model;
 
+import java.util.List;
+
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLd;
 
 public class Metadata {
@@ -9,6 +11,7 @@ public class Metadata {
 	private int defaultZoom;
 	private LatLng defaultCenter;
 	private boolean isBouldering;
+	private List<Grade> grades;
 	
 	public Metadata(String title) {
 		this.title = title;
@@ -25,7 +28,11 @@ public class Metadata {
 	public String getDescription() {
 		return description;
 	}
-
+	
+	public List<Grade> getGrades() {
+		return grades;
+	}
+	
 	public JsonLd getJsonLd() {
 		return jsonLd;
 	}
@@ -42,14 +49,19 @@ public class Metadata {
 		this.defaultCenter = defaultCenter;
 		return this;
 	}
-	
+
 	public Metadata setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
 	}
-
+	
 	public Metadata setDescription(String description) {
 		this.description = description;
+		return this;
+	}
+
+	public Metadata setGrades(List<Grade> grades) {
+		this.grades = grades;
 		return this;
 	}
 	
