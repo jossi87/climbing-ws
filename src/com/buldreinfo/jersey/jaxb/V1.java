@@ -224,7 +224,6 @@ public class V1 {
 		}
 	}
 	
-	@Deprecated
 	@GET
 	@Path("/grades")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")

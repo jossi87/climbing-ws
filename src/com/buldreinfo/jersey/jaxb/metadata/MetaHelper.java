@@ -173,7 +173,9 @@ public class MetaHelper {
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			s.setMetadata(new Metadata(setup.getTitle(title))
 					.setDescription(description)
-					.setJsonLd(JsonLdCreator.getJsonLd(setup, s)));
+					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
