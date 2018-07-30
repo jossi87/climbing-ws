@@ -205,9 +205,15 @@ public class MetaHelper {
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
+			List<Grade> grades = new ArrayList<>();
+			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+			for (int id : lookup.keySet()) {
+				grades.add(new Grade(id, lookup.get(id)));
+			}
 			x.setMetadata(new Metadata(c, setup, token, null)
 					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
+					.setDefaultZoom(setup.getDefaultZoom())
+					.setGrades(grades));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
