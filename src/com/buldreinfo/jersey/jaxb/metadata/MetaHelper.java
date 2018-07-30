@@ -137,7 +137,7 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		if (m instanceof AreaEdit) {
+		else if (m instanceof AreaEdit) {
 			AreaEdit a = (AreaEdit)m;
 			a.setMetadata(new Metadata(setup.getTitle("Edit area"))
 					.setDefaultCenter(setup.getDefaultCenter())
