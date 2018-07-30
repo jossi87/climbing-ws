@@ -203,7 +203,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(c, res, setup);
+			metaHelper.updateMetadata(res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -308,7 +308,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
-				metaHelper.updateMetadata(res.get(0), setup);
+				metaHelper.updateMetadata(c, res.get(0), setup);
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
