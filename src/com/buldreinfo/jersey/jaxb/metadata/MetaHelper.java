@@ -14,6 +14,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.AreaEdit;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -130,7 +131,17 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			a.setMetadata(new Metadata(setup.getTitle(a.getName()), description, JsonLdCreator.getJsonLd(setup, a)));
+			a.setMetadata(new Metadata(setup.getTitle(a.getName()))
+					.setDescription(description)
+					.setJsonLd(JsonLdCreator.getJsonLd(setup, a))
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		if (m instanceof AreaEdit) {
+			AreaEdit a = (AreaEdit)m;
+			a.setMetadata(new Metadata(setup.getTitle("Edit area"))
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Frontpage) {
 			Frontpage f = (Frontpage)m;
@@ -141,7 +152,8 @@ public class MetaHelper {
 					f.getNumTicks(),
 					f.getNumImages(),
 					f.getNumMovies());
-			f.setMetadata(new Metadata(setup.getTitle(null), description, null));
+			f.setMetadata(new Metadata(setup.getTitle(null))
+					.setDescription(description));
 		}
 		else if (m instanceof Problem) {
 			Problem p = (Problem)m;
@@ -151,7 +163,9 @@ public class MetaHelper {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
-			p.setMetadata(new Metadata(setup.getTitle(title), description, JsonLdCreator.getJsonLd(setup, p)));
+			p.setMetadata(new Metadata(setup.getTitle(title))
+					.setDescription(description)
+					.setJsonLd(JsonLdCreator.getJsonLd(setup, p)));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -163,17 +177,20 @@ public class MetaHelper {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			s.setMetadata(new Metadata(setup.getTitle(title), description, JsonLdCreator.getJsonLd(setup, s)));
+			s.setMetadata(new Metadata(setup.getTitle(title))
+					.setDescription(description)
+					.setJsonLd(JsonLdCreator.getJsonLd(setup, s)));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
 			String title = String.format("%s (log book)", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
-			u.setMetadata(new Metadata(setup.getTitle(title), description, null));
+			u.setMetadata(new Metadata(setup.getTitle(title))
+					.setDescription(description));
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
-			x.setMetadata(new Metadata(setup.getTitle(), null, null));
+			x.setMetadata(new Metadata(setup.getTitle()));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
@@ -182,7 +199,10 @@ public class MetaHelper {
 					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
 					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
 					setup.isBouldering()? "boulders" : "routes");
-			b.setMetadata(new Metadata(setup.getTitle("Browse"), description, null));
+			b.setMetadata(new Metadata(setup.getTitle("Browse"))
+					.setDescription(description)
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Finder) {
 			Finder f = (Finder)m;
@@ -190,7 +210,8 @@ public class MetaHelper {
 			String description = String.format("%d %s",
 					f.getProblems().size(),
 					(setup.isBouldering()? "problems" : "routes"));
-			f.setMetadata(new Metadata(title, description, null));
+			f.setMetadata(new Metadata(title)
+					.setDescription(description));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

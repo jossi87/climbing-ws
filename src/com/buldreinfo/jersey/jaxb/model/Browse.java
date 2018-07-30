@@ -6,26 +6,14 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Browse implements IMetadata {
 	private final Collection<Area> areas;
-	private final LatLng defaultCenter;
-	private final int defaultZoom;
 	private Metadata metadata;
 	
-	public Browse(Collection<Area> areas, LatLng defaultCenter, int defaultZoom) {
+	public Browse(Collection<Area> areas) {
 		this.areas = areas;
-		this.defaultCenter = defaultCenter;
-		this.defaultZoom = defaultZoom;
 	}
 
 	public Collection<Area> getAreas() {
 		return areas;
-	}
-
-	public LatLng getDefaultCenter() {
-		return defaultCenter;
-	}
-	
-	public int getDefaultZoom() {
-		return defaultZoom;
 	}
 
 	@Override
