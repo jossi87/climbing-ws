@@ -12,6 +12,7 @@ public class Metadata {
 	private LatLng defaultCenter;
 	private boolean isBouldering;
 	private List<Grade> grades;
+	private List<Type> types;
 	
 	public Metadata(String title) {
 		this.title = title;
@@ -36,9 +37,13 @@ public class Metadata {
 	public JsonLd getJsonLd() {
 		return jsonLd;
 	}
-
+	
 	public String getTitle() {
 		return title;
+	}
+	
+	public List<Type> getTypes() {
+		return types;
 	}
 
 	public boolean isBouldering() {
@@ -54,24 +59,29 @@ public class Metadata {
 		this.defaultZoom = defaultZoom;
 		return this;
 	}
-	
+
 	public Metadata setDescription(String description) {
 		this.description = description;
 		return this;
 	}
-
+	
 	public Metadata setGrades(List<Grade> grades) {
 		this.grades = grades;
 		return this;
 	}
-	
+
 	public Metadata setIsBouldering(boolean isBouldering) {
 		this.isBouldering = isBouldering;
 		return this;
 	}
-
+	
 	public Metadata setJsonLd(JsonLd jsonLd) {
 		this.jsonLd = jsonLd;
+		return this;
+	}
+
+	public Metadata setTypes(List<Type> types) {
+		this.types = types;
 		return this;
 	}
 }

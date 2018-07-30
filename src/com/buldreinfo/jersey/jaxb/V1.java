@@ -203,7 +203,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(res, setup);
+			metaHelper.updateMetadata(c, res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -224,7 +224,6 @@ public class V1 {
 		}
 	}
 	
-	@Deprecated
 	@GET
 	@Path("/grades")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")

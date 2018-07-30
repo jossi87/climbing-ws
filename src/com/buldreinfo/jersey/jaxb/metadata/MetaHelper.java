@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.metadata;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
@@ -119,8 +121,16 @@ public class MetaHelper {
 	public List<Setup> getSetups() {
 		return setups;
 	}
-
+	
 	public void updateMetadata(IMetadata m, Setup setup) {
+		try {
+			updateMetadata(null, m, setup);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public void updateMetadata(DbConnection c, IMetadata m, Setup setup) throws SQLException {
 		if (m == null) {
 			return;
 		}
@@ -164,11 +174,13 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
+			Preconditions.checkArgument(c != null, "DbConnection not provided...");
 			p.setMetadata(new Metadata(setup.getTitle(title))
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
 					.setIsBouldering(setup.isBouldering())
-					.setGrades(grades));
+					.setGrades(grades)
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -189,7 +201,7 @@ public class MetaHelper {
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
-			String title = String.format("%s (log book)", u.getName());
+			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			List<Grade> grades = new ArrayList<>();
 			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
