@@ -182,7 +182,12 @@ public class MetaHelper {
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
-			b.setMetadata(new Metadata(setup.getTitle("Browse"), null, null));
+			String description = String.format("%d areas, %d sectors, %d %s",
+					b.getAreas().size(),
+					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
+					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
+					setup.isBouldering()? "boulders" : "routes");
+			b.setMetadata(new Metadata(setup.getTitle("Browse"), description, null));
 		}
 		else if (m instanceof Finder) {
 			Finder f = (Finder)m;
