@@ -55,6 +55,7 @@ import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -221,7 +222,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -310,7 +311,7 @@ public class V1 {
 		}
 		return Response.ok().build();
 	}
-	
+
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -327,6 +328,16 @@ public class V1 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+	}
+	
+	@GET
+	@Path("/recover")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getRecover(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		Setup setup = metaHelper.getSetup(request);
+		Recover res = new Recover();
+		metaHelper.updateMetadata(res, setup);
+		return Response.ok().entity(res).build();
 	}
 	
 	@GET

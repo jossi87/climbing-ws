@@ -21,6 +21,7 @@ import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
@@ -175,6 +176,10 @@ public class MetaHelper {
 		else if (m instanceof Ethics) {
 			Ethics e = (Ethics)m;
 			e.setMetadata(new Metadata(setup.getTitle("Ethics"), null, null));
+		}
+		else if (m instanceof Recover) {
+			Recover r = (Recover)m;
+			r.setMetadata(new Metadata(setup.getTitle("Recover"), "Forgot password", null));
 		}
 		else if (m instanceof Login) {
 			Login l = (Login)m;

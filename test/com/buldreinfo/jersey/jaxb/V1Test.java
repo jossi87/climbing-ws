@@ -20,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -63,16 +64,6 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetLogin() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getLogin(getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Login);
-		Login l = (Login)r.getEntity();
-		assertTrue(l.getMetadata() != null);
-	}
-	
-	@Test
 	public void testGetFinder() throws Exception {
 		V1 tester = new V1();
 		Response r = tester.getFinder(null, getRequest(), 11);
@@ -92,6 +83,16 @@ public class V1Test {
 		assertTrue(f.getNumImages()>0);
 		assertTrue(f.getRandomMedia() != null);
 		assertTrue(f.getMetadata() != null);
+	}
+	
+	@Test
+	public void testGetLogin() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getLogin(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof Login);
+		Login l = (Login)r.getEntity();
+		assertTrue(l.getMetadata() != null);
 	}
 	
 	@Test
@@ -122,6 +123,16 @@ public class V1Test {
 		assertTrue(r.getEntity() instanceof List<?>);
 		list = (List<?>)r.getEntity();
 		assertTrue(list.isEmpty()); // Only superadmins
+	}
+	
+	@Test
+	public void testGetRecover() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getRecover(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof Recover);
+		Recover x = (Recover)r.getEntity();
+		assertTrue(x.getMetadata() != null);
 	}
 	
 	@Test
