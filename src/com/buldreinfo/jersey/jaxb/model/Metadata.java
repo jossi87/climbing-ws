@@ -28,9 +28,11 @@ public class Metadata {
 		boolean isSuperAdmin = false;
 		try {
 			Permission p = c.getBuldreinfoRepo().getPermission(token, null, null);
-			isAuthenticated = true;
-			isAdmin = p.getAdminRegionIds().contains(setup.getIdRegion());
-			isSuperAdmin = p.getSuperAdminRegionIds().contains(setup.getIdRegion());
+			if (p != null) {
+				isAuthenticated = true;
+				isAdmin = p.getAdminRegionIds().contains(setup.getIdRegion());
+				isSuperAdmin = p.getSuperAdminRegionIds().contains(setup.getIdRegion());
+			}
 		} catch (NoSuchAlgorithmException | SQLException e) {
 			// OK
 		}
