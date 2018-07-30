@@ -21,7 +21,7 @@ public class Metadata {
 	private List<Grade> grades;
 	private List<Type> types;
 	
-	public Metadata(DbConnection c, Setup setup, String subTitle, String token) {
+	public Metadata(DbConnection c, Setup setup, String token, String subTitle) {
 		this.title = setup.getTitle(subTitle);
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
