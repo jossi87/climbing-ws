@@ -48,14 +48,12 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Grade;
-import com.buldreinfo.jersey.jaxb.model.Login;
+import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -197,16 +195,6 @@ public class V1 {
 	}
 
 	@GET
-	@Path("/ethics")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getEthics(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		Setup setup = metaHelper.getSetup(request);
-		Ethics res = new Ethics();
-		metaHelper.updateMetadata(res, setup);
-		return Response.ok().entity(res).build();
-	}
-	
-	@GET
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFinder(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
@@ -235,7 +223,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@Deprecated
 	@GET
 	@Path("/grades")
@@ -287,16 +275,6 @@ public class V1 {
 	}
 
 	@GET
-	@Path("/login")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getLogin(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		Setup setup = metaHelper.getSetup(request);
-		Login res = new Login();
-		metaHelper.updateMetadata(res, setup);
-		return Response.ok().entity(res).build();
-	}
-
-	@GET
 	@Path("/logout")
 	public Response getLogout(@CookieParam(COOKIE_NAME) Cookie cookie) {
 		if (cookie != null) {
@@ -310,6 +288,16 @@ public class V1 {
 			return Response.ok().cookie(newCookie).build();
 		}
 		return Response.ok().build();
+	}
+
+	@GET
+	@Path("/meta")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		Setup setup = metaHelper.getSetup(request);
+		Meta res = new Meta();
+		metaHelper.updateMetadata(res, setup);
+		return Response.ok().entity(res).build();
 	}
 
 	@GET
@@ -328,16 +316,6 @@ public class V1 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
-	}
-	
-	@GET
-	@Path("/recover")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getRecover(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		Setup setup = metaHelper.getSetup(request);
-		Recover res = new Recover();
-		metaHelper.updateMetadata(res, setup);
-		return Response.ok().entity(res).build();
 	}
 	
 	@GET

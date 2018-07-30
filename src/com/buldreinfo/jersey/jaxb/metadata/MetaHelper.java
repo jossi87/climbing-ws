@@ -15,13 +15,11 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.Login;
+import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
@@ -173,17 +171,9 @@ public class MetaHelper {
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			u.setMetadata(new Metadata(setup.getTitle(title), description, null));
 		}
-		else if (m instanceof Ethics) {
-			Ethics e = (Ethics)m;
-			e.setMetadata(new Metadata(setup.getTitle("Ethics"), null, null));
-		}
-		else if (m instanceof Recover) {
-			Recover r = (Recover)m;
-			r.setMetadata(new Metadata(setup.getTitle("Recover"), "Forgot password", null));
-		}
-		else if (m instanceof Login) {
-			Login l = (Login)m;
-			l.setMetadata(new Metadata(setup.getTitle("Sign in"), "Log in with username and password", null));
+		else if (m instanceof Meta) {
+			Meta x = (Meta)m;
+			x.setMetadata(new Metadata(setup.getTitle(), null, null));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;

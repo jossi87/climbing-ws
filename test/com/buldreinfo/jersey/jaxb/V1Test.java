@@ -15,12 +15,10 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.Login;
+import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Recover;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -54,16 +52,6 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetEthics() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getEthics(getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Ethics);
-		Ethics e = (Ethics)r.getEntity();
-		assertTrue(e.getMetadata() != null);
-	}
-	
-	@Test
 	public void testGetFinder() throws Exception {
 		V1 tester = new V1();
 		Response r = tester.getFinder(null, getRequest(), 11);
@@ -86,13 +74,13 @@ public class V1Test {
 	}
 	
 	@Test
-	public void testGetLogin() throws Exception {
+	public void testGetMeta() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getLogin(getRequest());
+		Response r = tester.getMeta(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Login);
-		Login l = (Login)r.getEntity();
-		assertTrue(l.getMetadata() != null);
+		assertTrue(r.getEntity() instanceof Meta);
+		Meta m = (Meta)r.getEntity();
+		assertTrue(m.getMetadata() != null);
 	}
 	
 	@Test
@@ -123,16 +111,6 @@ public class V1Test {
 		assertTrue(r.getEntity() instanceof List<?>);
 		list = (List<?>)r.getEntity();
 		assertTrue(list.isEmpty()); // Only superadmins
-	}
-	
-	@Test
-	public void testGetRecover() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getRecover(getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Recover);
-		Recover x = (Recover)r.getEntity();
-		assertTrue(x.getMetadata() != null);
 	}
 	
 	@Test

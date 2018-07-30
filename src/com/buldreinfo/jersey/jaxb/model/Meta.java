@@ -2,9 +2,9 @@ package com.buldreinfo.jersey.jaxb.model;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
-public class Recover implements IMetadata {
+public class Meta implements IMetadata {
 	private Metadata metadata;
-
+	
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
