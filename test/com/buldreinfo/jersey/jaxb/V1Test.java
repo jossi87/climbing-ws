@@ -18,6 +18,7 @@ import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -57,8 +58,18 @@ public class V1Test {
 		Response r = tester.getEthics(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Ethics);
-		Ethics t = (Ethics)r.getEntity();
-		assertTrue(t.getMetadata() != null);
+		Ethics e = (Ethics)r.getEntity();
+		assertTrue(e.getMetadata() != null);
+	}
+	
+	@Test
+	public void testGetLogin() throws Exception {
+		V1 tester = new V1();
+		Response r = tester.getLogin(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof Login);
+		Login l = (Login)r.getEntity();
+		assertTrue(l.getMetadata() != null);
 	}
 	
 	@Test

@@ -18,6 +18,7 @@ import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Ethics;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -174,6 +175,10 @@ public class MetaHelper {
 		else if (m instanceof Ethics) {
 			Ethics e = (Ethics)m;
 			e.setMetadata(new Metadata(setup.getTitle("Ethics"), null, null));
+		}
+		else if (m instanceof Login) {
+			Ethics e = (Ethics)m;
+			e.setMetadata(new Metadata(setup.getTitle("Login"), "Log in with username and password", null));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;

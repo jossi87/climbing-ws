@@ -48,8 +48,11 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
+import com.buldreinfo.jersey.jaxb.model.Ethics;
+import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Grade;
+import com.buldreinfo.jersey.jaxb.model.Login;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Register;
@@ -58,8 +61,6 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
-import com.buldreinfo.jersey.jaxb.model.Ethics;
-import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
@@ -203,7 +204,7 @@ public class V1 {
 		metaHelper.updateMetadata(res, setup);
 		return Response.ok().entity(res).build();
 	}
-
+	
 	@GET
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -282,6 +283,16 @@ public class V1 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+	}
+
+	@GET
+	@Path("/login")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getLogin(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		Setup setup = metaHelper.getSetup(request);
+		Login res = new Login();
+		metaHelper.updateMetadata(res, setup);
+		return Response.ok().entity(res).build();
 	}
 
 	@GET
@@ -398,10 +409,11 @@ public class V1 {
 	@GET
 	@Path("/users/forgotPassword")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersForgotPassword(@QueryParam("username") String username, @QueryParam("hostname") String hostname) throws ExecutionException, IOException {
+	public Response getUsersForgotPassword(@Context HttpServletRequest request, @QueryParam("username") String username) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(username));
-			c.getBuldreinfoRepo().forgotPassword(username, hostname);
+			c.getBuldreinfoRepo().forgotPassword(setup, username);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
