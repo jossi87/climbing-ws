@@ -202,7 +202,7 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
-			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems, setup.getDefaultCenter(), setup.isBouldering());
+			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
 			metaHelper.updateMetadata(res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();

@@ -158,7 +158,8 @@ public class MetaHelper {
 			}
 			p.setMetadata(new Metadata(setup.getTitle(title))
 					.setDescription(description)
-					.setJsonLd(JsonLdCreator.getJsonLd(setup, p)));
+					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
+					.setIsBouldering(setup.isBouldering()));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -206,7 +207,9 @@ public class MetaHelper {
 					f.getProblems().size(),
 					(setup.isBouldering()? "problems" : "routes"));
 			f.setMetadata(new Metadata(title)
-					.setDescription(description));
+					.setDescription(description)
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setIsBouldering(setup.isBouldering()));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
