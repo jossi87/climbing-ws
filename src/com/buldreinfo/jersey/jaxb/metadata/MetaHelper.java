@@ -14,7 +14,6 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.AreaEdit;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -137,12 +136,6 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		else if (m instanceof AreaEdit) {
-			AreaEdit a = (AreaEdit)m;
-			a.setMetadata(new Metadata(setup.getTitle("Edit area"))
-					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
-		}
 		else if (m instanceof Frontpage) {
 			Frontpage f = (Frontpage)m;
 			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
@@ -190,7 +183,9 @@ public class MetaHelper {
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
-			x.setMetadata(new Metadata(setup.getTitle()));
+			x.setMetadata(new Metadata(setup.getTitle())
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;

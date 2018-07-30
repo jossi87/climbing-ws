@@ -46,7 +46,6 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.AreaEdit;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Finder;
@@ -162,29 +161,6 @@ public class V1 {
 		}
 	}
 	
-	@GET
-	@Path("/areas/edit")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreasEdit(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
-		Setup setup = metaHelper.getSetup(request);
-		AreaEdit res = null;
-		if (id == -1) {
-			res = new AreaEdit(-1, 0, "", "", 0, 0);
-		}
-		else {
-			try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-				Area a = c.getBuldreinfoRepo().getArea(token, id);
-				res = new AreaEdit(a.getId(), a.getVisibility(), a.getName(), a.getComment(), a.getLat(), a.getLng());
-				c.setSuccess();
-			} catch (Exception e) {
-				throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-			}
-		}
-		metaHelper.updateMetadata(res, setup);
-		return Response.ok().entity(res).build();
-	}
-
 	@Deprecated
 	@GET
 	@Path("/areas/list")
