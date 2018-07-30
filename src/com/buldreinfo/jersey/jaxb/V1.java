@@ -603,19 +603,19 @@ public class V1 {
 	@Path("/users/login")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postUsersLogin(@CookieParam(COOKIE_NAME) Cookie cookie, @FormParam("username") String username, @FormParam("password") String password, @FormParam("regionId") int regionId) {
+	public Response postUsersLogin(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @FormParam("username") String username, @FormParam("password") String password) {
 		String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Preconditions.checkArgument(regionId > 0);
+			Setup setup = metaHelper.getSetup(request);
 			Permission p = c.getBuldreinfoRepo().getPermission(token, username, password);
 			c.setSuccess();
 			int visibility = -1;
 			NewCookie newCookie = null;
 			if (p != null && !Strings.isNullOrEmpty(p.getToken())) {
-				if (p.getSuperAdminRegionIds().contains(regionId)) {
+				if (p.getSuperAdminRegionIds().contains(setup.getIdRegion())) {
 					visibility = 2;
 				}
-				else if (p.getAdminRegionIds().contains(regionId)) {
+				else if (p.getAdminRegionIds().contains(setup.getIdRegion())) {
 					visibility = 1;
 				}
 				else {
