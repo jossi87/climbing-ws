@@ -184,8 +184,8 @@ public class MetaHelper {
 			if (!f.getProblems().isEmpty()) {
 				String title = setup.getTitle("Finder [" + f.getProblems().get(0).getOriginalGrade() + "]");
 				String description = String.format("%d %s",
-						(setup.isBouldering()? "problems" : "routes"),
-						f.getProblems().size());
+						f.getProblems().size(),
+						(setup.isBouldering()? "problems" : "routes"));
 				f.setMetadata(new Metadata(title, description, null));
 			}
 			else {
