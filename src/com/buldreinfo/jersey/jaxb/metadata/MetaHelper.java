@@ -181,16 +181,11 @@ public class MetaHelper {
 		}
 		else if (m instanceof Finder) {
 			Finder f = (Finder)m;
-			if (!f.getProblems().isEmpty()) {
-				String title = setup.getTitle("Finder [" + f.getProblems().get(0).getOriginalGrade() + "]");
-				String description = String.format("%d %s",
-						f.getProblems().size(),
-						(setup.isBouldering()? "problems" : "routes"));
-				f.setMetadata(new Metadata(title, description, null));
-			}
-			else {
-				f.setMetadata(new Metadata(setup.getTitle("Finder"), null, null));
-			}
+			String title = setup.getTitle("Finder [" + f.getGrade() + "]");
+			String description = String.format("%d %s",
+					f.getProblems().size(),
+					(setup.isBouldering()? "problems" : "routes"));
+			f.setMetadata(new Metadata(title, description, null));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
