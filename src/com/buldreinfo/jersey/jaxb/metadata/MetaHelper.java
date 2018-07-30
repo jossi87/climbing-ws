@@ -175,7 +175,8 @@ public class MetaHelper {
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
+					.setDefaultZoom(setup.getDefaultZoom())
+					.setIsBouldering(setup.isBouldering()));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
