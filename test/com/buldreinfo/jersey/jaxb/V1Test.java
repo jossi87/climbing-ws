@@ -84,7 +84,7 @@ public class V1Test {
 	@Test
 	public void testGetMeta() throws Exception {
 		V1 tester = new V1();
-		Response r = tester.getMeta(getRequest());
+		Response r = tester.getMeta(null, getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Meta);
 		Meta m = (Meta)r.getEntity();

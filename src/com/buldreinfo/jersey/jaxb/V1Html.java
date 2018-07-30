@@ -43,8 +43,8 @@ public class V1Html {
 			Setup setup = metaHelper.getSetup(base);
 			Area a = c.getBuldreinfoRepo().getArea(null, id);
 			OpenGraphImage image = getLastImage(c, setup, a.getMedia());
+			metaHelper.updateMetadata(c, a, setup, null);
 			c.setSuccess();
-			metaHelper.updateMetadata(a, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -59,8 +59,8 @@ public class V1Html {
 			Setup setup = metaHelper.getSetup(base);
 			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup);
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(setup, f.getRandomMedia().getIdMedia());
+			metaHelper.updateMetadata(c, f, setup, null);
 			c.setSuccess();
-			metaHelper.updateMetadata(f, setup);
 			return Response.ok().entity(getHtml(setup.getUrl(null), f.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -77,8 +77,8 @@ public class V1Html {
 			Preconditions.checkArgument(!res.isEmpty());
 			Problem p = res.get(0);
 			OpenGraphImage image = getLastImage(c, setup, p.getMedia());
+			metaHelper.updateMetadata(c, p, setup, null);
 			c.setSuccess();
-			metaHelper.updateMetadata(p, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/problem/" + id), p.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -104,8 +104,8 @@ public class V1Html {
 			Setup setup = metaHelper.getSetup(base);
 			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
 			OpenGraphImage image = getLastImage(c, setup, s.getMedia());
+			metaHelper.updateMetadata(c, s, setup, null);
 			c.setSuccess();
-			metaHelper.updateMetadata(s, setup);
 			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);

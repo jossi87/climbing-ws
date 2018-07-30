@@ -1,11 +1,18 @@
 package com.buldreinfo.jersey.jaxb.model;
 
+import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLd;
 
 public class Metadata {
 	private final String title;
+	private final boolean isAuthenticated;
+	private final boolean isAdmin;
+	private final boolean isSuperAdmin;
 	private String description;
 	private JsonLd jsonLd;
 	private int defaultZoom;
@@ -14,8 +21,22 @@ public class Metadata {
 	private List<Grade> grades;
 	private List<Type> types;
 	
-	public Metadata(String title) {
-		this.title = title;
+	public Metadata(DbConnection c, Setup setup, String subTitle, String token) {
+		this.title = setup.getTitle(subTitle);
+		boolean isAuthenticated = false;
+		boolean isAdmin = false;
+		boolean isSuperAdmin = false;
+		try {
+			Permission p = c.getBuldreinfoRepo().getPermission(token, null, null);
+			isAuthenticated = true;
+			isAdmin = p.getAdminRegionIds().contains(setup.getIdRegion());
+			isSuperAdmin = p.getSuperAdminRegionIds().contains(setup.getIdRegion());
+		} catch (NoSuchAlgorithmException | SQLException e) {
+			// OK
+		}
+		this.isAuthenticated = isAuthenticated;
+		this.isAdmin = isAdmin;
+		this.isSuperAdmin = isSuperAdmin;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -45,9 +66,21 @@ public class Metadata {
 	public List<Type> getTypes() {
 		return types;
 	}
-
+	
+	public boolean isAdmin() {
+		return isAdmin;
+	}
+	
+	public boolean isAuthenticated() {
+		return isAuthenticated;
+	}
+	
 	public boolean isBouldering() {
 		return isBouldering;
+	}
+
+	public boolean isSuperAdmin() {
+		return isSuperAdmin;
 	}
 
 	public Metadata setDefaultCenter(LatLng defaultCenter) {

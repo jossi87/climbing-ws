@@ -98,7 +98,7 @@ public class V1 {
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
 						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, setup);
-						metaHelper.updateMetadata(f, setup);
+						metaHelper.updateMetadata(c, f, setup, token);
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -152,8 +152,9 @@ public class V1 {
 	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
 			Area a = c.getBuldreinfoRepo().getArea(token, id);
-			metaHelper.updateMetadata(a, metaHelper.getSetup(request));
+			metaHelper.updateMetadata(c, a, setup, token);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -186,7 +187,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
 			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(res, setup);
+			metaHelper.updateMetadata(c, res, setup, token);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -203,7 +204,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(res, setup);
+			metaHelper.updateMetadata(c, res, setup, token);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -292,11 +293,17 @@ public class V1 {
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		Setup setup = metaHelper.getSetup(request);
-		Meta res = new Meta();
-		metaHelper.updateMetadata(res, setup);
-		return Response.ok().entity(res).build();
+	public Response getMeta(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
+		final String token = cookie != null? cookie.getValue() : null;
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Setup setup = metaHelper.getSetup(request);
+			Meta res = new Meta();
+			metaHelper.updateMetadata(c, res, setup, token);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
 	}
 
 	@GET
@@ -308,7 +315,7 @@ public class V1 {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
-				metaHelper.updateMetadata(c, res.get(0), setup);
+				metaHelper.updateMetadata(c, res.get(0), setup, token);
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -338,7 +345,7 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			Sector s = c.getBuldreinfoRepo().getSector(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(s, setup);
+			metaHelper.updateMetadata(c, s, setup, token);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -369,7 +376,7 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			User res = c.getBuldreinfoRepo().getUser(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(res, setup);
+			metaHelper.updateMetadata(c, res, setup, token);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
