@@ -2,21 +2,18 @@ package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.List;
 
-public class Finder {
-	private final String title;
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Finder implements IMetadata {
 	private final List<Problem> problems;
 	private final LatLng defaultCenter;
 	private final boolean isBouldering;
+	private Metadata metadata;
 	
-	public Finder(String title, List<Problem> problems, LatLng defaultCenter, boolean isBouldering) {
-		this.title = title;
+	public Finder(List<Problem> problems, LatLng defaultCenter, boolean isBouldering) {
 		this.problems = problems;
 		this.defaultCenter = defaultCenter;
 		this.isBouldering = isBouldering;
-	}
-
-	public String getTitle() {
-		return title;
 	}
 
 	public List<Problem> getProblems() {
@@ -29,5 +26,15 @@ public class Finder {
 
 	public boolean isBouldering() {
 		return isBouldering;
+	}
+
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
+	}
+
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 }

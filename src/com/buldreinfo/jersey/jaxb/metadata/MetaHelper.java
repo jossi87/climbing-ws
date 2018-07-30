@@ -14,6 +14,9 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Ethics;
+import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -167,6 +170,27 @@ public class MetaHelper {
 			String title = String.format("%s (log book)", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			u.setMetadata(new Metadata(setup.getTitle(title), description, null));
+		}
+		else if (m instanceof Ethics) {
+			Ethics e = (Ethics)m;
+			e.setMetadata(new Metadata(setup.getTitle("Ethics"), null, null));
+		}
+		else if (m instanceof Browse) {
+			Browse b = (Browse)m;
+			b.setMetadata(new Metadata(setup.getTitle("Browse"), null, null));
+		}
+		else if (m instanceof Finder) {
+			Finder f = (Finder)m;
+			if (!f.getProblems().isEmpty()) {
+				String title = setup.getTitle("Finder [" + f.getProblems().get(0).getOriginalGrade() + "]");
+				String description = String.format("%d %s",
+						(setup.isBouldering()? "problems" : "routes"),
+						f.getProblems().size());
+				f.setMetadata(new Metadata(title, description, null));
+			}
+			else {
+				f.setMetadata(new Metadata(setup.getTitle("Finder"), null, null));
+			}
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

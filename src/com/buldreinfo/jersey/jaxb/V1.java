@@ -185,7 +185,8 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
-			Browse res = new Browse(setup.getTitle("Browse"), areas, setup.getDefaultCenter(), setup.getDefaultZoom());
+			Browse res = new Browse(areas, setup.getDefaultCenter(), setup.getDefaultZoom());
+			metaHelper.updateMetadata(res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -198,7 +199,8 @@ public class V1 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getEthics(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		Setup setup = metaHelper.getSetup(request);
-		Ethics res = new Ethics(setup.getTitle("Ethics"));
+		Ethics res = new Ethics();
+		metaHelper.updateMetadata(res, setup);
 		return Response.ok().entity(res).build();
 	}
 
@@ -210,8 +212,8 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
-			String g = GradeHelper.getGrades(setup.getIdRegion()).get(grade);
-			Finder res = new Finder(setup.getTitle("Finder [" + g + "]"), problems, setup.getDefaultCenter(), setup.isBouldering());
+			Finder res = new Finder(problems, setup.getDefaultCenter(), setup.isBouldering());
+			metaHelper.updateMetadata(res, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

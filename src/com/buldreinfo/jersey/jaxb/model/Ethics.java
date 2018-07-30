@@ -1,13 +1,17 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class Ethics {
-	private final String title;
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
-	public Ethics(String title) {
-		this.title = title;
+public class Ethics implements IMetadata {
+	private Metadata metadata;
+
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
 	
-	public String getTitle() {
-		return title;
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 }

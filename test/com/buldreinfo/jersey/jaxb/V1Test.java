@@ -48,6 +48,7 @@ public class V1Test {
 		assertTrue(r.getEntity() instanceof Browse);
 		Browse b = (Browse)r.getEntity();
 		assertTrue(!b.getAreas().isEmpty());
+		assertTrue(b.getMetadata() != null);
 	}
 	
 	@Test
@@ -57,7 +58,7 @@ public class V1Test {
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Ethics);
 		Ethics t = (Ethics)r.getEntity();
-		assertTrue(!Strings.isNullOrEmpty(t.getTitle()));
+		assertTrue(t.getMetadata() != null);
 	}
 	
 	@Test
@@ -79,6 +80,7 @@ public class V1Test {
 		Frontpage f = (Frontpage)r.getEntity();
 		assertTrue(f.getNumImages()>0);
 		assertTrue(f.getRandomMedia() != null);
+		assertTrue(f.getMetadata() != null);
 	}
 	
 	@Test
