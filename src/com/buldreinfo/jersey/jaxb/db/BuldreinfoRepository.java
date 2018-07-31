@@ -610,7 +610,7 @@ public class BuldreinfoRepository {
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			String email = rst.getString("email");
-			String nickname = rst.getString("name");
+			String nickname = rst.getString("nickname");
 			res = new Profile(id, email, nickname);
 		}
 		rst.close();
