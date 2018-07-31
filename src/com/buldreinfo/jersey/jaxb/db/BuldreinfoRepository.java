@@ -603,7 +603,7 @@ public class BuldreinfoRepository {
 
 	public Profile getProfile(String username, String password) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIN(CONCAT(u.firstname, ', ', u.lastname)) nickname FROM user u WHERE u.username=? AND u.password=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=? AND u.password=?");
 		ps.setString(1, username);
 		ps.setString(2, password);
 		ResultSet rst = ps.executeQuery();
