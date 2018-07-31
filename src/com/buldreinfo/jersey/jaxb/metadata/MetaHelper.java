@@ -213,7 +213,8 @@ public class MetaHelper {
 			x.setMetadata(new Metadata(c, setup, token, null)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom())
-					.setGrades(grades));
+					.setGrades(grades)
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
