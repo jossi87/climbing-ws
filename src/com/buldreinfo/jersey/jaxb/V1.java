@@ -467,6 +467,23 @@ public class V1 {
 	}
 
 	@POST
+	@Path("/authenticate")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postAuthenticate(@FormParam("username") String username, @FormParam("password") String password) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
+			c.setSuccess();
+			if (p == null) {
+				return Response.status(401).build();
+			}
+			return Response.ok(p).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
 	@Path("/comments")
 	public Response postComments(@CookieParam(COOKIE_NAME) Cookie cookie, Comment co) throws ExecutionException, IOException {
 		final String token = cookie != null? cookie.getValue() : null;
@@ -588,7 +605,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/users/edit")
 	public Response postUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, UserEdit u) throws ExecutionException, IOException {
@@ -607,7 +624,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@Deprecated
 	@POST
 	@Path("/users/login")
@@ -634,23 +651,6 @@ public class V1 {
 				newCookie = getBuldreinfoCookie(p.getToken());
 			}
 			return Response.ok(visibility).cookie(newCookie).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@POST
-	@Path("/users/profile")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postUsersProfile(@FormParam("username") String username, @FormParam("password") String password) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
-			c.setSuccess();
-			if (p == null) {
-				return Response.status(401).build();
-			}
-			return Response.ok(p).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
