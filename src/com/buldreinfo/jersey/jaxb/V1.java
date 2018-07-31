@@ -54,6 +54,7 @@ import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -606,7 +607,8 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
+	@Deprecated
 	@POST
 	@Path("/users/login")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
@@ -632,6 +634,23 @@ public class V1 {
 				newCookie = getBuldreinfoCookie(p.getToken());
 			}
 			return Response.ok(visibility).cookie(newCookie).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
+	@Path("/users/profile")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postUsersProfile(@FormParam("username") String username, @FormParam("password") String password) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
+			c.setSuccess();
+			if (p == null) {
+				return Response.status(401).build();
+			}
+			return Response.ok(p).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

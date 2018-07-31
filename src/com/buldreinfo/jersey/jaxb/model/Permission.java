@@ -13,18 +13,18 @@ public class Permission {
 		this.superAdminRegionIds = superAdminRegionIds;
 	}
 
-	public String getToken() {
-		return token;
-	}
-
 	public List<Integer> getAdminRegionIds() {
 		return adminRegionIds;
 	}
-	
+
 	public List<Integer> getSuperAdminRegionIds() {
 		return superAdminRegionIds;
 	}
-
+	
+	public String getToken() {
+		return token;
+	}
+	
 	@Override
 	public String toString() {
 		return "Permission [token=" + token + ", adminRegionIds=" + adminRegionIds + ", superAdminRegionIds="
