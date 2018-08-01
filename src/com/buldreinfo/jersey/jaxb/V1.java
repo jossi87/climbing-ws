@@ -3,6 +3,8 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -131,7 +133,7 @@ public class V1 {
 			}
 		}
 	}
-
+	
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -162,7 +164,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@Deprecated
 	@GET
 	@Path("/areas/list")
@@ -171,7 +173,7 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(getAuthUserId(c, token), setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(areas).build();
 		} catch (Exception e) {
@@ -186,7 +188,7 @@ public class V1 {
 		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(token, setup.getIdRegion());
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(getAuthUserId(c, token), setup.getIdRegion());
 			Browse res = new Browse(areas);
 			metaHelper.updateMetadata(c, res, setup, token);
 			c.setSuccess();
@@ -195,7 +197,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -212,7 +214,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -244,7 +246,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/images")
 	public Response getImages(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
@@ -325,7 +327,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -338,7 +340,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -605,7 +607,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/users/edit")
 	public Response postUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, UserEdit u) throws ExecutionException, IOException {
@@ -624,7 +626,7 @@ public class V1 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@Deprecated
 	@POST
 	@Path("/users/login")
@@ -670,6 +672,23 @@ public class V1 {
 			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	private int getAuthUserId(DbConnection c, String token) {
+		try {
+			int res = -1;
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_token WHERE token=?");
+			ps.setString(1, token);
+			ResultSet rst = ps.executeQuery();
+			while (rst.next()) {
+				res = rst.getInt(1);
+			}
+			rst.close();
+			ps.close();
+			return res;
+		} catch (Exception e) {
+			return -1;
 		}
 	}
 

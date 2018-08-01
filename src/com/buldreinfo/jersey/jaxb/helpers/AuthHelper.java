@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.helpers;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -7,10 +7,10 @@ import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.google.common.net.HttpHeaders;
 
-public class Auth {
+public class AuthHelper {
 	private final AuthAPI auth;
 
-	public Auth() {
+	public AuthHelper() {
 		this.auth = new AuthAPI("buldreinfo.auth0.com", "zexpFfou6HkgNWH5QVi3zyT1rrw6MXAn", "Yi7viH5URp9kJO0LhvSRQS-8Y6F2BR6_UIdx96KhbhtsbOe9HtFtOBcl6v55iT7o");
 	}
 	
