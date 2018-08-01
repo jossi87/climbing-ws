@@ -5,6 +5,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLd;
@@ -21,6 +24,7 @@ public class Metadata {
 	private boolean isBouldering;
 	private List<Grade> grades;
 	private List<Type> types;
+	private static Logger logger = LogManager.getLogger();
 	
 	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle) {
 		this.title = setup.getTitle(subTitle);
@@ -45,6 +49,7 @@ public class Metadata {
 				// OK
 			}
 		}
+		logger.warn(authUserId + " og " + isAuthenticated);
 		this.isAuthenticated = isAuthenticated;
 		this.isAdmin = isAdmin;
 		this.isSuperAdmin = isSuperAdmin;
