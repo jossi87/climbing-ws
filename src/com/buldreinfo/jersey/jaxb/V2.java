@@ -61,6 +61,7 @@ import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -78,6 +79,7 @@ import com.google.gson.Gson;
 @Path("/v2/")
 public class V2 {
 	private static Logger logger = LogManager.getLogger();
+	private final static Auth auth = new Auth();
 	private final static MetaHelper metaHelper = new MetaHelper();
 	private final static ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("BuldreinfoCacheRefresher-pool-%d").setDaemon(true).build();
 	private final static ExecutorService parentExecutor = Executors.newSingleThreadExecutor(threadFactory);
@@ -146,15 +148,11 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		AuthAPI auth = new AuthAPI("buldreinfo.auth0.com", "zexpFfou6HkgNWH5QVi3zyT1rrw6MXAn", "Yi7viH5URp9kJO0LhvSRQS-8Y6F2BR6_UIdx96KhbhtsbOe9HtFtOBcl6v55iT7o");
-		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-		Request<UserInfo> req = auth.userInfo(authorization);
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		logger.warn(auth.getUserId(request) + " og " + stopwatch);
+		
 		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			UserInfo info = req.execute();
-		    logger.warn(info);
-		    logger.warn(info.getValues());
-		    
 			Setup setup = metaHelper.getSetup(request);
 			Area a = c.getBuldreinfoRepo().getArea(token, id);
 			metaHelper.updateMetadata(c, a, setup, token);
