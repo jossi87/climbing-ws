@@ -83,7 +83,7 @@ public class V2 {
 				public Frontpage load(String key) {
 					String[] parts = key.split("_");
 					int regionId = Integer.parseInt(parts[0]);
-					int authUserId = Integer.parseInt(parts[-1]);
+					int authUserId = Integer.parseInt(parts[1]);
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
 						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);

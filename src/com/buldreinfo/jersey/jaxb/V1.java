@@ -56,7 +56,6 @@ import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -97,7 +96,7 @@ public class V1 {
 				public Frontpage load(String key) {
 					String[] parts = key.split("_");
 					int regionId = Integer.parseInt(parts[0]);
-					int authUserId = Integer.parseInt(parts[-1]);
+					int authUserId = Integer.parseInt(parts[1]);
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
 						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
