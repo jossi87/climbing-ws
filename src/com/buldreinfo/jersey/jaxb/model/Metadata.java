@@ -26,28 +26,24 @@ public class Metadata {
 	private List<Type> types;
 	private static Logger logger = LogManager.getLogger();
 	
-	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle) {
+	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle) throws SQLException {
 		this.title = setup.getTitle(subTitle);
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
 		if (authUserId != -1) {
-			try {
-				PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM user u LEFT JOIN permission auth ON (u.id=auth.user_id AND auth.region_id=?) WHERE u.id=?");
-				ps.setInt(1, setup.getIdRegion());
-				ps.setInt(2, authUserId);
-				ResultSet rst = ps.executeQuery();
-				while (rst.next()) {
-					int write = rst.getInt("write");
-					isAuthenticated = true;
-					isAdmin = write >= 1;
-					isSuperAdmin = write == 2;
-				}
-				rst.close();
-				ps.close();
-			} catch (SQLException e) {
-				// OK
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM user u LEFT JOIN permission auth ON (u.id=auth.user_id AND auth.region_id=?) WHERE u.id=?");
+			ps.setInt(1, setup.getIdRegion());
+			ps.setInt(2, authUserId);
+			ResultSet rst = ps.executeQuery();
+			while (rst.next()) {
+				int write = rst.getInt("write");
+				isAuthenticated = true;
+				isAdmin = write >= 1;
+				isSuperAdmin = write == 2;
 			}
+			rst.close();
+			ps.close();
 		}
 		logger.warn(authUserId + " og " + isAuthenticated);
 		this.isAuthenticated = isAuthenticated;
