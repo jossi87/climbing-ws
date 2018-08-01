@@ -97,11 +97,11 @@ public class V1 {
 				public Frontpage load(String key) {
 					String[] parts = key.split("_");
 					int regionId = Integer.parseInt(parts[0]);
-					String token = parts[1];
+					int authUserId = Integer.parseInt(parts[-1]);
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
-						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, setup);
-						metaHelper.updateMetadata(c, f, setup, token);
+						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+						metaHelper.updateMetadata(c, f, setup, authUserId);
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -126,7 +126,7 @@ public class V1 {
 		if (frontpageCache.asMap().isEmpty()) {
 			try {
 				for (Setup s : metaHelper.getSetups()) {
-					frontpageCache.get(s.getIdRegion() + "_null");
+					frontpageCache.get(s.getIdRegion() + "_-1");
 				}
 			} catch (Exception e) {
 				logger.fatal(e.getMessage(), e);
@@ -137,10 +137,10 @@ public class V1 {
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().deleteMedia(token, id);
+			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -153,11 +153,11 @@ public class V1 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			Area a = c.getBuldreinfoRepo().getArea(token, id);
-			metaHelper.updateMetadata(c, a, setup, token);
+			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
+			metaHelper.updateMetadata(c, a, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -170,10 +170,10 @@ public class V1 {
 	@Path("/areas/list")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreasList(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(getAuthUserId(c, token), setup.getIdRegion());
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(areas).build();
 		} catch (Exception e) {
@@ -185,12 +185,12 @@ public class V1 {
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getBrowse(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(getAuthUserId(c, token), setup.getIdRegion());
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -202,12 +202,12 @@ public class V1 {
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFinder(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
+			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -219,10 +219,11 @@ public class V1 {
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
-		try {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + token)).build();
+			c.setSuccess();
+			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + authUserId)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -298,11 +299,11 @@ public class V1 {
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMeta(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
 			Meta res = new Meta();
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -314,12 +315,12 @@ public class V1 {
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), id, grade);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
-				metaHelper.updateMetadata(c, res.get(0), setup, token);
+				metaHelper.updateMetadata(c, res.get(0), setup, authUserId);
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -345,11 +346,11 @@ public class V1 {
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			Sector s = c.getBuldreinfoRepo().getSector(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(c, s, setup, token);
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -376,11 +377,11 @@ public class V1 {
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsers(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			User res = c.getBuldreinfoRepo().getUser(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(c, res, setup, token);
+			User res = c.getBuldreinfoRepo().getUser(authUserId, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -392,7 +393,7 @@ public class V1 {
 	@Path("/users/edit")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersEdit(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
+		String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkNotNull(token);
@@ -439,9 +440,9 @@ public class V1 {
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("value") String value) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<User> res = c.getBuldreinfoRepo().getUserSearch(token, value);
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
+			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -454,12 +455,12 @@ public class V1 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postAreas(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			a = c.getBuldreinfoRepo().setArea(token, setup.getIdRegion(), a, multiPart);
+			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(a).build();
@@ -469,29 +470,12 @@ public class V1 {
 	}
 
 	@POST
-	@Path("/authenticate")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuthenticate(@FormParam("username") String username, @FormParam("password") String password) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
-			c.setSuccess();
-			if (p == null) {
-				return Response.status(401).build();
-			}
-			return Response.ok(p).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@POST
 	@Path("/comments")
 	public Response postComments(@CookieParam(COOKIE_NAME) Cookie cookie, Comment co) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
-			c.getBuldreinfoRepo().addComment(token, co);
+			c.getBuldreinfoRepo().addComment(authUserId, co);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -505,14 +489,14 @@ public class V1 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postProblems(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			p = c.getBuldreinfoRepo().setProblem(token, setup.getIdRegion(), p, multiPart);
+			p = c.getBuldreinfoRepo().setProblem(authUserId, setup.getIdRegion(), p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
@@ -526,12 +510,12 @@ public class V1 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postProblemsMedia(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
-			c.getBuldreinfoRepo().addProblemMedia(token, p, multiPart);
+			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
@@ -543,12 +527,12 @@ public class V1 {
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@CookieParam(COOKIE_NAME) Cookie cookie, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
-			c.getBuldreinfoRepo().upsertSvg(token, problemId, mediaId, svg);
+			c.getBuldreinfoRepo().upsertSvg(authUserId, problemId, mediaId, svg);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -560,10 +544,10 @@ public class V1 {
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSearch(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
-			List<Search> res = c.getBuldreinfoRepo().getSearch(token, setup.getIdRegion(), sr);
+			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -576,13 +560,13 @@ public class V1 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSectors(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			s = c.getBuldreinfoRepo().setSector(token, setup.getIdRegion(), s, multiPart);
+			s = c.getBuldreinfoRepo().setSector(authUserId, setup.getIdRegion(), s, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -594,12 +578,12 @@ public class V1 {
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@CookieParam(COOKIE_NAME) Cookie cookie, @Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
-		final String token = cookie != null? cookie.getValue() : null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
 			Setup setup = metaHelper.getSetup(request);
 			Preconditions.checkArgument(t.getIdProblem() > 0);
-			Preconditions.checkNotNull(token);
-			c.getBuldreinfoRepo().setTick(token, setup.getIdRegion(), t);
+			Preconditions.checkNotNull(authUserId != -1);
+			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -706,7 +690,7 @@ public class V1 {
 
 	private void invalidateFrontpageCache() {
 		for (String key : frontpageCache.asMap().keySet()) {
-			if (key.endsWith("_null")) {
+			if (key.endsWith("_-1")) {
 				frontpageCache.refresh(key);
 			}
 			else {

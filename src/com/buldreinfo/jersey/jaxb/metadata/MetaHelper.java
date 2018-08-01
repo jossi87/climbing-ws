@@ -122,7 +122,7 @@ public class MetaHelper {
 		return setups;
 	}
 	
-	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, String token) throws SQLException {
+	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
 		if (m == null) {
 			return;
 		}
@@ -135,7 +135,7 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			a.setMetadata(new Metadata(c, setup, token, a.getName())
+			a.setMetadata(new Metadata(c, setup, authUserId, a.getName())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, a))
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -150,7 +150,7 @@ public class MetaHelper {
 					f.getNumTicks(),
 					f.getNumImages(),
 					f.getNumMovies());
-			f.setMetadata(new Metadata(c, setup, token, null)
+			f.setMetadata(new Metadata(c, setup, authUserId, null)
 					.setDescription(description));
 		}
 		else if (m instanceof Problem) {
@@ -166,7 +166,7 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			p.setMetadata(new Metadata(c, setup, token, title)
+			p.setMetadata(new Metadata(c, setup, authUserId, title)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
 					.setIsBouldering(setup.isBouldering())
@@ -183,7 +183,7 @@ public class MetaHelper {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			s.setMetadata(new Metadata(c, setup, token, title)
+			s.setMetadata(new Metadata(c, setup, authUserId, title)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -199,7 +199,7 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			u.setMetadata(new Metadata(c, setup, token, title)
+			u.setMetadata(new Metadata(c, setup, authUserId, title)
 					.setDescription(description)
 					.setGrades(grades));
 		}
@@ -210,7 +210,7 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			x.setMetadata(new Metadata(c, setup, token, null)
+			x.setMetadata(new Metadata(c, setup, authUserId, null)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom())
 					.setGrades(grades)
@@ -223,7 +223,7 @@ public class MetaHelper {
 					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
 					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
 					setup.isBouldering()? "boulders" : "routes");
-			b.setMetadata(new Metadata(c, setup, token, "Browse")
+			b.setMetadata(new Metadata(c, setup, authUserId, "Browse")
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
@@ -234,7 +234,7 @@ public class MetaHelper {
 			String description = String.format("%d %s",
 					f.getProblems().size(),
 					(setup.isBouldering()? "problems" : "routes"));
-			f.setMetadata(new Metadata(c, setup, token, title)
+			f.setMetadata(new Metadata(c, setup, authUserId, title)
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setIsBouldering(setup.isBouldering()));

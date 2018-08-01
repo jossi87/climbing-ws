@@ -34,6 +34,7 @@ import jersey.repackaged.com.google.common.base.Preconditions;
 @Path("/v1/static/")
 public class V1Html {
 	private final static MetaHelper metaHelper = new MetaHelper();
+	private final static int AUTH_USER_ID = -1;
 
 	@GET
 	@Path("/areas")
@@ -41,9 +42,9 @@ public class V1Html {
 	public Response getAreas(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			Area a = c.getBuldreinfoRepo().getArea(null, id);
+			Area a = c.getBuldreinfoRepo().getArea(AUTH_USER_ID, id);
 			OpenGraphImage image = getLastImage(c, setup, a.getMedia());
-			metaHelper.updateMetadata(c, a, setup, null);
+			metaHelper.updateMetadata(c, a, setup, AUTH_USER_ID);
 			c.setSuccess();
 			return Response.ok().entity(getHtml(setup.getUrl("/area/" + id), a.getMetadata(), image)).build();
 		} catch (Exception e) {
@@ -57,9 +58,9 @@ public class V1Html {
 	public Response getFrontpage(@QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			Frontpage f = c.getBuldreinfoRepo().getFrontpage(null, setup);
+			Frontpage f = c.getBuldreinfoRepo().getFrontpage(AUTH_USER_ID, setup);
 			OpenGraphImage image = f.getRandomMedia() == null? null : c.getBuldreinfoRepo().getImage(setup, f.getRandomMedia().getIdMedia());
-			metaHelper.updateMetadata(c, f, setup, null);
+			metaHelper.updateMetadata(c, f, setup, AUTH_USER_ID);
 			c.setSuccess();
 			return Response.ok().entity(getHtml(setup.getUrl(null), f.getMetadata(), image)).build();
 		} catch (Exception e) {
@@ -73,11 +74,11 @@ public class V1Html {
 	public Response getProblems(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(null, setup.getIdRegion(), id, 0);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(AUTH_USER_ID, setup.getIdRegion(), id, 0);
 			Preconditions.checkArgument(!res.isEmpty());
 			Problem p = res.get(0);
 			OpenGraphImage image = getLastImage(c, setup, p.getMedia());
-			metaHelper.updateMetadata(c, p, setup, null);
+			metaHelper.updateMetadata(c, p, setup, AUTH_USER_ID);
 			c.setSuccess();
 			return Response.ok().entity(getHtml(setup.getUrl("/problem/" + id), p.getMetadata(), image)).build();
 		} catch (Exception e) {
@@ -102,9 +103,9 @@ public class V1Html {
 	public Response getSectors(@QueryParam("id") int id, @QueryParam("base") String base) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			Sector s = c.getBuldreinfoRepo().getSector(null, setup.getIdRegion(), id);
+			Sector s = c.getBuldreinfoRepo().getSector(AUTH_USER_ID, setup.getIdRegion(), id);
 			OpenGraphImage image = getLastImage(c, setup, s.getMedia());
-			metaHelper.updateMetadata(c, s, setup, null);
+			metaHelper.updateMetadata(c, s, setup, AUTH_USER_ID);
 			c.setSuccess();
 			return Response.ok().entity(getHtml(setup.getUrl("/sector/" + id), s.getMetadata(), image)).build();
 		} catch (Exception e) {

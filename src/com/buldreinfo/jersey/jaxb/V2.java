@@ -44,17 +44,14 @@ import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
-import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -86,11 +83,11 @@ public class V2 {
 				public Frontpage load(String key) {
 					String[] parts = key.split("_");
 					int regionId = Integer.parseInt(parts[0]);
-					String token = parts[1];
+					int authUserId = Integer.parseInt(parts[-1]);
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
-						Frontpage f = c.getBuldreinfoRepo().getFrontpage(token, setup);
-						metaHelper.updateMetadata(c, f, setup, token);
+						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+						metaHelper.updateMetadata(c, f, setup, authUserId);
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -115,7 +112,7 @@ public class V2 {
 		if (frontpageCache.asMap().isEmpty()) {
 			try {
 				for (Setup s : metaHelper.getSetups()) {
-					frontpageCache.get(s.getIdRegion() + "_null");
+					frontpageCache.get(s.getIdRegion() + "_-1");
 				}
 			} catch (Exception e) {
 				logger.fatal(e.getMessage(), e);
@@ -125,11 +122,11 @@ public class V2 {
 
 	@DELETE
 	@Path("/media")
-	public Response deleteMedia(@QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = null;
+	public Response deleteMedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().deleteMedia(token, id);
+			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -142,11 +139,11 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			Area a = c.getBuldreinfoRepo().getArea(token, id);
-			metaHelper.updateMetadata(c, a, setup, token);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
+			metaHelper.updateMetadata(c, a, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -158,12 +155,12 @@ public class V2 {
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(auth.getUserId(request), setup.getIdRegion());
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -175,12 +172,12 @@ public class V2 {
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFinder(@Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			List<Problem> problems = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), 0, grade);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -192,10 +189,10 @@ public class V2 {
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = null;
 		try {
-			Setup setup = metaHelper.getSetup(request);
-			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + token)).build();
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + authUserId)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -236,11 +233,11 @@ public class V2 {
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
 			Meta res = new Meta();
-			metaHelper.updateMetadata(c, res, setup, token);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -252,12 +249,12 @@ public class V2 {
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(token, setup.getIdRegion(), id, grade);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
-				metaHelper.updateMetadata(c, res.get(0), setup, token);
+				metaHelper.updateMetadata(c, res.get(0), setup, authUserId);
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -283,11 +280,11 @@ public class V2 {
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			Sector s = c.getBuldreinfoRepo().getSector(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(c, s, setup, token);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -299,60 +296,13 @@ public class V2 {
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsers(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			User res = c.getBuldreinfoRepo().getUser(token, setup.getIdRegion(), id);
-			metaHelper.updateMetadata(c, res, setup, token);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			User res = c.getBuldreinfoRepo().getUser(authUserId, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/users/edit")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersEdit(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		final String token = null;
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			Preconditions.checkNotNull(token);
-			Preconditions.checkArgument(id>0);
-			UserEdit res = c.getBuldreinfoRepo().getUserEdit(token, setup.getIdRegion(), id);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/users/forgotPassword")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersForgotPassword(@Context HttpServletRequest request, @QueryParam("username") String username) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			Preconditions.checkNotNull(Strings.emptyToNull(username));
-			c.getBuldreinfoRepo().forgotPassword(setup, username);
-			c.setSuccess();
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/users/password")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersPassword(@QueryParam("token") String token, @QueryParam("password") String password) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Preconditions.checkNotNull(Strings.emptyToNull(token));
-			Preconditions.checkNotNull(Strings.emptyToNull(password));
-			c.getBuldreinfoRepo().resetPassword(token, password);
-			c.setSuccess();
-			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -361,10 +311,10 @@ public class V2 {
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersSearch(@QueryParam("value") String value) throws ExecutionException, IOException {
-		final String token = null;
+	public Response getUsersSearch(@Context HttpServletRequest request, @QueryParam("value") String value) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<User> res = c.getBuldreinfoRepo().getUserSearch(token, value);
+			final int authUserId = auth.getUserId(request);
+			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -377,12 +327,12 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = null;
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			a = c.getBuldreinfoRepo().setArea(token, setup.getIdRegion(), a, multiPart);
+			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(a).build();
@@ -410,11 +360,11 @@ public class V2 {
 
 	@POST
 	@Path("/comments")
-	public Response postComments(Comment co) throws ExecutionException, IOException {
-		final String token = null;
+	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
-			c.getBuldreinfoRepo().addComment(token, co);
+			c.getBuldreinfoRepo().addComment(authUserId, co);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -428,14 +378,14 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = null;
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			p = c.getBuldreinfoRepo().setProblem(token, setup.getIdRegion(), p, multiPart);
+			p = c.getBuldreinfoRepo().setProblem(authUserId, setup.getIdRegion(), p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
@@ -448,13 +398,13 @@ public class V2 {
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postProblemsMedia(@QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = null;
+	public Response postProblemsMedia(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
-			c.getBuldreinfoRepo().addProblemMedia(token, p, multiPart);
+			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
@@ -465,13 +415,13 @@ public class V2 {
 
 	@POST
 	@Path("/problems/svg")
-	public Response postProblemsSvg(@QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
-		final String token = null;
+	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
-			c.getBuldreinfoRepo().upsertSvg(token, problemId, mediaId, svg);
+			c.getBuldreinfoRepo().upsertSvg(authUserId, problemId, mediaId, svg);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -483,10 +433,10 @@ public class V2 {
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
-			List<Search> res = c.getBuldreinfoRepo().getSearch(token, setup.getIdRegion(), sr);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
+			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -499,13 +449,13 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
-		final String token = null;
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			s = c.getBuldreinfoRepo().setSector(token, setup.getIdRegion(), s, multiPart);
+			s = c.getBuldreinfoRepo().setSector(authUserId, setup.getIdRegion(), s, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -517,12 +467,12 @@ public class V2 {
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
-		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Setup setup = metaHelper.getSetup(request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(request);
 			Preconditions.checkArgument(t.getIdProblem() > 0);
-			Preconditions.checkNotNull(token);
-			c.getBuldreinfoRepo().setTick(token, setup.getIdRegion(), t);
+			Preconditions.checkArgument(authUserId != -1);
+			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -531,45 +481,9 @@ public class V2 {
 		}
 	}
 	
-	@POST
-	@Path("/users/edit")
-	public Response postUsersEdit(UserEdit u) throws ExecutionException, IOException {
-		String token = null;
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Preconditions.checkNotNull(token);
-			Preconditions.checkNotNull(u);
-			final Permission p = c.getBuldreinfoRepo().setUser(token, u);
-			invalidateFrontpageCache();
-			c.setSuccess();
-			if (p != null && !Strings.isNullOrEmpty(p.getToken())) { // Return new token (new password)
-				return Response.ok().build();
-			}
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@POST
-	@Path("/users/register")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postUsersRegister(Register r) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Preconditions.checkNotNull(Strings.emptyToNull(r.getFirstname()));
-			Preconditions.checkNotNull(Strings.emptyToNull(r.getLastname()));
-			Preconditions.checkNotNull(Strings.emptyToNull(r.getUsername()));
-			Preconditions.checkNotNull(Strings.emptyToNull(r.getPassword()));
-			c.getBuldreinfoRepo().registerUser(r);
-			c.setSuccess();
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	private void invalidateFrontpageCache() {
 		for (String key : frontpageCache.asMap().keySet()) {
-			if (key.endsWith("_null")) {
+			if (key.endsWith("_-1")) {
 				frontpageCache.refresh(key);
 			}
 			else {
