@@ -940,6 +940,7 @@ public class BuldreinfoRepository {
 	}
 
 	public User getUser(int authUserId, int regionId, int reqId) throws SQLException {
+		Preconditions.checkArgument(reqId > 0 || authUserId != -1, "Invalid parameters - reqId=" + reqId + ", authUserId=" + authUserId);
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		boolean readOnly = true;
 		if (authUserId != -1) {
@@ -949,7 +950,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (reqId <= 0) {
-			throw new SQLException("reqId <= 0");
+			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
 		String sqlStr = "SELECT CONCAT(u.firstname, ' ', u.lastname) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
