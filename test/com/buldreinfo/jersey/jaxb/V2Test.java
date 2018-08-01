@@ -190,6 +190,7 @@ public class V2Test {
 	private HttpServletRequest getRequest() {
 		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);
 		EasyMock.expect(req.getHeader(HttpHeaders.ORIGIN)).andReturn("https://buldreinfo.com").anyTimes();
+		EasyMock.expect(req.getHeader(HttpHeaders.AUTHORIZATION)).andReturn(null).anyTimes();
 		EasyMock.expect(req.getServerName()).andReturn("buldreinfo.com").anyTimes();
 		EasyMock.replay(req);
 		return req;

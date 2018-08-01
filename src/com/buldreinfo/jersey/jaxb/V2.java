@@ -141,6 +141,7 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		logger.warn(request.getHeader(HttpHeaders.AUTHORIZATION));
 		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
@@ -157,7 +158,6 @@ public class V2 {
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		logger.warn(request.getHeader(HttpHeaders.AUTHORIZATION));
 		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
