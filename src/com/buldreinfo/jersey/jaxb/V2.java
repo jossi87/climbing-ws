@@ -31,6 +31,11 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
+import com.auth0.client.auth.AuthAPI;
+import com.auth0.exception.APIException;
+import com.auth0.exception.Auth0Exception;
+import com.auth0.json.auth.UserInfo;
+import com.auth0.net.Request;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
@@ -141,7 +146,19 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		AuthAPI auth = new AuthAPI("buldreinfo.auth0.com", "zexpFfou6HkgNWH5QVi3zyT1rrw6MXAn", "Yi7viH5URp9kJO0LhvSRQS-8Y6F2BR6_UIdx96KhbhtsbOe9HtFtOBcl6v55iT7o");
 		logger.warn(request.getHeader(HttpHeaders.AUTHORIZATION));
+		Request<UserInfo> req = auth.userInfo("nisd1h9dk.....s1doWJOsaf");
+		try {
+		    UserInfo info = req.execute();
+		    logger.warn(info.getValues());
+		} catch (APIException exception) {
+			logger.warn(exception.toString());
+		} catch (Auth0Exception exception) {
+			logger.warn(exception.toString());
+		}
+		
+		
 		final String token = null;
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(request);
