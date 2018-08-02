@@ -98,7 +98,7 @@ public class MetaHelper {
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return setups.get(0);
+		return setups.get(3);
 	}
 
 	public Setup getSetup(int regionId) {
