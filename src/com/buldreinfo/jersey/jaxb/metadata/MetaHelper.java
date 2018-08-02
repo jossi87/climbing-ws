@@ -26,7 +26,6 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.net.HttpHeaders;
 
 import jersey.repackaged.com.google.common.base.Joiner;
 
@@ -80,22 +79,13 @@ public class MetaHelper {
 	
 	public Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
-		String origin = request.getHeader(HttpHeaders.ORIGIN);
-		if (!Strings.isNullOrEmpty(origin)) {
-			return setups
-					.stream()
-					.filter(x -> origin.equals("https://" + x.getDomain()))
-					.findAny()
-					.orElse(setups.get(0));
-		}
-		// TODO Remove block below, return default
 		String serverName = Strings.emptyToNull(request.getServerName());
 		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
 		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return setups.get(0);
+		throw new RuntimeException("Invalid serverName=" + serverName);
 	}
 
 	public Setup getSetup(int regionId) {
@@ -103,7 +93,7 @@ public class MetaHelper {
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return setups.get(0);
+		throw new RuntimeException("Invalid regionId=" + regionId);
 	}
 
 	@Deprecated
