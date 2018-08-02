@@ -35,6 +35,7 @@ import jersey.repackaged.com.google.common.base.Joiner;
 
 public class MetaHelper {
 	private static Logger logger = LogManager.getLogger();
+	private static final int DEFAULT_SETUP_REGION_ID = 4;
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
@@ -92,13 +93,7 @@ public class MetaHelper {
 			}
 			logger.warn("Unknown origin=" + origin);
 		}
-		String serverName = Strings.emptyToNull(request.getServerName());
-		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
-		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
-		if (s.isPresent()) {
-			return s.get();
-		}
-		return setups.get(3);
+		return getSetup(DEFAULT_SETUP_REGION_ID);
 	}
 
 	public Setup getSetup(int regionId) {
@@ -109,13 +104,14 @@ public class MetaHelper {
 		return setups.get(0);
 	}
 
+	@Deprecated
 	public Setup getSetup(String base) {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(base), "Invalid base=" + base);
 		Optional<Setup> s = setups.stream().filter(x -> base.contains(x.getDomain())).findAny();
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return setups.get(0);
+		return getSetup(DEFAULT_SETUP_REGION_ID);
 	}
 
 	public List<Setup> getSetups() {
