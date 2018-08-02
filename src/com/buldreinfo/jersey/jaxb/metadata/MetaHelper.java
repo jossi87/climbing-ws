@@ -9,9 +9,6 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
@@ -34,8 +31,6 @@ import com.google.common.net.HttpHeaders;
 import jersey.repackaged.com.google.common.base.Joiner;
 
 public class MetaHelper {
-	private static Logger logger = LogManager.getLogger();
-	private static final int DEFAULT_SETUP_REGION_ID = 4;
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
@@ -91,7 +86,7 @@ public class MetaHelper {
 					.stream()
 					.filter(x -> origin.contains(x.getDomain()))
 					.findAny()
-					.orElse(getSetup(DEFAULT_SETUP_REGION_ID));
+					.orElse(setups.get(0));
 		}
 		// TODO Remove block below, return default
 		String serverName = Strings.emptyToNull(request.getServerName());
@@ -100,7 +95,7 @@ public class MetaHelper {
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return getSetup(DEFAULT_SETUP_REGION_ID);
+		return setups.get(0);
 	}
 
 	public Setup getSetup(int regionId) {
@@ -118,7 +113,7 @@ public class MetaHelper {
 		if (s.isPresent()) {
 			return s.get();
 		}
-		return getSetup(DEFAULT_SETUP_REGION_ID);
+		return setups.get(0);
 	}
 
 	public List<Setup> getSetups() {
