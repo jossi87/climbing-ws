@@ -81,11 +81,11 @@ public class MetaHelper {
 		Preconditions.checkNotNull(request);
 		String serverName = Strings.emptyToNull(request.getServerName());
 		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
-		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
-		if (s.isPresent()) {
-			return s.get();
-		}
-		throw new RuntimeException("Invalid serverName=" + serverName);
+		return setups
+				.stream()
+				.filter(x -> serverName.equalsIgnoreCase(x.getDomain()))
+				.findAny()
+				.orElse(getSetup(4));
 	}
 
 	public Setup getSetup(int regionId) {
