@@ -87,13 +87,13 @@ public class MetaHelper {
 		Preconditions.checkNotNull(request);
 		String origin = request.getHeader(HttpHeaders.ORIGIN);
 		if (!Strings.isNullOrEmpty(origin)) {
-			Optional<Setup> s = setups.stream().filter(x -> origin.contains(x.getDomain())).findAny();
-			if (s.isPresent()) {
-				return s.get();
-			}
-			logger.warn("Unknown origin=" + origin);
-			return getSetup(DEFAULT_SETUP_REGION_ID);
+			return setups
+					.stream()
+					.filter(x -> origin.contains(x.getDomain()))
+					.findAny()
+					.orElse(getSetup(DEFAULT_SETUP_REGION_ID));
 		}
+		// TODO Remove block below, return default
 		String serverName = Strings.emptyToNull(request.getServerName());
 		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
 		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
