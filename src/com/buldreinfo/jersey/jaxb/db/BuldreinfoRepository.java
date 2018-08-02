@@ -1070,7 +1070,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
 		boolean writePermissions = false;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT write FROM permission WHERE region_id=? AND user_id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM permission auth WHERE auth.region_id=? AND auth.user_id=?");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
