@@ -92,6 +92,13 @@ public class MetaHelper {
 				return s.get();
 			}
 			logger.warn("Unknown origin=" + origin);
+			return getSetup(DEFAULT_SETUP_REGION_ID);
+		}
+		String serverName = Strings.emptyToNull(request.getServerName());
+		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
+		Optional<Setup> s = setups.stream().filter(x -> serverName.equalsIgnoreCase(x.getDomain())).findAny();
+		if (s.isPresent()) {
+			return s.get();
 		}
 		return getSetup(DEFAULT_SETUP_REGION_ID);
 	}
