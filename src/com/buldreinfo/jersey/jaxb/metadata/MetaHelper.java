@@ -84,7 +84,7 @@ public class MetaHelper {
 		if (!Strings.isNullOrEmpty(origin)) {
 			return setups
 					.stream()
-					.filter(x -> origin.contains(x.getDomain()))
+					.filter(x -> origin.equals("https://" + x.getDomain()))
 					.findAny()
 					.orElse(setups.get(0));
 		}
