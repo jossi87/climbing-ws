@@ -138,16 +138,18 @@ public class BuldreinfoRepository {
 		return rows == 1;
 	}
 
-	public void createUser(String username, String password, String firstname, String lastname) throws SQLException {
+	public void createUser(String email, String username, String password, String firstname, String lastname) throws SQLException {
+		Preconditions.checkNotNull(Strings.emptyToNull(email), "Invalid email");
 		Preconditions.checkNotNull(Strings.emptyToNull(username), "Invalid username");
 		Preconditions.checkNotNull(Strings.emptyToNull(password), "Invalid password");
 		Preconditions.checkNotNull(Strings.emptyToNull(firstname), "Invalid firstname");
 		Preconditions.checkNotNull(Strings.emptyToNull(lastname), "Invalid lastname");
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password) VALUES (?, ?, ?, ?)");
-		ps.setString(1, firstname);
-		ps.setString(2, lastname);
-		ps.setString(3, username);
-		ps.setString(4, password);
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (email, username, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)");
+		ps.setString(1, email);
+		ps.setString(2, username);
+		ps.setString(3, password);
+		ps.setString(4, firstname);
+		ps.setString(5, lastname);
 		ps.execute();
 		ps.close();
 	}
@@ -639,9 +641,10 @@ public class BuldreinfoRepository {
 
 	public Profile getProfile(String username, String password) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=? AND u.password=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE (u.username=? OR u.email=?) AND u.password=?");
 		ps.setString(1, username);
-		ps.setString(2, password);
+		ps.setString(2, username);
+		ps.setString(3, password);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
@@ -1079,11 +1082,12 @@ public class BuldreinfoRepository {
 	}
 	
 	public void registerUser(Register r) throws SQLException, NoSuchAlgorithmException {
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password) VALUES (?, ?, ?, ?)");
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password, email) VALUES (?, ?, ?, ?, ?)");
 		ps.setString(1, r.getFirstname());
 		ps.setString(2, Strings.nullToEmpty(r.getLastname()));
 		ps.setString(3, r.getUsername());
 		ps.setString(4, hashPassword(r.getPassword()));
+		ps.setString(5, r.getUsername());
 		ps.execute();
 		ps.close();
 	}
@@ -1716,12 +1720,13 @@ public class BuldreinfoRepository {
 	private int addUser(String firstname, String lastname) throws SQLException, NoSuchAlgorithmException {
 		int idUser = -1;
 		Preconditions.checkNotNull(Strings.emptyToNull(firstname));
-		PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user (username, firstname, lastname, password) VALUES (?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user (email, username, firstname, lastname, password) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		final String random = UUID.randomUUID().toString();
 		ps2.setString(1, random);
-		ps2.setString(2, firstname);
-		ps2.setString(3, Strings.nullToEmpty(lastname));
-		ps2.setString(4, hashPassword(random));
+		ps2.setString(2, random);
+		ps2.setString(3, firstname);
+		ps2.setString(4, Strings.nullToEmpty(lastname));
+		ps2.setString(5, hashPassword(random));
 		ps2.executeUpdate();
 		ResultSet rst2 = ps2.getGeneratedKeys();
 		if (rst2 != null && rst2.next()) {

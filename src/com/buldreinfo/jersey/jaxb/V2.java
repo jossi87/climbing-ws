@@ -395,7 +395,7 @@ public class V2 {
 	    mode: 'cors',
 	    method: 'POST',
 	    credentials: 'include',
-	    body: "username=" + encodeURIComponent(user.email) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")),
+	    body: "email=" + encodeURIComponent(user.email) + "&username=" + encodeURIComponent(user.username) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")) + "&firstname=" + encodeURIComponent(user.firstname) + "&lastname=" + encodeURIComponent(user.lastname),
 	    headers: {
 	      'Content-Type': 'application/x-www-form-urlencoded',
 	      'Accept': 'application/json'
@@ -416,6 +416,7 @@ public class V2 {
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postAuth0ChangePassword(
+			@FormParam("email") String email,
 			@FormParam("username") String username,
 			@FormParam("password") String password,
 			@FormParam("firstname") String firstname,
@@ -425,7 +426,7 @@ public class V2 {
 			if (p != null) {
 				return Response.status(409).build();
 			}
-			c.getBuldreinfoRepo().createUser(username, password, firstname, lastname);
+			c.getBuldreinfoRepo().createUser(email, username, password, firstname, lastname);
 			c.setSuccess();
 			return Response.status(201).build();
 		} catch (Exception e) {
