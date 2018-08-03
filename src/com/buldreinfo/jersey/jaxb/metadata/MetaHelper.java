@@ -130,19 +130,6 @@ public class MetaHelper {
 		return setups;
 	}
 	
-	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
-		String url = setup.getUrl(suffix);
-		if (media != null) {
-			Optional<Media> optMedia = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
-			if (optMedia.isPresent()) {
-				Media m = optMedia.get();
-				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(m.getId()/100*100) + "/" + m.getId() + ".jpg");
-				return new OpenGraph(url, image, m.getWidth(), m.getHeight());
-			}
-		}
-		return new OpenGraph(url, setup.getUrl("/png/buldreinfo_black.png"), 136, 120);
-	}
-	
 	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
 		if (m == null) {
 			return;
@@ -279,5 +266,18 @@ public class MetaHelper {
 		else {
 			throw new RuntimeException("Invalid m=" + m);
 		}
+	}
+	
+	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
+		String url = setup.getUrl(suffix);
+		if (media != null) {
+			Optional<Media> optMedia = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
+			if (optMedia.isPresent()) {
+				Media m = optMedia.get();
+				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(m.getId()/100*100) + "/" + m.getId() + ".jpg");
+				return new OpenGraph(url, image, m.getWidth(), m.getHeight());
+			}
+		}
+		return new OpenGraph(url, setup.getUrl("/png/buldreinfo_black.png"), 136, 120);
 	}
 }
