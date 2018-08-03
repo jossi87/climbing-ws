@@ -116,16 +116,6 @@ public class MetaHelper {
 				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId));
 	}
 
-	@Deprecated
-	public Setup getSetup(String base) {
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(base), "Invalid base=" + base);
-		Optional<Setup> s = setups.stream().filter(x -> base.contains(x.getDomain())).findAny();
-		if (s.isPresent()) {
-			return s.get();
-		}
-		return setups.get(0);
-	}
-
 	public List<Setup> getSetups() {
 		return setups;
 	}

@@ -4,115 +4,15 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 
-import org.easymock.EasyMock;
 import org.junit.Test;
 
-import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Finder;
-import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.Meta;
-import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Search;
-import com.buldreinfo.jersey.jaxb.model.SearchRequest;
-import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
-import com.google.common.base.Strings;
-import com.google.common.net.HttpHeaders;
 
 public class V1Test {
-	
-	@Test
-	public void testGetAreas() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getAreas(null, getRequest(), 7);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Area);
-		Area a = (Area)r.getEntity();
-		assertTrue(!Strings.isNullOrEmpty(a.getName()));
-		assertTrue(!a.getSectors().isEmpty());
-	}
-	
-	@Test
-	public void testGetBrowse() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getBrowse(null, getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Browse);
-		Browse b = (Browse)r.getEntity();
-		assertTrue(!b.getAreas().isEmpty());
-		assertTrue(b.getMetadata() != null);
-	}
-	
-	@Test
-	public void testGetFinder() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getFinder(null, getRequest(), 11);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Finder);
-		Finder f = (Finder)r.getEntity();
-		assertTrue(!f.getProblems().isEmpty());
-	}
-	
-	@Test
-	public void testGetFrontpage() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getFrontpage(null, getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Frontpage);
-		Frontpage f = (Frontpage)r.getEntity();
-		assertTrue(f.getNumImages()>0);
-		assertTrue(f.getRandomMedia() != null);
-		assertTrue(f.getMetadata() != null);
-	}
-	
-	@Test
-	public void testGetMeta() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getMeta(null, getRequest());
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Meta);
-		Meta m = (Meta)r.getEntity();
-		assertTrue(m.getMetadata() != null);
-	}
-	
-	@Test
-	public void testGetProblems() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getProblems(null, getRequest(), 1193, 0);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		List<?> list = (List<?>)r.getEntity();
-		assertTrue(!list.isEmpty());
-		for (Object e : list) {
-			Problem p = (Problem)e;
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
-		}
-		
-		r = tester.getProblems(null, getRequest(), 0, 19);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		list = (List<?>)r.getEntity();
-		assertTrue(!list.isEmpty());
-		for (Object e : list) {
-			Problem p = (Problem)e;
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
-		}
-		
-		r = tester.getProblems(null, getRequest(), 0, -1); // SuperAdmin only!
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		list = (List<?>)r.getEntity();
-		assertTrue(list.isEmpty()); // Only superadmins
-	}
-	
 	@Test
 	public void testGetRegions() throws Exception {
 		int other = getRegionAreas("0000000000000000");
@@ -122,62 +22,6 @@ public class V1Test {
 		assertTrue(stian > other);
 		assertTrue(jostein > stian);
 	}
-	
-	@Test
-	public void testGetSearch() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.postSearch(null, getRequest(), new SearchRequest(1, "Pan"));
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		@SuppressWarnings("unchecked")
-		List<Search> res = (List<Search>)r.getEntity();
-		assertTrue(!res.isEmpty());
-	}
-	
-	@Test
-	public void testGetSectors() throws Exception {
-		V1 tester = new V1();
-		Response r = tester.getSectors(null, getRequest(), 278);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Sector);
-		Sector s = (Sector)r.getEntity();
-		assertTrue(!Strings.isNullOrEmpty(s.getName()));
-		assertTrue(!s.getProblems().isEmpty());
-		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
-	}
-	
-	@Test
-	public void testGetUsers() throws Exception {
-		V1 tester = new V1();
-		// User: Jostein Ø
-		Response r = tester.getUsers(null, getRequest(), 1);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof User);
-		User u = (User)r.getEntity();
-		assertTrue(!u.getTicks().isEmpty());
-		assertTrue(u.getNumImagesCreated()>0);
-		assertTrue(u.getNumVideosCreated()>0);
-		assertTrue(u.getNumImageTags()>0);
-		assertTrue(u.getNumVideoTags()>0);
-		// User: jossi@jossi.org
-		r = tester.getUsers(null, getRequest(), 1311);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof User);
-		u = (User)r.getEntity();
-		assertTrue(u.getTicks().isEmpty());
-		assertTrue(u.getNumImagesCreated()==0);
-		assertTrue(u.getNumVideosCreated()==0);
-		assertTrue(u.getNumImageTags()==0);
-		assertTrue(u.getNumVideoTags()==0);
-	}
-	
-//	@Test
-//	public void testGetMedia() throws Exception {
-//		V1 tester = new V1();
-//		Response r = tester.getMedia(18323);
-//		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-//		assertTrue(r.getEntity() instanceof byte[]);
-//	}
 	
 	private int getRegionAreas(String uniqueId) throws ExecutionException, IOException {
 		int numAreas = 0;
@@ -193,13 +37,5 @@ public class V1Test {
 			numAreas += region.getAreas().size();
 		}
 		return numAreas;
-	}
-	
-	private HttpServletRequest getRequest() {
-		HttpServletRequest req = EasyMock.createMock(HttpServletRequest.class);
-		EasyMock.expect(req.getHeader(HttpHeaders.ORIGIN)).andReturn("https://buldreinfo.com").anyTimes();
-		EasyMock.expect(req.getServerName()).andReturn("buldreinfo.com").anyTimes();
-		EasyMock.replay(req);
-		return req;
 	}
 }

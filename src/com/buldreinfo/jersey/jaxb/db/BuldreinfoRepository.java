@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,8 +28,6 @@ import java.util.TimeZone;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
-import javax.mail.MessagingException;
-import javax.mail.internet.AddressException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,7 +35,6 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
-import com.buldreinfo.jersey.jaxb.helpers.MailSender;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
@@ -48,8 +44,6 @@ import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
-import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
-import com.buldreinfo.jersey.jaxb.model.Permission;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -176,27 +170,6 @@ public class BuldreinfoRepository {
 		ps.setInt(2, id);
 		ps.execute();
 		ps.close();
-	}
-
-	public void deleteToken(String value) throws SQLException {
-		Preconditions.checkNotNull(Strings.emptyToNull(value));
-		PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM user_token WHERE token=?");
-		ps.setString(1, value);
-		ps.execute();
-		ps.close();
-	}
-
-	public void forgotPassword(Setup setup, String username) throws SQLException, AddressException, UnsupportedEncodingException, MessagingException {
-		final String token = UUID.randomUUID().toString();
-		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET recover_token=? WHERE username=?");
-		ps.setString(1, token);
-		ps.setString(2, username);
-		ps.execute();
-		ps.close();
-		StringBuilder builder = new StringBuilder();
-		builder.append("Follow the instructions on " + setup.getUrl("/recover/" + token) + " to reset your password\n\n");
-		builder.append("Please ignore this email if you did not request a new password from " + setup.getDomain());
-		MailSender.sendMail(username, "Reset password (" + setup.getDomain() + ")", builder.toString());
 	}
 
 	public Area getArea(int authUserId, int reqId) throws IOException, SQLException {
@@ -417,93 +390,6 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	@Deprecated
-	public OpenGraphImage getImage(Setup setup, int idMedia) {
-		OpenGraphImage res = null;
-		try {
-			Path p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + ".jpg");
-			if (Files.exists(p)) {
-				BufferedImage b = ImageIO.read(p.toFile());
-				String http = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(idMedia/100*100) + "/" + idMedia + ".jpg");
-				res = new OpenGraphImage(http, String.valueOf(b.getWidth()), String.valueOf(b.getHeight()));
-				b.flush();
-			}
-		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
-		}
-		return res;
-	}
-
-	public Permission getPermission(String token, String username, String password) throws SQLException, NoSuchAlgorithmException {
-		// Validate token
-		if (!Strings.isNullOrEmpty(token)) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT ut.token, auth.region_id, MAX(auth.write) permission FROM user_token ut LEFT JOIN permission auth ON ut.user_id=auth.user_id WHERE ut.token=? GROUP BY ut.token, auth.region_id");
-			ps.setString(1, token);
-			token = null;
-			List<Integer> adminRegionIds = new ArrayList<>();
-			List<Integer> superAdminRegionIds = new ArrayList<>();
-			ResultSet rst = ps.executeQuery();
-			while (rst.next()) {
-				token = rst.getString("token");
-				int idRegion = rst.getInt("region_id");
-				int permission = rst.getInt("permission");
-				if (idRegion > 0) {
-					if (permission >= 1) {
-						adminRegionIds.add(idRegion);
-					}
-					if (permission == 2) {
-						superAdminRegionIds.add(idRegion);
-					}
-				}
-			}
-			rst.close();
-			ps.close();
-			if (!Strings.isNullOrEmpty(token)) {
-				return new Permission(token, adminRegionIds, superAdminRegionIds);
-			}
-		}
-
-		// Login with username and password
-		if (Strings.isNullOrEmpty(username) || Strings.isNullOrEmpty(password)) {
-			logger.warn("getToken(token={}, username={}, password={}) - invalid parameters", token, username, password);
-			return null;
-		}
-		int idUser = 0;
-		token = null;
-		List<Integer> adminRegionIds = new ArrayList<>();
-		List<Integer> superAdminRegionIds = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, auth.region_id, MAX(auth.write) permission FROM user u LEFT JOIN permission auth ON u.id=auth.user_id WHERE u.username=? AND u.password=? GROUP BY u.id, auth.region_id");
-		ps.setString(1, username);
-		ps.setString(2, hashPassword(password));
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			idUser = rst.getInt("id");
-			int idRegion = rst.getInt("region_id");
-			int permission = rst.getInt("permission");
-			if (idRegion > 0) {
-				if (permission >= 1) {
-					adminRegionIds.add(idRegion);
-				}
-				if (permission == 2) {
-					superAdminRegionIds.add(idRegion);
-				}
-			}
-		}
-		rst.close();
-		ps.close();
-		token = UUID.randomUUID().toString();
-
-		// Add token to db
-		Preconditions.checkNotNull(token, "token cannot be null");
-		Preconditions.checkArgument(idUser != 0, "idUser cannot be 0");
-		ps = c.getConnection().prepareStatement("INSERT INTO user_token (user_id, token) VALUES (?, ?)");
-		ps.setInt(1, idUser);
-		ps.setString(2, token);
-		ps.execute();
-		ps.close();
-		return new Permission(token, adminRegionIds, superAdminRegionIds);
-	}
-	
 	public List<Problem> getProblem(int authUserId, int reqRegionId, int reqId, int reqGrade) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -1043,29 +929,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public UserEdit getUserEdit(String token, int regionId, int id) throws SQLException {
-		int loggedInUserId = getLoggedInUserId(token);
-		if (loggedInUserId != id) {
-			throw new SQLException("loggedInUserId != id");
-		}
-		UserEdit u = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, username, email, firstname, lastname FROM user WHERE id=?");
-		ps.setInt(1, id);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			id = rst.getInt("id");
-			String username = rst.getString("username");
-			String email = rst.getString("email");
-			String firstname = rst.getString("firstname");
-			String lastname = rst.getString("lastname");
-			u = new UserEdit(regionId, id, username, email, firstname, lastname, null, null);
-		}
-		rst.close();
-		ps.close();
-		Preconditions.checkNotNull(u);
-		return u;
-	}
-
 	public List<User> getUserSearch(int authUserId, String value) throws SQLException {
 		if (authUserId == -1) {
 			throw new SQLException("User not logged in...");
@@ -1529,7 +1392,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public Permission setUser(int authUserId, UserEdit u) throws SQLException, NoSuchAlgorithmException {
+	public void setUser(int authUserId, UserEdit u) throws SQLException, NoSuchAlgorithmException {
 		Preconditions.checkArgument(u.getId()>0);
 		if (authUserId != u.getId()) {
 			throw new SQLException("loggedInUserId != authUserId");
@@ -1557,13 +1420,7 @@ public class BuldreinfoRepository {
 			if (res == 0) {
 				throw new SQLException("Invalid current password");
 			}
-			ps = c.getConnection().prepareStatement("DELETE FROM user_token WHERE user_id=?");
-			ps.setInt(1, u.getId());
-			ps.execute();
-			ps.close();
-			return getPermission(null, u.getUsername(), u.getNewPassword());
 		}
-		return null;
 	}
 
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
@@ -1817,19 +1674,6 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkArgument(usId > 0);
 		return usId;
-	}
-
-	private int getLoggedInUserId(String token) throws SQLException {
-		int userId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_token WHERE token=?");
-		ps.setString(1, token);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			userId = rst.getInt("user_id");
-		}
-		rst.close();
-		ps.close();
-		return userId;
 	}
 
 	private List<Media> getMediaArea(int id) throws SQLException {
