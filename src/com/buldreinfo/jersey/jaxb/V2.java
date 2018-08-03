@@ -303,7 +303,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -381,6 +381,53 @@ public class V2 {
 			boolean res = c.getBuldreinfoRepo().changePassword(username, newPassword);
 			c.setSuccess();
 			return Response.ok(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	/*
+	function create (user, callback) {
+	  var crypto = require('crypto');
+	  var fetch = require('isomorphic-fetch');
+	  console.log(create);
+	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/create`),{
+	    mode: 'cors',
+	    method: 'POST',
+	    credentials: 'include',
+	    body: "username=" + encodeURIComponent(user.email) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")),
+	    headers: {
+	      'Content-Type': 'application/x-www-form-urlencoded',
+	      'Accept': 'application/json'
+	    }
+	  })
+	  .then((response) => {
+	    if (response.status === 409) {
+	      callback(new ValidationError("user_exists", "User already exists"));
+	    } else if (response.status === 201) {
+	      callback(null);
+	    }
+	  })
+	  .catch ((error) => callback(error));
+	}
+	 */
+	@POST
+	@Path("/auth0/create")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postAuth0ChangePassword(
+			@FormParam("username") String username,
+			@FormParam("password") String password,
+			@FormParam("firstname") String firstname,
+			@FormParam("lastname") String lastname) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Profile p = c.getBuldreinfoRepo().getProfile(username);
+			if (p != null) {
+				return Response.status(409).build();
+			}
+			c.getBuldreinfoRepo().createUser(username, password, firstname, lastname);
+			c.setSuccess();
+			return Response.status(201).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

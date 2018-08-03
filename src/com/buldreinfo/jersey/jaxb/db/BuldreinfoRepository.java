@@ -138,6 +138,20 @@ public class BuldreinfoRepository {
 		return rows == 1;
 	}
 
+	public void createUser(String username, String password, String firstname, String lastname) throws SQLException {
+		Preconditions.checkNotNull(Strings.emptyToNull(username), "Invalid username");
+		Preconditions.checkNotNull(Strings.emptyToNull(password), "Invalid password");
+		Preconditions.checkNotNull(Strings.emptyToNull(firstname), "Invalid firstname");
+		Preconditions.checkNotNull(Strings.emptyToNull(lastname), "Invalid lastname");
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password) VALUES (?, ?, ?, ?)");
+		ps.setString(1, firstname);
+		ps.setString(2, lastname);
+		ps.setString(3, username);
+		ps.setString(4, password);
+		ps.execute();
+		ps.close();
+	}
+
 	public void deleteMedia(int authUserId, int id) throws SQLException {
 		boolean ok = false;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
@@ -248,7 +262,7 @@ public class BuldreinfoRepository {
 		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
 		return res;
 	}
-
+	
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
@@ -384,7 +398,7 @@ public class BuldreinfoRepository {
 		logger.debug("getFrontpage(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
-	
+
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
@@ -483,7 +497,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return new Permission(token, adminRegionIds, superAdminRegionIds);
 	}
-
+	
 	public List<Problem> getProblem(int authUserId, int reqRegionId, int reqId, int reqGrade) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -606,7 +620,7 @@ public class BuldreinfoRepository {
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", authUserId, reqRegionId, reqId, reqGrade, stopwatch, res.size());
 		return res;
 	}
-	
+
 	public Profile getProfile(String username) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=?");
@@ -1063,7 +1077,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-
+	
 	public void registerUser(Register r) throws SQLException, NoSuchAlgorithmException {
 		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password) VALUES (?, ?, ?, ?)");
 		ps.setString(1, r.getFirstname());
