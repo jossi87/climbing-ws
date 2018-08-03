@@ -360,6 +360,9 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Profile p = c.getBuldreinfoRepo().getProfile(username);
 			c.setSuccess();
+			if (p == null) {
+				return Response.status(400).build();
+			}
 			return Response.ok(p).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
