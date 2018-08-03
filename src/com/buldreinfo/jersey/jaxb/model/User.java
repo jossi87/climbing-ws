@@ -88,6 +88,7 @@ public class User implements IMetadata {
 	private final int id;
 	private final String name;
 	private final String username;
+	private final String email;
 	private final String firstname;
 	private final String lastname;
 	private final int numImagesCreated;
@@ -97,11 +98,12 @@ public class User implements IMetadata {
 	private final List<Tick> ticks = new ArrayList<>();
 	private Metadata metadata;
 	
-	public User(boolean readOnly, int id, String username, String firstname, String lastname, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
+	public User(boolean readOnly, int id, String username, String email, String firstname, String lastname, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
 		this.readOnly = readOnly;
 		this.id = id;
 		this.name = name;
 		this.username = username;
+		this.email = email;
 		this.firstname = firstname;
 		this.lastname = lastname;
 		this.numImagesCreated = numImagesCreated;
@@ -112,6 +114,10 @@ public class User implements IMetadata {
 	
 	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	}
+	
+	public String getEmail() {
+		return email;
 	}
 	
 	public String getFirstname() {

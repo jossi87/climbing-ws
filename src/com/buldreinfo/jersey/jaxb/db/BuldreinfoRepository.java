@@ -986,13 +986,14 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT u.username, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
+		String sqlStr = "SELECT u.username, u.email, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
 				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.username, u.firstname, u.lastname";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			String username = rst.getString("username");
+			String email = rst.getString("email");
 			String firstname = rst.getString("firstname");
 			String lastname = rst.getString("lastname");
 			String name = rst.getString("name");
@@ -1000,7 +1001,7 @@ public class BuldreinfoRepository {
 			int numVideosCreated = rst.getInt("num_videos_created");
 			int numImageTags = rst.getInt("num_image_tags");
 			int numVideoTags = rst.getInt("num_video_tags");
-			res = new User(readOnly, reqId, username, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+			res = new User(readOnly, reqId, username, email, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
 		}
 		rst.close();
 		ps.close();
@@ -1045,15 +1046,16 @@ public class BuldreinfoRepository {
 			throw new SQLException("loggedInUserId != id");
 		}
 		UserEdit u = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, username, firstname, lastname FROM user WHERE id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, username, email, firstname, lastname FROM user WHERE id=?");
 		ps.setInt(1, id);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			id = rst.getInt("id");
 			String username = rst.getString("username");
+			String email = rst.getString("email");
 			String firstname = rst.getString("firstname");
 			String lastname = rst.getString("lastname");
-			u = new UserEdit(regionId, id, username, firstname, lastname, null, null);
+			u = new UserEdit(regionId, id, username, email, firstname, lastname, null, null);
 		}
 		rst.close();
 		ps.close();
@@ -1074,7 +1076,7 @@ public class BuldreinfoRepository {
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
-			res.add(new User(true, id, null, null, null, name, -1, -1, -1, -1));
+			res.add(new User(true, id, null, null, null, null, name, -1, -1, -1, -1));
 		}
 		rst.close();
 		ps.close();
@@ -1530,13 +1532,15 @@ public class BuldreinfoRepository {
 			throw new SQLException("loggedInUserId != authUserId");
 		}
 		Preconditions.checkNotNull(Strings.emptyToNull(u.getUsername()));
+		Preconditions.checkNotNull(Strings.emptyToNull(u.getEmail()));
 		Preconditions.checkNotNull(Strings.emptyToNull(u.getFirstname()));
 		Preconditions.checkNotNull(Strings.emptyToNull(u.getLastname()));
-		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET username=?, firstname=?, lastname=? WHERE id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET username=?, email=?, firstname=?, lastname=? WHERE id=?");
 		ps.setString(1, u.getUsername());
-		ps.setString(2, u.getFirstname());
-		ps.setString(3, u.getLastname());
-		ps.setInt(4, u.getId());
+		ps.setString(2, u.getEmail());
+		ps.setString(3, u.getFirstname());
+		ps.setString(4, u.getLastname());
+		ps.setInt(5, u.getId());
 		ps.execute();
 		ps.close();
 
