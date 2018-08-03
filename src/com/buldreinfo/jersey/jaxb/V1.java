@@ -598,7 +598,8 @@ public class V1 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Preconditions.checkNotNull(token);
 			Preconditions.checkNotNull(u);
-			final Permission p = c.getBuldreinfoRepo().setUser(token, u);
+			final int authUserId = cookie != null? getAuthUserId(c, cookie.getValue()) : -1;
+			final Permission p = c.getBuldreinfoRepo().setUser(authUserId, u);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			if (p != null && !Strings.isNullOrEmpty(p.getToken())) { // Return new token (new password)

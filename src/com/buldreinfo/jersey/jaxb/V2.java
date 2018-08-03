@@ -52,6 +52,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -302,7 +303,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -579,6 +580,20 @@ public class V2 {
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
+			invalidateFrontpageCache();
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
+	@Path("/users/edit")
+	public Response postUsersEdit(@Context HttpServletRequest request, UserEdit u) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(request);
+			c.getBuldreinfoRepo().setUser(authUserId, u);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();

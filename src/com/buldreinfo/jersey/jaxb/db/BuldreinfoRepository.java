@@ -1506,11 +1506,10 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public Permission setUser(String token, UserEdit u) throws SQLException, NoSuchAlgorithmException {
+	public Permission setUser(int authUserId, UserEdit u) throws SQLException, NoSuchAlgorithmException {
 		Preconditions.checkArgument(u.getId()>0);
-		final int loggedInUserId = getLoggedInUserId(token);
-		if (loggedInUserId != u.getId()) {
-			throw new SQLException("loggedInUserId != u.getId()");
+		if (authUserId != u.getId()) {
+			throw new SQLException("loggedInUserId != authUserId");
 		}
 		Preconditions.checkNotNull(Strings.emptyToNull(u.getUsername()));
 		Preconditions.checkNotNull(Strings.emptyToNull(u.getFirstname()));

@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.List;
 
+@Deprecated
 public class Permission {
 	private final String token;
 	private final List<Integer> adminRegionIds;
