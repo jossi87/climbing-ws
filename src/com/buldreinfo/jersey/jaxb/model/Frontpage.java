@@ -147,14 +147,18 @@ public class Frontpage implements IMetadata {
 	}
 	public class RandomMedia {
 		private final int idMedia;
+		private final int width;
+		private final int height;
 		private final int idProblem;
 		private final String problem;
 		private final String grade;
 		private final int idCreator;
 		private final String creator;
 		private final String inPhoto;
-		public RandomMedia(int idMedia, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
+		public RandomMedia(int idMedia, int width, int height, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
 			this.idMedia = idMedia;
+			this.width = width;
+			this.height = height;
 			this.idProblem = idProblem;
 			this.problem = problem;
 			this.grade = grade;
@@ -167,6 +171,9 @@ public class Frontpage implements IMetadata {
 		}
 		public String getGrade() {
 			return grade;
+		}
+		public int getHeight() {
+			return height;
 		}
 		public int getIdCreator() {
 			return idCreator;
@@ -182,6 +189,9 @@ public class Frontpage implements IMetadata {
 		}
 		public String getProblem() {
 			return problem;
+		}
+		public int getWidth() {
+			return width;
 		}
 		@Override
 		public String toString() {
@@ -303,8 +313,8 @@ public class Frontpage implements IMetadata {
 		this.numTicks = numTicks;
 	}
 
-	public void setRandomMedia(int idMedia, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
-		randomMedia = new RandomMedia(idMedia, idProblem, problem, grade, idCreator, creator, inPhoto);
+	public void setRandomMedia(int idMedia, int width, int height, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
+		randomMedia = new RandomMedia(idMedia, width, height, idProblem, problem, grade, idCreator, creator, inPhoto);
 	}
 
 	@Override

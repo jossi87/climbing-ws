@@ -175,7 +175,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), 0, grade);
-			Finder res = new Finder(GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
+			Finder res = new Finder(grade, GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();

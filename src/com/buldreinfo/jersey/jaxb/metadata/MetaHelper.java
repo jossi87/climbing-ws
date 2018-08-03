@@ -18,9 +18,13 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Grade;
+import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
+import com.buldreinfo.jersey.jaxb.model.OpenGraph;
+import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -127,6 +131,19 @@ public class MetaHelper {
 		return setups;
 	}
 	
+	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
+		String url = setup.getUrl(suffix);
+		if (media != null) {
+			Optional<Media> optMedia = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
+			if (optMedia.isPresent()) {
+				Media m = optMedia.get();
+				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(m.getId()/100*100) + "/" + m.getId() + ".jpg");
+				return new OpenGraph(url, image, m.getWidth(), m.getHeight());
+			}
+		}
+		return new OpenGraph(url, setup.getUrl("/png/buldreinfo_black.png"), 136, 120);
+	}
+	
 	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
 		if (m == null) {
 			return;
@@ -140,7 +157,9 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			a.setMetadata(new Metadata(c, setup, authUserId, a.getName())
+			
+			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia());
+			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, a))
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -155,7 +174,16 @@ public class MetaHelper {
 					f.getNumTicks(),
 					f.getNumImages(),
 					f.getNumMovies());
-			f.setMetadata(new Metadata(c, setup, authUserId, null)
+			OpenGraph og = null;
+			if (f.getRandomMedia() != null) {
+				RandomMedia x = f.getRandomMedia();
+				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(x.getIdMedia()/100*100) + "/" + x.getIdMedia() + ".jpg");
+				og = new OpenGraph(setup.getUrl(null), image, x.getWidth(), x.getHeight());
+			}
+			else {
+				og = getOg(setup, null, null);
+			}
+			f.setMetadata(new Metadata(c, setup, authUserId, null, og)
 					.setDescription(description));
 		}
 		else if (m instanceof Problem) {
@@ -171,7 +199,8 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			p.setMetadata(new Metadata(c, setup, authUserId, title)
+			OpenGraph og = getOg(setup, "/problem/" + p.getId(), p.getMedia());
+			p.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
 					.setIsBouldering(setup.isBouldering())
@@ -188,7 +217,8 @@ public class MetaHelper {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			s.setMetadata(new Metadata(c, setup, authUserId, title)
+			OpenGraph og = getOg(setup, "/sector/" + s.getId(), s.getMedia());
+			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -204,7 +234,8 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			u.setMetadata(new Metadata(c, setup, authUserId, title)
+			OpenGraph og = getOg(setup, "/user/" + u.getId(), null);
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setGrades(grades));
 		}
@@ -215,7 +246,7 @@ public class MetaHelper {
 			for (int id : lookup.keySet()) {
 				grades.add(new Grade(id, lookup.get(id)));
 			}
-			x.setMetadata(new Metadata(c, setup, authUserId, null)
+			x.setMetadata(new Metadata(c, setup, authUserId, null, null)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom())
 					.setGrades(grades)
@@ -228,7 +259,8 @@ public class MetaHelper {
 					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
 					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
 					setup.isBouldering()? "boulders" : "routes");
-			b.setMetadata(new Metadata(c, setup, authUserId, "Browse")
+			OpenGraph og = getOg(setup, "/browse", null);
+			b.setMetadata(new Metadata(c, setup, authUserId, "Browse", og)
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
@@ -239,7 +271,8 @@ public class MetaHelper {
 			String description = String.format("%d %s",
 					f.getProblems().size(),
 					(setup.isBouldering()? "problems" : "routes"));
-			f.setMetadata(new Metadata(c, setup, authUserId, title)
+			OpenGraph og = getOg(setup, "/finder/" + f.getIdGrade(), null);
+			f.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setIsBouldering(setup.isBouldering()));

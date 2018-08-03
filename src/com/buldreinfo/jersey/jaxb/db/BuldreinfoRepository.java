@@ -387,6 +387,7 @@ public class BuldreinfoRepository {
 		return p;
 	}
 	
+	@Deprecated
 	public OpenGraphImage getImage(Setup setup, int idMedia) {
 		OpenGraphImage res = null;
 		try {
@@ -1894,7 +1895,7 @@ public class BuldreinfoRepository {
 	}
 
 	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution) throws SQLException {
-		String sqlStr = "SELECT m.id id_media, p.id id_problem, p.name problem, m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', u.lastname)) photographer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', u2.lastname)) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
+		String sqlStr = "SELECT m.id id_media, m.width, m.height, p.id id_problem, p.name problem, m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', u.lastname)) photographer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', u2.lastname)) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
 				+ " FROM ((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
 				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u2.firstname, u2.lastname, p.grade"
@@ -1912,13 +1913,15 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int idMedia = rst.getInt("id_media");
+			int width = rst.getInt("width");
+			int height = rst.getInt("height");
 			int idProblem = rst.getInt("id_problem");
 			String problem = rst.getString("problem");
 			int grade = rst.getInt("grade");
 			int idCreator = rst.getInt("id_creator");
 			String photographer = rst.getString("photographer");
 			String inPhoto = rst.getString("in_photo");
-			res.setRandomMedia(idMedia, idProblem, problem, GradeHelper.intToString(regionId, grade), idCreator, photographer, inPhoto);
+			res.setRandomMedia(idMedia, width, height, idProblem, problem, GradeHelper.intToString(regionId, grade), idCreator, photographer, inPhoto);
 		}
 		rst.close();
 		ps.close();

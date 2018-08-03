@@ -14,6 +14,7 @@ public class Metadata {
 	private final boolean isAuthenticated;
 	private final boolean isAdmin;
 	private final boolean isSuperAdmin;
+	private final OpenGraph og;
 	private String description;
 	private JsonLd jsonLd;
 	private int defaultZoom;
@@ -22,7 +23,7 @@ public class Metadata {
 	private List<Grade> grades;
 	private List<Type> types;
 
-	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle) throws SQLException {
+	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle, OpenGraph og) throws SQLException {
 		this.title = setup.getTitle(subTitle);
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
@@ -44,6 +45,7 @@ public class Metadata {
 		this.isAuthenticated = isAuthenticated;
 		this.isAdmin = isAdmin;
 		this.isSuperAdmin = isSuperAdmin;
+		this.og = og;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -64,6 +66,10 @@ public class Metadata {
 	
 	public JsonLd getJsonLd() {
 		return jsonLd;
+	}
+	
+	public OpenGraph getOg() {
+		return og;
 	}
 	
 	public String getTitle() {
@@ -94,7 +100,7 @@ public class Metadata {
 		this.defaultCenter = defaultCenter;
 		return this;
 	}
-
+	
 	public Metadata setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
@@ -104,17 +110,17 @@ public class Metadata {
 		this.description = description;
 		return this;
 	}
-	
+
 	public Metadata setGrades(List<Grade> grades) {
 		this.grades = grades;
 		return this;
 	}
-
+	
 	public Metadata setIsBouldering(boolean isBouldering) {
 		this.isBouldering = isBouldering;
 		return this;
 	}
-	
+
 	public Metadata setJsonLd(JsonLd jsonLd) {
 		this.jsonLd = jsonLd;
 		return this;
