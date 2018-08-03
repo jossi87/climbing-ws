@@ -359,6 +359,7 @@ public class V2 {
 	public Response postAuth0ChangePassword(@FormParam("username") String username, @FormParam("newPassword") String newPassword) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			boolean res = c.getBuldreinfoRepo().changePassword(username, newPassword);
+			c.setSuccess();
 			return Response.ok(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
