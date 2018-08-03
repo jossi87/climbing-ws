@@ -880,43 +880,32 @@ public class BuldreinfoRepository {
 		return s;
 	}
 
-	public String getSitemapTxt(int idRegion) throws SQLException {
+	public String getSitemapTxt(Setup setup) throws SQLException {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT url FROM region WHERE id=?");
-		ps.setInt(1, idRegion);
+		urls.add(setup.getUrl(null));
+		urls.add(setup.getUrl("/ethics"));
+		urls.add(setup.getUrl("/gpl-3.0.txt"));
+		urls.add(setup.getUrl("/browse"));
+		// Users
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=t.problem_id GROUP BY t.user_id");
+		ps.setInt(1, setup.getIdRegion());
+		ps.setInt(2, setup.getIdRegion());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			final String url = rst.getString("url");
-			urls.add(url);
-			urls.add(url + "/ethics");
-			urls.add(url + "/gpl-3.0.txt");
-			urls.add(url + "/browse");
-			for (int grade : GradeHelper.getGrades(idRegion).keySet()) {
-				urls.add(url + "/finder/" + grade);
-			}
-			// Users
-			PreparedStatement ps2 = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=t.problem_id GROUP BY t.user_id");
-			ps2.setInt(1, idRegion);
-			ps2.setInt(2, idRegion);
-			ResultSet rst2 = ps2.executeQuery();
-			while (rst2.next()) {
-				int userId = rst2.getInt("user_id");
-				urls.add(url + "/user/" + userId);
-			}
-			rst2.close();
-			ps2.close();
+			int userId = rst.getInt("user_id");
+			urls.add(setup.getUrl("/user/" + userId));
 		}
 		rst.close();
 		ps.close();
 		// Areas, sectors, problems
-		ps = c.getConnection().prepareStatement("SELECT CONCAT(r.url, '/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT(r.url, '/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT(r.url, '/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
-		ps.setInt(1, idRegion);
-		ps.setInt(2, idRegion);
-		ps.setInt(3, idRegion);
+		ps = c.getConnection().prepareStatement("SELECT CONCAT('/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
+		ps.setInt(1, setup.getIdRegion());
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
 		rst = ps.executeQuery();
 		while (rst.next()) {
-			urls.add(rst.getString("url"));
+			urls.add(setup.getUrl(rst.getString("url")));
 		}
 		rst.close();
 		ps.close();

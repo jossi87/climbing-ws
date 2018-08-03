@@ -119,7 +119,7 @@ public class V1Html {
 	public Response getSitemapTxt(@QueryParam("base") String base) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Setup setup = metaHelper.getSetup(base);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(setup.getIdRegion());
+			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

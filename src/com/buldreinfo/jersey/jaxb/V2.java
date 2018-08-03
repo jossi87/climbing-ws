@@ -268,7 +268,7 @@ public class V2 {
 	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(setup.getIdRegion());
+			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

@@ -52,6 +52,9 @@ public class Setup {
 	}
 
 	public String getUrl(String suffix) {
+		if (Strings.isNullOrEmpty(suffix)) {
+			return "https://" + domain;
+		}
 		return "https://" + domain + suffix;
 	}
 
