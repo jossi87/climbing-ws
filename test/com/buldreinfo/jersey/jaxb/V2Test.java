@@ -145,16 +145,6 @@ public class V2Test {
 		assertTrue(u.getNumVideosCreated()>0);
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
-		// User: jossi@jossi.org
-		r = tester.getUsers(getRequest(), 1311);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof User);
-		u = (User)r.getEntity();
-		assertTrue(u.getTicks().isEmpty());
-		assertTrue(u.getNumImagesCreated()==0);
-		assertTrue(u.getNumVideosCreated()==0);
-		assertTrue(u.getNumImageTags()==0);
-		assertTrue(u.getNumVideoTags()==0);
 	}
 	
 	private HttpServletRequest getRequest() {
