@@ -106,11 +106,11 @@ public class MetaHelper {
 	}
 
 	public Setup getSetup(int regionId) {
-		Optional<Setup> s = setups.stream().filter(x -> x.getIdRegion() == regionId).findAny();
-		if (s.isPresent()) {
-			return s.get();
-		}
-		throw new RuntimeException("Invalid regionId=" + regionId);
+		return setups
+				.stream()
+				.filter(x -> x.getIdRegion() == regionId)
+				.findAny()
+				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId));
 	}
 
 	@Deprecated
