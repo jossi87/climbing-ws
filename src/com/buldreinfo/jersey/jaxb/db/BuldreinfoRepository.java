@@ -597,6 +597,22 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
+	public Profile getProfile(String username) throws NoSuchAlgorithmException, SQLException {
+		Profile res = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=?");
+		ps.setString(1, username);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int id = rst.getInt("id");
+			String email = rst.getString("email");
+			String nickname = rst.getString("nickname");
+			res = new Profile(id, email, nickname);
+		}
+		rst.close();
+		ps.close();
+		return res;
+	}
+	
 	public Profile getProfile(String username, String password) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=? AND u.password=?");

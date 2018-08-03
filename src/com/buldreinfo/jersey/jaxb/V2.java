@@ -263,20 +263,6 @@ public class V2 {
 	}
 	
 	@GET
-	@Path("/sitemap.txt")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
-	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getRobotsTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
@@ -286,7 +272,7 @@ public class V2 {
 		}
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
-
+	
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -298,6 +284,20 @@ public class V2 {
 			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/sitemap.txt")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -353,10 +353,24 @@ public class V2 {
 	}
 
 	@POST
-	@Path("/authenticate")
+	@Path("/auth0/getByEmail")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuthenticate(@FormParam("username") String username, @FormParam("password") String password) {
+	public Response postAuth0GetByEmail(@FormParam("username") String username) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			Profile p = c.getBuldreinfoRepo().getProfile(username);
+			c.setSuccess();
+			return Response.ok(p).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
+	@Path("/auth0/login")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postAuth0Login(@FormParam("username") String username, @FormParam("password") String password) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
 			c.setSuccess();
