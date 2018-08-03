@@ -149,7 +149,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -183,7 +183,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -196,7 +196,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
@@ -261,7 +261,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -272,7 +272,7 @@ public class V2 {
 		}
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
-	
+
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -352,6 +352,25 @@ public class V2 {
 		}
 	}
 
+	/*
+	function changePassword (email, newPassword, callback) {
+	  var crypto = require('crypto');
+	  var fetch = require('isomorphic-fetch');
+	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/changePassword`),{
+	    mode: 'cors',
+	    method: 'POST',
+	    credentials: 'include',
+	    body: "username=" + encodeURIComponent(email) + "&newPassword=" + encodeURIComponent(crypto.createHash('md5').update(newPassword).digest("hex")),
+	    headers: {
+	      'Content-Type': 'application/x-www-form-urlencoded',
+	      'Accept': 'application/json'
+	    }
+	  })
+	  .then((response) => response.json())
+	  .then((updated) => callback(null, updated))
+	  .catch ((error) => callback(error));
+	}
+	 */
 	@POST
 	@Path("/auth0/changePassword")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
@@ -365,7 +384,28 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
+	/*
+	function getByEmail (email, callback) {
+	  var fetch = require('isomorphic-fetch');
+	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/getByEmail`),{
+	    method: 'POST',
+	    body: "username=" + encodeURIComponent(email),
+	    headers: {
+	      'Content-Type': 'application/x-www-form-urlencoded',
+	      'Accept': 'application/json'
+	    }
+	  })
+	  .then((response) => {
+	    if (response.status === 400) {
+	      callback(null);
+	    } else {
+	      response.json().then((profile) => callback(null, profile));
+	    }
+	  })
+	  .catch ((error) => callback(error));
+	}
+	 */
 	@POST
 	@Path("/auth0/getByEmail")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
@@ -382,7 +422,31 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
+	/*
+	function login (email, password, callback) {
+	  var crypto = require('crypto');
+	  var fetch = require('isomorphic-fetch');
+	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/login`),{
+	    mode: 'cors',
+	    method: 'POST',
+	    credentials: 'include',
+	    body: "username=" + encodeURIComponent(email) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(password).digest("hex")),
+	    headers: {
+	      'Content-Type': 'application/x-www-form-urlencoded',
+	      'Accept': 'application/json'
+	    }
+	  })
+	  .then((response) => {
+	    if (response.status === 401) {
+	      callback(new Error("Invalid username/password"));
+	    } else {
+	      response.json().then((profile) => callback(null, profile));
+	    }
+	  })
+	  .catch ((error) => callback(error));
+	}
+	 */
 	@POST
 	@Path("/auth0/login")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
@@ -522,7 +586,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	private void invalidateFrontpageCache() {
 		for (String key : frontpageCache.asMap().keySet()) {
 			if (key.endsWith("_-1")) {

@@ -969,18 +969,21 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT CONCAT(u.firstname, ' ', u.lastname) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
-				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.firstname, u.lastname";
+		String sqlStr = "SELECT u.username, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
+				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.username, u.firstname, u.lastname";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
+			String username = rst.getString("username");
+			String firstname = rst.getString("firstname");
+			String lastname = rst.getString("lastname");
 			String name = rst.getString("name");
 			int numImagesCreated = rst.getInt("num_images_created");
 			int numVideosCreated = rst.getInt("num_videos_created");
 			int numImageTags = rst.getInt("num_image_tags");
 			int numVideoTags = rst.getInt("num_video_tags");
-			res = new User(readOnly, reqId, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+			res = new User(readOnly, reqId, username, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
 		}
 		rst.close();
 		ps.close();
@@ -1054,7 +1057,7 @@ public class BuldreinfoRepository {
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
-			res.add(new User(true, id, name, -1, -1, -1, -1));
+			res.add(new User(true, id, null, null, null, name, -1, -1, -1, -1));
 		}
 		rst.close();
 		ps.close();
