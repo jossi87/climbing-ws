@@ -52,7 +52,6 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -264,16 +263,28 @@ public class V2 {
 	}
 	
 	@GET
-	@Path("/regions")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getRegions(@QueryParam("uniqueId") String uniqueId) throws ExecutionException, IOException {
+	@Path("/sitemap.txt")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Collection<Region> res = c.getBuldreinfoRepo().getRegions(uniqueId);
+			final Setup setup = metaHelper.getSetup(request);
+			String res = c.getBuldreinfoRepo().getSitemapTxt(setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+	}
+	
+	@GET
+	@Path("/robots.txt")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	public Response getRobotsTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
+		final Setup setup = metaHelper.getSetup(request);
+		if (setup.isSetRobotsDenyAll()) {
+			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
+		}
+		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
 
 	@GET

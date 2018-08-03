@@ -33,48 +33,65 @@ public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
-		setups.add(new Setup(1)
+		setups.add(new Setup("buldreinfo.com")
+				.setIdRegion(1)
 				.setBouldering(true)
 				.setTitle("Buldreinfo")
-				.setDomain("buldreinfo.com")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
 				.setShowLogoPlay(true).setShowLogoSis(true).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(7));
-		setups.add(new Setup(2)
+		setups.add(new Setup("buldring.bergen-klatreklubb.no")
+				.setIdRegion(2)
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
-				.setDomain("buldring.bergen-klatreklubb.no")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
 				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(60.47521, 6.83169).setDefaultZoom(7));
-		setups.add(new Setup(3)
+		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
+				.setIdRegion(3)
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
-				.setDomain("buldring.fredrikstadklatreklubb.org")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
 				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(59.22844, 10.91722).setDefaultZoom(7));
-		setups.add(new Setup(4)
+		setups.add(new Setup("brattelinjer.no")
+				.setIdRegion(4)
 				.setBouldering(false)
 				.setTitle("Bratte Linjer")
-				.setDomain("brattelinjer.no")
 				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
 				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(9));
-		setups.add(new Setup(5)
+		setups.add(new Setup("buldring.jotunheimenfjellsport.com")
+				.setIdRegion(5)
 				.setBouldering(true)
 				.setTitle("Buldring i Jotunheimen")
-				.setDomain("buldring.jotunheimenfjellsport.com")
 				.setDescription("Bouldering in Jotunheimen (Norway)")
 				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
-		setups.add(new Setup(6)
+		setups.add(new Setup("klatring.jotunheimenfjellsport.com")
+				.setIdRegion(6)
 				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
-				.setDomain("klatring.jotunheimenfjellsport.com")
 				.setDescription("Climbing in Jotunheimen (Norway)")
 				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
+		// DEV
+		setups.add(new Setup("dev.jossi.org")
+				.setIdRegion(4)
+				.setBouldering(false)
+				.setTitle("DEV")
+				.setDescription("DEV")
+				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(9)
+				.setSetRobotsDenyAll());
+		setups.add(new Setup("localhost:3000")
+				.setIdRegion(4)
+				.setBouldering(false)
+				.setTitle("DEV")
+				.setDescription("DEV")
+				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(9)
+				.setSetRobotsDenyAll());
 	}
 	
 	public Setup getSetup(HttpServletRequest request) {
@@ -85,7 +102,7 @@ public class MetaHelper {
 				.stream()
 				.filter(x -> serverName.equalsIgnoreCase(x.getDomain()))
 				.findAny()
-				.orElse(getSetup(4));
+				.orElseThrow(() -> new RuntimeException("Invalid serverName=" + serverName));
 	}
 
 	public Setup getSetup(int regionId) {

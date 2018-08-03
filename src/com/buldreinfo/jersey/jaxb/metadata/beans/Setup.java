@@ -4,19 +4,24 @@ import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;
 
 public class Setup {
-	private final int idRegion;
+	private final String domain;
+	private int idRegion;
 	private boolean isBouldering;
 	private String title;
-	private String domain;
 	private String description;
 	private LatLng defaultCenter;
 	private int defaultZoom;
 	private boolean showLogoPlay;
 	private boolean showLogoSis;
 	private boolean showLogoBrv;
+	private boolean setRobotsDenyAll = false;
 	
-	public Setup(int idRegion) {
-		this.idRegion = idRegion;
+	public Setup(String domain) {
+		this.domain = domain;
+	}
+	
+	public LatLng getDefaultCenter() {
+		return defaultCenter;
 	}
 
 	public int getDefaultZoom() {
@@ -33,10 +38,6 @@ public class Setup {
 
 	public int getIdRegion() {
 		return idRegion;
-	}
-
-	public LatLng getDefaultCenter() {
-		return defaultCenter;
 	}
 
 	public String getTitle() {
@@ -56,6 +57,10 @@ public class Setup {
 
 	public boolean isBouldering() {
 		return isBouldering;
+	}
+
+	public boolean isSetRobotsDenyAll() {
+		return setRobotsDenyAll;
 	}
 	
 	public boolean isShowLogoBrv() {
@@ -85,13 +90,18 @@ public class Setup {
 		return this;
 	}
 
-	public Setup setDomain(String domain) {
-		this.domain = domain;
+	public Setup setIdRegion(int idRegion) {
+		this.idRegion = idRegion;
 		return this;
 	}
 
 	public Setup setLatLng(double lat, double lng) {
 		this.defaultCenter = new LatLng(lat, lng);
+		return this;
+	}
+
+	public Setup setSetRobotsDenyAll() {
+		this.setRobotsDenyAll = true;
 		return this;
 	}
 
@@ -109,7 +119,7 @@ public class Setup {
 		this.showLogoSis = showLogoSis;
 		return this;
 	}
-
+	
 	public Setup setTitle(String title) {
 		this.title = title;
 		return this;
