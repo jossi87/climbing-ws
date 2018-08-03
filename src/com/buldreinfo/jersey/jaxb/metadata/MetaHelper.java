@@ -24,7 +24,6 @@ import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
-import com.buldreinfo.jersey.jaxb.model.OpenGraphImage;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;

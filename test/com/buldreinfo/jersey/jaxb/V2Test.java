@@ -2,10 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
@@ -23,7 +20,6 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 
