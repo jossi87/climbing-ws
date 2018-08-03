@@ -390,12 +390,11 @@ public class V2 {
 	function create (user, callback) {
 	  var crypto = require('crypto');
 	  var fetch = require('isomorphic-fetch');
-	  console.log(create);
 	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/create`),{
 	    mode: 'cors',
 	    method: 'POST',
 	    credentials: 'include',
-	    body: "email=" + encodeURIComponent(user.email) + "&username=" + encodeURIComponent(user.username) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")) + "&firstname=" + encodeURIComponent(user.firstname) + "&lastname=" + encodeURIComponent(user.lastname),
+	    body: "email=" + encodeURIComponent(user.email) + "&username=" + encodeURIComponent(user.username) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")) + "&firstname=" + encodeURIComponent(user.user_metadata.firstname) + "&lastname=" + encodeURIComponent(user.user_metadata.lastname),
 	    headers: {
 	      'Content-Type': 'application/x-www-form-urlencoded',
 	      'Accept': 'application/json'
