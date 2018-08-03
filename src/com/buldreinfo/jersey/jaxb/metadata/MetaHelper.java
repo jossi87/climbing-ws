@@ -253,7 +253,7 @@ public class MetaHelper {
 		}
 		else if (m instanceof Finder) {
 			Finder f = (Finder)m;
-			String title = setup.getTitle("Finder [" + f.getGrade() + "]");
+			String title = String.format("Finder [%s]", f.getGrade());
 			String description = String.format("%d %s",
 					f.getProblems().size(),
 					(setup.isBouldering()? "problems" : "routes"));
