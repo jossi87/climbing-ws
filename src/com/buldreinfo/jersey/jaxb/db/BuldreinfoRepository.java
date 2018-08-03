@@ -128,6 +128,16 @@ public class BuldreinfoRepository {
 		}
 	}
 
+	public boolean changePassword(String username, String newPassword) throws SQLException {
+		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET password=? WHERE username=?");
+		ps.setString(1, newPassword);
+		ps.setString(2, username);
+		int rows = ps.executeUpdate();
+		ps.close();
+		Preconditions.checkArgument(rows == 0 || rows == 1, "Invalid rows=" + rows);
+		return rows == 1;
+	}
+
 	public void deleteMedia(int authUserId, int id) throws SQLException {
 		boolean ok = false;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
@@ -374,7 +384,7 @@ public class BuldreinfoRepository {
 		logger.debug("getFrontpage(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
-
+	
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
@@ -386,7 +396,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
 	}
-	
+
 	@Deprecated
 	public OpenGraphImage getImage(Setup setup, int idMedia) {
 		OpenGraphImage res = null;
@@ -596,7 +606,7 @@ public class BuldreinfoRepository {
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", authUserId, reqRegionId, reqId, reqGrade, stopwatch, res.size());
 		return res;
 	}
-
+	
 	public Profile getProfile(String username) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=?");
@@ -612,7 +622,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-	
+
 	public Profile getProfile(String username, String password) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=? AND u.password=?");
