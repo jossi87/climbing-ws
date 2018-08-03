@@ -414,14 +414,14 @@ public class V2 {
 	@Path("/auth0/create")
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuth0ChangePassword(
+	public Response postAuth0Create(
 			@FormParam("email") String email,
 			@FormParam("username") String username,
 			@FormParam("password") String password,
 			@FormParam("firstname") String firstname,
 			@FormParam("lastname") String lastname) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(username);
+			Profile p = c.getBuldreinfoRepo().getProfile(email);
 			if (p != null) {
 				return Response.status(409).build();
 			}

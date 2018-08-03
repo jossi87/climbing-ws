@@ -144,6 +144,10 @@ public class BuldreinfoRepository {
 		Preconditions.checkNotNull(Strings.emptyToNull(password), "Invalid password");
 		Preconditions.checkNotNull(Strings.emptyToNull(firstname), "Invalid firstname");
 		Preconditions.checkNotNull(Strings.emptyToNull(lastname), "Invalid lastname");
+		Preconditions.checkArgument(!email.equals("undefined"));
+		Preconditions.checkArgument(!username.equals("undefined"));
+		Preconditions.checkArgument(!firstname.equals("undefined"));
+		Preconditions.checkArgument(!lastname.equals("undefined"));
 		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (email, username, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)");
 		ps.setString(1, email);
 		ps.setString(2, username);
@@ -623,14 +627,13 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Profile getProfile(String username) throws NoSuchAlgorithmException, SQLException {
+	public Profile getProfile(String email) throws NoSuchAlgorithmException, SQLException {
 		Profile res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.username=?");
-		ps.setString(1, username);
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.email=?");
+		ps.setString(1, email);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
-			String email = rst.getString("email");
 			String nickname = rst.getString("nickname");
 			res = new Profile(id, email, nickname);
 		}
