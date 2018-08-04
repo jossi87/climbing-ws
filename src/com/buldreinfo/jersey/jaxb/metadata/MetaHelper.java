@@ -3,14 +3,12 @@ package com.buldreinfo.jersey.jaxb.metadata;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
@@ -19,7 +17,6 @@ import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
-import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
@@ -170,17 +167,11 @@ public class MetaHelper {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> (x.getFirstname() + " " + x.getSurname()).trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
-			List<Grade> grades = new ArrayList<>();
-			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
-			for (int id : lookup.keySet()) {
-				grades.add(new Grade(id, lookup.get(id)));
-			}
 			OpenGraph og = getOg(setup, "/problem/" + p.getId(), p.getMedia());
 			p.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
 					.setIsBouldering(setup.isBouldering())
-					.setGrades(grades)
 					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof Sector) {
@@ -205,27 +196,15 @@ public class MetaHelper {
 			User u = (User)m;
 			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
-			List<Grade> grades = new ArrayList<>();
-			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
-			for (int id : lookup.keySet()) {
-				grades.add(new Grade(id, lookup.get(id)));
-			}
 			OpenGraph og = getOg(setup, "/user/" + u.getId(), null);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
-					.setDescription(description)
-					.setGrades(grades));
+					.setDescription(description));
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
-			List<Grade> grades = new ArrayList<>();
-			Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
-			for (int id : lookup.keySet()) {
-				grades.add(new Grade(id, lookup.get(id)));
-			}
 			x.setMetadata(new Metadata(c, setup, authUserId, null, null)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom())
-					.setGrades(grades)
 					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof Browse) {

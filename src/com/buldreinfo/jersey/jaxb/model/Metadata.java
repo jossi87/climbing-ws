@@ -3,9 +3,12 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLd;
 
@@ -15,12 +18,12 @@ public class Metadata {
 	private final boolean isAdmin;
 	private final boolean isSuperAdmin;
 	private final OpenGraph og;
+	private final List<Grade> grades;
 	private String description;
 	private JsonLd jsonLd;
 	private int defaultZoom;
 	private LatLng defaultCenter;
 	private boolean isBouldering;
-	private List<Grade> grades;
 	private List<Type> types;
 
 	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle, OpenGraph og) throws SQLException {
@@ -46,6 +49,12 @@ public class Metadata {
 		this.isAdmin = isAdmin;
 		this.isSuperAdmin = isSuperAdmin;
 		this.og = og;
+		List<Grade> grades = new ArrayList<>();
+		Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+		for (int id : lookup.keySet()) {
+			grades.add(new Grade(id, lookup.get(id)));
+		}
+		this.grades = grades;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -111,11 +120,6 @@ public class Metadata {
 		return this;
 	}
 
-	public Metadata setGrades(List<Grade> grades) {
-		this.grades = grades;
-		return this;
-	}
-	
 	public Metadata setIsBouldering(boolean isBouldering) {
 		this.isBouldering = isBouldering;
 		return this;
