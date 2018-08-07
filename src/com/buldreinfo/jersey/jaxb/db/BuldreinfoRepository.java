@@ -1141,7 +1141,7 @@ public class BuldreinfoRepository {
 				ps.setNull(8, Types.DOUBLE);
 			}
 			ps.setInt(9, p.getVisibility());
-			ps.setInt(10, p.getNr() == 0? getSector(authUserId, regionId, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(1) : p.getNr());
+			ps.setInt(10, p.getNr() == 0? getSector(authUserId, regionId, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0)+1 : p.getNr());
 			ps.setInt(11, p.getT().getId());
 			ps.executeUpdate();
 			ResultSet rst = ps.getGeneratedKeys();
