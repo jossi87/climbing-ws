@@ -117,6 +117,7 @@ public class Problem implements IMetadata {
 	private final String sectorName;
 	private final double sectorLat;
 	private final double sectorLng;
+	private final String canonical;
 	private final int id;
 	private final int visibility;
 	private final int nr;
@@ -140,7 +141,7 @@ public class Problem implements IMetadata {
 	private List<Section> sections;
 	private Metadata metadata;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -149,6 +150,7 @@ public class Problem implements IMetadata {
 		this.sectorName = sectorName;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
+		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
 		this.nr = nr;
@@ -202,6 +204,10 @@ public class Problem implements IMetadata {
 		return areaVisibility;
 	}
 	
+	public String getCanonical() {
+		return canonical;
+	}
+	
 	public String getComment() {
 		return comment;
 	}
@@ -213,11 +219,11 @@ public class Problem implements IMetadata {
 	public String getFaDate() {
 		return faDate;
 	}
-	
+
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-
+	
 	public String getGrade() {
 		return grade;
 	}
@@ -225,11 +231,11 @@ public class Problem implements IMetadata {
 	public int getId() {
 		return id;
 	}
-	
+
 	public double getLat() {
 		return lat;
 	}
-
+	
 	public double getLng() {
 		return lng;
 	}
@@ -250,11 +256,11 @@ public class Problem implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public int getNr() {
 		return nr;
 	}
-
+	
 	public int getNumTicks() {
 		return numTicks;
 	}
@@ -262,15 +268,15 @@ public class Problem implements IMetadata {
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-	
+
 	public List<Section> getSections() {
 		return sections;
 	}
-
+	
 	public int getSectorId() {
 		return sectorId;
 	}
-	
+
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -290,11 +296,11 @@ public class Problem implements IMetadata {
 	public double getStars() {
 		return stars;
 	}
-
+	
 	public Type getT() {
 		return t;
 	}
-	
+
 	public List<Tick> getTicks() {
 		return ticks;
 	}
@@ -306,7 +312,7 @@ public class Problem implements IMetadata {
 	public boolean isTicked() {
 		return ticked;
 	}
-
+	
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;
@@ -316,11 +322,11 @@ public class Problem implements IMetadata {
 	public String toString() {
 		return "Problem [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
 				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
-				+ ", sectorLat=" + sectorLat + ", sectorLng=" + sectorLng + ", id=" + id + ", visibility=" + visibility
-				+ ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade=" + grade + ", originalGrade="
-				+ originalGrade + ", faDate=" + faDate + ", faDateHr=" + faDateHr + ", fa=" + fa + ", lat=" + lat
-				+ ", lng=" + lng + ", media=" + media + ", numTicks=" + numTicks + ", stars=" + stars + ", ticked="
-				+ ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia=" + newMedia + ", t=" + t
-				+ ", sections=" + sections + ", metadata=" + metadata + "]";
+				+ ", sectorLat=" + sectorLat + ", sectorLng=" + sectorLng + ", canonical=" + canonical + ", id=" + id
+				+ ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade="
+				+ grade + ", originalGrade=" + originalGrade + ", faDate=" + faDate + ", faDateHr=" + faDateHr + ", fa="
+				+ fa + ", lat=" + lat + ", lng=" + lng + ", media=" + media + ", numTicks=" + numTicks + ", stars="
+				+ stars + ", ticked=" + ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia="
+				+ newMedia + ", t=" + t + ", sections=" + sections + ", metadata=" + metadata + "]";
 	}
 }

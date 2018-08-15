@@ -176,12 +176,13 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		Area a = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.hidden, a.name, a.description, a.latitude, a.longitude FROM area a LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.region_id, a.hidden, a.name, a.description, a.latitude, a.longitude");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.hidden, a.name, a.description, a.latitude, a.longitude FROM (area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.hidden, a.name, a.description, a.latitude, a.longitude");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int regionId = rst.getInt("region_id");
+			String canonical = rst.getString("canonical");
 			int visibility = rst.getInt("hidden");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
@@ -190,7 +191,7 @@ public class BuldreinfoRepository {
 			if (media.isEmpty()) {
 				media = null;
 			}
-			a = new Area(regionId, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, -1, media, null);
+			a = new Area(regionId, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, -1, media, null);
 		}
 		rst.close();
 		ps.close();
@@ -220,13 +221,14 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		List<Area> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.hidden, a.name, a.description, a.latitude, a.longitude ORDER BY a.name");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude ORDER BY a.name");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, reqIdRegion);
 		ps.setInt(3, reqIdRegion);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int idRegion = rst.getInt("region_id");
+			String canonical = rst.getString("canonical");
 			int id = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
 			String name = rst.getString("name");
@@ -234,7 +236,7 @@ public class BuldreinfoRepository {
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 			int numSectors = rst.getInt("num_sectors");
 			int numProblems = rst.getInt("num_problems");
-			res.add(new Area(idRegion, id, visibility, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null));
+			res.add(new Area(idRegion, canonical, id, visibility, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null));
 		}
 		rst.close();
 		ps.close();
@@ -404,7 +406,7 @@ public class BuldreinfoRepository {
 		else {
 			condition = "p.id=?";
 		}
-		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
+		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
@@ -415,7 +417,7 @@ public class BuldreinfoRepository {
 				+ "   AND " + condition
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND (?=0 OR r.id=? OR auth.user_id IS NOT NULL)"
-				+ " GROUP BY a.id, a.hidden, a.name, s.id, s.hidden, s.name, s.parking_latitude, s.parking_longitude, p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.hidden, a.name, s.id, s.hidden, s.name, s.parking_latitude, s.parking_longitude, p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype"
 				+ " ORDER BY p.name";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
@@ -440,6 +442,7 @@ public class BuldreinfoRepository {
 			int sectorVisibility = rst.getInt("sector_hidden");
 			String sectorName = rst.getString("sector_name");
 			LatLng sectorL = markerHelper.getLatLng(rst.getDouble("sector_lat"), rst.getDouble("sector_lng"));
+			String canonical = rst.getString("canonical");
 			int id = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
 			int nr = rst.getInt("nr");
@@ -457,7 +460,7 @@ public class BuldreinfoRepository {
 			boolean ticked = rst.getBoolean("ticked");
 			List<Media> media = getMediaProblem(reqRegionId, sectorId, id);
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, faDateHr, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
+			res.add(new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, sectorL.getLat(), sectorL.getLng(), canonical, id, visibility, nr, name, comment, GradeHelper.intToString(reqRegionId, grade), GradeHelper.intToString(reqRegionId, originalGrade), faDate, faDateHr, fa, l.getLat(), l.getLng(), media, numTicks, stars, ticked, null, t));
 		}
 		rst.close();
 		ps.close();
@@ -749,7 +752,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords FROM (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords"); 
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
@@ -757,6 +760,7 @@ public class BuldreinfoRepository {
 			int areaId = rst.getInt("area_id");
 			int areaVisibility = rst.getInt("area_hidden");
 			String areaName = rst.getString("area_name");
+			String canonical = rst.getString("canonical");
 			int visibility = rst.getInt("hidden");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
@@ -767,7 +771,7 @@ public class BuldreinfoRepository {
 			if (media.isEmpty()) {
 				media = null;
 			}
-			s = new Sector(areaId, areaVisibility, areaName, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
+			s = new Sector(areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
 		}
 		rst.close();
 		ps.close();

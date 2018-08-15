@@ -25,6 +25,7 @@ public class Metadata {
 	private LatLng defaultCenter;
 	private boolean isBouldering;
 	private List<Type> types;
+	private String canonical;
 
 	public Metadata(DbConnection c, Setup setup, int authUserId, String subTitle, OpenGraph og) throws SQLException {
 		this.title = setup.getTitle(subTitle);
@@ -55,6 +56,10 @@ public class Metadata {
 			grades.add(new Grade(id, lookup.get(id)));
 		}
 		this.grades = grades;
+	}
+	
+	public String getCanonical() {
+		return canonical;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -105,6 +110,11 @@ public class Metadata {
 		return isSuperAdmin;
 	}
 
+	public Metadata setCanonical(String canonical) {
+		this.canonical = canonical;
+		return this;
+	}
+	
 	public Metadata setDefaultCenter(LatLng defaultCenter) {
 		this.defaultCenter = defaultCenter;
 		return this;

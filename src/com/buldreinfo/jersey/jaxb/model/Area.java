@@ -87,6 +87,7 @@ public class Area implements IMetadata {
 	}
 	
 	private final int regionId;
+	private final String canonical;
 	private final int id;
 	private final int visibility;
 	private final String name;
@@ -100,8 +101,9 @@ public class Area implements IMetadata {
 	private final List<NewMedia> newMedia;
 	private Metadata metadata;
 	
-	public Area(int regionId, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia) {
+	public Area(int regionId, String canonical, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia) {
 		this.regionId = regionId;
+		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
 		this.name = name;
@@ -119,6 +121,10 @@ public class Area implements IMetadata {
 		sectors.add(new Sector(id, visibility, name, comment, lat, lng, polygonCoords, numProblems));
 	}
 
+	public String getCanonical() {
+		return canonical;
+	}
+	
 	public String getComment() {
 		return comment;
 	}
@@ -134,11 +140,11 @@ public class Area implements IMetadata {
 	public double getLng() {
 		return lng;
 	}
-	
+
 	public List<Media> getMedia() {
 		return media;
 	}
-
+	
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
@@ -155,7 +161,7 @@ public class Area implements IMetadata {
 	public int getNumProblems() {
 		return numProblems;
 	}
-	
+
 	public int getNumSectors() {
 		return numSectors;
 	}
@@ -163,15 +169,15 @@ public class Area implements IMetadata {
 	public int getRegionId() {
 		return regionId;
 	}
-
+	
 	public List<Sector> getSectors() {
 		return sectors;
 	}
-	
+
 	public int getVisibility() {
 		return visibility;
 	}
-
+	
 	public void orderSectors() {
 		sectors.sort(new Comparator<Sector>() {
 			@Override
@@ -203,9 +209,9 @@ public class Area implements IMetadata {
 
 	@Override
 	public String toString() {
-		return "Area [regionId=" + regionId + ", id=" + id + ", visibility=" + visibility + ", name=" + name
-				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", numSectors=" + numSectors
-				+ ", numProblems=" + numProblems + ", sectors=" + sectors + ", media=" + media + ", newMedia="
-				+ newMedia + ", metadata=" + metadata + "]";
+		return "Area [regionId=" + regionId + ", canonical=" + canonical + ", id=" + id + ", visibility=" + visibility
+				+ ", name=" + name + ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", numSectors="
+				+ numSectors + ", numProblems=" + numProblems + ", sectors=" + sectors + ", media=" + media
+				+ ", newMedia=" + newMedia + ", metadata=" + metadata + "]";
 	}
 }

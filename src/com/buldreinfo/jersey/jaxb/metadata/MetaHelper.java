@@ -133,6 +133,7 @@ public class MetaHelper {
 			
 			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia());
 			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
+					.setCanonical(a.getCanonical())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, a))
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -169,6 +170,7 @@ public class MetaHelper {
 			}
 			OpenGraph og = getOg(setup, "/problem/" + p.getId(), p.getMedia());
 			p.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setCanonical(p.getCanonical())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
 					.setIsBouldering(setup.isBouldering())
@@ -186,6 +188,7 @@ public class MetaHelper {
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			OpenGraph og = getOg(setup, "/sector/" + s.getId(), s.getMedia());
 			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setCanonical(s.getCanonical())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())

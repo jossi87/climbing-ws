@@ -113,6 +113,7 @@ public class Sector implements IMetadata {
 	private final int areaId;
 	private final int areaVisibility;
 	private final String areaName;
+	private final String canonical;
 	private final int id;
 	private final int visibility;
 	private final String name;
@@ -125,10 +126,11 @@ public class Sector implements IMetadata {
 	private final List<NewMedia> newMedia;
 	private Metadata metadata;
 	
-	public Sector(int areaId, int areaVisibility, String areaName, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
+	public Sector(int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
+		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
 		this.name = name;
@@ -156,6 +158,10 @@ public class Sector implements IMetadata {
 		return areaVisibility;
 	}
 	
+	public String getCanonical() {
+		return canonical;
+	}
+
 	public String getComment() {
 		return comment;
 	}
@@ -163,7 +169,7 @@ public class Sector implements IMetadata {
 	public int getId() {
 		return id;
 	}
-
+	
 	public double getLat() {
 		return lat;
 	}
@@ -184,11 +190,11 @@ public class Sector implements IMetadata {
 	public String getName() {
 		return name;
 	}
-	
+
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
@@ -208,9 +214,10 @@ public class Sector implements IMetadata {
 
 	@Override
 	public String toString() {
-		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName + ", id="
-				+ id + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat=" + lat
-				+ ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", media=" + media + ", problems=" + problems
-				+ ", newMedia=" + newMedia + ", metadata=" + metadata + "]";
+		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
+				+ ", canonical=" + canonical + ", id=" + id + ", visibility=" + visibility + ", name=" + name
+				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords
+				+ ", media=" + media + ", problems=" + problems + ", newMedia=" + newMedia + ", metadata=" + metadata
+				+ "]";
 	}
 }
