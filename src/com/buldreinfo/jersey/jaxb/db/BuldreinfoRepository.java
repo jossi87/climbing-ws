@@ -4,11 +4,9 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -54,7 +52,6 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.UserEdit;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
@@ -224,20 +221,24 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (authUserId == -1) {
-			ps = c.getConnection().prepareStatement("INSERT INTO user (email, username, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
-			ps.setString(1, profile.getEmail());
-			ps.setString(2, profile.getUsername());
-			ps.setString(3, hashPassword(UUID.randomUUID().toString()));
-			ps.setString(4, profile.getFirstname());
-			ps.setString(5, profile.getLastname());
-			ps.executeUpdate();
-			rst = ps.getGeneratedKeys();
-			if (rst != null && rst.next()) {
-				authUserId = rst.getInt(1);
-			}
-			rst.close();
-			ps.close();
+			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname());
 		}
+		return authUserId;
+	}
+	
+	private int addUser(String email, String firstname, String lastname) throws SQLException {
+		int authUserId = -1;
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (email, firstname, lastname) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		ps.setString(1, email);
+		ps.setString(2, firstname);
+		ps.setString(3, lastname);
+		ps.executeUpdate();
+		ResultSet rst = ps.getGeneratedKeys();
+		if (rst != null && rst.next()) {
+			authUserId = rst.getInt(1);
+		}
+		rst.close();
+		ps.close();
 		return authUserId;
 	}
 
@@ -843,13 +844,12 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT u.username, u.email, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
+		String sqlStr = "SELECT u.email, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
 				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.username, u.firstname, u.lastname";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			String username = rst.getString("username");
 			String email = rst.getString("email");
 			String firstname = rst.getString("firstname");
 			String lastname = rst.getString("lastname");
@@ -858,7 +858,7 @@ public class BuldreinfoRepository {
 			int numVideosCreated = rst.getInt("num_videos_created");
 			int numImageTags = rst.getInt("num_image_tags");
 			int numVideoTags = rst.getInt("num_video_tags");
-			res = new User(readOnly, reqId, username, email, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+			res = new User(readOnly, reqId, email, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
 		}
 		rst.close();
 		ps.close();
@@ -902,7 +902,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("User not logged in...");
 		}
 		List<User> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, CONCAT(firstname, ' ', lastname) name FROM user WHERE password IS NOT NULL AND (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', lastname) LIKE ?) ORDER BY firstname, lastname");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, CONCAT(firstname, ' ', lastname) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', lastname) LIKE ?) ORDER BY firstname, lastname");
 		ps.setString(1, value + "%");
 		ps.setString(2, value + "%");
 		ps.setString(3, value + "%");
@@ -910,22 +910,11 @@ public class BuldreinfoRepository {
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
-			res.add(new User(true, id, null, null, null, null, name, -1, -1, -1, -1));
+			res.add(new User(true, id, null, null, null, name, -1, -1, -1, -1));
 		}
 		rst.close();
 		ps.close();
 		return res;
-	}
-
-	public void resetPassword(String token, String password) throws SQLException, NoSuchAlgorithmException {
-		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET password=?, recover_token=null WHERE recover_token=?");
-		ps.setString(1, hashPassword(password));
-		ps.setString(2, token);
-		int res = ps.executeUpdate();
-		ps.close();
-		if (res == 0) {
-			throw new SQLException("Invalid token. Password was not reset...");
-		}
 	}
 
 	public Area setArea(int authUserId, int idRegion, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -1154,7 +1143,7 @@ public class BuldreinfoRepository {
 					}
 				}
 				else { // New user
-					int idUser = addUser(x.getFirstname(), x.getSurname());
+					int idUser = addUser(UUID.randomUUID().toString(), x.getFirstname(), x.getSurname());
 					Preconditions.checkArgument(idUser>0);
 					PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)");
 					ps2.setInt(1, idProblem);
@@ -1349,37 +1338,6 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void setUser(int authUserId, UserEdit u) throws SQLException, NoSuchAlgorithmException {
-		Preconditions.checkArgument(u.getId()>0);
-		if (authUserId != u.getId()) {
-			throw new SQLException("loggedInUserId != authUserId");
-		}
-		Preconditions.checkNotNull(Strings.emptyToNull(u.getUsername()));
-		Preconditions.checkNotNull(Strings.emptyToNull(u.getEmail()));
-		Preconditions.checkNotNull(Strings.emptyToNull(u.getFirstname()));
-		Preconditions.checkNotNull(Strings.emptyToNull(u.getLastname()));
-		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET username=?, email=?, firstname=?, lastname=? WHERE id=?");
-		ps.setString(1, u.getUsername());
-		ps.setString(2, u.getEmail());
-		ps.setString(3, u.getFirstname());
-		ps.setString(4, u.getLastname());
-		ps.setInt(5, u.getId());
-		ps.execute();
-		ps.close();
-
-		if (!Strings.isNullOrEmpty(u.getCurrentPassword()) && !Strings.isNullOrEmpty(u.getNewPassword())) {
-			ps = c.getConnection().prepareStatement("UPDATE user SET password=? WHERE id=? AND password=?");
-			ps.setString(1, hashPassword(u.getNewPassword()));
-			ps.setInt(2, u.getId());
-			ps.setString(3, hashPassword(u.getCurrentPassword()));
-			int res = ps.executeUpdate();
-			ps.close();
-			if (res == 0) {
-				throw new SQLException("Invalid current password");
-			}
-		}
-	}
-
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		// Check for write permissions
 		boolean ok = false;
@@ -1538,26 +1496,6 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addUser(String firstname, String lastname) throws SQLException, NoSuchAlgorithmException {
-		int idUser = -1;
-		Preconditions.checkNotNull(Strings.emptyToNull(firstname));
-		PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user (email, username, firstname, lastname, password) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
-		final String random = UUID.randomUUID().toString();
-		ps2.setString(1, random);
-		ps2.setString(2, random);
-		ps2.setString(3, firstname);
-		ps2.setString(4, Strings.nullToEmpty(lastname));
-		ps2.setString(5, hashPassword(random));
-		ps2.executeUpdate();
-		ResultSet rst2 = ps2.getGeneratedKeys();
-		if (rst2 != null && rst2.next()) {
-			idUser = rst2.getInt(1);
-		}
-		rst2.close();
-		ps2.close();
-		return idUser;
-	}
-
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
 		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
 		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
@@ -1627,7 +1565,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (usId == -1) {
-			usId = addUser(name, null);
+			usId = addUser(UUID.randomUUID().toString(), name, null);
 		}
 		Preconditions.checkArgument(usId > 0);
 		return usId;
@@ -1734,19 +1672,6 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return res;
-	}
-
-	private String hashPassword(String password) throws NoSuchAlgorithmException {
-		MessageDigest m = MessageDigest.getInstance("MD5");
-		m.reset();
-		m.update(password.getBytes());
-		byte[] digest = m.digest();
-		BigInteger bigInt = new BigInteger(1,digest);
-		String hashtext = bigInt.toString(16);
-		while (hashtext.length() < 32 ){
-			hashtext = "0" + hashtext;
-		}
-		return hashtext;
 	}
 
 	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution) throws SQLException {

@@ -4,13 +4,16 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.auth0.client.auth.AuthAPI;
+import com.auth0.exception.Auth0Exception;
 import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
+import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -49,5 +52,20 @@ public class AuthHelper {
 		} catch (Exception e) {
 			return -1;
 		}
+	}
+	
+	public static void main(String[] args) throws Auth0Exception {
+		String authe = "zVAuSogbsVycLIXUf2brgW7V_0bph5_m";
+		Request<UserInfo> req = auth.userInfo(authe);
+		UserInfo info = req.execute();
+		Map<String, Object> values = info.getValues();
+		Auth0Profile p = new Auth0Profile(values);
+		System.err.println(p);
+//		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+//			System.err.println(c.getBuldreinfoRepo().getAuthUserId(p));
+//			c.setSuccess();
+//		} catch (Exception e) {
+//			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+//		}
 	}
 }
