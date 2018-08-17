@@ -16,7 +16,6 @@ import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -45,7 +44,6 @@ import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -124,7 +122,7 @@ public class V2 {
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(id > 0);
 			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
 			invalidateFrontpageCache();
@@ -141,7 +139,7 @@ public class V2 {
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
 			metaHelper.updateMetadata(c, a, setup, authUserId);
 			c.setSuccess();
@@ -157,7 +155,7 @@ public class V2 {
 	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
@@ -174,7 +172,7 @@ public class V2 {
 	public Response getFinder(@Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), 0, grade);
 			Finder res = new Finder(grade, GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
@@ -189,9 +187,10 @@ public class V2 {
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getFrontpage(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
+			c.setSuccess();
 			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + authUserId)).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
@@ -235,7 +234,7 @@ public class V2 {
 	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Meta res = new Meta();
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -251,7 +250,7 @@ public class V2 {
 	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), id, grade);
 			if (res.size() == 1) {
 				metaHelper.updateMetadata(c, res.get(0), setup, authUserId);
@@ -280,7 +279,7 @@ public class V2 {
 	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Sector s = c.getBuldreinfoRepo().getSector(authUserId, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
@@ -310,7 +309,7 @@ public class V2 {
 	public Response getUsers(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			User res = c.getBuldreinfoRepo().getUser(authUserId, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -325,7 +324,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersSearch(@Context HttpServletRequest request, @QueryParam("value") String value) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -342,7 +341,7 @@ public class V2 {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
 			invalidateFrontpageCache();
@@ -353,170 +352,11 @@ public class V2 {
 		}
 	}
 
-	/*
-	function changePassword (email, newPassword, callback) {
-	  var crypto = require('crypto');
-	  var fetch = require('isomorphic-fetch');
-	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/changePassword`),{
-	    mode: 'cors',
-	    method: 'POST',
-	    credentials: 'include',
-	    body: "username=" + encodeURIComponent(email) + "&newPassword=" + encodeURIComponent(crypto.createHash('md5').update(newPassword).digest("hex")),
-	    headers: {
-	      'Content-Type': 'application/x-www-form-urlencoded',
-	      'Accept': 'application/json'
-	    }
-	  })
-	  .then((response) => response.json())
-	  .then((updated) => callback(null, updated))
-	  .catch ((error) => callback(error));
-	}
-	 */
-	@POST
-	@Path("/auth0/changePassword")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuth0ChangePassword(@FormParam("username") String username, @FormParam("newPassword") String newPassword) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			boolean res = c.getBuldreinfoRepo().changePassword(username, newPassword);
-			c.setSuccess();
-			return Response.ok(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	/*
-	function create (user, callback) {
-	  var crypto = require('crypto');
-	  var fetch = require('isomorphic-fetch');
-	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/create`),{
-	    mode: 'cors',
-	    method: 'POST',
-	    credentials: 'include',
-	    body: "email=" + encodeURIComponent(user.email) + "&username=" + encodeURIComponent(user.username) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(user.password).digest("hex")) + "&firstname=" + encodeURIComponent(user.user_metadata.firstname) + "&lastname=" + encodeURIComponent(user.user_metadata.lastname),
-	    headers: {
-	      'Content-Type': 'application/x-www-form-urlencoded',
-	      'Accept': 'application/json'
-	    }
-	  })
-	  .then((response) => {
-	    if (response.status === 409) {
-	      callback(new ValidationError("user_exists", "User already exists"));
-	    } else if (response.status === 201) {
-	      callback(null);
-	    }
-	  })
-	  .catch ((error) => callback(error));
-	}
-	 */
-	@POST
-	@Path("/auth0/create")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuth0Create(
-			@FormParam("email") String email,
-			@FormParam("username") String username,
-			@FormParam("password") String password,
-			@FormParam("firstname") String firstname,
-			@FormParam("lastname") String lastname) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(email);
-			if (p != null) {
-				return Response.status(409).build();
-			}
-			c.getBuldreinfoRepo().createUser(email, username, password, firstname, lastname);
-			c.setSuccess();
-			return Response.status(201).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	/*
-	function getByEmail (email, callback) {
-	  var fetch = require('isomorphic-fetch');
-	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/getByEmail`),{
-	    method: 'POST',
-	    body: "username=" + encodeURIComponent(email),
-	    headers: {
-	      'Content-Type': 'application/x-www-form-urlencoded',
-	      'Accept': 'application/json'
-	    }
-	  })
-	  .then((response) => {
-	    if (response.status === 400) {
-	      callback(null);
-	    } else {
-	      response.json().then((profile) => callback(null, profile));
-	    }
-	  })
-	  .catch ((error) => callback(error));
-	}
-	 */
-	@POST
-	@Path("/auth0/getByEmail")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuth0GetByEmail(@FormParam("username") String username) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(username);
-			c.setSuccess();
-			if (p == null) {
-				return Response.status(400).build();
-			}
-			return Response.ok(p).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	/*
-	function login (email, password, callback) {
-	  var crypto = require('crypto');
-	  var fetch = require('isomorphic-fetch');
-	  fetch(encodeURI(`https://buldreinfo.com/com.buldreinfo.jersey.jaxb/v2/auth0/login`),{
-	    mode: 'cors',
-	    method: 'POST',
-	    credentials: 'include',
-	    body: "username=" + encodeURIComponent(email) + "&password=" + encodeURIComponent(crypto.createHash('md5').update(password).digest("hex")),
-	    headers: {
-	      'Content-Type': 'application/x-www-form-urlencoded',
-	      'Accept': 'application/json'
-	    }
-	  })
-	  .then((response) => {
-	    if (response.status === 401) {
-	      callback(new Error("Invalid username/password"));
-	    } else {
-	      response.json().then((profile) => callback(null, profile));
-	    }
-	  })
-	  .catch ((error) => callback(error));
-	}
-	 */
-	@POST
-	@Path("/auth0/login")
-	@Consumes(MediaType.APPLICATION_FORM_URLENCODED + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAuth0Login(@FormParam("username") String username, @FormParam("password") String password) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Profile p = c.getBuldreinfoRepo().getProfile(username, password);
-			c.setSuccess();
-			if (p == null) {
-				return Response.status(401).build();
-			}
-			return Response.ok(p).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@POST
 	@Path("/comments")
 	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
 			c.getBuldreinfoRepo().addComment(authUserId, co);
 			invalidateFrontpageCache();
@@ -535,7 +375,7 @@ public class V2 {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
@@ -555,7 +395,7 @@ public class V2 {
 	public Response postProblemsMedia(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
@@ -571,7 +411,7 @@ public class V2 {
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
@@ -589,7 +429,7 @@ public class V2 {
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -606,7 +446,7 @@ public class V2 {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			s = c.getBuldreinfoRepo().setSector(authUserId, setup.getIdRegion(), s, multiPart);
@@ -623,7 +463,7 @@ public class V2 {
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
@@ -639,7 +479,7 @@ public class V2 {
 	@Path("/users/edit")
 	public Response postUsersEdit(@Context HttpServletRequest request, UserEdit u) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(request);
+			final int authUserId = auth.getUserId(c, request);
 			c.getBuldreinfoRepo().setUser(authUserId, u);
 			invalidateFrontpageCache();
 			c.setSuccess();

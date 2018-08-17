@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
+import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
@@ -46,8 +47,6 @@ import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
-import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.Register;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -120,36 +119,6 @@ public class BuldreinfoRepository {
 			final int idArea = 0;
 			addNewMedia(authUserId, p.getId(), idSector, idArea, m, multiPart);
 		}
-	}
-
-	public boolean changePassword(String username, String newPassword) throws SQLException {
-		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET password=? WHERE username=?");
-		ps.setString(1, newPassword);
-		ps.setString(2, username);
-		int rows = ps.executeUpdate();
-		ps.close();
-		Preconditions.checkArgument(rows == 0 || rows == 1, "Invalid rows=" + rows);
-		return rows == 1;
-	}
-
-	public void createUser(String email, String username, String password, String firstname, String lastname) throws SQLException {
-		Preconditions.checkNotNull(Strings.emptyToNull(email), "Invalid email");
-		Preconditions.checkNotNull(Strings.emptyToNull(username), "Invalid username");
-		Preconditions.checkNotNull(Strings.emptyToNull(password), "Invalid password");
-		Preconditions.checkNotNull(Strings.emptyToNull(firstname), "Invalid firstname");
-		Preconditions.checkNotNull(Strings.emptyToNull(lastname), "Invalid lastname");
-		Preconditions.checkArgument(!email.equals("undefined"));
-		Preconditions.checkArgument(!username.equals("undefined"));
-		Preconditions.checkArgument(!firstname.equals("undefined"));
-		Preconditions.checkArgument(!lastname.equals("undefined"));
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (email, username, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)");
-		ps.setString(1, email);
-		ps.setString(2, username);
-		ps.setString(3, password);
-		ps.setString(4, firstname);
-		ps.setString(5, lastname);
-		ps.execute();
-		ps.close();
 	}
 
 	public void deleteMedia(int authUserId, int id) throws SQLException {
@@ -243,7 +212,35 @@ public class BuldreinfoRepository {
 		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
 		return res;
 	}
-	
+
+	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
+		int authUserId = -1;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE email=?");
+		ps.setString(1, profile.getEmail());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			authUserId = rst.getInt("id");
+		}
+		rst.close();
+		ps.close();
+		if (authUserId == -1) {
+			ps = c.getConnection().prepareStatement("INSERT INTO user (email, username, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+			ps.setString(1, profile.getEmail());
+			ps.setString(2, profile.getUsername());
+			ps.setString(3, hashPassword(UUID.randomUUID().toString()));
+			ps.setString(4, profile.getFirstname());
+			ps.setString(5, profile.getLastname());
+			ps.executeUpdate();
+			rst = ps.getGeneratedKeys();
+			if (rst != null && rst.next()) {
+				authUserId = rst.getInt(1);
+			}
+			rst.close();
+			ps.close();
+		}
+		return authUserId;
+	}
+
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
@@ -513,39 +510,6 @@ public class BuldreinfoRepository {
 			}
 		}
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", authUserId, reqRegionId, reqId, reqGrade, stopwatch, res.size());
-		return res;
-	}
-
-	public Profile getProfile(String email) throws NoSuchAlgorithmException, SQLException {
-		Profile res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE u.email=?");
-		ps.setString(1, email);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			int id = rst.getInt("id");
-			String nickname = rst.getString("nickname");
-			res = new Profile(id, email, nickname);
-		}
-		rst.close();
-		ps.close();
-		return res;
-	}
-
-	public Profile getProfile(String username, String password) throws NoSuchAlgorithmException, SQLException {
-		Profile res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.username email, TRIM(CONCAT(u.firstname, ' ', u.lastname)) nickname FROM user u WHERE (u.username=? OR u.email=?) AND u.password=?");
-		ps.setString(1, username);
-		ps.setString(2, username);
-		ps.setString(3, password);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			int id = rst.getInt("id");
-			String email = rst.getString("email");
-			String nickname = rst.getString("nickname");
-			res = new Profile(id, email, nickname);
-		}
-		rst.close();
-		ps.close();
 		return res;
 	}
 
@@ -951,17 +915,6 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return res;
-	}
-	
-	public void registerUser(Register r) throws SQLException, NoSuchAlgorithmException {
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, username, password, email) VALUES (?, ?, ?, ?, ?)");
-		ps.setString(1, r.getFirstname());
-		ps.setString(2, Strings.nullToEmpty(r.getLastname()));
-		ps.setString(3, r.getUsername());
-		ps.setString(4, hashPassword(r.getPassword()));
-		ps.setString(5, r.getUsername());
-		ps.execute();
-		ps.close();
 	}
 
 	public void resetPassword(String token, String password) throws SQLException, NoSuchAlgorithmException {
