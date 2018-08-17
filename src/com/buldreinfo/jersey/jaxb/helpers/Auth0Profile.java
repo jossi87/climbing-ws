@@ -11,14 +11,24 @@ public class Auth0Profile {
 	
 	public Auth0Profile(Map<String, Object> values) {
 		this.email = Preconditions.checkNotNull((String)values.get("email"));
+		// Firstname
 		String firstname = (String) values.get("given_name");
-		String lastname = (String) values.get("family_name");
-		String name = (String) values.get("name");
-		if (name == null) {
-			name = email;
+		if (firstname == null) {
+			firstname = (String) values.get("https://buldreinfo.com/firstname");
 		}
-		this.firstname = firstname != null? firstname : name;
-		this.lastname = lastname != null? lastname : name;
+		if (firstname == null) {
+			firstname = (String) values.get("name");
+		}
+		if (firstname == null) {
+			firstname = email;
+		}
+		this.firstname = Preconditions.checkNotNull(firstname);
+		// Lastname
+		String lastname = (String) values.get("family_name");
+		if (lastname == null) {
+			lastname = (String) values.get("https://buldreinfo.com/lastname");
+		}
+		this.lastname = lastname;
 	}
 
 	public String getEmail() {
