@@ -225,7 +225,7 @@ public class BuldreinfoRepository {
 			ps.setString(1, profile.getName());
 			rst = ps.executeQuery();
 			while (rst.next()) {
-				authUserId = rst.getInt("user_id");
+				authUserId = rst.getInt("id");
 				// Add email to user
 				PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
 				ps2.setInt(1, authUserId);
