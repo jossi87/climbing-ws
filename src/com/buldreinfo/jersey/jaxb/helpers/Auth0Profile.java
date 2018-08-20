@@ -2,6 +2,8 @@ package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.util.Map;
 
+import com.google.common.base.Strings;
+
 import jersey.repackaged.com.google.common.base.Preconditions;
 
 public class Auth0Profile {
@@ -32,7 +34,7 @@ public class Auth0Profile {
 	}
 
 	public String getEmail() {
-		return email;
+		return email.toLowerCase();
 	}
 
 	public String getFirstname() {
@@ -46,5 +48,9 @@ public class Auth0Profile {
 	@Override
 	public String toString() {
 		return "Auth0Profile [email=" + email + ", firstname=" + firstname + ", lastname=" + lastname + "]";
+	}
+
+	public String getName() {
+		return Strings.emptyToNull((Strings.nullToEmpty(firstname) + " " + Strings.nullToEmpty(lastname)).trim().toLowerCase());
 	}
 }

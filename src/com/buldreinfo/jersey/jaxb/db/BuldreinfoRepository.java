@@ -212,7 +212,7 @@ public class BuldreinfoRepository {
 
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
 		int authUserId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_email WHERE email=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_email WHERE lower(email)=?");
 		ps.setString(1, profile.getEmail());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -220,6 +220,22 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		if (authUserId == -1 && profile.getName() != null) {
+			ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', lastname)=?");
+			ps.setString(1, profile.getName());
+			rst = ps.executeQuery();
+			while (rst.next()) {
+				authUserId = rst.getInt("user_id");
+				// Add email to user
+				PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
+				ps2.setInt(1, authUserId);
+				ps2.setString(2, profile.getEmail());
+				ps2.execute();
+				ps2.close();
+			}
+			rst.close();
+			ps.close();
+		}
 		if (authUserId == -1) {
 			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname());
 		}
