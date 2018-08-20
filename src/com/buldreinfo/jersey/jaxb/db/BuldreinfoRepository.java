@@ -1491,7 +1491,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
 		ps.setInt(1, authUserId);
-		ps.setString(2, email);
+		ps.setString(2, email.toLowerCase());
 		ps.executeUpdate();
 		ps.close();
 		return authUserId;
