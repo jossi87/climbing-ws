@@ -53,6 +53,12 @@ public class MergeUsers {
 			ps.setInt(2, USER_ID_DELETE);
 			ps.execute();
 			ps.close();
+			// user_email
+			ps = c.getConnection().prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?");
+			ps.setInt(1, USER_ID_KEEP);
+			ps.setInt(2, USER_ID_DELETE);
+			ps.execute();
+			ps.close();
 			// android_user
 			ps = c.getConnection().prepareStatement("UPDATE android_user SET user_id=? WHERE user_id=?");
 			ps.setInt(1, USER_ID_KEEP);
