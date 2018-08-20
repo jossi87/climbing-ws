@@ -87,9 +87,6 @@ public class User implements IMetadata {
 	private final boolean readOnly;
 	private final int id;
 	private final String name;
-	private final String email;
-	private final String firstname;
-	private final String lastname;
 	private final int numImagesCreated;
 	private final int numVideosCreated;
 	private final int numImageTags;
@@ -97,13 +94,10 @@ public class User implements IMetadata {
 	private final List<Tick> ticks = new ArrayList<>();
 	private Metadata metadata;
 	
-	public User(boolean readOnly, int id, String email, String firstname, String lastname, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
+	public User(boolean readOnly, int id, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
 		this.readOnly = readOnly;
 		this.id = id;
 		this.name = name;
-		this.email = email;
-		this.firstname = firstname;
-		this.lastname = lastname;
 		this.numImagesCreated = numImagesCreated;
 		this.numVideosCreated = numVideosCreated;
 		this.numImageTags = numImageTags;
@@ -114,22 +108,10 @@ public class User implements IMetadata {
 		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
-	public String getEmail() {
-		return email;
-	}
-	
-	public String getFirstname() {
-		return firstname;
-	}
-	
 	public int getId() {
 		return id;
 	}
 	
-	public String getLastname() {
-		return lastname;
-	}
-
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
@@ -170,8 +152,7 @@ public class User implements IMetadata {
 
 	@Override
 	public String toString() {
-		return "User [readOnly=" + readOnly + ", id=" + id + ", name=" + name
-				+ ", firstname=" + firstname + ", lastname=" + lastname + ", numImagesCreated=" + numImagesCreated
+		return "User [readOnly=" + readOnly + ", id=" + id + ", name=" + name + ", numImagesCreated=" + numImagesCreated
 				+ ", numVideosCreated=" + numVideosCreated + ", numImageTags=" + numImageTags + ", numVideoTags="
 				+ numVideoTags + ", ticks=" + ticks + ", metadata=" + metadata + "]";
 	}

@@ -212,11 +212,11 @@ public class BuldreinfoRepository {
 
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
 		int authUserId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE email=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_email WHERE email=?");
 		ps.setString(1, profile.getEmail());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			authUserId = rst.getInt("id");
+			authUserId = rst.getInt("user_id");
 		}
 		rst.close();
 		ps.close();
@@ -226,22 +226,6 @@ public class BuldreinfoRepository {
 		return authUserId;
 	}
 	
-	private int addUser(String email, String firstname, String lastname) throws SQLException {
-		int authUserId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (email, firstname, lastname) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
-		ps.setString(1, email);
-		ps.setString(2, firstname);
-		ps.setString(3, lastname);
-		ps.executeUpdate();
-		ResultSet rst = ps.getGeneratedKeys();
-		if (rst != null && rst.next()) {
-			authUserId = rst.getInt(1);
-		}
-		rst.close();
-		ps.close();
-		return authUserId;
-	}
-
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
@@ -844,21 +828,18 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT u.email, u.firstname, u.lastname, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
-				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.email, u.firstname, u.lastname";
+		String sqlStr = "SELECT TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
+				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.firstname, u.lastname";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
-			String email = rst.getString("email");
-			String firstname = rst.getString("firstname");
-			String lastname = rst.getString("lastname");
 			String name = rst.getString("name");
 			int numImagesCreated = rst.getInt("num_images_created");
 			int numVideosCreated = rst.getInt("num_videos_created");
 			int numImageTags = rst.getInt("num_image_tags");
 			int numVideoTags = rst.getInt("num_video_tags");
-			res = new User(readOnly, reqId, email, firstname, lastname, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+			res = new User(readOnly, reqId, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
 		}
 		rst.close();
 		ps.close();
@@ -910,7 +891,7 @@ public class BuldreinfoRepository {
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
-			res.add(new User(true, id, null, null, null, name, -1, -1, -1, -1));
+			res.add(new User(true, id, name, -1, -1, -1, -1));
 		}
 		rst.close();
 		ps.close();
@@ -1494,6 +1475,26 @@ public class BuldreinfoRepository {
 
 			return idMedia;
 		}
+	}
+
+	private int addUser(String email, String firstname, String lastname) throws SQLException {
+		int authUserId = -1;
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		ps.setString(1, firstname);
+		ps.setString(2, lastname);
+		ps.executeUpdate();
+		ResultSet rst = ps.getGeneratedKeys();
+		if (rst != null && rst.next()) {
+			authUserId = rst.getInt(1);
+		}
+		rst.close();
+		ps.close();
+		ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
+		ps.setInt(1, authUserId);
+		ps.setString(2, email);
+		ps.executeUpdate();
+		ps.close();
+		return authUserId;
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
