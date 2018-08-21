@@ -12,7 +12,6 @@ import com.auth0.client.auth.AuthAPI;
 import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -43,10 +42,13 @@ public class AuthHelper {
 	public int getUserId(DbConnection c, HttpServletRequest request) {
 		try {
 			String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-			Preconditions.checkArgument(!Strings.isNullOrEmpty(authorization));
+			if (Strings.isNullOrEmpty(authorization)) {
+				return -1;
+			}
 			Auth0Profile profile = cache.get(authorization);
 			return c.getBuldreinfoRepo().getAuthUserId(profile);
 		} catch (Exception e) {
+			logger.fatal(e.getMessage(), e);
 			return -1;
 		}
 	}
