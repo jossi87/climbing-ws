@@ -8,13 +8,15 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 public class Frontpage implements IMetadata {
 	public class Ascent {
 		private final int idProblem;
+		private final int visibility;
 		private final String problem;
 		private final String grade;
 		private final String date;
 		private final int idUser;
 		private final String user;
-		public Ascent(int idProblem, String problem, String grade, String date, int idUser, String user) {
+		public Ascent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user) {
 			this.idProblem = idProblem;
+			this.visibility = visibility;
 			this.problem = problem;
 			this.grade = grade;
 			this.date = date;
@@ -39,20 +41,25 @@ public class Frontpage implements IMetadata {
 		public String getUser() {
 			return user;
 		}
+		public int getVisibility() {
+			return visibility;
+		}
 		@Override
 		public String toString() {
-			return "Ascent [idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", date=" + date
-					+ ", idUser=" + idUser + ", user=" + user + "]";
+			return "Ascent [idProblem=" + idProblem + ", visibility=" + visibility + ", problem=" + problem + ", grade="
+					+ grade + ", date=" + date + ", idUser=" + idUser + ", user=" + user + "]";
 		}
 	}
 	
 	public class Comment {
 		private final String date;
 		private final int idProblem;
+		private final int visibility;
 		private final String problem;
-		public Comment(String date, int idProblem, String problem) {
+		public Comment(String date, int idProblem, int visibility, String problem) {
 			this.date = date;
 			this.idProblem = idProblem;
+			this.visibility = visibility;
 			this.problem = problem;
 		}
 		public String getDate() {
@@ -64,29 +71,42 @@ public class Frontpage implements IMetadata {
 		public String getProblem() {
 			return problem;
 		}
+		public int getVisibility() {
+			return visibility;
+		}
 	}
 	
 	public class Fa {
 		private final int idArea;
+		private final int areaVisibility;
 		private final String area;
 		private final int idSector;
+		private final int sectorVisibility;
 		private final String sector;
 		private final int idProblem;
+		private final int problemVisibility;
 		private final String problem;
 		private final String grade;
 		private final String date;
-		public Fa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date) {
+		public Fa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector,
+				int idProblem, int problemVisibility, String problem, String grade, String date) {
 			this.idArea = idArea;
+			this.areaVisibility = areaVisibility;
 			this.area = area;
 			this.idSector = idSector;
+			this.sectorVisibility = sectorVisibility;
 			this.sector = sector;
 			this.idProblem = idProblem;
+			this.problemVisibility = problemVisibility;
 			this.problem = problem;
 			this.grade = grade;
 			this.date = date;
 		}
 		public String getArea() {
 			return area;
+		}
+		public int getAreaVisibility() {
+			return areaVisibility;
 		}
 		public String getDate() {
 			return date;
@@ -106,23 +126,33 @@ public class Frontpage implements IMetadata {
 		public String getProblem() {
 			return problem;
 		}
+		public int getProblemVisibility() {
+			return problemVisibility;
+		}
 		public String getSector() {
 			return sector;
 		}
+		public int getSectorVisibility() {
+			return sectorVisibility;
+		}
 		@Override
 		public String toString() {
-			return "Fa [idArea=" + idArea + ", area=" + area + ", idSector=" + idSector + ", sector=" + sector
-					+ ", idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", date=" + date + "]";
+			return "Fa [idArea=" + idArea + ", areaVisibility=" + areaVisibility + ", area=" + area + ", idSector="
+					+ idSector + ", sectorVisibility=" + sectorVisibility + ", sector=" + sector + ", idProblem="
+					+ idProblem + ", problemVisibility=" + problemVisibility + ", problem=" + problem + ", grade="
+					+ grade + ", date=" + date + "]";
 		}
 	}
 	
 	public class Media {
 		private final int idProblem;
+		private final int visibility;
 		private final String problem;
 		private final String grade;
 		private final String type;
-		public Media(int idProblem, String problem, String grade, String type) {
+		public Media(int idProblem, int visibility, String problem, String grade, String type) {
 			this.idProblem = idProblem;
+			this.visibility = visibility;
 			this.problem = problem;
 			this.grade = grade;
 			this.type = type;
@@ -139,10 +169,13 @@ public class Frontpage implements IMetadata {
 		public String getType() {
 			return type;
 		}
+		public int getVisibility() {
+			return visibility;
+		}
 		@Override
 		public String toString() {
-			return "Media [idProblem=" + idProblem + ", problem=" + problem + ", grade=" + grade + ", type=" + type
-					+ "]";
+			return "Media [idProblem=" + idProblem + ", visibility=" + visibility + ", problem=" + problem + ", grade="
+					+ grade + ", type=" + type + "]";
 		}
 	}
 	public class RandomMedia {
@@ -223,20 +256,20 @@ public class Frontpage implements IMetadata {
 		this.showLogoBrv = showLogoBrv;
 	}
 	
-	public void addAscent(int idProblem, String problem, String grade, String date, int idUser, String user) {
-		this.ascents.add(new Ascent(idProblem, problem, grade, date, idUser, user));
+	public void addAscent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user) {
+		this.ascents.add(new Ascent(idProblem, visibility, problem, grade, date, idUser, user));
 	}
 	
-	public void addComment(String date, int idProblem, String problem) {
-		this.comments.add(new Comment(date, idProblem, problem));
+	public void addComment(String date, int idProblem, int visibility, String problem) {
+		this.comments.add(new Comment(date, idProblem, visibility, problem));
 	}
 	
-	public void addFa(int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, String date) {
-		this.fas.add(new Fa(idArea, area, idSector, sector, idProblem, problem, grade, date));
+	public void addFa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector, int idProblem, int problemVisibility, String problem, String grade, String date) {
+		this.fas.add(new Fa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, grade, date));
 	}
 	
-	public void addMedia(int idProblem, String problem, String grade, String type) {
-		this.medias.add(new Media(idProblem, problem, grade, type));
+	public void addMedia(int idProblem, int visibility, String problem, String grade, String type) {
+		this.medias.add(new Media(idProblem, visibility, problem, grade, type));
 	}
 	
 	@Override
