@@ -84,14 +84,6 @@ public class MetaHelper {
 				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(9)
 				.setSetRobotsDenyAll());
-		setups.add(new Setup("localhost:3000")
-				.setIdRegion(1)
-				.setBouldering(true)
-				.setTitle("DEV")
-				.setDescription("DEV")
-				.setShowLogoPlay(true).setShowLogoSis(true).setShowLogoBrv(true)
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(7)
-				.setSetRobotsDenyAll());
 	}
 	
 	public Setup getSetup(HttpServletRequest request) {
