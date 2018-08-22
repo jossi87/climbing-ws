@@ -331,7 +331,7 @@ public class BuldreinfoRepository {
 			int sectorVisibility = rst.getInt("sector_hidden");
 			String sector = rst.getString("sector");
 			int idProblem = rst.getInt("id");
-			int problemVisibility = rst.getInt("problem_hidden");
+			int problemVisibility = rst.getInt("hidden");
 			String problem = rst.getString("name");
 			String date = rst.getString("date");
 			int grade = rst.getInt("grade");
