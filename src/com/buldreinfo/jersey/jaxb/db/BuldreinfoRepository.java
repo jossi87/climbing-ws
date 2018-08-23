@@ -239,6 +239,7 @@ public class BuldreinfoRepository {
 		if (authUserId == -1) {
 			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname());
 		}
+		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
 	}
 	

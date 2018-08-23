@@ -40,15 +40,15 @@ public class AuthHelper {
 			});
 
 	public int getUserId(DbConnection c, HttpServletRequest request) {
+		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+		if (Strings.isNullOrEmpty(authorization)) {
+			return -1;
+		}
 		try {
-			String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-			if (Strings.isNullOrEmpty(authorization)) {
-				return -1;
-			}
 			Auth0Profile profile = cache.get(authorization);
 			return c.getBuldreinfoRepo().getAuthUserId(profile);
 		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
+			logger.warn("getUserId(authorizationHeader={}) - authentication failed, login required", authorization);
 			return -1;
 		}
 	}

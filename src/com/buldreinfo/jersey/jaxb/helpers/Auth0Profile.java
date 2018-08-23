@@ -45,12 +45,12 @@ public class Auth0Profile {
 		return lastname;
 	}
 
+	public String getName() {
+		return Strings.emptyToNull((Strings.nullToEmpty(firstname) + " " + Strings.nullToEmpty(lastname)).trim().toLowerCase());
+	}
+
 	@Override
 	public String toString() {
 		return "Auth0Profile [email=" + email + ", firstname=" + firstname + ", lastname=" + lastname + "]";
-	}
-
-	public String getName() {
-		return Strings.emptyToNull((Strings.nullToEmpty(firstname) + " " + Strings.nullToEmpty(lastname)).trim().toLowerCase());
 	}
 }
