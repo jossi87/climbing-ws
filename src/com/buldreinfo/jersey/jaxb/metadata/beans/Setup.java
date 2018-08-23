@@ -127,4 +127,12 @@ public class Setup {
 		this.title = title;
 		return this;
 	}
+
+	@Override
+	public String toString() {
+		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", isBouldering=" + isBouldering + ", title="
+				+ title + ", description=" + description + ", defaultCenter=" + defaultCenter + ", defaultZoom="
+				+ defaultZoom + ", showLogoPlay=" + showLogoPlay + ", showLogoSis=" + showLogoSis + ", showLogoBrv="
+				+ showLogoBrv + ", setRobotsDenyAll=" + setRobotsDenyAll + "]";
+	}
 }
