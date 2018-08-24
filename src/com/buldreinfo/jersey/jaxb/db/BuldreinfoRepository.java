@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
@@ -242,7 +241,7 @@ public class BuldreinfoRepository {
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
 	}
-	
+
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
@@ -1170,7 +1169,7 @@ public class BuldreinfoRepository {
 					}
 				}
 				else { // New user
-					int idUser = addUser(UUID.randomUUID().toString(), x.getFirstname(), x.getSurname());
+					int idUser = addUser(null, x.getFirstname(), x.getSurname());
 					Preconditions.checkArgument(idUser>0);
 					PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)");
 					ps2.setInt(1, idProblem);
@@ -1524,23 +1523,25 @@ public class BuldreinfoRepository {
 	}
 
 	private int addUser(String email, String firstname, String lastname) throws SQLException {
-		int authUserId = -1;
+		int id = -1;
 		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
 		ps.executeUpdate();
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
-			authUserId = rst.getInt(1);
+			id = rst.getInt(1);
 		}
 		rst.close();
 		ps.close();
-		ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
-		ps.setInt(1, authUserId);
-		ps.setString(2, email.toLowerCase());
-		ps.executeUpdate();
-		ps.close();
-		return authUserId;
+		if (!Strings.isNullOrEmpty(email)) {
+			ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
+			ps.setInt(1, id);
+			ps.setString(2, email.toLowerCase());
+			ps.executeUpdate();
+			ps.close();
+		}
+		return id;
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
@@ -1612,7 +1613,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (usId == -1) {
-			usId = addUser(UUID.randomUUID().toString(), name, null);
+			usId = addUser(null, name, null);
 		}
 		Preconditions.checkArgument(usId > 0);
 		return usId;
