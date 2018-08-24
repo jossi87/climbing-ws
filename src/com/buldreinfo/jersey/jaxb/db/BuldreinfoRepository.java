@@ -1525,7 +1525,7 @@ public class BuldreinfoRepository {
 
 	private int addUser(String email, String firstname, String lastname) throws SQLException {
 		int authUserId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
 		ps.executeUpdate();
