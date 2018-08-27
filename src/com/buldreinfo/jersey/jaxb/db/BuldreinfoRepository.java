@@ -687,7 +687,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Users
-		ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', lastname)) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', lastname) LIKE ?) LIMIT 20");
+		ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', lastname)) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', lastname) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', lastname)) LIMIT 20");
 		ps.setString(1, sr.getValue() + "%");
 		ps.setString(2, sr.getValue() + "%");
 		ps.setString(3, sr.getValue() + "%");
