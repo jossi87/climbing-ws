@@ -200,7 +200,8 @@ public class MetaHelper {
 			x.setMetadata(new Metadata(c, setup, authUserId, null, null)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom())
-					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion()))
+					.setIsBouldering(setup.isBouldering()));
 		}
 		else if (m instanceof Browse) {
 			Browse b = (Browse)m;
