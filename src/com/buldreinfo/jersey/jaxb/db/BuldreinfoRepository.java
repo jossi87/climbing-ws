@@ -413,7 +413,7 @@ public class BuldreinfoRepository {
 		}
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
-				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
+				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', CASE WHEN u.lastname IS NULL THEN '' ELSE u.lastname END, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(CASE WHEN u.lastname IS NULL THEN '' ELSE u.lastname END,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,"
 				+ " ty.id type_id, ty.type, ty.subtype"
