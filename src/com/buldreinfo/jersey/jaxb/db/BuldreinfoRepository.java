@@ -1527,18 +1527,19 @@ public class BuldreinfoRepository {
 		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
-		ps.executeUpdate();
+		ps.execute();
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
 			id = rst.getInt(1);
 		}
 		rst.close();
 		ps.close();
+		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
 		if (!Strings.isNullOrEmpty(email)) {
 			ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
 			ps.setInt(1, id);
 			ps.setString(2, email.toLowerCase());
-			ps.executeUpdate();
+			ps.execute();
 			ps.close();
 		}
 		return id;
