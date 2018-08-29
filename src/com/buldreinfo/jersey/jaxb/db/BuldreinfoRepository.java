@@ -220,7 +220,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (authUserId == -1 && profile.getName() != null) {
-			ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', lastname)=?");
+			ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE TRIM(CONCAT(firstname, ' ', lastname))=?");
 			ps.setString(1, profile.getName());
 			rst = ps.executeQuery();
 			while (rst.next()) {
