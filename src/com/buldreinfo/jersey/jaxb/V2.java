@@ -201,9 +201,9 @@ public class V2 {
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			String acceptHeader = request.getHeader("Accept");
-			logger.error(acceptHeader);
 			boolean webP = acceptHeader != null && acceptHeader.contains("image/webp") && targetHeight == 0;
 			String mimeType = webP? "image/webp" : "image/jpeg";
+			logger.error(acceptHeader + " - " + mimeType + " - " + webP);
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
 			if (targetHeight != 0 || targetWidth != 0) {
