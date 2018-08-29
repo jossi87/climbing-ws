@@ -203,9 +203,9 @@ public class V2 {
 			String acceptHeader = request.getHeader("Accept");
 			boolean webP = acceptHeader != null && acceptHeader.contains("image/webp") && targetHeight == 0;
 			String mimeType = webP? "image/webp" : "image/jpeg";
-			logger.error(acceptHeader + " - " + mimeType + " - " + webP);
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
+			logger.debug("getImages(id={}, targetHeight={}, targetWidth={}) - acceptHeader={}, webP={}, mimeType={}, p={}", id, targetHeight, targetWidth, acceptHeader, webP, mimeType, p);
 			if (targetHeight != 0 || targetWidth != 0) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				BufferedImage scaled = null;
