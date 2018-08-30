@@ -179,27 +179,29 @@ public class Area implements IMetadata {
 	}
 	
 	public void orderSectors() {
-		sectors.sort(new Comparator<Sector>() {
-			@Override
-			public int compare(Sector o1, Sector o2) {
-				return getName(o1).compareTo(getName(o2));
-			}
-			private String getName(Sector s) {
-				return s.getName().toLowerCase()
-						.replace("første", "1første")
-						.replace("sør", "1sør")
-						.replace("vest", "1vest")
-						.replace("venstre", "1venstre")
-						.replace("andre", "2andre")
-						.replace("midt", "2midt")
-						.replace("tredje", "3tredje")
-						.replace("hoved", "3hoved")
-						.replace("fjerde", "4fjerde")
-						.replace("høyre", "4høyre")
-						.replace("øst", "5øst")
-						.replace("nord", "6nord");
-			}
-		});
+		if (sectors != null) {
+			sectors.sort(new Comparator<Sector>() {
+				@Override
+				public int compare(Sector o1, Sector o2) {
+					return getName(o1).compareTo(getName(o2));
+				}
+				private String getName(Sector s) {
+					return s.getName().toLowerCase()
+							.replace("første", "1første")
+							.replace("sør", "1sør")
+							.replace("vest", "1vest")
+							.replace("venstre", "1venstre")
+							.replace("andre", "2andre")
+							.replace("midt", "2midt")
+							.replace("tredje", "3tredje")
+							.replace("hoved", "3hoved")
+							.replace("fjerde", "4fjerde")
+							.replace("høyre", "4høyre")
+							.replace("øst", "5øst")
+							.replace("nord", "6nord");
+				}
+			});
+		}
 	}
 	
 	@Override
