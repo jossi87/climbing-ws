@@ -172,7 +172,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), 0, grade);
+			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup, 0, grade);
 			Finder res = new Finder(grade, GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -251,7 +251,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup.getIdRegion(), id, grade);
+			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, grade);
 			if (res.size() == 1) {
 				metaHelper.updateMetadata(c, res.get(0), setup, authUserId);
 			}
@@ -379,7 +379,7 @@ public class V2 {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			p = c.getBuldreinfoRepo().setProblem(authUserId, setup.getIdRegion(), p, multiPart);
+			p = c.getBuldreinfoRepo().setProblem(authUserId, setup, p, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
