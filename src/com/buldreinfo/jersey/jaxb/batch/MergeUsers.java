@@ -7,7 +7,7 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 
 public class MergeUsers {
-	// SELECT * FROM user u, (SELECT TRIM(concat(TRIM(firstname), ' ', TRIM(lastname))) y FROM user GROUP BY TRIM(concat(TRIM(firstname), ' ', TRIM(lastname))) HAVING COUNT(TRIM(concat(TRIM(firstname), ' ', TRIM(lastname))))>1) x WHERE TRIM(concat(TRIM(u.firstname), ' ', TRIM(u.lastname)))=x.y ORDER BY firstname, lastname
+	// SELECT * FROM user u, (SELECT TRIM(concat(TRIM(firstname), ' ', COALESCE(TRIM(lastname),''))) y FROM user GROUP BY TRIM(concat(TRIM(firstname), ' ', COALESCE(TRIM(lastname),''))) HAVING COUNT(TRIM(concat(TRIM(firstname), ' ', COALESCE(TRIM(lastname),''))))>1) x WHERE TRIM(concat(TRIM(u.firstname), ' ', TRIM(u.lastname)))=x.y ORDER BY firstname, lastname
 	private final static int USER_ID_KEEP = -1;
 	private final static int USER_ID_DELETE = -2;
 
