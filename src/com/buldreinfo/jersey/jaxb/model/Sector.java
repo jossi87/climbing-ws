@@ -22,8 +22,9 @@ public class Sector implements IMetadata {
 		private final double stars;
 		private final boolean ticked;
 		private final Type t;
+		private final boolean danger;
 		
-		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t) {
+		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
 			this.id = id;
 			this.visibility = visibility;
 			this.nr = nr;
@@ -39,6 +40,7 @@ public class Sector implements IMetadata {
 			this.stars = stars;
 			this.ticked = ticked;
 			this.t = t;
+			this.danger = danger;
 		}
 		
 		public String getComment() {
@@ -100,13 +102,17 @@ public class Sector implements IMetadata {
 		public boolean isTicked() {
 			return ticked;
 		}
+		
+		public boolean isDanger() {
+			return danger;
+		}
 
 		@Override
 		public String toString() {
 			return "Problem [id=" + id + ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment="
 					+ comment + ", grade=" + grade + ", fa=" + fa + ", numImages=" + numImages + ", numMovies="
 					+ numMovies + ", lat=" + lat + ", lng=" + lng + ", numTicks=" + numTicks + ", stars=" + stars
-					+ ", ticked=" + ticked + ", t=" + t + "]";
+					+ ", ticked=" + ticked + ", t=" + t + ", danger=" + danger + "]";
 		}
 	}
 	
@@ -142,8 +148,8 @@ public class Sector implements IMetadata {
 		this.newMedia = newMedia;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t));
+	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
+		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 
 	public int getAreaId() {

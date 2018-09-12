@@ -789,8 +789,9 @@ public class BuldreinfoRepository {
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,"
-				+ " ty.id type_id, ty.type, ty.subtype"
-				+ " FROM (((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id"
+				+ " ty.id type_id, ty.type, ty.subtype,"
+				+ " danger.danger"
+				+ " FROM ((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook)) danger ON p.id=danger.problem_id"
 				+ " WHERE p.sector_id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ " GROUP BY p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype"
@@ -817,7 +818,8 @@ public class BuldreinfoRepository {
 			double stars = rst.getDouble("stars");
 			boolean ticked = rst.getBoolean("ticked");
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-			s.addProblem(id, visibility, nr, name, comment, GradeHelper.intToString(regionId, grade), fa, numImages, numMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t);
+			boolean danger = rst.getBoolean("danger");
+			s.addProblem(id, visibility, nr, name, comment, GradeHelper.intToString(regionId, grade), fa, numImages, numMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger);
 		}
 		rst.close();
 		ps.close();
