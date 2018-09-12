@@ -1204,7 +1204,7 @@ public class BuldreinfoRepository {
 			for (Section section : p.getSections()) {
 				ps.setInt(1, idProblem);
 				ps.setInt(2, section.getNr());
-				ps.setString(3, s.getDescription());
+				ps.setString(3, section.getDescription());
 				ps.setInt(4, GradeHelper.stringToInt(s.getIdRegion(), section.getGrade()));
 				ps.addBatch();
 			}
