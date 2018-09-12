@@ -93,7 +93,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 
-		ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id) VALUES (now(), ?, ?, ?, ?)");
+		ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
 		ps.setString(1, co.getComment());
 		ps.setInt(2, co.getIdProblem());
 		ps.setInt(3, authUserId);
@@ -103,7 +103,8 @@ public class BuldreinfoRepository {
 		else {
 			ps.setInt(4, parentId);
 		}
-
+		ps.setBoolean(5, co.isDanger());
+		ps.setBoolean(5, co.isResolved());
 		ps.execute();
 		ps.close();
 	}
