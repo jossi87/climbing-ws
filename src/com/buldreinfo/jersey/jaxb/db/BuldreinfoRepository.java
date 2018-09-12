@@ -44,6 +44,7 @@ import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
+import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -78,45 +79,6 @@ public class BuldreinfoRepository {
 
 	protected BuldreinfoRepository(DbConnection c) {
 		this.c = c;
-	}
-
-	public void upsertComment(int authUserId, Comment co) throws SQLException {
-		Preconditions.checkArgument(authUserId>0);
-		if (co.getId() > 0) {
-			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
-			ps.setBoolean(1, co.isDanger());
-			ps.setBoolean(2, co.isResolved());
-			ps.setInt(3, co.getId());
-			ps.execute();
-			ps.close();
-		}
-		else {
-			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
-			int parentId = 0;
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
-			ps.setInt(1, co.getIdProblem());
-			ResultSet rst = ps.executeQuery();
-			while (rst.next()) {
-				parentId = rst.getInt(1);
-			}
-			rst.close();
-			ps.close();
-	
-			ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
-			ps.setString(1, co.getComment());
-			ps.setInt(2, co.getIdProblem());
-			ps.setInt(3, authUserId);
-			if (parentId == 0) {
-				ps.setNull(4, Types.INTEGER);
-			}
-			else {
-				ps.setInt(4, parentId);
-			}
-			ps.setBoolean(5, co.isDanger());
-			ps.setBoolean(6, co.isResolved());
-			ps.execute();
-			ps.close();
-		}
 	}
 
 	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -532,6 +494,30 @@ public class BuldreinfoRepository {
 			}
 		}
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, reqGrade={}) - duration={} - res.size()={}", authUserId, s.getIdRegion(), reqId, reqGrade, stopwatch, res.size());
+		return res;
+	}
+
+	public List<ProblemHse> getProblemsHse(int authUserId, Setup setup) throws SQLException {
+		List<ProblemHse> res = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.name area_name, a.hidden area_hidden, s.id sector_id, s.name sector_name, s.hidden sector_hidden, p.id problem_id, p.name problem_name, p.hidden problem_hidden, g.message FROM (((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.id, a.name, a.hidden, s.id, s.name, s.hidden, p.id, p.name, p.hidden, g.message ORDER BY a.name, s.name, p.name");
+		ps.setInt(1, setup.getIdRegion());
+		ps.setInt(2, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int areaId = rst.getInt("area_id");
+			int areaVisibility = rst.getInt("area_hidden");
+			String areaName = rst.getString("area_name");
+			int sectorId = rst.getInt("sector_id");
+			int sectorVisibility = rst.getInt("sector_hidden");
+			String sectorName = rst.getString("sector_name");
+			int problemId = rst.getInt("problem_id");
+			int problemVisibility = rst.getInt("problem_hidden");
+			String problemName = rst.getString("problem_name");
+			String message = rst.getString("message");
+			res.add(new ProblemHse(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, problemId, problemVisibility, problemName, message));
+		}
+		rst.close();
+		ps.close();
 		return res;
 	}
 
@@ -1377,6 +1363,45 @@ public class BuldreinfoRepository {
 		}
 		else {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
+		}
+	}
+
+	public void upsertComment(int authUserId, Comment co) throws SQLException {
+		Preconditions.checkArgument(authUserId>0);
+		if (co.getId() > 0) {
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
+			ps.setBoolean(1, co.isDanger());
+			ps.setBoolean(2, co.isResolved());
+			ps.setInt(3, co.getId());
+			ps.execute();
+			ps.close();
+		}
+		else {
+			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
+			int parentId = 0;
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
+			ps.setInt(1, co.getIdProblem());
+			ResultSet rst = ps.executeQuery();
+			while (rst.next()) {
+				parentId = rst.getInt(1);
+			}
+			rst.close();
+			ps.close();
+
+			ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
+			ps.setString(1, co.getComment());
+			ps.setInt(2, co.getIdProblem());
+			ps.setInt(3, authUserId);
+			if (parentId == 0) {
+				ps.setNull(4, Types.INTEGER);
+			}
+			else {
+				ps.setInt(4, parentId);
+			}
+			ps.setBoolean(5, co.isDanger());
+			ps.setBoolean(6, co.isResolved());
+			ps.execute();
+			ps.close();
 		}
 	}
 

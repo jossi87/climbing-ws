@@ -110,6 +110,13 @@ public class V2Test {
 	}
 	
 	@Test
+	public void testGetProblemsHse() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getProblemsHse(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
+	
+	@Test
 	public void testGetSearch() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.postSearch(getRequest(), new SearchRequest(1, "Pan"));
