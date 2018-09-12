@@ -7,15 +7,24 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Problem implements IMetadata {
 	public class Comment {
+		private final int id;
 		private final String date;
 		private final int idUser;
 		private final String name;
 		private final String message;
-		public Comment(String date, int idUser, String name, String message) {
+		private final boolean danger;
+		private final boolean resolved;
+		public Comment(int id, String date, int idUser, String name, String message, boolean danger, boolean resolved) {
+			this.id = id;
 			this.date = date;
 			this.idUser = idUser;
 			this.name = name;
 			this.message = message;
+			this.danger = danger;
+			this.resolved = resolved;
+		}
+		public int getId() {
+			return id;
 		}
 		public String getDate() {
 			return date;
@@ -23,15 +32,17 @@ public class Problem implements IMetadata {
 		public int getIdUser() {
 			return idUser;
 		}
-		public String getMessage() {
-			return message;
-		}
 		public String getName() {
 			return name;
 		}
-		@Override
-		public String toString() {
-			return "Comment [date=" + date + ", idUser=" + idUser + ", name=" + name + ", message=" + message + "]";
+		public String getMessage() {
+			return message;
+		}
+		public boolean isDanger() {
+			return danger;
+		}
+		public boolean isResolved() {
+			return resolved;
 		}
 	}
 	public class Section {
@@ -171,11 +182,11 @@ public class Problem implements IMetadata {
 		this.t = t;
 	}
 	
-	public void addComment(String date, int idUser, String name, String message) {
+	public void addComment(int id, String date, int idUser, String name, String message, boolean danger, boolean resolved) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
-		comments.add(new Comment(date, idUser, name, message));
+		comments.add(new Comment(id, date, idUser, name, message, danger, resolved));
 	}
 	
 	public void addSection(int id, int nr, String description, String grade) {

@@ -358,7 +358,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
-			c.getBuldreinfoRepo().addComment(authUserId, co);
+			c.getBuldreinfoRepo().upsertComment(authUserId, co);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
@@ -366,7 +366,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")

@@ -80,33 +80,43 @@ public class BuldreinfoRepository {
 		this.c = c;
 	}
 
-	public void addComment(int authUserId, Comment co) throws SQLException {
+	public void upsertComment(int authUserId, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId>0);
 
-		int parentId = 0;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
-		ps.setInt(1, co.getIdProblem());
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			parentId = rst.getInt(1);
-		}
-		rst.close();
-		ps.close();
-
-		ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
-		ps.setString(1, co.getComment());
-		ps.setInt(2, co.getIdProblem());
-		ps.setInt(3, authUserId);
-		if (parentId == 0) {
-			ps.setNull(4, Types.INTEGER);
+		if (co.getId() > 0) {
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
+			ps.setBoolean(1, co.isDanger());
+			ps.setBoolean(2, co.isResolved());
+			ps.setInt(3, co.getId());
+			ps.execute();
+			ps.close();
 		}
 		else {
-			ps.setInt(4, parentId);
+			int parentId = 0;
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
+			ps.setInt(1, co.getIdProblem());
+			ResultSet rst = ps.executeQuery();
+			while (rst.next()) {
+				parentId = rst.getInt(1);
+			}
+			rst.close();
+			ps.close();
+	
+			ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
+			ps.setString(1, co.getComment());
+			ps.setInt(2, co.getIdProblem());
+			ps.setInt(3, authUserId);
+			if (parentId == 0) {
+				ps.setNull(4, Types.INTEGER);
+			}
+			else {
+				ps.setInt(4, parentId);
+			}
+			ps.setBoolean(5, co.isDanger());
+			ps.setBoolean(6, co.isResolved());
+			ps.execute();
+			ps.close();
 		}
-		ps.setBoolean(5, co.isDanger());
-		ps.setBoolean(5, co.isResolved());
-		ps.execute();
-		ps.close();
 	}
 
 	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -491,15 +501,18 @@ public class BuldreinfoRepository {
 				rst.close();
 				ps.close();
 				// Comments
-				ps = c.getConnection().prepareStatement("SELECT CAST(g.post_time AS char) date, u.id, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
+				ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
 				while (rst.next()) {
+					int id = rst.getInt("id");
 					String date = rst.getString("date");
 					int idUser = rst.getInt("id");
 					String name = rst.getString("name");
 					String message = rst.getString("message");
-					p.addComment(date, idUser, name, message);
+					boolean danger = rst.getBoolean("danger");
+					boolean resolved = rst.getBoolean("resolved");
+					p.addComment(id, date, idUser, name, message, danger, resolved);
 				}
 				rst.close();
 				ps.close();
