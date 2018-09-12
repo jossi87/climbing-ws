@@ -357,7 +357,6 @@ public class V2 {
 	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request);
-			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
 			c.getBuldreinfoRepo().upsertComment(authUserId, co);
 			invalidateFrontpageCache();
 			c.setSuccess();

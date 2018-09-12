@@ -82,7 +82,6 @@ public class BuldreinfoRepository {
 
 	public void upsertComment(int authUserId, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId>0);
-
 		if (co.getId() > 0) {
 			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
 			ps.setBoolean(1, co.isDanger());
@@ -92,6 +91,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		else {
+			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
 			int parentId = 0;
 			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
 			ps.setInt(1, co.getIdProblem());
