@@ -23,7 +23,7 @@ public class Metadata {
 	private JsonLd jsonLd;
 	private int defaultZoom;
 	private LatLng defaultCenter;
-	private boolean isBouldering;
+	private final boolean isBouldering;
 	private List<Type> types;
 	private String canonical;
 
@@ -56,6 +56,7 @@ public class Metadata {
 			grades.add(new Grade(id, lookup.get(id)));
 		}
 		this.grades = grades;
+		this.isBouldering = setup.isBouldering();
 	}
 	
 	public String getCanonical() {
@@ -127,11 +128,6 @@ public class Metadata {
 
 	public Metadata setDescription(String description) {
 		this.description = description;
-		return this;
-	}
-
-	public Metadata setIsBouldering(boolean isBouldering) {
-		this.isBouldering = isBouldering;
 		return this;
 	}
 
