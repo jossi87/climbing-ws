@@ -88,8 +88,8 @@ public class MetaHelper {
 	
 	public Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
-		String serverName = Strings.emptyToNull(request.getServerName());
-		Preconditions.checkNotNull(serverName, "Invalid request=" + request);
+		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
+		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
 		return setups
 				.stream()
 				.filter(x -> serverName.equalsIgnoreCase(x.getDomain()))
