@@ -14,14 +14,12 @@ public class DbConnection implements AutoCloseable {
 	private Connection c;
 	private boolean success = false;
 	private final BuldreinfoRepository buldreinfoRepo;
-	private final SisRepository sisRepo;
 	
 	protected DbConnection(ConnectionPool cp) throws SQLException {
 		this.c = cp.getBasicDataSource().getConnection();
 		this.c.setAutoCommit(false);
 		// Init repo
 		this.buldreinfoRepo = new BuldreinfoRepository(this);
-		this.sisRepo = new SisRepository(this);
 	}
 
 	@Override
@@ -54,10 +52,6 @@ public class DbConnection implements AutoCloseable {
 		return buldreinfoRepo;
 	}
 	
-	public SisRepository getSisRepo() {
-		return sisRepo;
-	}
-
 	public void setSuccess() throws SQLException {
 		if (success) {
 			throw new SQLException("setSuccess() called two times! Check code, setSuccess() must be called one time in each transaction (end of algorithm)");
