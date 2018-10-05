@@ -183,22 +183,33 @@ public class Frontpage implements IMetadata {
 		private final int idMedia;
 		private final int width;
 		private final int height;
+		private final int idArea;
+		private final String area;
+		private final int idSector;
+		private final String sector;
 		private final int idProblem;
 		private final String problem;
 		private final String grade;
 		private final int idCreator;
 		private final String creator;
 		private final String inPhoto;
-		public RandomMedia(int idMedia, int width, int height, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
+		public RandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
 			this.idMedia = idMedia;
 			this.width = width;
 			this.height = height;
+			this.idArea = idArea;
+			this.area = area;
+			this.idSector = idSector;
+			this.sector = sector;
 			this.idProblem = idProblem;
 			this.problem = problem;
 			this.grade = grade;
 			this.idCreator = idCreator;
 			this.creator = creator;
 			this.inPhoto = inPhoto;
+		}
+		public String getArea() {
+			return area;
 		}
 		public String getCreator() {
 			return creator;
@@ -209,6 +220,9 @@ public class Frontpage implements IMetadata {
 		public int getHeight() {
 			return height;
 		}
+		public int getIdArea() {
+			return idArea;
+		}
 		public int getIdCreator() {
 			return idCreator;
 		}
@@ -218,21 +232,28 @@ public class Frontpage implements IMetadata {
 		public int getIdProblem() {
 			return idProblem;
 		}
+		public int getIdSector() {
+			return idSector;
+		}
 		public String getInPhoto() {
 			return inPhoto;
 		}
 		public String getProblem() {
 			return problem;
 		}
+		public String getSector() {
+			return sector;
+		}
 		public int getWidth() {
 			return width;
 		}
 		@Override
 		public String toString() {
-			return "RandomMedia [idMedia=" + idMedia + ", idProblem=" + idProblem + ", problem=" + problem + ", grade="
-					+ grade + ", idCreator=" + idCreator + ", creator=" + creator + ", inPhoto=" + inPhoto + "]";
+			return "RandomMedia [idMedia=" + idMedia + ", width=" + width + ", height=" + height + ", idArea=" + idArea
+					+ ", area=" + area + ", idSector=" + idSector + ", sector=" + sector + ", idProblem=" + idProblem
+					+ ", problem=" + problem + ", grade=" + grade + ", idCreator=" + idCreator + ", creator=" + creator
+					+ ", inPhoto=" + inPhoto + "]";
 		}
-		
 	}
 	
 	private int numProblems;
@@ -350,8 +371,8 @@ public class Frontpage implements IMetadata {
 		this.numTicks = numTicks;
 	}
 
-	public void setRandomMedia(int idMedia, int width, int height, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
-		randomMedia = new RandomMedia(idMedia, width, height, idProblem, problem, grade, idCreator, creator, inPhoto);
+	public void setRandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
+		randomMedia = new RandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, grade, idCreator, creator, inPhoto);
 	}
 
 	@Override
