@@ -19,6 +19,9 @@ public class Metadata {
 	private final boolean isSuperAdmin;
 	private final OpenGraph og;
 	private final List<Grade> grades;
+	private final boolean showLogoPlay;
+	private final boolean showLogoSis;
+	private final boolean showLogoBrv;
 	private String description;
 	private JsonLd jsonLd;
 	private int defaultZoom;
@@ -56,6 +59,9 @@ public class Metadata {
 			grades.add(new Grade(id, lookup.get(id)));
 		}
 		this.grades = grades;
+		this.showLogoPlay = setup.isShowLogoPlay();
+		this.showLogoSis = setup.isShowLogoSis();
+		this.showLogoBrv = setup.isShowLogoBrv();
 		this.isBouldering = setup.isBouldering();
 	}
 	

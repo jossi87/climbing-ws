@@ -178,6 +178,7 @@ public class Frontpage implements IMetadata {
 					+ grade + ", type=" + type + "]";
 		}
 	}
+	
 	public class RandomMedia {
 		private final int idMedia;
 		private final int width;
@@ -246,8 +247,11 @@ public class Frontpage implements IMetadata {
 	private final List<Media> medias = new ArrayList<>();
 	private final List<Comment> comments = new ArrayList<>();
 	private Metadata metadata;
+	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoPlay;
+	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoSis;
+	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoBrv;
 	
 	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv) {

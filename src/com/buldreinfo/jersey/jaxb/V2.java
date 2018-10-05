@@ -190,8 +190,9 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
+			Frontpage res = frontpageCache.get(setup.getIdRegion() + "_" + authUserId);
 			c.setSuccess();
-			return Response.ok().entity(frontpageCache.get(setup.getIdRegion() + "_" + authUserId)).build();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
