@@ -19,8 +19,9 @@ public class Area implements IMetadata {
 		private final double lng;
 		private final String polygonCoords;
 		private final int numProblems;
+		private final int randomMediaId;
 		
-		public Sector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems) {
+		public Sector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems, int randomMediaId) {
 			this.areaId = -1;
 			this.areaName = null;
 			this.areaVisibility = 0;
@@ -32,6 +33,7 @@ public class Area implements IMetadata {
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
 			this.numProblems = numProblems;
+			this.randomMediaId = randomMediaId;
 		}
 
 		public int getAreaId() {
@@ -41,11 +43,11 @@ public class Area implements IMetadata {
 		public String getAreaName() {
 			return areaName;
 		}
-
+		
 		public int getAreaVisibility() {
 			return areaVisibility;
 		}
-		
+
 		public String getComment() {
 			return comment;
 		}
@@ -53,11 +55,11 @@ public class Area implements IMetadata {
 		public int getId() {
 			return id;
 		}
-
+		
 		public double getLat() {
 			return lat;
 		}
-		
+
 		public double getLng() {
 			return lng;
 		}
@@ -74,15 +76,20 @@ public class Area implements IMetadata {
 			return polygonCoords;
 		}
 		
+		public int getRandomMediaId() {
+			return randomMediaId;
+		}
+		
 		public int getVisibility() {
 			return visibility;
 		}
 
 		@Override
 		public String toString() {
-			return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName + ", id=" + id
-					+ ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat=" + lat + ", lng=" + lng
-					+ ", polygonCoords=" + polygonCoords + ", numProblems=" + numProblems + "]";
+			return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
+					+ ", id=" + id + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat="
+					+ lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", numProblems=" + numProblems
+					+ ", randomMediaId=" + randomMediaId + "]";
 		}
 	}
 	
@@ -117,8 +124,8 @@ public class Area implements IMetadata {
 		this.newMedia = newMedia;
 	}
 
-	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems) {
-		sectors.add(new Sector(id, visibility, name, comment, lat, lng, polygonCoords, numProblems));
+	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems, int randomMediaId) {
+		sectors.add(new Sector(id, visibility, name, comment, lat, lng, polygonCoords, numProblems, randomMediaId));
 	}
 
 	public String getCanonical() {
