@@ -23,8 +23,9 @@ public class Sector implements IMetadata {
 		private final boolean ticked;
 		private final Type t;
 		private final boolean danger;
+		private final int randomMediaId;
 		
-		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
+		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
 			this.id = id;
 			this.visibility = visibility;
 			this.nr = nr;
@@ -41,6 +42,7 @@ public class Sector implements IMetadata {
 			this.ticked = ticked;
 			this.t = t;
 			this.danger = danger;
+			this.randomMediaId = randomMediaId;
 		}
 		
 		public String getComment() {
@@ -87,6 +89,10 @@ public class Sector implements IMetadata {
 			return numTicks;
 		}
 
+		public int getRandomMediaId() {
+			return randomMediaId;
+		}
+		
 		public double getStars() {
 			return stars;
 		}
@@ -99,12 +105,12 @@ public class Sector implements IMetadata {
 			return visibility;
 		}
 		
-		public boolean isTicked() {
-			return ticked;
-		}
-		
 		public boolean isDanger() {
 			return danger;
+		}
+		
+		public boolean isTicked() {
+			return ticked;
 		}
 
 		@Override
@@ -112,7 +118,8 @@ public class Sector implements IMetadata {
 			return "Problem [id=" + id + ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment="
 					+ comment + ", grade=" + grade + ", fa=" + fa + ", numImages=" + numImages + ", numMovies="
 					+ numMovies + ", lat=" + lat + ", lng=" + lng + ", numTicks=" + numTicks + ", stars=" + stars
-					+ ", ticked=" + ticked + ", t=" + t + ", danger=" + danger + "]";
+					+ ", ticked=" + ticked + ", t=" + t + ", danger=" + danger + ", randomMediaId=" + randomMediaId
+					+ "]";
 		}
 	}
 	
@@ -148,8 +155,8 @@ public class Sector implements IMetadata {
 		this.newMedia = newMedia;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t, danger));
+	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
+		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t, danger, randomMediaId));
 	}
 
 	public int getAreaId() {
