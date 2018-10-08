@@ -194,6 +194,8 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		rst = null;
+		ps = null;
 		if (authUserId == -1 && profile.getName() != null) {
 			ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?");
 			ps.setString(1, profile.getName());
@@ -211,7 +213,14 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		if (authUserId == -1) {
-			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname());
+			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
+		}
+		else if (profile.getPicture() != null) {
+			ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
+			ps.setString(1, profile.getPicture());
+			ps.setInt(2, authUserId);
+			ps.executeUpdate();
+			ps.close();
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
@@ -1175,7 +1184,7 @@ public class BuldreinfoRepository {
 					}
 				}
 				else { // New user
-					int idUser = addUser(null, x.getFirstname(), x.getSurname());
+					int idUser = addUser(null, x.getFirstname(), x.getSurname(), null);
 					Preconditions.checkArgument(idUser>0);
 					PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)");
 					ps2.setInt(1, idProblem);
@@ -1567,11 +1576,12 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addUser(String email, String firstname, String lastname) throws SQLException {
+	private int addUser(String email, String firstname, String lastname, String picture) throws SQLException {
 		int id = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
+		ps.setString(3, picture);
 		ps.execute();
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
@@ -1659,7 +1669,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (usId == -1) {
-			usId = addUser(null, name, null);
+			usId = addUser(null, name, null, null);
 		}
 		Preconditions.checkArgument(usId > 0);
 		return usId;

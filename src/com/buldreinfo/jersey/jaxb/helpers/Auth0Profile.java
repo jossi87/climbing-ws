@@ -10,6 +10,7 @@ public class Auth0Profile {
 	private final String email;
 	private final String firstname;
 	private final String lastname;
+	private final String picture;
 	
 	public Auth0Profile(Map<String, Object> values) {
 		this.email = Preconditions.checkNotNull((String)values.get("email"));
@@ -31,6 +32,8 @@ public class Auth0Profile {
 			lastname = (String) values.get("https://buldreinfo.com/lastname");
 		}
 		this.lastname = lastname;
+		// Picture
+		this.picture = (String) values.get("picture");
 	}
 
 	public String getEmail() {
@@ -44,13 +47,18 @@ public class Auth0Profile {
 	public String getLastname() {
 		return lastname;
 	}
-
+	
 	public String getName() {
 		return Strings.emptyToNull((Strings.nullToEmpty(firstname) + " " + Strings.nullToEmpty(lastname)).trim().toLowerCase());
 	}
 
+	public String getPicture() {
+		return picture;
+	}
+
 	@Override
 	public String toString() {
-		return "Auth0Profile [email=" + email + ", firstname=" + firstname + ", lastname=" + lastname + "]";
+		return "Auth0Profile [email=" + email + ", firstname=" + firstname + ", lastname=" + lastname + ", picture="
+				+ picture + "]";
 	}
 }
