@@ -86,6 +86,7 @@ public class User implements IMetadata {
 	}
 	private final boolean readOnly;
 	private final int id;
+	private final String picture;
 	private final String name;
 	private final int numImagesCreated;
 	private final int numVideosCreated;
@@ -94,9 +95,10 @@ public class User implements IMetadata {
 	private final List<Tick> ticks = new ArrayList<>();
 	private Metadata metadata;
 	
-	public User(boolean readOnly, int id, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
+	public User(boolean readOnly, int id, String picture, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
 		this.readOnly = readOnly;
 		this.id = id;
+		this.picture = picture;
 		this.name = name;
 		this.numImagesCreated = numImagesCreated;
 		this.numVideosCreated = numVideosCreated;
@@ -136,6 +138,10 @@ public class User implements IMetadata {
 	public int getNumVideoTags() {
 		return numVideoTags;
 	}
+	
+	public String getPicture() {
+		return picture;
+	}
 
 	public List<Tick> getTicks() {
 		return ticks;
@@ -152,8 +158,9 @@ public class User implements IMetadata {
 
 	@Override
 	public String toString() {
-		return "User [readOnly=" + readOnly + ", id=" + id + ", name=" + name + ", numImagesCreated=" + numImagesCreated
-				+ ", numVideosCreated=" + numVideosCreated + ", numImageTags=" + numImageTags + ", numVideoTags="
-				+ numVideoTags + ", ticks=" + ticks + ", metadata=" + metadata + "]";
+		return "User [readOnly=" + readOnly + ", id=" + id + ", picture=" + picture + ", name=" + name
+				+ ", numImagesCreated=" + numImagesCreated + ", numVideosCreated=" + numVideosCreated
+				+ ", numImageTags=" + numImageTags + ", numVideoTags=" + numVideoTags + ", ticks=" + ticks
+				+ ", metadata=" + metadata + "]";
 	}
 }
