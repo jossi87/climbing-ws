@@ -459,36 +459,38 @@ public class BuldreinfoRepository {
 		if (reqId!=0) {
 			for (Problem p : res) {
 				// Ascents
-				sqlStr = "SELECT t.id id_tick, u.id id_user, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
+				sqlStr = "SELECT t.id id_tick, u.id id_user, u.picture picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
 				ps = c.getConnection().prepareStatement(sqlStr);
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
 				while (rst.next()) {
 					int id = rst.getInt("id_tick");
 					int idUser = rst.getInt("id_user");
+					String picture = rst.getString("picture");
 					String date = rst.getString("date");
 					String name = rst.getString("name");
 					String comment = rst.getString("comment");
 					double stars = rst.getDouble("stars");
 					int grade = rst.getInt("grade");
 					boolean writable = idUser == authUserId;
-					p.addTick(id, idUser, date, name, GradeHelper.intToString(s.getIdRegion(), grade), comment, stars, writable);
+					p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s.getIdRegion(), grade), comment, stars, writable);
 				}
 				rst.close();
 				ps.close();
 				// Comments
-				ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
+				ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id, u.picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
 					int idUser = rst.getInt("id");
+					String picture = rst.getString("picture");
 					String name = rst.getString("name");
 					String message = rst.getString("message");
 					boolean danger = rst.getBoolean("danger");
 					boolean resolved = rst.getBoolean("resolved");
-					p.addComment(id, date, idUser, name, message, danger, resolved);
+					p.addComment(id, date, idUser, picture, name, message, danger, resolved);
 				}
 				rst.close();
 				ps.close();

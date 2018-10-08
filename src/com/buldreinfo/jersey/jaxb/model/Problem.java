@@ -10,33 +10,38 @@ public class Problem implements IMetadata {
 		private final int id;
 		private final String date;
 		private final int idUser;
+		private final String picture;
 		private final String name;
 		private final String message;
 		private final boolean danger;
 		private final boolean resolved;
-		public Comment(int id, String date, int idUser, String name, String message, boolean danger, boolean resolved) {
+		public Comment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
 			this.id = id;
 			this.date = date;
 			this.idUser = idUser;
+			this.picture = picture;
 			this.name = name;
 			this.message = message;
 			this.danger = danger;
 			this.resolved = resolved;
 		}
-		public int getId() {
-			return id;
-		}
 		public String getDate() {
 			return date;
+		}
+		public int getId() {
+			return id;
 		}
 		public int getIdUser() {
 			return idUser;
 		}
+		public String getMessage() {
+			return message;
+		}
 		public String getName() {
 			return name;
 		}
-		public String getMessage() {
-			return message;
+		public String getPicture() {
+			return picture;
 		}
 		public boolean isDanger() {
 			return danger;
@@ -72,15 +77,17 @@ public class Problem implements IMetadata {
 	public class Tick {
 		private final int id;
 		private final int idUser;
+		private final String picture;
 		private final String date;
 		private final String name;
 		private final String suggestedGrade;
 		private final String comment;
 		private final double stars;
 		private final boolean writable;
-		public Tick(int id, int idUser, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+		public Tick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 			this.id = id;
 			this.idUser = idUser;
+			this.picture = picture;
 			this.date = date;
 			this.name = name;
 			this.suggestedGrade = suggestedGrade;
@@ -94,7 +101,6 @@ public class Problem implements IMetadata {
 		public String getDate() {
 			return date;
 		}
-		
 		public int getId() {
 			return id;
 		}
@@ -103,6 +109,9 @@ public class Problem implements IMetadata {
 		}
 		public String getName() {
 			return name;
+		}
+		public String getPicture() {
+			return picture;
 		}
 		public double getStars() {
 			return stars;
@@ -115,8 +124,9 @@ public class Problem implements IMetadata {
 		}
 		@Override
 		public String toString() {
-			return "Tick [id=" + id + ", idUser=" + idUser + ", date=" + date + ", name=" + name + ", suggestedGrade="
-					+ suggestedGrade + ", comment=" + comment + ", stars=" + stars + ", writable=" + writable + "]";
+			return "Tick [id=" + id + ", idUser=" + idUser + ", picture=" + picture + ", date=" + date + ", name="
+					+ name + ", suggestedGrade=" + suggestedGrade + ", comment=" + comment + ", stars=" + stars
+					+ ", writable=" + writable + "]";
 		}
 	}
 	
@@ -182,11 +192,11 @@ public class Problem implements IMetadata {
 		this.t = t;
 	}
 	
-	public void addComment(int id, String date, int idUser, String name, String message, boolean danger, boolean resolved) {
+	public void addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
-		comments.add(new Comment(id, date, idUser, name, message, danger, resolved));
+		comments.add(new Comment(id, date, idUser, picture, name, message, danger, resolved));
 	}
 	
 	public void addSection(int id, int nr, String description, String grade) {
@@ -196,11 +206,11 @@ public class Problem implements IMetadata {
 		sections.add(new Section(id, nr, description, grade));
 	}
 
-	public void addTick(int id, int idUser, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+	public void addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
-		ticks.add(new Tick(id, idUser, date, name, suggestedGrade, comment, stars, writable));
+		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
 	}
 	
 	public int getAreaId() {
