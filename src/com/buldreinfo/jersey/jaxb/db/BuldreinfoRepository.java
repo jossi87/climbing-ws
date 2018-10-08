@@ -219,11 +219,16 @@ public class BuldreinfoRepository {
 			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
 		}
 		else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
-			ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
-			ps.setString(1, profile.getPicture());
-			ps.setInt(2, authUserId);
-			ps.executeUpdate();
-			ps.close();
+			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
+				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
+			}
+			else {
+				ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
+				ps.setString(1, profile.getPicture());
+				ps.setInt(2, authUserId);
+				ps.executeUpdate();
+				ps.close();
+			}
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
