@@ -186,22 +186,25 @@ public class BuldreinfoRepository {
 
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
 		int authUserId = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT user_id FROM user_email WHERE lower(email)=?");
+		String picture = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?");
 		ps.setString(1, profile.getEmail());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			authUserId = rst.getInt("user_id");
+			picture = rst.getString("picture");
 		}
 		rst.close();
 		ps.close();
 		rst = null;
 		ps = null;
 		if (authUserId == -1 && profile.getName() != null) {
-			ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?");
+			ps = c.getConnection().prepareStatement("SELECT id, picture FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?");
 			ps.setString(1, profile.getName());
 			rst = ps.executeQuery();
 			while (rst.next()) {
 				authUserId = rst.getInt("id");
+				picture = rst.getString("picture");
 				// Add email to user
 				PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
 				ps2.setInt(1, authUserId);
@@ -215,7 +218,7 @@ public class BuldreinfoRepository {
 		if (authUserId == -1) {
 			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
 		}
-		else if (profile.getPicture() != null) {
+		else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
 			ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
 			ps.setString(1, profile.getPicture());
 			ps.setInt(2, authUserId);
