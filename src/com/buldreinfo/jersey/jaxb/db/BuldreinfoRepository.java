@@ -746,14 +746,14 @@ public class BuldreinfoRepository {
 				users.remove(users.size()-1);
 			}
 		}
-		if (!problems.isEmpty()) {
-			res.addAll(problems);
-		}
 		if (!areas.isEmpty()) {
 			res.addAll(areas);
 		}
 		if (!sectors.isEmpty()) {
 			res.addAll(sectors);
+		}
+		if (!problems.isEmpty()) {
+			res.addAll(problems);
 		}
 		if (!users.isEmpty()) {
 			res.addAll(users);
