@@ -712,7 +712,7 @@ public class BuldreinfoRepository {
 		}
 		// Problems
 		List<FindResult> problems = new ArrayList<>(); 
-		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) AND mp.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 10");
+		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) ON mp.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 10");
 		ps.setInt(1, setup.getIdRegion());
 		ps.setInt(2, setup.getIdRegion());
 		ps.setString(3, sr.getValue() + "%");
