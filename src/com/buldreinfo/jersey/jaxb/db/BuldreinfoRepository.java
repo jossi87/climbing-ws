@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -657,8 +658,8 @@ public class BuldreinfoRepository {
 		return regionMap.values();
 	}
 	
-	public List<FindCategory> getFind(int authUserId, int idRegion, SearchRequest sr) throws SQLException {
-		List<FindCategory> res = new ArrayList<>();
+	public Map<String, FindCategory> getFind(int authUserId, int idRegion, SearchRequest sr) throws SQLException {
+		Map<String, FindCategory> res = new LinkedHashMap<>();
 		// Areas
 		List<FindResult> areas = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.hidden FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 20");
@@ -675,7 +676,7 @@ public class BuldreinfoRepository {
 			areas.add(new FindResult(name, null, "A", "/area/" + id, visibility));
 		}
 		if (!areas.isEmpty()) {
-			res.add(new FindCategory("Area", areas));
+			res.put("Area", new FindCategory("Area", areas));
 		}
 		rst.close();
 		ps.close();
@@ -698,7 +699,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (!sectors.isEmpty()) {
-			res.add(new FindCategory("Sector", sectors));
+			res.put("Sector", new FindCategory("Sector", sectors));
 		}
 		// Problems
 		List<FindResult> problems = new ArrayList<>(); 
@@ -719,7 +720,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (!problems.isEmpty()) {
-			res.add(new FindCategory("Problem", problems));
+			res.put("Problem", new FindCategory("Problem", problems));
 		}
 		// Users
 		List<FindResult> users = new ArrayList<>();
@@ -737,7 +738,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (!users.isEmpty()) {
-			res.add(new FindCategory("User", users));
+			res.put("User", new FindCategory("User", users));
 		}
 		// Truncate result to max 10
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
