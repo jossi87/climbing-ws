@@ -658,20 +658,13 @@ public class BuldreinfoRepository {
 		return regionMap.values();
 	}
 	
-	private String getFindImageUrl(Setup setup, int mediaId) {
-		if (mediaId == 0) {
-			return null;
-		}
-		return setup.getUrl("/com.buldreinfo.jersey.jaxb/v2/images?id=" + mediaId +"&targetHeight=75");
-	}
-	
-	public Map<String, FindCategory> getFind(int authUserId, Setup setup, SearchRequest sr) throws SQLException {
+	public Map<String, FindCategory> getFind(int authUserId, int idRegion, SearchRequest sr) throws SQLException {
 		Map<String, FindCategory> res = new LinkedHashMap<>();
 		// Areas
 		List<FindResult> areas = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.hidden, MAX(m.id) media_id FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 10");
-		ps.setInt(1, setup.getIdRegion());
-		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setInt(5, authUserId);
@@ -681,7 +674,7 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			int visibility = rst.getInt("hidden");
 			int mediaId = rst.getInt("media_id");
-			areas.add(new FindResult(name, null, getFindImageUrl(setup, mediaId), setup.getUrl("/area/" + id), visibility));
+			areas.add(new FindResult(name, null, "/area/" + id, null, mediaId, visibility));
 		}
 		if (!areas.isEmpty()) {
 			res.put("Area", new FindCategory("Area", areas));
@@ -691,8 +684,8 @@ public class BuldreinfoRepository {
 		// Sectors
 		List<FindResult> sectors = new ArrayList<>(); 
 		ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.hidden, MAX(m.id) media_id FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, a.name, s.name, s.hidden ORDER BY a.name, s.name LIMIT 10");
-		ps.setInt(1, setup.getIdRegion());
-		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setInt(5, authUserId);
@@ -703,7 +696,7 @@ public class BuldreinfoRepository {
 			String sectorName = rst.getString("sector_name");
 			int visibility = rst.getInt("hidden");
 			int mediaId = rst.getInt("media_id");
-			sectors.add(new FindResult(sectorName, areaName, getFindImageUrl(setup, mediaId), setup.getUrl("/sector/" + id), visibility));
+			sectors.add(new FindResult(sectorName, areaName, "/sector/" + id, null, mediaId, visibility));
 		}
 		rst.close();
 		ps.close();
@@ -712,20 +705,22 @@ public class BuldreinfoRepository {
 		}
 		// Problems
 		List<FindResult> problems = new ArrayList<>(); 
-		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 10");
-		ps.setInt(1, setup.getIdRegion());
-		ps.setInt(2, setup.getIdRegion());
+		ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.name, s.name, p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 10");
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
 		ps.setString(4, "% " + sr.getValue() + "%");
 		ps.setInt(5, authUserId);
 		rst = ps.executeQuery();
 		while (rst.next()) {
+			String areaName = rst.getString("area_name");
+			String sectorName = rst.getString("sector_name");
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
 			int grade = rst.getInt("grade");
 			int visibility = rst.getInt("hidden");
 			int mediaId = rst.getInt("media_id");
-			problems.add(new FindResult(name, GradeHelper.intToString(setup.getIdRegion(), grade), getFindImageUrl(setup, mediaId), setup.getUrl("/problem/" + id), visibility));
+			problems.add(new FindResult(name + " (" + GradeHelper.intToString(idRegion, grade) + ")", areaName + " / " + sectorName, "/problems/" + id, null, mediaId, visibility));
 		}
 		rst.close();
 		ps.close();
@@ -743,7 +738,7 @@ public class BuldreinfoRepository {
 			String picture = rst.getString("picture");
 			int id = rst.getInt("id");
 			String name = rst.getString("name");
-			users.add(new FindResult(name, null, picture, setup.getUrl("/user/" + id), 0));
+			users.add(new FindResult(name, null, "/user/" + id, picture, 0, 0));
 		}
 		rst.close();
 		ps.close();

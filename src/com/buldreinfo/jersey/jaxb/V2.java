@@ -392,7 +392,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			Map<String, FindCategory> res = c.getBuldreinfoRepo().getFind(authUserId, setup, sr);
+			Map<String, FindCategory> res = c.getBuldreinfoRepo().getFind(authUserId, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
