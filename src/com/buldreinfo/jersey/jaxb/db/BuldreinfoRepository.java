@@ -720,7 +720,7 @@ public class BuldreinfoRepository {
 			int grade = rst.getInt("grade");
 			int visibility = rst.getInt("hidden");
 			int mediaId = rst.getInt("media_id");
-			problems.add(new FindResult(name + " [" + GradeHelper.intToString(idRegion, grade) + "]", areaName + " / " + sectorName, "/problems/" + id, null, mediaId, visibility));
+			problems.add(new FindResult(name + " [" + GradeHelper.intToString(idRegion, grade) + "]", areaName + " / " + sectorName, "/problem/" + id, null, mediaId, visibility));
 		}
 		rst.close();
 		ps.close();
