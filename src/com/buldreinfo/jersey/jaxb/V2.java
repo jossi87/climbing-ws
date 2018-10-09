@@ -40,11 +40,12 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
+import com.buldreinfo.jersey.jaxb.model.FindCategory;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -384,6 +385,21 @@ public class V2 {
 	}
 	
 	@POST
+	@Path("/find")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postFind(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			List<FindCategory> res = c.getBuldreinfoRepo().getFind(authUserId, setup.getIdRegion(), sr);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -438,7 +454,8 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
+	@Deprecated // TODO 2018.10.09 - Remove when /find is default
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
