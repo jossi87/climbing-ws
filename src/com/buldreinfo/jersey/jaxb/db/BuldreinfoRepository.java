@@ -661,7 +661,6 @@ public class BuldreinfoRepository {
 		List<FindCategory> res = new ArrayList<>();
 		// Areas
 		List<FindResult> areas = new ArrayList<>();
-		res.add(new FindCategory("Area", areas));
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.hidden FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 20");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
@@ -675,11 +674,13 @@ public class BuldreinfoRepository {
 			int visibility = rst.getInt("hidden");
 			areas.add(new FindResult(name, null, "A", "/area/" + id, visibility));
 		}
+		if (!areas.isEmpty()) {
+			res.add(new FindCategory("Area", areas));
+		}
 		rst.close();
 		ps.close();
 		// Sectors
 		List<FindResult> sectors = new ArrayList<>(); 
-		res.add(new FindCategory("Sector", sectors));
 		ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.hidden FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, a.name, s.name, a.hidden ORDER BY a.name, s.name LIMIT 20");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
@@ -696,9 +697,11 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		if (!sectors.isEmpty()) {
+			res.add(new FindCategory("Sector", sectors));
+		}
 		// Problems
 		List<FindResult> problems = new ArrayList<>(); 
-		res.add(new FindCategory("Problem", problems));
 		ps = c.getConnection().prepareStatement("SELECT p.id, p.name, p.grade, p.hidden FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY p.id, p.name, a.hidden ORDER BY p.name, p.grade LIMIT 20");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
@@ -715,9 +718,11 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		if (!problems.isEmpty()) {
+			res.add(new FindCategory("Problem", problems));
+		}
 		// Users
 		List<FindResult> users = new ArrayList<>();
-		res.add(new FindCategory("User", users));
 		ps = c.getConnection().prepareStatement("SELECT picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 20");
 		ps.setString(1, sr.getValue() + "%");
 		ps.setString(2, sr.getValue() + "%");
@@ -731,6 +736,9 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		if (!users.isEmpty()) {
+			res.add(new FindCategory("User", users));
+		}
 		// Truncate result to max 10
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
 			if (areas.size() > 2) {

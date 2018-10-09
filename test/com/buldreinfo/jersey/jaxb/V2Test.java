@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.FindCategory;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
@@ -117,17 +118,6 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetSearch() throws Exception {
-		V2 tester = new V2();
-		Response r = tester.postSearch(getRequest(), new SearchRequest(1, "Pan"));
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		@SuppressWarnings("unchecked")
-		List<Search> res = (List<Search>)r.getEntity();
-		assertTrue(!res.isEmpty());
-	}
-	
-	@Test
 	public void testGetSectors() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.getSectors(getRequest(), 278);
@@ -152,6 +142,28 @@ public class V2Test {
 		assertTrue(u.getNumVideosCreated()>0);
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
+	}
+	
+	@Test
+	public void testPostFind() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.postFind(getRequest(), new SearchRequest(1, "Pan"));
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof List<?>);
+		@SuppressWarnings("unchecked")
+		List<FindCategory> res = (List<FindCategory>)r.getEntity();
+		assertTrue(!res.isEmpty());
+	}
+	
+	@Test
+	public void testPostSearch() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.postSearch(getRequest(), new SearchRequest(1, "Pan"));
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof List<?>);
+		@SuppressWarnings("unchecked")
+		List<Search> res = (List<Search>)r.getEntity();
+		assertTrue(!res.isEmpty());
 	}
 	
 	private HttpServletRequest getRequest() {
