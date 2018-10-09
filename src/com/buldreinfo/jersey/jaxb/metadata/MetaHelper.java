@@ -77,12 +77,12 @@ public class MetaHelper {
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
-				.setIdRegion(4)
-				.setBouldering(false)
+				.setIdRegion(1)
+				.setBouldering(true)
 				.setTitle("DEV")
 				.setDescription("DEV")
 				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(9)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(7)
 				.setSetRobotsDenyAll());
 	}
 	

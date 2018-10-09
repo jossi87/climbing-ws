@@ -11,8 +11,11 @@ public class Setup {
 	private String description;
 	private LatLng defaultCenter;
 	private int defaultZoom;
+	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
 	private boolean showLogoPlay;
+	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
 	private boolean showLogoSis;
+	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
 	private boolean showLogoBrv;
 	private boolean setRobotsDenyAll = false;
 	
