@@ -1,6 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class FindResult {
+public class Find {
 	private final String title;
 	private final String description;
 	private final String url;
@@ -8,7 +8,7 @@ public class FindResult {
 	private final int mediaId;
 	private final int visibility;
 	
-	public FindResult(String title, String description, String url, String mediaUrl, int mediaId, int visibility) {
+	public Find(String title, String description, String url, String mediaUrl, int mediaId, int visibility) {
 		this.title = title;
 		this.description = description;
 		this.url = url;

@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
@@ -13,6 +12,7 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Find;
 import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
@@ -149,7 +149,10 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.postFind(getRequest(), new SearchRequest(1, "Pan"));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Map<?, ?>);
+		assertTrue(r.getEntity() instanceof List<?>);
+		@SuppressWarnings("unchecked")
+		List<Find> res = (List<Find>)r.getEntity();
+		assertTrue(!res.isEmpty());
 	}
 	
 	@Test
