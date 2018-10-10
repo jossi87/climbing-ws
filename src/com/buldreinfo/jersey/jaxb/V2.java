@@ -167,6 +167,7 @@ public class V2 {
 		}
 	}
 
+	@Deprecated // TODO 2018.10.09 - JOOY - REMOVE
 	@GET
 	@Path("/finder")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
