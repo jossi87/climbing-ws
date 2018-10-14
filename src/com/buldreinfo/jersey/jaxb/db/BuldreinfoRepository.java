@@ -306,7 +306,7 @@ public class BuldreinfoRepository {
 		/**
 		 * FAs
 		 */
-		sqlStr = "SELECT a.id id_area, a.hidden area_hidden,  a.name area, s.id id_sector, s.hidden sector_hidden, s.name sector, p.id, p.hidden, p.name, DATE_FORMAT(p.fa_date,'%d/%m-%y') date, p.grade, MAX(m.id) media_id"
+		sqlStr = "SELECT a.id id_area, a.hidden area_hidden, a.name area, s.id id_sector, s.hidden sector_hidden, s.name sector, p.id, p.hidden, p.name, DATE_FORMAT(p.fa_date,'%d/%m-%y') date, p.grade, MAX(m.id) media_id"
 				+ " FROM ((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 				+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
@@ -363,7 +363,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Comments
 		 */
-		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name FROM (((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name ORDER BY MAX(g.post_time) DESC LIMIT 10");
+		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name, p.grade, u.picture FROM ((((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN user u ON g.user_id=u.id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, p.grade, u.picture ORDER BY MAX(g.post_time) DESC LIMIT 10");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -373,7 +373,9 @@ public class BuldreinfoRepository {
 			int idProblem = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
 			String problem = rst.getString("name");
-			res.addComment(date, idProblem, visibility, problem);
+			String grade = rst.getString("grade");
+			String picture = rst.getString("picture");
+			res.addComment(date, idProblem, visibility, grade, problem, picture);
 		}
 		rst.close();
 		ps.close();

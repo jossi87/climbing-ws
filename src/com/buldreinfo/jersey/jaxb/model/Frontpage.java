@@ -61,15 +61,22 @@ public class Frontpage implements IMetadata {
 		private final String date;
 		private final int idProblem;
 		private final int visibility;
+		private final String grade;
 		private final String problem;
-		public Comment(String date, int idProblem, int visibility, String problem) {
+		private final String picture;
+		public Comment(String date, int idProblem, int visibility, String grade, String problem, String picture) {
 			this.date = date;
 			this.idProblem = idProblem;
+			this.grade = grade;
 			this.visibility = visibility;
 			this.problem = problem;
+			this.picture = picture;
 		}
 		public String getDate() {
 			return date;
+		}
+		public String getGrade() {
+			return grade;
 		}
 		public int getIdProblem() {
 			return idProblem;
@@ -79,6 +86,9 @@ public class Frontpage implements IMetadata {
 		}
 		public int getVisibility() {
 			return visibility;
+		}
+		public String getPicture() {
+			return picture;
 		}
 	}
 	
@@ -308,8 +318,8 @@ public class Frontpage implements IMetadata {
 		this.ascents.add(new Ascent(idProblem, visibility, problem, grade, date, idUser, user, picture));
 	}
 	
-	public void addComment(String date, int idProblem, int visibility, String problem) {
-		this.comments.add(new Comment(date, idProblem, visibility, problem));
+	public void addComment(String date, int idProblem, int visibility, String grade, String problem, String picture) {
+		this.comments.add(new Comment(date, idProblem, visibility, grade, problem, picture));
 	}
 	
 	public void addFa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector, int idProblem, int problemVisibility, String problem, String grade, String date, int randomMediaId) {
