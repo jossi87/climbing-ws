@@ -88,8 +88,9 @@ public class Frontpage implements IMetadata {
 		private final String problem;
 		private final String grade;
 		private final String date;
+		private final int randomMediaId;
 		public Fa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector,
-				int idProblem, int problemVisibility, String problem, String grade, String date) {
+				int idProblem, int problemVisibility, String problem, String grade, String date, int randomMediaId) {
 			this.idArea = idArea;
 			this.areaVisibility = areaVisibility;
 			this.area = area;
@@ -101,6 +102,7 @@ public class Frontpage implements IMetadata {
 			this.problem = problem;
 			this.grade = grade;
 			this.date = date;
+			this.randomMediaId = randomMediaId;
 		}
 		public String getArea() {
 			return area;
@@ -135,12 +137,15 @@ public class Frontpage implements IMetadata {
 		public int getSectorVisibility() {
 			return sectorVisibility;
 		}
+		public int getRandomMediaId() {
+			return randomMediaId;
+		}
 		@Override
 		public String toString() {
 			return "Fa [idArea=" + idArea + ", areaVisibility=" + areaVisibility + ", area=" + area + ", idSector="
 					+ idSector + ", sectorVisibility=" + sectorVisibility + ", sector=" + sector + ", idProblem="
 					+ idProblem + ", problemVisibility=" + problemVisibility + ", problem=" + problem + ", grade="
-					+ grade + ", date=" + date + "]";
+					+ grade + ", date=" + date + ", randomMediaId=" + randomMediaId + "]";
 		}
 	}
 	
@@ -289,8 +294,8 @@ public class Frontpage implements IMetadata {
 		this.comments.add(new Comment(date, idProblem, visibility, problem));
 	}
 	
-	public void addFa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector, int idProblem, int problemVisibility, String problem, String grade, String date) {
-		this.fas.add(new Fa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, grade, date));
+	public void addFa(int idArea, int areaVisibility, String area, int idSector, int sectorVisibility, String sector, int idProblem, int problemVisibility, String problem, String grade, String date, int randomMediaId) {
+		this.fas.add(new Fa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, grade, date, randomMediaId));
 	}
 	
 	public void addMedia(int idProblem, int visibility, String problem, String grade, String type) {

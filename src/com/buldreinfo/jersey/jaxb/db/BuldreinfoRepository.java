@@ -305,8 +305,8 @@ public class BuldreinfoRepository {
 		/**
 		 * FAs
 		 */
-		sqlStr = "SELECT a.id id_area, a.hidden area_hidden,  a.name area, s.id id_sector, s.hidden sector_hidden, s.name sector, p.id, p.hidden, p.name, DATE_FORMAT(p.fa_date,'%d/%m-%y') date, p.grade"
-				+ " FROM ((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)"
+		sqlStr = "SELECT a.id id_area, a.hidden area_hidden,  a.name area, s.id id_sector, s.hidden sector_hidden, s.name sector, p.id, p.hidden, p.name, DATE_FORMAT(p.fa_date,'%d/%m-%y') date, p.grade, MAX(m.id) media_id"
+				+ " FROM ((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 				+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
 				+ " GROUP BY a.id, a.hidden, a.name, s.id, s.hidden, s.name, p.id, p.hidden, p.name, p.fa_date, p.grade"
@@ -328,7 +328,8 @@ public class BuldreinfoRepository {
 			String problem = rst.getString("name");
 			String date = rst.getString("date");
 			int grade = rst.getInt("grade");
-			res.addFa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date);
+			int randomMediaId = rst.getInt("media_id");
+			res.addFa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, randomMediaId);
 		}
 		rst.close();
 		ps.close();
