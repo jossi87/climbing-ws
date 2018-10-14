@@ -12,9 +12,11 @@ public class Frontpage implements IMetadata {
 		private final String problem;
 		private final String grade;
 		private final String date;
+		@Deprecated // TODO Remove when gui is updated
 		private final int idUser;
 		private final String user;
-		public Ascent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user) {
+		private final String picture;
+		public Ascent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user, String picture) {
 			this.idProblem = idProblem;
 			this.visibility = visibility;
 			this.problem = problem;
@@ -22,6 +24,7 @@ public class Frontpage implements IMetadata {
 			this.date = date;
 			this.idUser = idUser;
 			this.user = user;
+			this.picture = picture;
 		}
 		public String getDate() {
 			return date;
@@ -44,10 +47,13 @@ public class Frontpage implements IMetadata {
 		public int getVisibility() {
 			return visibility;
 		}
+		public String getPicture() {
+			return picture;
+		}
 		@Override
 		public String toString() {
 			return "Ascent [idProblem=" + idProblem + ", visibility=" + visibility + ", problem=" + problem + ", grade="
-					+ grade + ", date=" + date + ", idUser=" + idUser + ", user=" + user + "]";
+					+ grade + ", date=" + date + ", idUser=" + idUser + ", user=" + user + ", picture=" + picture + "]";
 		}
 	}
 	
@@ -77,11 +83,17 @@ public class Frontpage implements IMetadata {
 	}
 	
 	public class Fa {
+		@Deprecated // TODO Remove when gui is updated
 		private final int idArea;
+		@Deprecated // TODO Remove when gui is updated
 		private final int areaVisibility;
+		@Deprecated // TODO Remove when gui is updated
 		private final String area;
+		@Deprecated // TODO Remove when gui is updated
 		private final int idSector;
+		@Deprecated // TODO Remove when gui is updated
 		private final int sectorVisibility;
+		@Deprecated // TODO Remove when gui is updated
 		private final String sector;
 		private final int idProblem;
 		private final int problemVisibility;
@@ -286,8 +298,8 @@ public class Frontpage implements IMetadata {
 		this.showLogoBrv = showLogoBrv;
 	}
 	
-	public void addAscent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user) {
-		this.ascents.add(new Ascent(idProblem, visibility, problem, grade, date, idUser, user));
+	public void addAscent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user, String picture) {
+		this.ascents.add(new Ascent(idProblem, visibility, problem, grade, date, idUser, user, picture));
 	}
 	
 	public void addComment(String date, int idProblem, int visibility, String problem) {

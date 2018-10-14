@@ -283,7 +283,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Ascents
 		 */
-		String sqlStr = "SELECT p.id id_problem, p.hidden, p.name, DATE_FORMAT(t.date,'%d/%m-%y') date, u.id id_user, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) user, t.grade FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, t.id ORDER BY t.date DESC, t.id DESC LIMIT 30";
+		String sqlStr = "SELECT p.id id_problem, p.hidden, p.name, DATE_FORMAT(t.date,'%d/%m-%y') date, u.id id_user, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) user, t.grade, u.picture FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, t.id, u.picture ORDER BY t.date DESC, t.id DESC LIMIT 30";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -297,7 +297,8 @@ public class BuldreinfoRepository {
 			int idUser = rst.getInt("id_user");
 			String user = rst.getString("user");
 			int grade = rst.getInt("grade");
-			res.addAscent(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, idUser, user);
+			String picture = rst.getString("picture");
+			res.addAscent(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, idUser, user, picture);
 		}
 		rst.close();
 		ps.close();
@@ -466,7 +467,7 @@ public class BuldreinfoRepository {
 		if (reqId!=0) {
 			for (Problem p : res) {
 				// Ascents
-				sqlStr = "SELECT t.id id_tick, u.id id_user, u.picture picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
+				sqlStr = "SELECT t.id id_tick, u.id id_user, u.picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
 				ps = c.getConnection().prepareStatement(sqlStr);
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
