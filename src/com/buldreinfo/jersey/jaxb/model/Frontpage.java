@@ -166,13 +166,16 @@ public class Frontpage implements IMetadata {
 		private final int visibility;
 		private final String problem;
 		private final String grade;
+		@Deprecated // TODO Remove when gui is updated
 		private final String type;
-		public Media(int idProblem, int visibility, String problem, String grade, String type) {
+		private final int idMedia;
+		public Media(int idProblem, int visibility, String problem, String grade, String type, int idMedia) {
 			this.idProblem = idProblem;
 			this.visibility = visibility;
 			this.problem = problem;
 			this.grade = grade;
 			this.type = type;
+			this.idMedia = idMedia;
 		}
 		public String getGrade() {
 			return grade;
@@ -189,10 +192,13 @@ public class Frontpage implements IMetadata {
 		public int getVisibility() {
 			return visibility;
 		}
+		public int getIdMedia() {
+			return idMedia;
+		}
 		@Override
 		public String toString() {
 			return "Media [idProblem=" + idProblem + ", visibility=" + visibility + ", problem=" + problem + ", grade="
-					+ grade + ", type=" + type + "]";
+					+ grade + ", type=" + type + ", idMedia=" + idMedia + "]";
 		}
 	}
 	
@@ -310,8 +316,8 @@ public class Frontpage implements IMetadata {
 		this.fas.add(new Fa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, grade, date, randomMediaId));
 	}
 	
-	public void addMedia(int idProblem, int visibility, String problem, String grade, String type) {
-		this.medias.add(new Media(idProblem, visibility, problem, grade, type));
+	public void addMedia(int idProblem, int visibility, String problem, String grade, String type, int idMedia) {
+		this.medias.add(new Media(idProblem, visibility, problem, grade, type, idMedia));
 	}
 	
 	@Override

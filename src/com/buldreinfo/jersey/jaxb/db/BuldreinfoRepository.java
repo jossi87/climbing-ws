@@ -283,7 +283,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Ascents
 		 */
-		String sqlStr = "SELECT p.id id_problem, p.hidden, p.name, DATE_FORMAT(t.date,'%d/%m-%y') date, u.id id_user, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) user, t.grade, u.picture FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, t.id, u.picture ORDER BY t.date DESC, t.id DESC LIMIT 30";
+		String sqlStr = "SELECT p.id id_problem, p.hidden, p.name, DATE_FORMAT(t.date,'%d/%m-%y') date, u.id id_user, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) user, t.grade, u.picture FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN user u ON t.user_id=u.id INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, t.date, u.id, u.firstname, u.lastname, t.grade, t.id, u.picture ORDER BY t.date DESC, t.id DESC LIMIT 10";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -311,7 +311,7 @@ public class BuldreinfoRepository {
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 				+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
 				+ " GROUP BY a.id, a.hidden, a.name, s.id, s.hidden, s.name, p.id, p.hidden, p.name, p.fa_date, p.grade"
-				+ " ORDER BY p.fa_date DESC, p.id DESC LIMIT 30";
+				+ " ORDER BY p.fa_date DESC, p.id DESC LIMIT 10";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -338,11 +338,11 @@ public class BuldreinfoRepository {
 		/**
 		 * Medias
 		 */
-		sqlStr = "SELECT p.id, p.hidden, p.name, m.is_movie, p.grade"
+		sqlStr = "SELECT p.id, p.hidden, p.name, m.is_movie, p.grade, m.id id_media"
 				+ " FROM ((((((media m INNER JOIN media_problem mp ON (m.deleted_user_id IS NULL AND m.id=mp.media_id)) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden)"
 				+ " GROUP BY m.id, p.id, p.hidden, p.name, m.is_movie, p.grade"
-				+ " ORDER BY m.id DESC LIMIT 30";
+				+ " ORDER BY m.id DESC LIMIT 10";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -354,7 +354,8 @@ public class BuldreinfoRepository {
 			String problem = rst.getString("name");
 			int grade = rst.getInt("grade");
 			String type = rst.getBoolean("is_movie")? "video" : "image";
-			res.addMedia(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), type);
+			int idMedia = rst.getInt("id_media");
+			res.addMedia(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), type, idMedia);
 		}
 		rst.close();
 		ps.close();
@@ -362,7 +363,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Comments
 		 */
-		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name FROM (((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name ORDER BY MAX(g.post_time) DESC LIMIT 30");
+		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name FROM (((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name ORDER BY MAX(g.post_time) DESC LIMIT 10");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
