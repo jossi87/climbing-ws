@@ -373,9 +373,9 @@ public class BuldreinfoRepository {
 			int idProblem = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
 			String problem = rst.getString("name");
-			String grade = rst.getString("grade");
+			int grade = rst.getInt("grade");
 			String picture = rst.getString("picture");
-			res.addComment(date, idProblem, visibility, grade, problem, picture);
+			res.addComment(date, idProblem, visibility, GradeHelper.intToString(setup.getIdRegion(), grade), problem, picture);
 		}
 		rst.close();
 		ps.close();
