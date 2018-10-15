@@ -34,11 +34,11 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
-import com.buldreinfo.jersey.jaxb.helpers.BoundedTreeSet;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -1771,9 +1771,9 @@ public class BuldreinfoRepository {
 		ps.close();
 	}
 
-	private Object getActivity(int authUserId, Setup setup) throws SQLException {
+	private List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
 		Comparator<String> comp = (String o1, String o2) -> (o2.compareTo(o1));
-		Set<String> json = new BoundedTreeSet<>(20, comp);
+		Set<String> json = new TreeSet<>(comp);
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT CONCAT('{\"timestamp\":\"', DATE_FORMAT(p.fa_date,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', MAX(CASE WHEN m.is_movie=0 THEN m.id END), ',\"grade\":', p.grade, ',\"description\":\"', COALESCE(p.description,''), '\",\"users\":[', group_concat(DISTINCT CONCAT('{\"id\":', fu.id, ',\"name\":\"', TRIM(CONCAT(fu.firstname, ' ', COALESCE(fu.lastname,''))), '\",\"picture\":\"', COALESCE(fu.picture,''), '\"}') ORDER BY fu.firstname, fu.lastname SEPARATOR ','), ']}') fa,"
 				+ " CONCAT('{\"timestamp\":\"', DATE_FORMAT(t.date,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', t.grade, ',\"stars\":', t.stars, ',\"description\":\"', COALESCE(t.comment,''), '\",\"id\":', tu.id, ',\"name\":\"', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,''))), '\",\"picture\":\"', COALESCE(tu.picture,''), '\"}') tick,"
 				+ " CONCAT('{\"timestamp\":\"', DATE_FORMAT(g.post_time,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"message\":\"', g.message, '\",\"id\":', gu.id, ',\"name\":\"', TRIM(CONCAT(gu.firstname, ' ', COALESCE(gu.lastname,''))), '\",\"picture\":\"', COALESCE(gu.picture,''), '\"}') guestbook,"
@@ -1817,8 +1817,17 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		logger.debug("getActivity(authUserId={}, setup={}) - json.size()={}", authUserId, setup, json.size());
-		return "[" + Joiner.on(",").join(json) + "]";
+		List<String> jsonLst = new ArrayList<>(20);
+		for (String jsonItem : json) {
+			jsonLst.add(jsonItem);
+			if (jsonLst.size() >= 20) {
+				break;
+			}
+		}
+		logger.debug("[" + jsonLst + "]");
+		List<Activity> res = gson.fromJson("[" + jsonLst + "]", new TypeToken<ArrayList<Activity>>(){}.getType());
+		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
+		return res;
 	}
 
 	private String getDateTaken(Path p) {

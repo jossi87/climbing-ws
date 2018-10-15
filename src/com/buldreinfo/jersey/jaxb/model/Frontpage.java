@@ -305,7 +305,7 @@ public class Frontpage implements IMetadata {
 	private final List<Media> medias = new ArrayList<>();
 	@Deprecated // TODO Remove when gui is updated
 	private final List<Comment> comments = new ArrayList<>();
-	private final Object activity;
+	private final List<Activity> activity;
 	private Metadata metadata;
 	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoPlay;
@@ -314,7 +314,7 @@ public class Frontpage implements IMetadata {
 	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoBrv;
 	
-	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv, Object activity) {
+	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv, List<Activity> activity) {
 		this.showLogoPlay = showLogoPlay;
 		this.showLogoSis = showLogoSis;
 		this.showLogoBrv = showLogoBrv;
@@ -337,7 +337,7 @@ public class Frontpage implements IMetadata {
 		this.medias.add(new Media(idProblem, visibility, problem, grade, type, idMedia));
 	}
 	
-	public Object getActivity() {
+	public List<Activity> getActivity() {
 		return activity;
 	}
 	
