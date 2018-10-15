@@ -48,7 +48,7 @@ public class Activity {
 	}
 	private final String timestamp;
 	private final int problemId;
-	private final int problemVisiblity;
+	private final int problemVisibility;
 	private final String problemName;
 	private final int problemRandomMediaId;
 	private final List<Media> media;
@@ -59,13 +59,13 @@ public class Activity {
 	private final String description;
 	private final String message;
 	private final List<User> users;
-	public Activity(String timestamp, int problemId, int problemVisiblity, String problemName, int problemRandomMediaId,
+	public Activity(String timestamp, int problemId, int problemVisibility, String problemName, int problemRandomMediaId,
 			List<Media> media, String grade, int stars, String name, String picture, String description, String message,
 			List<User> users) {
 		super();
 		this.timestamp = timestamp;
 		this.problemId = problemId;
-		this.problemVisiblity = problemVisiblity;
+		this.problemVisibility = problemVisibility;
 		this.problemName = problemName;
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.media = media;
@@ -104,8 +104,8 @@ public class Activity {
 	public int getProblemRandomMediaId() {
 		return problemRandomMediaId;
 	}
-	public int getProblemVisiblity() {
-		return problemVisiblity;
+	public int getProblemVisibility() {
+		return problemVisibility;
 	}
 	public int getStars() {
 		return stars;
@@ -121,8 +121,8 @@ public class Activity {
 	}
 	@Override
 	public String toString() {
-		return "Activity [timestamp=" + timestamp + ", problemId=" + problemId + ", problemVisiblity="
-				+ problemVisiblity + ", problemName=" + problemName + ", problemRandomMediaId=" + problemRandomMediaId
+		return "Activity [timestamp=" + timestamp + ", problemId=" + problemId + ", problemVisibility="
+				+ problemVisibility + ", problemName=" + problemName + ", problemRandomMediaId=" + problemRandomMediaId
 				+ ", media=" + media + ", grade=" + grade + ", stars=" + stars + ", name=" + name + ", picture="
 				+ picture + ", description=" + description + ", message=" + message + ", users=" + users + "]";
 	}
