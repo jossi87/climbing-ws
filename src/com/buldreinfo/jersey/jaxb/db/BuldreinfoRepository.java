@@ -1877,6 +1877,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		final String json = "[" + Joiner.on(",").join(jsonSet) + "]";
+		logger.debug(json);
 		final List<Activity> activities = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
 		final LocalDate today = LocalDate.now();
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
