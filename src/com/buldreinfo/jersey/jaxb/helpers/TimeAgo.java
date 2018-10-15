@@ -18,14 +18,19 @@ public class TimeAgo {
 				break;
 			}
 		}
-		if("".equals(res.toString())) {
-			return "today";
+		switch (res.toString()) {
+		case "": return "today";
+		case "1 day ago": return "yesterday";
+		default:
+			if (res.toString().startsWith("1 ")) {
+				return res.toString().replace("1 ", "a ");
+			}
+			return res.toString();
 		}
-		return res.toString();
 	}
 
 	public static void main(String args[]) {
-		for (int daysBetween : Lists.newArrayList(0, 1, 6, 7, 13, 14, 30, 365)) {
+		for (int daysBetween : Lists.newArrayList(0, 1, 4, 6, 7, 13, 14, 30, 365, 4124)) {
 			System.out.println(daysBetween + ": " + toDuration(daysBetween));
 		}
 	}
