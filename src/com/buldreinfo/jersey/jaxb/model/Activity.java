@@ -52,14 +52,14 @@ public class Activity {
 	private final String problemName;
 	private final int problemRandomMediaId;
 	private final List<Media> media;
-	private final int grade;
+	private String grade;
 	private final int stars;
 	private final String name;
 	private final String picture;
 	private final String description;
 	private final List<User> users;
 	public Activity(String timestamp, int problemId, int problemVisiblity, String problemName, int problemRandomMediaId,
-			List<Media> media, int grade, int stars, String name, String picture, String description,
+			List<Media> media, String grade, int stars, String name, String picture, String description,
 			List<User> users) {
 		super();
 		this.timestamp = timestamp;
@@ -78,7 +78,7 @@ public class Activity {
 	public String getDescription() {
 		return description;
 	}
-	public int getGrade() {
+	public String getGrade() {
 		return grade;
 	}
 	public List<Media> getMedia() {
@@ -110,6 +110,9 @@ public class Activity {
 	}
 	public List<User> getUsers() {
 		return users;
+	}
+	public void setGrade(String grade) {
+		this.grade = grade;
 	}
 	@Override
 	public String toString() {
