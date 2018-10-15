@@ -84,10 +84,11 @@ public class BuldreinfoRepository {
 
 	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient permissions");
+		Timestamp now = new Timestamp(System.currentTimeMillis());
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
-			addNewMedia(authUserId, p.getId(), idSector, idArea, m, multiPart);
+			addNewMedia(authUserId, p.getId(), idSector, idArea, m, multiPart, now);
 		}
 	}
 
@@ -1187,10 +1188,11 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (a.getNewMedia() != null) {
+			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : a.getNewMedia()) {
 				final int idProblem = 0;
 				final int idSector = 0;
-				addNewMedia(authUserId, idProblem, idSector, a.getId(), m, multiPart);
+				addNewMedia(authUserId, idProblem, idSector, a.getId(), m, multiPart, now);
 			}
 		}
 		return getArea(authUserId, idArea);
@@ -1276,10 +1278,11 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (p.getNewMedia() != null) {
+			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : p.getNewMedia()) {
 				final int idSector = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart);
+				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
 			}
 		}
 		// FA
@@ -1446,10 +1449,11 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (s.getNewMedia() != null) {
+			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : s.getNewMedia()) {
 				final int idProblem = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart);
+				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
 			}
 		}
 		return getSector(authUserId, regionId, idSector);
@@ -1587,12 +1591,11 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
 				|| (idProblem == 0 && idSector > 0 && idArea == 0)
 				|| (idProblem == 0 && idSector == 0 && idArea > 0));
-		Timestamp now = new Timestamp(System.currentTimeMillis());
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
 			 * DB
