@@ -612,13 +612,13 @@ public class BuldreinfoRepository {
 				ps.close();
 				// Comments
 				ps = c.getConnection().prepareStatement(
-						"SELECT g.id, CAST(g.post_time AS char) date, u.id, u.picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
+						"SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, u.picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
 				ps.setInt(1, p.getId());
 				rst = ps.executeQuery();
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
-					int idUser = rst.getInt("id");
+					int idUser = rst.getInt("user_id");
 					String picture = rst.getString("picture");
 					String name = rst.getString("name");
 					String message = rst.getString("message");
