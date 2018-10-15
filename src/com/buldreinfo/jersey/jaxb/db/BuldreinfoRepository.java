@@ -1876,23 +1876,31 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		List<String> jsonLst = new ArrayList<>(20);
-		for (String jsonItem : jsonSet) {
-			jsonLst.add(jsonItem);
-			if (jsonLst.size() >= 20) {
-				break;
-			}
-		}
-		final String json = "[" + Joiner.on(",").join(jsonLst) + "]";
-		final List<Activity> res = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
+		final String json = "[" + Joiner.on(",").join(jsonSet) + "]";
+		final List<Activity> activities = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
 		final LocalDate today = LocalDate.now();
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-		for (Activity a : res) {
-			long daysBetween = ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today);
-			a.setTimeAgo(TimeAgo.toDuration(daysBetween));
-			if (a.getGrade() != null) {
-				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
+		List<Activity> res = new ArrayList<>();
+		Activity lastActivity = null;
+		for (Activity a : activities) {
+			if (lastActivity != null &&
+					a.getProblemId() == lastActivity.getProblemId() &&
+					a.getMedia() != null && !a.getMedia().isEmpty() &&
+					lastActivity.getUsers() != null && !lastActivity.getUsers().isEmpty()) {
+				lastActivity.setMedia(a.getMedia());
 			}
+			else {
+				if (res.size() >= 20) {
+					break;
+				}
+				long daysBetween = ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today);
+				a.setTimeAgo(TimeAgo.toDuration(daysBetween));
+				if (a.getGrade() != null) {
+					a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
+				}
+				res.add(a);
+			}
+			lastActivity = a;
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
 		return res;

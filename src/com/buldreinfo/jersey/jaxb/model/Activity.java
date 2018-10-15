@@ -52,7 +52,7 @@ public class Activity {
 	private final int problemVisibility;
 	private final String problemName;
 	private final int problemRandomMediaId;
-	private final List<Media> media;
+	private List<Media> media;
 	private final int id;
 	private String grade;
 	private final int stars;
@@ -127,6 +127,9 @@ public class Activity {
 	}
 	public void setGrade(String grade) {
 		this.grade = grade;
+	}
+	public void setMedia(List<Media> media) {
+		this.media = media;
 	}
 	public void setTimeAgo(String timeAgo) {
 		this.timeAgo = timeAgo;
