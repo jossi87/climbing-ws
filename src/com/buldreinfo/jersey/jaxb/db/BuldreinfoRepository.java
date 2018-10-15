@@ -17,12 +17,14 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
 
@@ -32,6 +34,7 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
+import com.buldreinfo.jersey.jaxb.helpers.BoundedTreeSet;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
@@ -235,10 +238,60 @@ public class BuldreinfoRepository {
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
 	}
+	
+	private Collection<String> getActivity(int authUserId, Setup setup) throws SQLException {
+		Comparator<String> comp = (String o1, String o2) -> (o2.compareTo(o1));
+		Set<String> json = new BoundedTreeSet<>(20, comp);
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT CONCAT('{\"timestamp\":\"', DATE_FORMAT(p.fa_date,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', MAX(CASE WHEN m.is_movie=0 THEN m.id END), ',\"grade\":', p.grade, ',\"description\":\"', COALESCE(p.description,''), '\",\"users\":[', group_concat(DISTINCT CONCAT('{\"id\":', fu.id, ',\"name\":\"', TRIM(CONCAT(fu.firstname, ' ', COALESCE(fu.lastname,''))), '\",\"picture\":\"', COALESCE(fu.picture,''), '\"}') ORDER BY fu.firstname, fu.lastname SEPARATOR ','), ']}') fa,"
+				+ " CONCAT('{\"timestamp\":\"', DATE_FORMAT(t.date,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', t.grade, ',\"stars\":', t.stars, ',\"description\":\"', COALESCE(t.comment,''), '\",\"id\":', tu.id, ',\"name\":\"', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,''))), '\",\"picture\":\"', COALESCE(tu.picture,''), '\"}') tick,"
+				+ " CONCAT('{\"timestamp\":\"', DATE_FORMAT(g.post_time,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"message\":\"', g.message, '\",\"id\":', gu.id, ',\"name\":\"', TRIM(CONCAT(gu.firstname, ' ', COALESCE(gu.lastname,''))), '\",\"picture\":\"', COALESCE(gu.picture,''), '\"}') guestbook,"
+				+ " CONCAT('{\"timestamp\":\"', DATE_FORMAT(m.date_created,'%Y.%m.%d'), '\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', MAX(CASE WHEN m.is_movie=0 THEN m.id END), ',\"media\":[', group_concat(DISTINCT CONCAT('{\"id\":', m.id, ',\"isMovie\":', m.is_movie, '}') SEPARATOR ','), ']}') media"
+				+ " FROM ((((((((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user fu ON f.user_id=fu.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user tu ON t.user_id=tu.id) LEFT JOIN guestbook g ON p.id=g.problem_id) LEFT JOIN user gu ON g.user_id=gu.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=1) AND (r.id=1 OR auth.user_id IS NOT NULL)"
+				+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
+				+ " GROUP BY p.id, p.name, p.hidden,"
+				+ "   p.fa_date, p.grade, p.description,"
+				+ "   t.date, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture,"
+				+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture,"
+				+ "   m.date_created"
+				+ " ORDER BY GREATEST("
+				+ "   COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),0),"
+				+ "   COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),0),"
+				+ "   COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),0),"
+				+ "   COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),0)"
+				+ " ) DESC"
+				+ " LIMIT 50");
+		ps.setInt(1, authUserId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			String faJson = rst.getString("fa");
+			String tickJson = rst.getString("tick");
+			String guestbookJson = rst.getString("guestbook");
+			String mediaJson = rst.getString("media");
+			if (faJson != null) {
+				json.add(faJson);
+			}
+			if (tickJson != null) {
+				json.add(tickJson);
+			}
+			if (guestbookJson != null) {
+				json.add(guestbookJson);
+			}
+			if (mediaJson != null) {
+				json.add(mediaJson);
+			}
+		}
+		rst.close();
+		ps.close();
+		logger.debug("getActivity(authUserId={}, setup={}) - json.size()={}", authUserId, setup, json.size());
+		return json;
+	}
 
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv());
+		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv(), getActivity(authUserId, setup));
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());

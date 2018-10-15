@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
@@ -38,6 +39,9 @@ public class Frontpage implements IMetadata {
 		public int getIdUser() {
 			return idUser;
 		}
+		public String getPicture() {
+			return picture;
+		}
 		public String getProblem() {
 			return problem;
 		}
@@ -46,9 +50,6 @@ public class Frontpage implements IMetadata {
 		}
 		public int getVisibility() {
 			return visibility;
-		}
-		public String getPicture() {
-			return picture;
 		}
 		@Override
 		public String toString() {
@@ -81,14 +82,14 @@ public class Frontpage implements IMetadata {
 		public int getIdProblem() {
 			return idProblem;
 		}
+		public String getPicture() {
+			return picture;
+		}
 		public String getProblem() {
 			return problem;
 		}
 		public int getVisibility() {
 			return visibility;
-		}
-		public String getPicture() {
-			return picture;
 		}
 	}
 	
@@ -153,14 +154,14 @@ public class Frontpage implements IMetadata {
 		public int getProblemVisibility() {
 			return problemVisibility;
 		}
+		public int getRandomMediaId() {
+			return randomMediaId;
+		}
 		public String getSector() {
 			return sector;
 		}
 		public int getSectorVisibility() {
 			return sectorVisibility;
-		}
-		public int getRandomMediaId() {
-			return randomMediaId;
 		}
 		@Override
 		public String toString() {
@@ -190,6 +191,9 @@ public class Frontpage implements IMetadata {
 		public String getGrade() {
 			return grade;
 		}
+		public int getIdMedia() {
+			return idMedia;
+		}
 		public int getIdProblem() {
 			return idProblem;
 		}
@@ -201,9 +205,6 @@ public class Frontpage implements IMetadata {
 		}
 		public int getVisibility() {
 			return visibility;
-		}
-		public int getIdMedia() {
-			return idMedia;
 		}
 		@Override
 		public String toString() {
@@ -296,10 +297,15 @@ public class Frontpage implements IMetadata {
 	private int numImages;
 	private int numMovies;
 	private RandomMedia randomMedia;
+	@Deprecated // TODO Remove when gui is updated
 	private final List<Ascent> ascents = new ArrayList<>();
+	@Deprecated // TODO Remove when gui is updated
 	private final List<Fa> fas = new ArrayList<>();
+	@Deprecated // TODO Remove when gui is updated
 	private final List<Media> medias = new ArrayList<>();
+	@Deprecated // TODO Remove when gui is updated
 	private final List<Comment> comments = new ArrayList<>();
+	private final Collection<String> activity;
 	private Metadata metadata;
 	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoPlay;
@@ -308,10 +314,11 @@ public class Frontpage implements IMetadata {
 	@Deprecated // TODO Remove when gui is updated
 	private final boolean showLogoBrv;
 	
-	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv) {
+	public Frontpage(boolean showLogoPlay, boolean showLogoSis, boolean showLogoBrv, Collection<String> activity) {
 		this.showLogoPlay = showLogoPlay;
 		this.showLogoSis = showLogoSis;
 		this.showLogoBrv = showLogoBrv;
+		this.activity = activity;
 	}
 	
 	public void addAscent(int idProblem, int visibility, String problem, String grade, String date, int idUser, String user, String picture) {
@@ -328,6 +335,10 @@ public class Frontpage implements IMetadata {
 	
 	public void addMedia(int idProblem, int visibility, String problem, String grade, String type, int idMedia) {
 		this.medias.add(new Media(idProblem, visibility, problem, grade, type, idMedia));
+	}
+	
+	public Collection<String> getActivity() {
+		return activity;
 	}
 	
 	@Override
