@@ -299,11 +299,17 @@ public class Frontpage implements IMetadata {
 		public String getInPhoto() {
 			return inPhoto;
 		}
+		public User getPhotographer() {
+			return photographer;
+		}
 		public String getProblem() {
 			return problem;
 		}
 		public String getSector() {
 			return sector;
+		}
+		public List<User> getTagged() {
+			return tagged;
 		}
 		public int getWidth() {
 			return width;
