@@ -1884,9 +1884,9 @@ public class BuldreinfoRepository {
 		Activity lastActivity = null;
 		for (Activity a : activities) {
 			if (lastActivity != null &&
-					a.getProblemId() == lastActivity.getProblemId() &&
-					a.getMedia() != null && !a.getMedia().isEmpty() &&
-					lastActivity.getUsers() != null && !lastActivity.getUsers().isEmpty()) {
+					a.getProblemId() == lastActivity.getProblemId() && a.getTimeAgo().equals(lastActivity.getTimeAgo()) && 
+					lastActivity.getMedia() != null && !lastActivity.getMedia().isEmpty() &&
+					a.getUsers() != null && !a.getUsers().isEmpty()) {
 				lastActivity.setMedia(a.getMedia());
 			}
 			else {
@@ -1899,8 +1899,8 @@ public class BuldreinfoRepository {
 					a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 				}
 				res.add(a);
+				lastActivity = a;
 			}
-			lastActivity = a;
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
 		return res;
