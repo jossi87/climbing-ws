@@ -1598,7 +1598,7 @@ public class BuldreinfoRepository {
 			 */
 			int idMedia = -1;
 			final String suffix = "jpg";
-			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id) VALUES (?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setBoolean(1, false);
 			ps.setString(2, suffix);
 			ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
