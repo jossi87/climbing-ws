@@ -37,7 +37,6 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
@@ -1914,7 +1913,7 @@ public class BuldreinfoRepository {
 		final LocalDate today = LocalDate.now();
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		for (Activity a : res) {
-			long daysBetween = ChronoUnit.DAYS.between(today, LocalDate.parse(a.getTimestamp(), formatter));
+			long daysBetween = ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today);
 			a.setTimeAgo(TimeAgo.toDuration(daysBetween));
 			if (a.getGrade() != null) {
 				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
