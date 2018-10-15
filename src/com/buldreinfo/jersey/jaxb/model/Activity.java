@@ -57,9 +57,10 @@ public class Activity {
 	private final String name;
 	private final String picture;
 	private final String description;
+	private final String message;
 	private final List<User> users;
 	public Activity(String timestamp, int problemId, int problemVisiblity, String problemName, int problemRandomMediaId,
-			List<Media> media, String grade, int stars, String name, String picture, String description,
+			List<Media> media, String grade, int stars, String name, String picture, String description, String message,
 			List<User> users) {
 		super();
 		this.timestamp = timestamp;
@@ -73,6 +74,7 @@ public class Activity {
 		this.name = name;
 		this.picture = picture;
 		this.description = description;
+		this.message = message;
 		this.users = users;
 	}
 	public String getDescription() {
@@ -83,6 +85,9 @@ public class Activity {
 	}
 	public List<Media> getMedia() {
 		return media;
+	}
+	public String getMessage() {
+		return message;
 	}
 	public String getName() {
 		return name;
@@ -119,6 +124,6 @@ public class Activity {
 		return "Activity [timestamp=" + timestamp + ", problemId=" + problemId + ", problemVisiblity="
 				+ problemVisiblity + ", problemName=" + problemName + ", problemRandomMediaId=" + problemRandomMediaId
 				+ ", media=" + media + ", grade=" + grade + ", stars=" + stars + ", name=" + name + ", picture="
-				+ picture + ", description=" + description + ", users=" + users + "]";
+				+ picture + ", description=" + description + ", message=" + message + ", users=" + users + "]";
 	}
 }
