@@ -1592,17 +1592,19 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
 				|| (idProblem == 0 && idSector > 0 && idArea == 0)
 				|| (idProblem == 0 && idSector == 0 && idArea > 0));
+		Timestamp now = new Timestamp(System.currentTimeMillis());
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
 			 * DB
 			 */
 			int idMedia = -1;
 			final String suffix = "jpg";
-			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
+			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setBoolean(1, false);
 			ps.setString(2, suffix);
 			ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
 			ps.setInt(4, idUser);
+			ps.setTimestamp(5, now);
 			ps.executeUpdate();
 			ResultSet rst = ps.getGeneratedKeys();
 			if (rst != null && rst.next()) {
