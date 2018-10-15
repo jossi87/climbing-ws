@@ -1876,14 +1876,12 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		final String json = "[" + Joiner.on(",").join(jsonSet) + "]";
-		logger.debug(json);
-		final List<Activity> activities = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
 		final LocalDate today = LocalDate.now();
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		List<Activity> res = new ArrayList<>();
 		Activity lastActivity = null;
-		for (Activity a : activities) {
+		for (String json : jsonSet) {
+			Activity a = gson.fromJson(json, Activity.class);
 			if (lastActivity != null &&
 					a.getProblemId() == lastActivity.getProblemId() && a.getTimestamp().equals(lastActivity.getTimestamp()) && 
 					a.getMedia() != null && !a.getMedia().isEmpty() &&
