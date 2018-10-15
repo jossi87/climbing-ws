@@ -1884,7 +1884,7 @@ public class BuldreinfoRepository {
 		Activity lastActivity = null;
 		for (Activity a : activities) {
 			if (lastActivity != null &&
-					a.getProblemId() == lastActivity.getProblemId() && a.getTimeAgo().equals(lastActivity.getTimeAgo()) && 
+					a.getProblemId() == lastActivity.getProblemId() && a.getTimestamp().equals(lastActivity.getTimestamp()) && 
 					a.getMedia() != null && !a.getMedia().isEmpty() &&
 					lastActivity.getUsers() != null && !lastActivity.getUsers().isEmpty()) {
 				lastActivity.setMedia(a.getMedia());
