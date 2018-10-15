@@ -15,6 +15,9 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -34,9 +37,11 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
+import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -403,17 +408,17 @@ public class BuldreinfoRepository {
 		 * RandomMedia
 		 */
 		setRandomMedia(res, authUserId, setup.getIdRegion(), !setup.isBouldering()); // Show
-																						// all
-																						// images
-																						// on
-																						// climbing
-																						// sites,
-																						// not
-																						// only
-																						// routes
-																						// with
-																						// >2
-																						// stars
+		// all
+		// images
+		// on
+		// climbing
+		// sites,
+		// not
+		// only
+		// routes
+		// with
+		// >2
+		// stars
 		if (res.getRandomMedia() == null) {
 			setRandomMedia(res, authUserId, setup.getIdRegion(), true);
 		}
@@ -1668,7 +1673,7 @@ public class BuldreinfoRepository {
 
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m,
 			FormDataMultiPart multiPart, Timestamp now)
-			throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+					throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser,
 				idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
@@ -1771,7 +1776,7 @@ public class BuldreinfoRepository {
 				if (orientation != null && orientation != ExifOrientation.HORIZONTAL_NORMAL) {
 					logger.info("Rotating " + p.toString() + " using " + orientation);
 					creation.rotate(orientation).preserveExif()
-							.saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
+					.saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
 				}
 			}
 			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
@@ -1904,9 +1909,13 @@ public class BuldreinfoRepository {
 				break;
 			}
 		}
-		String json = "[" + Joiner.on(",").join(jsonLst) + "]";
-		List<Activity> res = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
+		final String json = "[" + Joiner.on(",").join(jsonLst) + "]";
+		final List<Activity> res = gson.fromJson(json, new TypeToken<ArrayList<Activity>>(){}.getType());
+		final LocalDate today = LocalDate.now();
+		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		for (Activity a : res) {
+			long daysBetween = ChronoUnit.DAYS.between(today, LocalDate.parse(a.getTimestamp(), formatter));
+			a.setTimeAgo(TimeAgo.toDuration(daysBetween));
 			if (a.getGrade() != null) {
 				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 			}

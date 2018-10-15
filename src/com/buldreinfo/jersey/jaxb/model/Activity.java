@@ -47,6 +47,7 @@ public class Activity {
 		}
 	}
 	private final String timestamp;
+	private String timeAgo;
 	private final int problemId;
 	private final int problemVisibility;
 	private final String problemName;
@@ -82,11 +83,11 @@ public class Activity {
 	public String getDescription() {
 		return description;
 	}
-	public int getId() {
-		return id;
-	}
 	public String getGrade() {
 		return grade;
+	}
+	public int getId() {
+		return id;
 	}
 	public List<Media> getMedia() {
 		return media;
@@ -115,6 +116,9 @@ public class Activity {
 	public int getStars() {
 		return stars;
 	}
+	public String getTimeAgo() {
+		return timeAgo;
+	}
 	public String getTimestamp() {
 		return timestamp;
 	}
@@ -124,12 +128,15 @@ public class Activity {
 	public void setGrade(String grade) {
 		this.grade = grade;
 	}
+	public void setTimeAgo(String timeAgo) {
+		this.timeAgo = timeAgo;
+	}
 	@Override
 	public String toString() {
-		return "Activity [timestamp=" + timestamp + ", problemId=" + problemId + ", problemVisibility="
-				+ problemVisibility + ", problemName=" + problemName + ", problemRandomMediaId=" + problemRandomMediaId
-				+ ", media=" + media + ", id=" + id + ", grade=" + grade + ", stars=" + stars + ", name=" + name
-				+ ", picture=" + picture + ", description=" + description + ", message=" + message + ", users=" + users
-				+ "]";
+		return "Activity [timestamp=" + timestamp + ", timeAgo=" + timeAgo + ", problemId=" + problemId
+				+ ", problemVisibility=" + problemVisibility + ", problemName=" + problemName
+				+ ", problemRandomMediaId=" + problemRandomMediaId + ", media=" + media + ", id=" + id + ", grade="
+				+ grade + ", stars=" + stars + ", name=" + name + ", picture=" + picture + ", description="
+				+ description + ", message=" + message + ", users=" + users + "]";
 	}
 }
