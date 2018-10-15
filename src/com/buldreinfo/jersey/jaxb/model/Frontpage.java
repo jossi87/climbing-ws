@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia.User;
 
 public class Frontpage implements IMetadata {
 	public class Ascent {
@@ -214,6 +215,25 @@ public class Frontpage implements IMetadata {
 	}
 	
 	public class RandomMedia {
+		public class User {
+			private final int id;
+			private final String name;
+			private final String picture;
+			public User(int id, String name, String picture) {
+				this.id = id;
+				this.name = name;
+				this.picture = picture;
+			}
+			public int getId() {
+				return id;
+			}
+			public String getName() {
+				return name;
+			}
+			public String getPicture() {
+				return picture;
+			}
+		}
 		private final int idMedia;
 		private final int width;
 		private final int height;
@@ -224,10 +244,15 @@ public class Frontpage implements IMetadata {
 		private final int idProblem;
 		private final String problem;
 		private final String grade;
+		@Deprecated // TODO Remove when gui is updated
 		private final int idCreator;
+		@Deprecated // TODO Remove when gui is updated
 		private final String creator;
+		@Deprecated // TODO Remove when gui is updated
 		private final String inPhoto;
-		public RandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
+		private final User photographer;
+		private final List<User> tagged;
+		public RandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto, User photographer, List<User> tagged) {
 			this.idMedia = idMedia;
 			this.width = width;
 			this.height = height;
@@ -241,6 +266,8 @@ public class Frontpage implements IMetadata {
 			this.idCreator = idCreator;
 			this.creator = creator;
 			this.inPhoto = inPhoto;
+			this.photographer = photographer;
+			this.tagged = tagged;
 		}
 		public String getArea() {
 			return area;
@@ -415,8 +442,8 @@ public class Frontpage implements IMetadata {
 		this.numTicks = numTicks;
 	}
 
-	public void setRandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto) {
-		randomMedia = new RandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, grade, idCreator, creator, inPhoto);
+	public void setRandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, int idCreator, String creator, String inPhoto, User photographer, List<User> tagged) {
+		randomMedia = new RandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, grade, idCreator, creator, inPhoto, photographer, tagged);
 	}
 
 	@Override

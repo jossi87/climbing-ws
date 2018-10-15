@@ -259,8 +259,7 @@ public class BuldreinfoRepository {
 		List<Find> res = new ArrayList<>();
 		// Areas
 		List<Find> areas = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT a.id, a.name, a.hidden, MAX(m.id) media_id FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 8");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.hidden, MAX(m.id) media_id FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY a.id, a.name, a.hidden ORDER BY a.name LIMIT 8");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
@@ -278,8 +277,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		// Sectors
 		List<Find> sectors = new ArrayList<>();
-		ps = c.getConnection().prepareStatement(
-				"SELECT s.id, a.name area_name, s.name sector_name, s.hidden, MAX(m.id) media_id FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, a.name, s.name, s.hidden ORDER BY a.name, s.name LIMIT 8");
+		ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.hidden, MAX(m.id) media_id FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, a.name, s.name, s.hidden ORDER BY a.name, s.name LIMIT 8");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
@@ -298,8 +296,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		// Problems
 		List<Find> problems = new ArrayList<>();
-		ps = c.getConnection().prepareStatement(
-				"SELECT a.name area_name, s.name sector_name, p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.name, s.name, p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 8");
+		ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.grade, p.hidden, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY a.name, s.name, p.id, p.name, p.grade, p.hidden ORDER BY p.name, p.grade LIMIT 8");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
 		ps.setString(3, sr.getValue() + "%");
@@ -321,8 +318,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		// Users
 		List<Find> users = new ArrayList<>();
-		ps = c.getConnection().prepareStatement(
-				"SELECT picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8");
+		ps = c.getConnection().prepareStatement("SELECT picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8");
 		ps.setString(1, sr.getValue() + "%");
 		ps.setString(2, sr.getValue() + "%");
 		ps.setString(3, sr.getValue() + "%");
@@ -364,10 +360,8 @@ public class BuldreinfoRepository {
 
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv(),
-				getActivity(authUserId, setup));
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
+		Frontpage res = new Frontpage(setup.isShowLogoPlay(), setup.isShowLogoSis(), setup.isShowLogoBrv(), getActivity(authUserId, setup));
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -379,8 +373,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		ps = c.getConnection().prepareStatement(
-				"SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND m.deleted_user_id IS NULL AND (a.region_id=? OR auth.user_id IS NOT NULL)");
+		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND m.deleted_user_id IS NULL AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -391,8 +384,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		ps = c.getConnection().prepareStatement(
-				"SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
+		ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -406,18 +398,7 @@ public class BuldreinfoRepository {
 		/**
 		 * RandomMedia
 		 */
-		setRandomMedia(res, authUserId, setup.getIdRegion(), !setup.isBouldering()); // Show
-		// all
-		// images
-		// on
-		// climbing
-		// sites,
-		// not
-		// only
-		// routes
-		// with
-		// >2
-		// stars
+		setRandomMedia(res, authUserId, setup.getIdRegion(), !setup.isBouldering()); // Show all images on climbing sites, not only routes with >2 stars
 		if (res.getRandomMedia() == null) {
 			setRandomMedia(res, authUserId, setup.getIdRegion(), true);
 		}
@@ -440,8 +421,7 @@ public class BuldreinfoRepository {
 			String user = rst.getString("user");
 			int grade = rst.getInt("grade");
 			String picture = rst.getString("picture");
-			res.addAscent(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date,
-					idUser, user, picture);
+			res.addAscent(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, idUser, user, picture);
 		}
 		rst.close();
 		ps.close();
@@ -473,8 +453,7 @@ public class BuldreinfoRepository {
 			String date = rst.getString("date");
 			int grade = rst.getInt("grade");
 			int randomMediaId = rst.getInt("media_id");
-			res.addFa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility,
-					problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, randomMediaId);
+			res.addFa(idArea, areaVisibility, area, idSector, sectorVisibility, sector, idProblem, problemVisibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), date, randomMediaId);
 		}
 		rst.close();
 		ps.close();
@@ -498,8 +477,7 @@ public class BuldreinfoRepository {
 			int grade = rst.getInt("grade");
 			String type = rst.getBoolean("is_movie") ? "video" : "image";
 			int idMedia = rst.getInt("id_media");
-			res.addMedia(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), type,
-					idMedia);
+			res.addMedia(idProblem, visibility, problem, GradeHelper.intToString(setup.getIdRegion(), grade), type, idMedia);
 		}
 		rst.close();
 		ps.close();
@@ -507,8 +485,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Comments
 		 */
-		ps = c.getConnection().prepareStatement(
-				"SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name, p.grade, u.picture FROM ((((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN user u ON g.user_id=u.id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, p.grade, u.picture ORDER BY MAX(g.post_time) DESC LIMIT 10");
+		ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(MAX(g.post_time),'%d/%m-%y %H:%i') date, p.id, p.hidden, p.name, p.grade, u.picture FROM ((((((guestbook g INNER JOIN problem p ON g.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN user u ON g.user_id=u.id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND (p.hidden=0 OR auth.write>=p.hidden) GROUP BY p.id, p.hidden, p.name, p.grade, u.picture ORDER BY MAX(g.post_time) DESC LIMIT 10");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -596,9 +573,7 @@ public class BuldreinfoRepository {
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
 			String faStr = rst.getString("fa");
-			List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null
-					: gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>() {
-					}.getType());
+			List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>(){}.getType());
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 			int numTicks = rst.getInt("num_ticks");
 			double stars = rst.getDouble("stars");
@@ -2065,13 +2040,16 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution)
-			throws SQLException {
-		String sqlStr = "SELECT m.id id_media, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) photographer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo, p.grade"
+	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution) throws SQLException {
+		String sqlStr = "SELECT m.id id_media, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, p.grade,"
+				+ " m.photographer_user_id id_creator, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) creator,"
+				+ " GROUP_CONCAT(DISTINCT TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname SEPARATOR ', ') in_photo,"
+				+ " CONCAT('{\"id\":', u.id, ',\"name\":', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":', u.picture, '\"}') photographer,"
+				+ " GROUP_CONCAT(DISTINCT CONCAT('{\"id\":', u2.id, ',\"name\":', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))), '\",\"picture\":', u.picture, '\"}') SEPARATOR ', ') tagged"
 				+ " FROM ((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.hidden=0) INNER JOIN sector s ON p.sector_id=s.id AND s.hidden=0) INNER JOIN area a ON s.area_id=a.id AND a.hidden=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND m.deleted_user_id IS NULL"
-				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u2.firstname, u2.lastname, p.grade"
-				+ " HAVING AVG(t.stars)>=2" + " ORDER BY rand()" + " LIMIT 1";
+				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, p.grade"
+				+ " HAVING AVG(t.stars)>=2 ORDER BY rand() LIMIT 1";
 		if (fallbackSolution) {
 			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
 			sqlStr = sqlStr.replace("HAVING AVG(t.stars)>=2", "");
@@ -2093,10 +2071,13 @@ public class BuldreinfoRepository {
 			String problem = rst.getString("problem");
 			int grade = rst.getInt("grade");
 			int idCreator = rst.getInt("id_creator");
-			String photographer = rst.getString("photographer");
+			String creator = rst.getString("creator");
 			String inPhoto = rst.getString("in_photo");
-			res.setRandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem,
-					GradeHelper.intToString(regionId, grade), idCreator, photographer, inPhoto);
+			String photographerJson = rst.getString("photographer");
+			String taggedJson = rst.getString("tagged");
+			Frontpage.RandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.RandomMedia.User.class);
+			List<Frontpage.RandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.RandomMedia.User>>(){}.getType());
+			res.setRandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(regionId, grade), idCreator, creator, inPhoto, photographer, tagged);
 		}
 		rst.close();
 		ps.close();
