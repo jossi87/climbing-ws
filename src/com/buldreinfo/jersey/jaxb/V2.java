@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb;
 
+import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
+import org.imgscalr.Scalr.Mode;
 
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
@@ -203,20 +205,16 @@ public class V2 {
 	@GET
 	@Path("/images")
 	@Produces("image/jpeg")
-	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
+	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			boolean webP = false;
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
+			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			c.setSuccess();
-			if (targetHeight != 0 || targetWidth != 0) {
+			if (minDimention != 0 && dimention != null && minDimention < dimention.getX() && minDimention < dimention.getY()) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				BufferedImage scaled = null;
-				if (targetHeight != 0) {
-					scaled = Scalr.resize(b, Scalr.Mode.FIT_TO_HEIGHT, targetHeight);
-				}
-				else {
-					scaled = Scalr.resize(b, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-				}
+				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
 				b.flush();
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				ImageIO.write(scaled, "jpg", baos);

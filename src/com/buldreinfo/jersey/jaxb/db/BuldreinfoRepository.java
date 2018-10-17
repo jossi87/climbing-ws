@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.db;
 
 import java.awt.Color;
+import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -515,6 +516,19 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
+	}
+	
+	public Point getMediaDimention(int id) throws SQLException {
+		Point res = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?");
+		ps.setInt(1, id);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			res = new Point(rst.getInt("width"), rst.getInt("height"));
+		}
+		rst.close();
+		ps.close();
+		return res;
 	}
 
 	public List<Problem> getProblem(int authUserId, Setup s, int reqId, int reqGrade) throws IOException, SQLException {
@@ -1822,8 +1836,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Final DB
 		 */
-		PreparedStatement ps = c.getConnection()
-				.prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?");
 		ps.setString(1, dateTaken);
 		ps.setInt(2, crc32);
 		ps.setInt(3, width);
