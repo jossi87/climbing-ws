@@ -202,14 +202,12 @@ public class V2 {
 
 	@GET
 	@Path("/images")
+	@Produces("image/jpeg")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("targetHeight") int targetHeight, @QueryParam("targetWidth") int targetWidth) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			String acceptHeader = request.getHeader("Accept");
-			boolean webP = acceptHeader != null && acceptHeader.contains("image/webp") && targetHeight == 0;
-			String mimeType = webP? "image/webp" : "image/jpeg";
+			boolean webP = false;
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
-			logger.debug("getImages(id={}, targetHeight={}, targetWidth={}) - acceptHeader={}, webP={}, mimeType={}, p={}", id, targetHeight, targetWidth, acceptHeader, webP, mimeType, p);
 			if (targetHeight != 0 || targetWidth != 0) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				BufferedImage scaled = null;
@@ -224,9 +222,9 @@ public class V2 {
 				ImageIO.write(scaled, "jpg", baos);
 				byte[] imageData = baos.toByteArray();
 				baos.close();
-				return Response.ok(imageData, mimeType).build();
+				return Response.ok(imageData).build();
 			}
-			return Response.ok(p.toFile(), mimeType).build();
+			return Response.ok(p.toFile()).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
