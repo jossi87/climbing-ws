@@ -214,7 +214,7 @@ public class V2 {
 			if (minDimention != 0 && dimention != null && minDimention < dimention.getX() && minDimention < dimention.getY()) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
+				BufferedImage scaled = Scalr.resize(b, Scalr.Method.SPEED, mode, minDimention);
 				b.flush();
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				ImageIO.write(scaled, "jpg", baos);
