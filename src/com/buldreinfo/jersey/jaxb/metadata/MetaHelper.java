@@ -14,7 +14,6 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Finder;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -38,42 +37,36 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldreinfo")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
-				.setShowLogoPlay(true).setShowLogoSis(true).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(7));
 		setups.add(new Setup("buldring.bergen-klatreklubb.no")
 				.setIdRegion(2)
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
-				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(60.47521, 6.83169).setDefaultZoom(7));
 		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
 				.setIdRegion(3)
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
-				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(59.22844, 10.91722).setDefaultZoom(7));
 		setups.add(new Setup("brattelinjer.no")
 				.setIdRegion(4)
 				.setBouldering(false)
 				.setTitle("Bratte Linjer")
 				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
-				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(9));
 		setups.add(new Setup("buldring.jotunheimenfjellsport.com")
 				.setIdRegion(5)
 				.setBouldering(true)
 				.setTitle("Buldring i Jotunheimen")
 				.setDescription("Bouldering in Jotunheimen (Norway)")
-				.setShowLogoPlay(true).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
 		setups.add(new Setup("klatring.jotunheimenfjellsport.com")
 				.setIdRegion(6)
 				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
-				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(false)
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
@@ -81,7 +74,6 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("DEV")
 				.setDescription("DEV")
-				.setShowLogoPlay(false).setShowLogoSis(false).setShowLogoBrv(true)
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(7)
 				.setSetRobotsDenyAll());
 	}
@@ -212,17 +204,6 @@ public class MetaHelper {
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
-		}
-		else if (m instanceof Finder) {
-			Finder f = (Finder)m;
-			String title = String.format("Finder [%s]", f.getGrade());
-			String description = String.format("%d %s",
-					f.getProblems().size(),
-					(setup.isBouldering()? "problems" : "routes"));
-			OpenGraph og = getOg(setup, "/finder/" + f.getIdGrade(), null);
-			f.setMetadata(new Metadata(c, setup, authUserId, title, og)
-					.setDescription(description)
-					.setDefaultCenter(setup.getDefaultCenter()));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

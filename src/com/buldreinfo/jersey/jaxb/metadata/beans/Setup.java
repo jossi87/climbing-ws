@@ -11,12 +11,6 @@ public class Setup {
 	private String description;
 	private LatLng defaultCenter;
 	private int defaultZoom;
-	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
-	private boolean showLogoPlay;
-	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
-	private boolean showLogoSis;
-	@Deprecated // TODO 2018.10.09 - JOOY - Remove when updated
-	private boolean showLogoBrv;
 	private boolean setRobotsDenyAll = false;
 	
 	public Setup(String domain) {
@@ -69,18 +63,6 @@ public class Setup {
 		return setRobotsDenyAll;
 	}
 	
-	public boolean isShowLogoBrv() {
-		return showLogoBrv;
-	}
-
-	public boolean isShowLogoPlay() {
-		return showLogoPlay;
-	}
-
-	public boolean isShowLogoSis() {
-		return showLogoSis;
-	}
-
 	public Setup setBouldering(boolean isBouldering) {
 		this.isBouldering = isBouldering;
 		return this;
@@ -111,21 +93,6 @@ public class Setup {
 		return this;
 	}
 
-	public Setup setShowLogoBrv(boolean showLogoBrv) {
-		this.showLogoBrv = showLogoBrv;
-		return this;
-	}
-
-	public Setup setShowLogoPlay(boolean showLogoPlay) {
-		this.showLogoPlay = showLogoPlay;
-		return this;
-	}
-
-	public Setup setShowLogoSis(boolean showLogoSis) {
-		this.showLogoSis = showLogoSis;
-		return this;
-	}
-	
 	public Setup setTitle(String title) {
 		this.title = title;
 		return this;
@@ -135,7 +102,6 @@ public class Setup {
 	public String toString() {
 		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", isBouldering=" + isBouldering + ", title="
 				+ title + ", description=" + description + ", defaultCenter=" + defaultCenter + ", defaultZoom="
-				+ defaultZoom + ", showLogoPlay=" + showLogoPlay + ", showLogoSis=" + showLogoSis + ", showLogoBrv="
-				+ showLogoBrv + ", setRobotsDenyAll=" + setRobotsDenyAll + "]";
+				+ defaultZoom + ", setRobotsDenyAll=" + setRobotsDenyAll + "]";
 	}
 }

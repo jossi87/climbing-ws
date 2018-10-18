@@ -12,12 +12,10 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Find;
-import com.buldreinfo.jersey.jaxb.model.Finder;
+import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -49,16 +47,6 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetFinder() throws Exception {
-		V2 tester = new V2();
-		Response r = tester.getFinder(getRequest(), 11);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Finder);
-		Finder f = (Finder)r.getEntity();
-		assertTrue(!f.getProblems().isEmpty());
-	}
-	
-	@Test
 	public void testGetFrontpage() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.getFrontpage(getRequest());
@@ -83,7 +71,7 @@ public class V2Test {
 	@Test
 	public void testGetProblems() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblems(getRequest(), 1193, 0);
+		Response r = tester.getProblems(getRequest(), 1193);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		List<?> list = (List<?>)r.getEntity();
@@ -92,22 +80,6 @@ public class V2Test {
 			Problem p = (Problem)e;
 			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
 		}
-		
-		r = tester.getProblems(getRequest(), 0, 19);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		list = (List<?>)r.getEntity();
-		assertTrue(!list.isEmpty());
-		for (Object e : list) {
-			Problem p = (Problem)e;
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
-		}
-		
-		r = tester.getProblems(getRequest(), 0, -1); // SuperAdmin only!
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		list = (List<?>)r.getEntity();
-		assertTrue(list.isEmpty()); // Only superadmins
 	}
 	
 	@Test
@@ -142,17 +114,6 @@ public class V2Test {
 		assertTrue(u.getNumVideosCreated()>0);
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
-	}
-	
-	@Test
-	public void testPostFind() throws Exception {
-		V2 tester = new V2();
-		Response r = tester.postFind(getRequest(), new SearchRequest(1, "Pan"));
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		@SuppressWarnings("unchecked")
-		List<Find> res = (List<Find>)r.getEntity();
-		assertTrue(!res.isEmpty());
 	}
 	
 	@Test

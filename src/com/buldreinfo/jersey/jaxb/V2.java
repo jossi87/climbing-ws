@@ -36,19 +36,16 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.Find;
-import com.buldreinfo.jersey.jaxb.model.Finder;
+import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
-import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -169,24 +166,6 @@ public class V2 {
 		}
 	}
 
-	@Deprecated // TODO 2018.10.09 - JOOY - REMOVE
-	@GET
-	@Path("/finder")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFinder(@Context HttpServletRequest request, @QueryParam("grade") int grade) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
-			List<Problem> problems = c.getBuldreinfoRepo().getProblem(authUserId, setup, 0, grade);
-			Finder res = new Finder(grade, GradeHelper.getGrades(setup.getIdRegion()).get(grade), problems);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -247,14 +226,12 @@ public class V2 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("grade") int grade) throws ExecutionException, IOException {
+	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			List<Problem> res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, grade);
-			if (res.size() == 1) {
-				metaHelper.updateMetadata(c, res.get(0), setup, authUserId);
-			}
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -382,21 +359,6 @@ public class V2 {
 	}
 	
 	@POST
-	@Path("/find")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postFind(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
-			List<Find> res = c.getBuldreinfoRepo().getFind(authUserId, setup.getIdRegion(), sr);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -451,8 +413,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
-	@Deprecated // TODO 2018.10.09 - Remove when /find is default
+
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -467,7 +428,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/sectors")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")

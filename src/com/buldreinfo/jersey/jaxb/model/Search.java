@@ -1,36 +1,43 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 public class Search {
-	private final String avatar;
+	private final String title;
+	private final String description;
 	private final String url;
-	private final String value;
+	private final String mediaUrl;
+	private final int mediaId;
 	private final int visibility;
 	
-	public Search(String avatar, String url, String value, int visibility) {
-		this.avatar = avatar;
+	public Search(String title, String description, String url, String mediaUrl, int mediaId, int visibility) {
+		this.title = title;
+		this.description = description;
 		this.url = url;
-		this.value = value;
+		this.mediaUrl = mediaUrl;
+		this.mediaId = mediaId;
 		this.visibility = visibility;
 	}
 	
-	public String getAvatar() {
-		return avatar;
+	public String getDescription() {
+		return description;
+	}
+	
+	public int getMediaId() {
+		return mediaId;
 	}
 
+	public String getMediaUrl() {
+		return mediaUrl;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+	
 	public String getUrl() {
 		return url;
 	}
 	
-	public String getValue() {
-		return value;
-	}
-	
 	public int getVisibility() {
 		return visibility;
-	}
-
-	@Override
-	public String toString() {
-		return "Search [avatar=" + avatar + ", url=" + url + ", value=" + value + ", visibility=" + visibility + "]";
 	}
 }
