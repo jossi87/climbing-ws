@@ -73,13 +73,9 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.getProblems(getRequest(), 1193);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		List<?> list = (List<?>)r.getEntity();
-		assertTrue(!list.isEmpty());
-		for (Object e : list) {
-			Problem p = (Problem)e;
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));			
-		}
+		assertTrue(r.getEntity() instanceof Problem);
+		Problem p = (Problem)r.getEntity();
+		assertTrue(!Strings.isNullOrEmpty(p.getName()));			
 	}
 	
 	@Test
