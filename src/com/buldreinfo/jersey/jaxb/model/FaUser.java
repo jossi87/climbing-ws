@@ -2,35 +2,29 @@ package com.buldreinfo.jersey.jaxb.model;
 
 public class FaUser {
 	private final int id;
-	private final String firstname;
-	private final String surname;
-	private final String initials;
+	private final String name;
+	private final String picture;
 	
-	public FaUser(int id, String firstname, String surname, String initials) {
+	public FaUser(int id, String name, String picture) {
 		this.id = id;
-		this.firstname = firstname;
-		this.surname = surname;
-		this.initials = initials;
+		this.name = name;
+		this.picture = picture;
 	}
 
 	public int getId() {
 		return id;
 	}
 
-	public String getFirstname() {
-		return firstname;
+	public String getName() {
+		return name;
 	}
 
-	public String getSurname() {
-		return surname;
-	}
-
-	public String getInitials() {
-		return initials;
+	public String getPicture() {
+		return picture;
 	}
 
 	@Override
 	public String toString() {
-		return "User [id=" + id + ", firstname=" + firstname + ", surname=" + surname + ", initials=" + initials + "]";
+		return "FaUser [id=" + id + ", name=" + name + ", picture=" + picture + "]";
 	}
 }

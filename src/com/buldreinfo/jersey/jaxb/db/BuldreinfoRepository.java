@@ -335,7 +335,7 @@ public class BuldreinfoRepository {
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', COALESCE(u.picture,''), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
-				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked," + " ty.id type_id, ty.type, ty.subtype"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype"
 				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN permission auth ON r.id=auth.region_id"
 				+ " WHERE (?=0 OR rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?))"
 				+ "   AND p.id=?"
@@ -727,8 +727,8 @@ public class BuldreinfoRepository {
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', u.lastname, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(u.lastname,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
-				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked," + " ty.id type_id, ty.type, ty.subtype,"
-				+ " danger.danger," + " MAX(CASE WHEN m.is_movie=0 THEN m.id END) media_id"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
+				+ " danger.danger, MAX(CASE WHEN m.is_movie=0 THEN m.id END) media_id"
 				+ " FROM ((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook GROUP BY problem_id)) danger ON p.id=danger.problem_id"
 				+ " WHERE p.sector_id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
@@ -1029,8 +1029,7 @@ public class BuldreinfoRepository {
 		return getArea(authUserId, idArea);
 	}
 
-	public Problem setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart)
-			throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
+	public Problem setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		int idProblem = -1;
 		if (p.getId() > 0) {
@@ -1142,7 +1141,7 @@ public class BuldreinfoRepository {
 						ps2.close();
 					}
 				} else { // New user
-					int idUser = addUser(null, x.getFirstname(), x.getSurname(), null);
+					int idUser = addUser(null, x.getName(), null, null);
 					Preconditions.checkArgument(idUser > 0);
 					PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)");
 					ps2.setInt(1, idProblem);
@@ -1622,14 +1621,17 @@ public class BuldreinfoRepository {
 						+ " FROM ((((((((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user fu ON f.user_id=fu.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user tu ON t.user_id=tu.id) LEFT JOIN guestbook g ON p.id=g.problem_id) LEFT JOIN user gu ON g.user_id=gu.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)"
 						+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 						+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
-						+ " GROUP BY p.id, p.name, p.hidden," + "   p.fa_date, p.grade, p.description,"
+						+ " GROUP BY p.id, p.name, p.hidden, p.fa_date, p.grade, p.description,"
 						+ "   t.date, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture,"
 						+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture,"
-						+ "   m.date_created" + " ORDER BY GREATEST("
+						+ "   m.date_created"
+						+ " ORDER BY GREATEST("
 						+ "   COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),0),"
 						+ "   COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),0),"
 						+ "   COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),0),"
-						+ "   COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),0)" + " ) DESC" + " LIMIT 50");
+						+ "   COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),0)"
+						+ " ) DESC"
+						+ " LIMIT 50");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
