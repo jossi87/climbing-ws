@@ -67,7 +67,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
-				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
+				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
