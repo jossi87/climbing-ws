@@ -333,7 +333,7 @@ public class BuldreinfoRepository {
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
-				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"firstname\":\"', u.firstname, '\",\"surname\":\"', CASE WHEN u.lastname IS NULL THEN '' ELSE u.lastname END, '\",\"initials\":\"', LEFT(u.firstname,1), LEFT(CASE WHEN u.lastname IS NULL THEN '' ELSE u.lastname END,1), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
+				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', COALESCE(u.picture,''), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked," + " ty.id type_id, ty.type, ty.subtype"
 				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN permission auth ON r.id=auth.region_id"
@@ -1190,8 +1190,7 @@ public class BuldreinfoRepository {
 			throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"UPDATE sector s, area a, permission auth SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.hidden=?, s.polygon_coords=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=s.hidden");
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, permission auth SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.hidden=?, s.polygon_coords=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=s.hidden");
 			ps.setString(1, s.getName());
 			ps.setString(2, Strings.emptyToNull(s.getComment()));
 			if (s.getLat() > 0) {
@@ -1545,9 +1544,7 @@ public class BuldreinfoRepository {
 
 	private int addUser(String email, String firstname, String lastname, String picture) throws SQLException {
 		int id = -1;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)",
-				PreparedStatement.RETURN_GENERATED_KEYS);
+		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
 		ps.setString(3, picture);
