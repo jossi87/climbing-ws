@@ -1673,8 +1673,10 @@ public class BuldreinfoRepository {
 				if (res.size() >= 20) {
 					break;
 				}
-				long daysBetween = ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today);
-				a.setTimeAgo(TimeAgo.toDuration(daysBetween));
+				if (!Strings.isNullOrEmpty(a.getTimestamp())) {
+					String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
+					a.setTimeAgo(timeAgo);
+				}
 				if (a.getGrade() != null) {
 					a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 				}
