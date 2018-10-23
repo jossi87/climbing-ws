@@ -12,11 +12,12 @@ public class Filter {
 	private final String problemName;
 	private final double stars;
 	private final String grade;
+	private final boolean ticked;
 	private final int randomMediaId;
 	
 	public Filter(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility,
 			String sectorName, int problemId, int problemVisibility, String problemName, double stars, String grade,
-			int randomMediaId) {
+			boolean ticked, int randomMediaId) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -28,6 +29,7 @@ public class Filter {
 		this.problemName = problemName;
 		this.stars = stars;
 		this.grade = grade;
+		this.ticked = ticked;
 		this.randomMediaId = randomMediaId;
 	}
 
@@ -74,6 +76,10 @@ public class Filter {
 	public String getGrade() {
 		return grade;
 	}
+	
+	public boolean isTicked() {
+		return ticked;
+	}
 
 	public int getRandomMediaId() {
 		return randomMediaId;
@@ -84,6 +90,7 @@ public class Filter {
 		return "Filter [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
 				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
 				+ ", problemId=" + problemId + ", problemVisibility=" + problemVisibility + ", problemName="
-				+ problemName + ", stars=" + stars + ", grade=" + grade + ", randomMediaId=" + randomMediaId + "]";
+				+ problemName + ", stars=" + stars + ", grade=" + grade + ", ticked=" + ticked + ", randomMediaId="
+				+ randomMediaId + "]";
 	}
 }

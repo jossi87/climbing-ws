@@ -1924,10 +1924,7 @@ public class BuldreinfoRepository {
 			int grade = rst.getInt("grade");
 			int mediaId = rst.getInt("media_id");
 			boolean ticked = rst.getBoolean("ticked");
-			if (fr.isHideTicked() && ticked || fr.isOnlyWithMedia() && mediaId == 0) {
-				continue;
-			}
-			res.add(new Filter(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, problemId, problemVisibility, problemName, stars, GradeHelper.intToString(idRegion, grade), mediaId));
+			res.add(new Filter(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, problemId, problemVisibility, problemName, stars, GradeHelper.intToString(idRegion, grade), ticked, mediaId));
 		}
 		rst.close();
 		ps.close();
