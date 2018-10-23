@@ -12,6 +12,8 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Filter;
+import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
@@ -21,6 +23,8 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
+
+import jersey.repackaged.com.google.common.collect.Lists;
 
 public class V2Test {
 	
@@ -110,6 +114,17 @@ public class V2Test {
 		assertTrue(u.getNumVideosCreated()>0);
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
+	}
+	
+	@Test
+	public void testPostFilter() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20), true, false));
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof List<?>);
+		@SuppressWarnings("unchecked")
+		List<Filter> res = (List<Filter>)r.getEntity();
+		assertTrue(!res.isEmpty());
 	}
 	
 	@Test

@@ -41,11 +41,13 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.Search;
+import com.buldreinfo.jersey.jaxb.model.Filter;
+import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -359,6 +361,21 @@ public class V2 {
 	}
 	
 	@POST
+	@Path("/filter")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postFilter(@Context HttpServletRequest request, FilterRequest fr) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -413,7 +430,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")

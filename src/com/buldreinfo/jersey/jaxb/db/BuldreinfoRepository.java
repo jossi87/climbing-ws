@@ -47,6 +47,8 @@ import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
+import com.buldreinfo.jersey.jaxb.model.Filter;
+import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -1887,5 +1889,49 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return idUser;
+	}
+
+	public List<Filter> getFilter(int authUserId, int idRegion, FilterRequest fr) throws SQLException {
+		List<Filter> res = new ArrayList<>();
+		String sqlStr = "SELECT a.id area_id, a.name area_name, a.hidden area_visibility, s.id sector_id, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.hidden problem_visibility, p.name problem_name, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars, p.grade grade, MAX(m.id) media_id, MAX(CASE WHEN t.user_id=auth.user_id THEN 1 ELSE 0 END) ticked¨"
+				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id"
+				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
+				+ "   AND (r.id=? OR auth.user_id IS NOT NULL)"
+				+ "   AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
+				+ "   AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden)))"
+				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
+				+ "   AND p.grade IN (" + Joiner.on(",").join(fr.getGrades()) + ")"
+				+ "   GROUP BY a.id, a.name, a.hidden, s.id, s.name, s.hidden, p.id, p.hidden, p.name"
+				+ "   ORDER BY p.name, p.grade";
+		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
+		ps.setInt(3, authUserId);
+		ps.setInt(4, authUserId);
+		ps.setInt(5, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int areaId = rst.getInt("area_id");
+			String areaName = rst.getString("area_name");
+			int areaVisibility = rst.getInt("area_visibility");
+			int sectorId = rst.getInt("sector_id");
+			String sectorName = rst.getString("sector_name");
+			int sectorVisibility = rst.getInt("sector_visibility");
+			int problemId = rst.getInt("problem_id");
+			String problemName = rst.getString("problem_name");
+			int problemVisibility = rst.getInt("problem_visibility");
+			double stars = rst.getDouble("stars");
+			int grade = rst.getInt("grade");
+			int mediaId = rst.getInt("media_id");
+			boolean ticked = rst.getBoolean("ticked");
+			if (fr.isHideTicked() && ticked || fr.isOnlyWithMedia() && mediaId == 0) {
+				continue;
+			}
+			res.add(new Filter(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName, problemId, problemVisibility, problemName, stars, GradeHelper.intToString(idRegion, grade), mediaId));
+		}
+		rst.close();
+		ps.close();
+		logger.debug("getFilter(authUserId={}, idRegion={}, fr={}) - res.size()={}", authUserId, idRegion, fr, res.size());
+		return res;
 	}
 }
