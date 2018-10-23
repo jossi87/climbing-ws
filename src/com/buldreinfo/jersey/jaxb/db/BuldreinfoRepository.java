@@ -774,6 +774,7 @@ public class BuldreinfoRepository {
 		urls.add(setup.getUrl("/ethics"));
 		urls.add(setup.getUrl("/gpl-3.0.txt"));
 		urls.add(setup.getUrl("/browse"));
+		urls.add(setup.getUrl("/filter"));
 		// Users
 		PreparedStatement ps = c.getConnection().prepareStatement(
 				"SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=t.problem_id GROUP BY t.user_id");
