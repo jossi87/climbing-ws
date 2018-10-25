@@ -208,8 +208,7 @@ public class BuldreinfoRepository {
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
 		int authUserId = -1;
 		String picture = null;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?");
 		ps.setString(1, profile.getEmail());
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -221,16 +220,14 @@ public class BuldreinfoRepository {
 		rst = null;
 		ps = null;
 		if (authUserId == -1 && profile.getName() != null) {
-			ps = c.getConnection().prepareStatement(
-					"SELECT id, picture FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?");
+			ps = c.getConnection().prepareStatement("SELECT id, picture FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?");
 			ps.setString(1, profile.getName());
 			rst = ps.executeQuery();
 			while (rst.next()) {
 				authUserId = rst.getInt("id");
 				picture = rst.getString("picture");
 				// Add email to user
-				PreparedStatement ps2 = c.getConnection()
-						.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
+				PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
 				ps2.setInt(1, authUserId);
 				ps2.setString(2, profile.getEmail());
 				ps2.execute();
@@ -240,8 +237,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		if (authUserId == -1) {
-			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(),
-					profile.getPicture());
+			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
 		} else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
