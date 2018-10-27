@@ -37,19 +37,19 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldreinfo")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(7));
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(10));
 		setups.add(new Setup("buldring.bergen-klatreklubb.no")
 				.setIdRegion(2)
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
-				.setLatLng(60.47521, 6.83169).setDefaultZoom(7));
+				.setLatLng(60.47521, 6.83169).setDefaultZoom(10));
 		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
 				.setIdRegion(3)
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.22844, 10.91722).setDefaultZoom(7));
+				.setLatLng(59.22844, 10.91722).setDefaultZoom(10));
 		setups.add(new Setup("brattelinjer.no")
 				.setIdRegion(4)
 				.setBouldering(false)
@@ -74,7 +74,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("DEV")
 				.setDescription("DEV")
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(7)
+				.setLatLng(58.78119, 5.86361).setDefaultZoom(10)
 				.setSetRobotsDenyAll());
 	}
 	
