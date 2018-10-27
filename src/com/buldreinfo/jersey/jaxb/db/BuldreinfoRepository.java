@@ -194,7 +194,7 @@ public class BuldreinfoRepository {
 			if (comment != null) {
 				int ix = comment.indexOf("<strong>Forhold:</strong>");
 				if (ix != -1) {
-					comment = comment.substring(ix+15);
+					comment = comment.substring(ix+25);
 					ix = comment.indexOf("<strong>");
 					comment = comment.substring(0, ix);
 				}
