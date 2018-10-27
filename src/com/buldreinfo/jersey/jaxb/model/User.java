@@ -7,6 +7,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class User implements IMetadata {
 	public class Tick {
+		private final int num;
 		private final int id;
 		private final int idProblem;
 		private final int visibility;
@@ -19,7 +20,8 @@ public class User implements IMetadata {
 		private final String grade;
 		private final int gradeNumber;
 
-		public Tick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		public Tick(int num, int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+			this.num = num;
 			this.id = id;
 			this.idProblem = idProblem;
 			this.visibility = visibility;
@@ -31,6 +33,10 @@ public class User implements IMetadata {
 			this.fa = fa;
 			this.grade = grade;
 			this.gradeNumber = gradeNumber;
+		}
+		
+		public int getNum() {
+			return num;
 		}
 
 		public String getComment() {
@@ -107,7 +113,7 @@ public class User implements IMetadata {
 	}
 	
 	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+		ticks.add(new Tick(ticks.size(), id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
 	public int getId() {
