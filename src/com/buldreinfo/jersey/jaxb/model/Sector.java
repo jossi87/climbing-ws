@@ -12,6 +12,7 @@ public class Sector implements IMetadata {
 		private final int nr;
 		private final String name;
 		private final String comment;
+		private final int gradeNumber;
 		private final String grade;
 		private final List<FaUser> fa;
 		private final int numImages;
@@ -25,12 +26,13 @@ public class Sector implements IMetadata {
 		private final boolean danger;
 		private final int randomMediaId;
 		
-		public Problem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
+		public Problem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
 			this.id = id;
 			this.visibility = visibility;
 			this.nr = nr;
 			this.name = name;
 			this.comment = comment;
+			this.gradeNumber = gradeNumber;
 			this.grade = grade;
 			this.fa = fa;
 			this.numImages = numImages;
@@ -71,6 +73,10 @@ public class Sector implements IMetadata {
 		
 		public String getName() {
 			return name;
+		}
+		
+		public int getGradeNumber() {
+			return gradeNumber;
 		}
 		
 		public int getNr() {
@@ -155,8 +161,8 @@ public class Sector implements IMetadata {
 		this.newMedia = newMedia;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t, danger, randomMediaId));
+	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, List<FaUser> fa, int numImages, int numMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger, int randomMediaId) {
+		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, numImages, numMovies, lat, lng, numTicks, stars, ticked, t, danger, randomMediaId));
 	}
 
 	public int getAreaId() {

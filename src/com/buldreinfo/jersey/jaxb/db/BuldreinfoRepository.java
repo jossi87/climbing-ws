@@ -761,7 +761,7 @@ public class BuldreinfoRepository {
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			boolean danger = rst.getBoolean("danger");
 			int randomMediaId = rst.getInt("media_id");
-			s.addProblem(id, visibility, nr, name, comment, GradeHelper.intToString(regionId, grade), fa, numImages,
+			s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(regionId, grade), fa, numImages,
 					numMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger, randomMediaId);
 		}
 		rst.close();
