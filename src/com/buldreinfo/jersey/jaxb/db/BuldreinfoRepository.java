@@ -736,7 +736,7 @@ public class BuldreinfoRepository {
 				+ " WHERE p.sector_id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ " GROUP BY p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype, danger.danger"
-				+ " ORDER BY p.nr";
+				+ " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, authUserId);
