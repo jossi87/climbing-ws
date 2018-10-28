@@ -728,10 +728,10 @@ public class BuldreinfoRepository {
 		String sqlStr = "SELECT p.id, p.hidden, p.nr, p.name, p.description, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.latitude, p.longitude,"
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,"
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,"
-				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', COALESCE(u.picture,''), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
+				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
-				+ " danger.danger, MAX(CASE WHEN m.is_movie=0 THEN m.id END) media_id"
+				+ " danger.danger"
 				+ " FROM ((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook GROUP BY problem_id)) danger ON p.id=danger.problem_id"
 				+ " WHERE p.sector_id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
@@ -750,19 +750,15 @@ public class BuldreinfoRepository {
 			int grade = rst.getInt("grade");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
-			String faStr = rst.getString("fa");
-			List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>() {}.getType());
+			String fa = rst.getString("fa");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-			int numImages = rst.getInt("num_images");
-			int numMovies = rst.getInt("num_movies");
-			int numTicks = rst.getInt("num_ticks");
+			boolean hasImages = rst.getInt("num_images")>0;
+			boolean hasMovies = rst.getInt("num_movies")>0;
 			double stars = rst.getDouble("stars");
 			boolean ticked = rst.getBoolean("ticked");
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			boolean danger = rst.getBoolean("danger");
-			int randomMediaId = rst.getInt("media_id");
-			s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(regionId, grade), fa, numImages,
-					numMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger, randomMediaId);
+			s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(regionId, grade), fa, hasImages, hasMovies, l.getLat(), l.getLng(), stars, ticked, t, danger);
 		}
 		rst.close();
 		ps.close();

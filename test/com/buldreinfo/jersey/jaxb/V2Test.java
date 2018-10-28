@@ -98,7 +98,6 @@ public class V2Test {
 		Sector s = (Sector)r.getEntity();
 		assertTrue(!Strings.isNullOrEmpty(s.getName()));
 		assertTrue(!s.getProblems().isEmpty());
-		assertTrue(!Strings.isNullOrEmpty(s.getProblems().get(0).getComment()));
 	}
 	
 	@Test
