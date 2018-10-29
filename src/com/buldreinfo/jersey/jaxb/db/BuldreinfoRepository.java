@@ -1659,6 +1659,13 @@ public class BuldreinfoRepository {
 				break;
 			}
 			Activity a = gson.fromJson(json, Activity.class);
+			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
+				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
+				a.setTimeAgo(timeAgo);
+			}
+			if (a.getGrade() != null) {
+				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
+			}
 			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
@@ -1668,13 +1675,6 @@ public class BuldreinfoRepository {
 					res.remove(match.get());
 					a.setMedia(match.get().getMedia());
 				}
-			}
-			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
-				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
-				a.setTimeAgo(timeAgo);
-			}
-			if (a.getGrade() != null) {
-				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 			}
 			res.add(a);
 		}
