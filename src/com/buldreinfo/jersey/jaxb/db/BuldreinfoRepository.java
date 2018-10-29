@@ -1656,14 +1656,15 @@ public class BuldreinfoRepository {
 		List<Activity> res = new ArrayList<>();
 		for (String json : jsonSet) {
 			Activity a = gson.fromJson(json, Activity.class);
-			if (a.getMedia() != null && !a.getMedia().isEmpty() && (a.getUsers() == null || a.getUsers().isEmpty())) {
-				// new images event, look for fa boulder to add media to
+			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getTimestamp().equals(a.getTimestamp()) && x.getUsers() != null && !x.getUsers().isEmpty())
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getTimestamp().equals(a.getTimestamp()) && x.getMedia() != null && !x.getMedia().isEmpty())
 						.findAny();
 				if (match.isPresent()) {
-					match.get().setMedia(a.getMedia());
+					res.remove(match.get());
+					a.setMedia(match.get().getMedia());
+					res.add(a);
 					continue;
 				}
 			}
