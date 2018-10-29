@@ -1669,7 +1669,7 @@ public class BuldreinfoRepository {
 			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getTimestamp().equals(a.getTimestamp()) && x.getMedia() != null && !x.getMedia().isEmpty())
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
 						.findAny();
 				if (match.isPresent()) {
 					res.remove(match.get());
