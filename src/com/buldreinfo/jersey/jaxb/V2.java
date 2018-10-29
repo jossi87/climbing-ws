@@ -274,7 +274,8 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			Sector s = c.getBuldreinfoRepo().getSector(authUserId, setup.getIdRegion(), id);
+			final boolean orderByGrade = setup.isBouldering();
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -457,7 +458,8 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			s = c.getBuldreinfoRepo().setSector(authUserId, setup.getIdRegion(), s, multiPart);
+			final boolean orderByGrade = setup.isBouldering();
+			s = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup.getIdRegion(), s, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();

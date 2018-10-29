@@ -696,12 +696,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Sector getSector(int authUserId, int regionId, int reqId) throws IOException, SQLException {
+	public Sector getSector(int authUserId, boolean orderByGrade, int regionId, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
@@ -720,8 +719,7 @@ public class BuldreinfoRepository {
 			if (media.isEmpty()) {
 				media = null;
 			}
-			s = new Sector(areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(),
-					l.getLng(), polygonCoords, media, null);
+			s = new Sector(orderByGrade, areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
 		}
 		rst.close();
 		ps.close();
@@ -736,7 +734,7 @@ public class BuldreinfoRepository {
 				+ " WHERE p.sector_id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ " GROUP BY p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype, danger.danger"
-				+ " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC, p.name";
+				+ (orderByGrade? " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC, p.name" : " ORDER BY p.nr");
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
 		ps.setInt(2, authUserId);
@@ -762,7 +760,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
-		logger.debug("getSector(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
+		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
 	}
 
@@ -1030,6 +1028,7 @@ public class BuldreinfoRepository {
 	}
 
 	public Problem setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
+		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		int idProblem = -1;
 		if (p.getId() > 0) {
@@ -1062,9 +1061,7 @@ public class BuldreinfoRepository {
 			}
 			idProblem = p.getId();
 		} else {
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"INSERT INTO problem (android_id, sector_id, name, description, grade, fa_date, latitude, longitude, hidden, nr, type_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					PreparedStatement.RETURN_GENERATED_KEYS);
+			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, description, grade, fa_date, latitude, longitude, hidden, nr, type_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setLong(1, System.currentTimeMillis());
 			ps.setInt(2, p.getSectorId());
 			ps.setString(3, p.getName());
@@ -1083,8 +1080,7 @@ public class BuldreinfoRepository {
 				ps.setNull(8, Types.DOUBLE);
 			}
 			ps.setInt(9, p.getVisibility());
-			ps.setInt(10, p.getNr() == 0 ? getSector(authUserId, s.getIdRegion(), p.getSectorId()).getProblems()
-					.stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+			ps.setInt(10, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s.getIdRegion(), p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
 			ps.setInt(11, p.getT().getId());
 			ps.executeUpdate();
 			ResultSet rst = ps.getGeneratedKeys();
@@ -1185,8 +1181,7 @@ public class BuldreinfoRepository {
 		return getProblem(authUserId, s, idProblem);
 	}
 
-	public Sector setSector(int authUserId, int regionId, Sector s, FormDataMultiPart multiPart)
-			throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Sector setSector(int authUserId, boolean orderByGrade, int regionId, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
 			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, permission auth SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.hidden=?, s.polygon_coords=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=s.hidden");
@@ -1234,8 +1229,7 @@ public class BuldreinfoRepository {
 			}
 		} else {
 			int writable = 0;
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"SELECT 1 FROM area a, permission auth WHERE a.id=? AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=a.hidden");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT 1 FROM area a, permission auth WHERE a.id=? AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=a.hidden");
 			ps.setInt(1, s.getAreaId());
 			ps.setInt(2, authUserId);
 			ResultSet rst = ps.executeQuery();
@@ -1286,7 +1280,7 @@ public class BuldreinfoRepository {
 				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
 			}
 		}
-		return getSector(authUserId, regionId, idSector);
+		return getSector(authUserId, orderByGrade, regionId, idSector);
 	}
 
 	public void setTick(int authUserId, int regionId, Tick t) throws SQLException, ParseException {

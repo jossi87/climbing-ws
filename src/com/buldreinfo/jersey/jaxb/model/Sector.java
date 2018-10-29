@@ -104,6 +104,7 @@ public class Sector implements IMetadata {
 		}
 	}
 	
+	private final boolean orderByGrade;
 	private final int areaId;
 	private final int areaVisibility;
 	private final String areaName;
@@ -120,7 +121,8 @@ public class Sector implements IMetadata {
 	private final List<NewMedia> newMedia;
 	private Metadata metadata;
 	
-	public Sector(int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
+	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
+		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -140,6 +142,10 @@ public class Sector implements IMetadata {
 		this.problems.add(new Problem(id, visibility, nr, name, gradeNumber, grade, fa, hasImages, hasMovies, lat, lng, stars, ticked, t, danger));
 	}
 
+	public boolean isOrderByGrade() {
+		return orderByGrade;
+	}
+	
 	public int getAreaId() {
 		return areaId;
 	}
