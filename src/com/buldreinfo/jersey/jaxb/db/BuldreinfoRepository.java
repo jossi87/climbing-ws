@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -49,13 +50,13 @@ import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
-import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -1653,29 +1654,30 @@ public class BuldreinfoRepository {
 		final LocalDate today = LocalDate.now();
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		List<Activity> res = new ArrayList<>();
-		Activity lastActivity = null;
 		for (String json : jsonSet) {
 			Activity a = gson.fromJson(json, Activity.class);
-			if (lastActivity != null &&
-					a.getProblemId() == lastActivity.getProblemId() && a.getTimestamp().equals(lastActivity.getTimestamp()) && 
-					a.getMedia() != null && !a.getMedia().isEmpty() &&
-					lastActivity.getUsers() != null && !lastActivity.getUsers().isEmpty()) {
-				lastActivity.setMedia(a.getMedia());
+			if (a.getMedia() != null && !a.getMedia().isEmpty() && (a.getUsers() == null && a.getUsers().isEmpty())) {
+				// new images event, look for fa boulder to add media to
+				Optional<Activity> match = res
+						.stream()
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getTimestamp().equals(a.getTimestamp()) && x.getUsers() != null && !x.getUsers().isEmpty())
+						.findAny();
+				if (match.isPresent()) {
+					match.get().setMedia(a.getMedia());
+					continue;
+				}
 			}
-			else {
-				if (res.size() >= 20) {
-					break;
-				}
-				if (!Strings.isNullOrEmpty(a.getTimestamp())) {
-					String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
-					a.setTimeAgo(timeAgo);
-				}
-				if (a.getGrade() != null) {
-					a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
-				}
-				res.add(a);
-				lastActivity = a;
+			if (res.size() >= 20) {
+				break;
 			}
+			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
+				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
+				a.setTimeAgo(timeAgo);
+			}
+			if (a.getGrade() != null) {
+				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
+			}
+			res.add(a);
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
 		return res;
