@@ -1656,7 +1656,7 @@ public class BuldreinfoRepository {
 		List<Activity> res = new ArrayList<>();
 		for (String json : jsonSet) {
 			Activity a = gson.fromJson(json, Activity.class);
-			if (a.getMedia() != null && !a.getMedia().isEmpty() && (a.getUsers() == null && a.getUsers().isEmpty())) {
+			if (a.getMedia() != null && !a.getMedia().isEmpty() && (a.getUsers() == null || a.getUsers().isEmpty())) {
 				// new images event, look for fa boulder to add media to
 				Optional<Activity> match = res
 						.stream()
