@@ -51,7 +51,7 @@ public class Activity {
 	private final int problemId;
 	private final int problemVisibility;
 	private final String problemName;
-	private final int problemRandomMediaId;
+	private int problemRandomMediaId;
 	private List<Media> media;
 	private final int id;
 	private String grade;
@@ -130,6 +130,9 @@ public class Activity {
 	}
 	public void setMedia(List<Media> media) {
 		this.media = media;
+	}
+	public void setProblemRandomMediaId(int problemRandomMediaId) {
+		this.problemRandomMediaId = problemRandomMediaId;
 	}
 	public void setTimeAgo(String timeAgo) {
 		this.timeAgo = timeAgo;

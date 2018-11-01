@@ -1674,6 +1674,7 @@ public class BuldreinfoRepository {
 				if (match.isPresent()) {
 					res.remove(match.get());
 					a.setMedia(match.get().getMedia());
+					a.setProblemRandomMediaId(match.get().getProblemRandomMediaId());
 				}
 			}
 			res.add(a);
