@@ -192,7 +192,7 @@ public class V2 {
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			c.setSuccess();
-			if (minDimention != 0 && dimention != null && minDimention < dimention.getX() && minDimention < dimention.getY()) {
+			if (dimention != null) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
 				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
