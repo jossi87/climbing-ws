@@ -10,20 +10,15 @@ public class Frontpage implements IMetadata {
 		public class User {
 			private final int id;
 			private final String name;
-			private final String picture;
-			public User(int id, String name, String picture) {
+			public User(int id, String name) {
 				this.id = id;
 				this.name = name;
-				this.picture = picture;
 			}
 			public int getId() {
 				return id;
 			}
 			public String getName() {
 				return name;
-			}
-			public String getPicture() {
-				return picture;
 			}
 		}
 		private final int idMedia;
