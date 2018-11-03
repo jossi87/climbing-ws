@@ -848,27 +848,15 @@ public class BuldreinfoRepository {
 		final int take = 200;
 		int numTicks = 0;
 		int skip = (page-1)*take;
-		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, DATE_FORMAT(date,'%d/%m-%y') date, name, fa"
-				+ " FROM ("
-				+ " SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, MAX(date) date, name, MAX(fa) fa"
-				+ " FROM ("
-				+ "  SELECT r.id id_region, rt.type_id, a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.grade problem_grade, p.name problem_name, p.hidden problem_visibility, null tick_grade, p.fa_date date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name, 1 fa"
-				+ "  FROM region r, region_type rt, area a, sector s, problem p, fa f, user u"
-				+ "  WHERE r.id=rt.region_id AND r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id"
-				+ " UNION"
-				+ "  SELECT r.id id_region, rt.type_id, a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.grade problem_grade, p.name problem_name, p.hidden problem_visibility, t.grade tick_grade, t.date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name, 0 fa"
-				+ "  FROM region r, region_type rt, area a, sector s, problem p, tick t, user u"
-				+ "  WHERE r.id=rt.region_id AND r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND p.id=t.problem_id AND t.user_id=u.id"
-				+ " ) x LEFT JOIN permission auth ON x.id_region=auth.region_id"
-				+ " WHERE x.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
-				+ "   AND (x.id_region=? OR auth.user_id IS NOT NULL)"
-				+ "   AND (x.area_visibility=0 OR (auth.user_id=? AND (x.area_visibility<=1 OR auth.write>=x.area_visibility)))"
-				+ "   AND (x.sector_visibility=0 OR (auth.user_id=? AND (x.sector_visibility<=1 OR auth.write>=x.sector_visibility)))"
-				+ "   AND (x.problem_visibility=0 OR (auth.user_id=? AND (x.problem_visibility<=1 OR auth.write>=x.problem_visibility)))"
-				+ " GROUP BY type_id, area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, tick_grade, name"
-				+ " ) y"
-				+ " GROUP BY area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, date, name, fa"
-				+ " ORDER BY y.date DESC, y.problem_name, y.name";
+		String sqlStr = "SELECT a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, t.grade problem_grade, p.name problem_name, p.hidden problem_visibility, t.date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name"
+				+ " FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN tick t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN permission auth ON r.id=auth.region_id"
+				+ "  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
+				+ "    AND (r.id=? OR auth.user_id IS NOT NULL)"
+				+ "    AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
+				+ "    AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden)))"
+				+ "    AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
+				+ " GROUP BY a.name, a.hidden, s.name, s.hidden, p.id, t.grade, p.name, p.hidden, t.date, u.firstname, u.lastname"
+				+ " ORDER BY t.date DESC, problem_name, name";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
@@ -892,8 +880,7 @@ public class BuldreinfoRepository {
 			int problemVisibility = rst.getInt("problem_visibility");
 			String date = rst.getString("date");
 			String name = rst.getString("name");
-			boolean fa = rst.getBoolean("fa");
-			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, GradeHelper.intToString(idRegion, problemGrade), problemName, problemVisibility, date, name, fa));
+			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, GradeHelper.intToString(idRegion, problemGrade), problemName, problemVisibility, date, name));
 		}
 		rst.close();
 		ps.close();
