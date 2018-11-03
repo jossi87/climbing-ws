@@ -848,7 +848,7 @@ public class BuldreinfoRepository {
 		final int take = 200;
 		int numTicks = 0;
 		int skip = (page-1)*take;
-		String sqlStr = "SELECT a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, t.grade problem_grade, p.name problem_name, p.hidden problem_visibility, t.date when, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name"
+		String sqlStr = "SELECT a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, t.grade problem_grade, p.name problem_name, p.hidden problem_visibility, t.date ts, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name"
 				+ " FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN tick t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN permission auth ON r.id=auth.region_id"
 				+ "  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "    AND (r.id=? OR auth.user_id IS NOT NULL)"
@@ -878,7 +878,7 @@ public class BuldreinfoRepository {
 			int problemGrade = rst.getInt("problem_grade");
 			String problemName = rst.getString("problem_name");
 			int problemVisibility = rst.getInt("problem_visibility");
-			String date = rst.getString("when");
+			String date = rst.getString("ts");
 			String name = rst.getString("name");
 			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, GradeHelper.intToString(idRegion, problemGrade), problemName, problemVisibility, date, name));
 		}
