@@ -864,7 +864,7 @@ public class BuldreinfoRepository {
 				+ "   AND (x.sector_visibility=0 OR (auth.user_id=? AND (x.sector_visibility<=1 OR auth.write>=x.sector_visibility)))"
 				+ "   AND (x.problem_visibility=0 OR (auth.user_id=? AND (x.problem_visibility<=1 OR auth.write>=x.problem_visibility)))"
 				+ " GROUP BY type_id, area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, tick_grade, name"
-				+ " ORDER BY MAX(date) DESC";
+				+ " ORDER BY MAX(date) DESC, problem_name, name";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
