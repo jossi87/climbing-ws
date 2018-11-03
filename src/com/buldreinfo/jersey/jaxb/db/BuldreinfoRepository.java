@@ -889,7 +889,7 @@ public class BuldreinfoRepository {
 			String date = rst.getString("date");
 			String name = rst.getString("name");
 			boolean fa = rst.getBoolean("fa");
-			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, problemGrade, problemName, problemVisibility, date, name, fa));
+			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, GradeHelper.intToString(idRegion, problemGrade), problemName, problemVisibility, date, name, fa));
 		}
 		rst.close();
 		ps.close();

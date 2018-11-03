@@ -6,14 +6,14 @@ public class PublicAscent {
 	private final String sectorName;
 	private final int sectorVisibility;
 	private final int problemId;
-	private final int problemGrade;
+	private final String problemGrade;
 	private final String problemName;
 	private final int problemVisibility;
 	private final String date;
 	private final String name;
 	private final boolean fa;
 	
-	public PublicAscent(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int problemId, int problemGrade, String problemName, int problemVisibility, String date, String name, boolean fa) {
+	public PublicAscent(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int problemId, String problemGrade, String problemName, int problemVisibility, String date, String name, boolean fa) {
 		this.areaName = areaName;
 		this.areaVisibility = areaVisibility;
 		this.sectorName = sectorName;
@@ -41,7 +41,7 @@ public class PublicAscent {
 	public int getProblemId() {
 		return problemId;
 	}
-	public int getProblemGrade() {
+	public String getProblemGrade() {
 		return problemGrade;
 	}
 	public String getProblemName() {
