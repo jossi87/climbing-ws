@@ -22,6 +22,7 @@ import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -204,6 +205,12 @@ public class MetaHelper {
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		else if (m instanceof Ticks) {
+			Ticks t = (Ticks)m;
+			String description = String.format("Page %d/%d", t.getCurrPage(), t.getNumPages());
+			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null);
+			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

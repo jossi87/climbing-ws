@@ -62,6 +62,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
+import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
@@ -843,8 +844,10 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<PublicAscent> getTicks(int authUserId, int idRegion, int take, int skip) throws SQLException {
-		List<PublicAscent> res = new ArrayList<>();
+	public Ticks getTicks(int authUserId, int idRegion, int page) throws SQLException {
+		final int take = 200;
+		int numTicks = 0;
+		int skip = (page-1)*take;
 		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, DATE_FORMAT(MAX(date),'%d/%m-%y') date, name, MAX(fa) fa"
 				+ " FROM ("
 				+ "  SELECT r.id id_region, rt.type_id, a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.grade problem_grade, p.name problem_name, p.hidden problem_visibility, null tick_grade, p.fa_date date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name, 1 fa"
@@ -861,18 +864,20 @@ public class BuldreinfoRepository {
 				+ "   AND (x.sector_visibility=0 OR (auth.user_id=? AND (x.sector_visibility<=1 OR auth.write>=x.sector_visibility)))"
 				+ "   AND (x.problem_visibility=0 OR (auth.user_id=? AND (x.problem_visibility<=1 OR auth.write>=x.problem_visibility)))"
 				+ " GROUP BY type_id, area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, tick_grade, name"
-				+ " ORDER BY MAX(date) DESC"
-				+ " LIMIT ?, ?";
+				+ " ORDER BY MAX(date) DESC";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
 		ps.setInt(3, authUserId);
 		ps.setInt(4, authUserId);
 		ps.setInt(5, authUserId);
-		ps.setInt(6, skip);
-		ps.setInt(7, take);
 		ResultSet rst = ps.executeQuery();
+		List<PublicAscent> ticks = new ArrayList<>();
 		while (rst.next()) {
+			numTicks++;
+			if ((numTicks-1) < skip || ticks.size() == take) {
+				continue;
+			}
 			String areaName = rst.getString("area_name");
 			int areaVisibility = rst.getInt("area_visibility");
 			String sectorName = rst.getString("sector_name");
@@ -884,12 +889,19 @@ public class BuldreinfoRepository {
 			String date = rst.getString("date");
 			String name = rst.getString("name");
 			boolean fa = rst.getBoolean("fa");
-			res.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, problemGrade, problemName, problemVisibility, date, name, fa));
+			ticks.add(new PublicAscent(areaName, areaVisibility, sectorName, sectorVisibility, problemId, problemGrade, problemName, problemVisibility, date, name, fa));
 		}
 		rst.close();
 		ps.close();
-		logger.debug("getTicks(authUserId={}, idRegion={}, take={}, skip={}) - res.size()={}", authUserId, idRegion, take, skip, res.size());
+		int numPages = (int)(Math.ceil(numTicks / 200f));
+		Ticks res = new Ticks(ticks, page, numPages);
+		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - done", authUserId, idRegion, page);
 		return res;
+	}
+	
+	public static void main(String[] args) {
+		int num = 800;
+		System.err.println((int)(Math.ceil(num / 200f)));
 	}
 
 	public List<Type> getTypes(int regionId) throws SQLException {
