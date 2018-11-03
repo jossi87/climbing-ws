@@ -18,6 +18,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -98,6 +99,14 @@ public class V2Test {
 		Sector s = (Sector)r.getEntity();
 		assertTrue(!Strings.isNullOrEmpty(s.getName()));
 		assertTrue(!s.getProblems().isEmpty());
+	}
+	
+	@Test
+	public void testGetTicks() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getTicks(getRequest(), 10, 0);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof PublicAscent);
 	}
 	
 	@Test
