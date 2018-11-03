@@ -106,7 +106,6 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.getTicks(getRequest(), 10, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof PublicAscent);
 	}
 	
 	@Test
