@@ -845,7 +845,7 @@ public class BuldreinfoRepository {
 
 	public List<PublicAscent> getTicks(int authUserId, int idRegion, int take, int skip) throws SQLException {
 		List<PublicAscent> res = new ArrayList<>();
-		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, MAX(date) date, name, MAX(fa) fa"
+		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, DATE_FORMAT(MAX(date),'%d/%m-%y') date, name, MAX(fa) fa"
 				+ " FROM ("
 				+ "  SELECT r.id id_region, rt.type_id, a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.grade problem_grade, p.name problem_name, p.hidden problem_visibility, null tick_grade, p.fa_date date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name, 1 fa"
 				+ "  FROM region r, region_type rt, area a, sector s, problem p, fa f, user u"
