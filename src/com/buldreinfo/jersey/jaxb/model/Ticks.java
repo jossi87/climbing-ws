@@ -35,4 +35,9 @@ public class Ticks implements IMetadata {
 	public int getNumPages() {
 		return numPages;
 	}
+
+	@Override
+	public String toString() {
+		return "Ticks [metadata=" + metadata + ", ticks.size()=" + ticks.size() + ", currPage=" + currPage + ", numPages=" + numPages + "]";
+	}
 }

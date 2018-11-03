@@ -848,7 +848,7 @@ public class BuldreinfoRepository {
 		final int take = 200;
 		int numTicks = 0;
 		int skip = (page-1)*take;
-		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, DATE_FORMAT(date,'%d/%m-%y'), name, fa"
+		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, DATE_FORMAT(date,'%d/%m-%y') date, name, fa"
 				+ " FROM ("
 				+ " SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, MAX(date) date, name, MAX(fa) fa"
 				+ " FROM ("
@@ -899,7 +899,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		int numPages = (int)(Math.ceil(numTicks / 200f));
 		Ticks res = new Ticks(ticks, page, numPages);
-		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - done", authUserId, idRegion, page);
+		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, idRegion, page, res);
 		return res;
 	}
 	
