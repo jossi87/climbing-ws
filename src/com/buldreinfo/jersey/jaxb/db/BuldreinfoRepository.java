@@ -848,7 +848,9 @@ public class BuldreinfoRepository {
 		final int take = 200;
 		int numTicks = 0;
 		int skip = (page-1)*take;
-		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, DATE_FORMAT(MAX(date),'%d/%m-%y') date, name, MAX(fa) fa"
+		String sqlStr = "SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, DATE_FORMAT(date,'%d/%m-%y'), name, fa"
+				+ " FROM ("
+				+ " SELECT area_name, area_visibility, sector_name, sector_visibility, problem_id, IFNULL(tick_grade,problem_grade) problem_grade, problem_name, problem_visibility, MAX(date) date, name, MAX(fa) fa"
 				+ " FROM ("
 				+ "  SELECT r.id id_region, rt.type_id, a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.grade problem_grade, p.name problem_name, p.hidden problem_visibility, null tick_grade, p.fa_date date, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name, 1 fa"
 				+ "  FROM region r, region_type rt, area a, sector s, problem p, fa f, user u"
@@ -864,7 +866,9 @@ public class BuldreinfoRepository {
 				+ "   AND (x.sector_visibility=0 OR (auth.user_id=? AND (x.sector_visibility<=1 OR auth.write>=x.sector_visibility)))"
 				+ "   AND (x.problem_visibility=0 OR (auth.user_id=? AND (x.problem_visibility<=1 OR auth.write>=x.problem_visibility)))"
 				+ " GROUP BY type_id, area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, tick_grade, name"
-				+ " ORDER BY MAX(date) DESC, problem_name, name";
+				+ " ) y"
+				+ " GROUP BY area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, date, name, fa"
+				+ " ORDER BY y.date DESC, y.problem_name, y.name";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
