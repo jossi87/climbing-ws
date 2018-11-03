@@ -857,9 +857,9 @@ public class BuldreinfoRepository {
 				+ " ) x LEFT JOIN permission auth ON x.id_region=auth.region_id"
 				+ " WHERE x.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (x.id_region=? OR auth.user_id IS NOT NULL)"
-				+ "   AND (x.area_hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=x.area_hidden)))"
-				+ "   AND (x.sector_hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=x.sector_hidden)))"
-				+ "   AND (x.problem_hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=x.problem_hidden)))"
+				+ "   AND (x.area_visibility=0 OR (auth.user_id=? AND (x.area_visibility<=1 OR auth.write>=x.area_visibility)))"
+				+ "   AND (x.sector_visibility=0 OR (auth.user_id=? AND (x.sector_visibility<=1 OR auth.write>=x.sector_visibility)))"
+				+ "   AND (x.problem_visibility=0 OR (auth.user_id=? AND (x.problem_visibility<=1 OR auth.write>=x.problem_visibility)))"
 				+ " GROUP BY type_id, area_name, area_visibility, sector_name, sector_visibility, problem_id, problem_grade, problem_name, problem_visibility, tick_grade, name"
 				+ " ORDER BY MAX(date) DESC"
 				+ " LIMIT ?, ?";
