@@ -267,7 +267,7 @@ public class BuldreinfoRepository {
 				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (r.id=? OR auth.user_id IS NOT NULL)"
-				+ "   AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
+				+ "   AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
 				+ "   AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden)))"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND p.grade IN (" + Joiner.on(",").join(fr.getGrades()) + ")"
@@ -277,9 +277,10 @@ public class BuldreinfoRepository {
 		ps.setInt(1, authUserId);
 		ps.setInt(2, idRegion);
 		ps.setInt(3, idRegion);
-		ps.setInt(4, authUserId);
+		ps.setInt(4, idRegion);
 		ps.setInt(5, authUserId);
 		ps.setInt(6, authUserId);
+		ps.setInt(7, authUserId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			String areaName = rst.getString("area_name");
@@ -852,7 +853,7 @@ public class BuldreinfoRepository {
 				+ " FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN tick t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN permission auth ON r.id=auth.region_id"
 				+ "  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "    AND (r.id=? OR auth.user_id IS NOT NULL)"
-				+ "    AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
+				+ "    AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden)))"
 				+ "    AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden)))"
 				+ "    AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ " GROUP BY a.name, a.hidden, s.name, s.hidden, p.id, t.grade, p.name, p.hidden, t.date, u.firstname, u.lastname"
@@ -860,9 +861,10 @@ public class BuldreinfoRepository {
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idRegion);
 		ps.setInt(2, idRegion);
-		ps.setInt(3, authUserId);
+		ps.setInt(3, idRegion);
 		ps.setInt(4, authUserId);
 		ps.setInt(5, authUserId);
+		ps.setInt(6, authUserId);
 		ResultSet rst = ps.executeQuery();
 		List<PublicAscent> ticks = new ArrayList<>();
 		while (rst.next()) {
