@@ -393,7 +393,7 @@ public class BuldreinfoRepository {
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
-				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', COALESCE(u.picture,''), '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
+				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END, '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype"
 				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN permission auth ON r.id=auth.region_id"
@@ -449,7 +449,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		Preconditions.checkNotNull(p);
 		// Ascents
-		sqlStr = "SELECT t.id id_tick, u.id id_user, u.picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
+		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, p.getId());
 		rst = ps.executeQuery();
@@ -469,7 +469,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Comments
-		ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, u.picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
+		ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time");
 		ps.setInt(1, p.getId());
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -939,8 +939,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT u.picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags"
-				+ " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.firstname, u.lastname, u.picture";
+		String sqlStr = "SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags" + " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.firstname, u.lastname, u.picture";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, reqId);
 		ResultSet rst = ps.executeQuery();
@@ -1696,16 +1695,16 @@ public class BuldreinfoRepository {
 		Comparator<String> comp = (String o1, String o2) -> (o2.compareTo(o1));
 		Set<String> jsonSet = new TreeSet<>(comp);
 		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),''), '\",\"sort\":1,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', COALESCE(MAX(CASE WHEN m.is_movie=0 THEN m.id END),0), ',\"grade\":', p.grade, ',\"description\":\"', COALESCE(p.description,''), '\",\"users\":[', group_concat(DISTINCT CONCAT('{\"id\":', fu.id, ',\"name\":\"', TRIM(CONCAT(fu.firstname, ' ', COALESCE(fu.lastname,''))), '\",\"picture\":\"', COALESCE(fu.picture,''), '\"}') ORDER BY fu.firstname, fu.lastname SEPARATOR ','), ']}') fa,"
-						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),''), '\",\"sort\":4,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', t.grade, ',\"stars\":', t.stars, ',\"description\":\"', COALESCE(t.comment,''), '\",\"id\":', tu.id, ',\"name\":\"', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,''))), '\",\"picture\":\"', COALESCE(tu.picture,''), '\"}') tick,"
-						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),''), '\",\"sort\":3,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', p.grade, ',\"message\":\"', g.message, '\",\"id\":', gu.id, ',\"name\":\"', TRIM(CONCAT(gu.firstname, ' ', COALESCE(gu.lastname,''))), '\",\"picture\":\"', COALESCE(gu.picture,''), '\"}') guestbook,"
+				"SELECT CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),''), '\",\"sort\":1,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', COALESCE(MAX(CASE WHEN m.is_movie=0 THEN m.id END),0), ',\"grade\":', p.grade, ',\"description\":\"', COALESCE(p.description,''), '\",\"users\":[', group_concat(DISTINCT CONCAT('{\"id\":', fu.id, ',\"name\":\"', TRIM(CONCAT(fu.firstname, ' ', COALESCE(fu.lastname,''))), '\",\"picture\":\"', CASE WHEN fu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', fu.id, '.jpg') ELSE '' END, '\"}') ORDER BY fu.firstname, fu.lastname SEPARATOR ','), ']}') fa,"
+						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),''), '\",\"sort\":4,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', t.grade, ',\"stars\":', t.stars, ',\"description\":\"', COALESCE(t.comment,''), '\",\"id\":', tu.id, ',\"name\":\"', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,''))), '\",\"picture\":\"', CASE WHEN tu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', tu.id, '.jpg') ELSE '' END, '\"}') tick,"
+						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),''), '\",\"sort\":3,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', p.grade, ',\"message\":\"', g.message, '\",\"id\":', gu.id, ',\"name\":\"', TRIM(CONCAT(gu.firstname, ' ', COALESCE(gu.lastname,''))), '\",\"picture\":\"', CASE WHEN gu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', gu.id, '.jpg') ELSE '' END, '\"}') guestbook,"
 						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),''), '\",\"sort\":2,\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', p.grade, ',\"problemRandomMediaId\":', COALESCE(MAX(CASE WHEN m.is_movie=0 THEN m.id END),0), ',\"media\":[', group_concat(DISTINCT CONCAT('{\"id\":', m.id, ',\"isMovie\":', CASE WHEN COALESCE(m.is_movie,0)=0 THEN 'false' ELSE 'true' END, '}') SEPARATOR ','), ']}') media"
 						+ " FROM ((((((((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user fu ON f.user_id=fu.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user tu ON t.user_id=tu.id) LEFT JOIN guestbook g ON p.id=g.problem_id) LEFT JOIN user gu ON g.user_id=gu.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)"
 						+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 						+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
 						+ " GROUP BY p.id, p.name, p.hidden, p.fa_date, p.grade, p.description,"
-						+ "   t.date, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture,"
-						+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture,"
+						+ "   t.date, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture, tu.id,"
+						+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture, gu.id,"
 						+ "   m.date_created"
 						+ " ORDER BY GREATEST("
 						+ "   COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),0),"
