@@ -97,8 +97,7 @@ public class BuldreinfoRepository {
 		this.c = c;
 	}
 
-	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart)
-			throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient permissions");
 		Timestamp now = new Timestamp(System.currentTimeMillis());
 		for (NewMedia m : p.getNewMedia()) {
@@ -110,8 +109,7 @@ public class BuldreinfoRepository {
 
 	public void deleteMedia(int authUserId, int id) throws SQLException {
 		boolean ok = false;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, id);
 		ps.setInt(3, id);
@@ -259,6 +257,7 @@ public class BuldreinfoRepository {
 					InputStream in = new URL(profile.getPicture()).openStream();
 					Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
 					in.close();
+					Runtime.getRuntime().exec("chmod 777 " + p.toString());
 					ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
 					ps.setString(1, profile.getPicture());
 					ps.setInt(2, authUserId);
@@ -1523,22 +1522,16 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m,
-			FormDataMultiPart multiPart, Timestamp now)
-					throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
-		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser,
-				idProblem, idSector, m);
-		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0)
-				|| (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
+	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
+		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
 			 * DB
 			 */
 			int idMedia = -1;
 			final String suffix = "jpg";
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, ?)",
-					PreparedStatement.RETURN_GENERATED_KEYS);
+			PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setBoolean(1, false);
 			ps.setString(2, suffix);
 			ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
@@ -1554,8 +1547,7 @@ public class BuldreinfoRepository {
 			ps = null;
 			Preconditions.checkArgument(idMedia > 0);
 			if (idProblem > 0) {
-				ps = c.getConnection()
-						.prepareStatement("INSERT INTO media_problem (media_id, problem_id) VALUES (?, ?)");
+				ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id) VALUES (?, ?)");
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idProblem);
 				ps.execute();
@@ -1594,21 +1586,18 @@ public class BuldreinfoRepository {
 			Path original = Paths.get(PATH + "temp");
 			Files.createDirectories(original);
 			original = original.resolve(ms + "_" + m.getName());
-			Preconditions.checkArgument(Files.exists(original.getParent()),
-					original.getParent().toString() + " does not exist");
+			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
 			Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
 			Files.copy(is, original);
 			Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
 
-			final Path p = Paths.get(PATH + "original").resolve(String.valueOf(idMedia / 100 * 100))
-					.resolve(idMedia + "." + suffix);
+			final Path p = Paths.get(PATH + "original").resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
 			Files.createDirectories(p.getParent());
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 
 			// If not JPG/JPEG --> convert to JPG, else --> copy to destination
 			// (ALWAYS JPG)
-			final String inputExtension = com.google.common.io.Files
-					.getFileExtension(original.getFileName().toString());
+			final String inputExtension = com.google.common.io.Files.getFileExtension(original.getFileName().toString());
 			if (!inputExtension.equalsIgnoreCase("jpg") && !inputExtension.equalsIgnoreCase("jpeg")) {
 				BufferedImage src = ImageIO.read(original.toFile());
 				BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
@@ -1627,8 +1616,7 @@ public class BuldreinfoRepository {
 
 				if (orientation != null && orientation != ExifOrientation.HORIZONTAL_NORMAL) {
 					logger.info("Rotating " + p.toString() + " using " + orientation);
-					creation.rotate(orientation).preserveExif()
-					.saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
+					creation.rotate(orientation).preserveExif().saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
 				}
 			}
 			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
@@ -1663,10 +1651,8 @@ public class BuldreinfoRepository {
 		return id;
 	}
 
-	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix)
-			throws IOException, InterruptedException, SQLException {
-		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id / 100 * 100))
-				.resolve(id + "." + suffix);
+	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
+		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = Paths.get(PATH + "web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 		Files.createDirectories(webp.getParent());
@@ -1679,8 +1665,7 @@ public class BuldreinfoRepository {
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
 		BufferedImage bScaled = Scalr.resize(bOriginal, 1920, Scalr.OP_ANTIALIAS);
-		logger.debug("createScaledImages(original={}) - jpg={}, bOriginal={}, bScaled={}", original, jpg, bOriginal,
-				bScaled);
+		logger.debug("createScaledImages(original={}) - jpg={}, bOriginal={}, bScaled={}", original, jpg, bOriginal, bScaled);
 		ImageIO.write(bScaled, "jpg", jpg.toFile());
 		bOriginal.flush();
 		bOriginal = null;
@@ -1688,8 +1673,7 @@ public class BuldreinfoRepository {
 		bScaled = null;
 		Preconditions.checkArgument(Files.exists(jpg));
 		// Scaled WebP
-		String[] cmd = new String[] { "/bin/bash", "-c",
-				"cwebp \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"" };
+		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"" };
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
