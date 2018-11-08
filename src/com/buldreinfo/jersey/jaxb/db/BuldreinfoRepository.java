@@ -254,7 +254,7 @@ public class BuldreinfoRepository {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
 				try {
-					final Path p = Paths.get(PATH + "users").resolve(authUserId + ".jpg");
+					final Path p = Paths.get(PATH + "web/users").resolve(authUserId + ".jpg");
 					Files.createDirectories(p.getParent());
 					InputStream in = new URL(profile.getPicture()).openStream();
 					Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
@@ -927,8 +927,7 @@ public class BuldreinfoRepository {
 	}
 
 	public User getUser(int authUserId, int regionId, int reqId) throws SQLException {
-		Preconditions.checkArgument(reqId > 0 || authUserId != -1,
-				"Invalid parameters - reqId=" + reqId + ", authUserId=" + authUserId);
+		Preconditions.checkArgument(reqId > 0 || authUserId != -1, "Invalid parameters - reqId=" + reqId + ", authUserId=" + authUserId);
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		boolean readOnly = true;
 		if (authUserId != -1) {
@@ -953,8 +952,7 @@ public class BuldreinfoRepository {
 			int numVideosCreated = rst.getInt("num_videos_created");
 			int numImageTags = rst.getInt("num_image_tags");
 			int numVideoTags = rst.getInt("num_video_tags");
-			res = new User(readOnly, reqId, picture, name, numImagesCreated, numVideosCreated, numImageTags,
-					numVideoTags);
+			res = new User(readOnly, reqId, picture, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
 		}
 		rst.close();
 		ps.close();
@@ -985,8 +983,7 @@ public class BuldreinfoRepository {
 			double stars = rst.getDouble("stars");
 			boolean fa = rst.getBoolean("fa");
 			int grade = rst.getInt("grade");
-			res.addTick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa,
-					GradeHelper.intToString(regionId, grade), grade);
+			res.addTick(id, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(regionId, grade), grade);
 		}
 		rst.close();
 		ps.close();
@@ -1000,8 +997,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("User not logged in...");
 		}
 		List<User> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT id, CONCAT(firstname, ' ', COALESCE(lastname,'')) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY firstname, lastname");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, CONCAT(firstname, ' ', COALESCE(lastname,'')) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY firstname, lastname");
 		ps.setString(1, value + "%");
 		ps.setString(2, value + "%");
 		ps.setString(3, value + "%");
@@ -1016,13 +1012,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Area setArea(int authUserId, int idRegion, Area a, FormDataMultiPart multiPart)
-			throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Area setArea(int authUserId, int idRegion, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
 		boolean writePermissions = false;
-		PreparedStatement ps = c.getConnection()
-				.prepareStatement("SELECT auth.write FROM permission auth WHERE auth.region_id=? AND auth.user_id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM permission auth WHERE auth.region_id=? AND auth.user_id=?");
 		ps.setInt(1, idRegion);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
