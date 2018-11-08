@@ -5,9 +5,11 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -213,7 +215,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException {
+	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException, IOException {
 		int authUserId = -1;
 		String picture = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?");
@@ -250,6 +252,11 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
+				final Path p = Paths.get(PATH + "users").resolve(authUserId + ".jpg");
+				Files.createDirectories(p.getParent());
+				InputStream in = new URL(profile.getPicture()).openStream();
+				Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
+				in.close();
 				ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
 				ps.setString(1, profile.getPicture());
 				ps.setInt(2, authUserId);
