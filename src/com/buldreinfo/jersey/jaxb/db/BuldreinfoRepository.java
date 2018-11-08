@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -252,16 +253,20 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				final Path p = Paths.get(PATH + "users").resolve(authUserId + ".jpg");
-				Files.createDirectories(p.getParent());
-				InputStream in = new URL(profile.getPicture()).openStream();
-				Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
-				in.close();
-				ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
-				ps.setString(1, profile.getPicture());
-				ps.setInt(2, authUserId);
-				ps.executeUpdate();
-				ps.close();
+				try {
+					final Path p = Paths.get(PATH + "users").resolve(authUserId + ".jpg");
+					Files.createDirectories(p.getParent());
+					InputStream in = new URL(profile.getPicture()).openStream();
+					Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
+					in.close();
+					ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
+					ps.setString(1, profile.getPicture());
+					ps.setInt(2, authUserId);
+					ps.executeUpdate();
+					ps.close();
+				} catch (FileNotFoundException e) {
+					logger.warn("Could not download image: " + picture + " on userId=" + authUserId);
+				}
 			}
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
@@ -898,7 +903,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, idRegion, page, res);
 		return res;
 	}
-	
+
 	public static void main(String[] args) {
 		int num = 800;
 		System.err.println((int)(Math.ceil(num / 200f)));
