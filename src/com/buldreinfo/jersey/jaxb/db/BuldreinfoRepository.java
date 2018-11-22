@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -90,7 +89,12 @@ import jersey.repackaged.com.google.common.base.Joiner;
 public class BuldreinfoRepository {
 	private static final String PATH = "/mnt/media/";
 	private static Logger logger = LogManager.getLogger();
+	public static void main(String[] args) {
+		int num = 800;
+		System.err.println((int)(Math.ceil(num / 200f)));
+	}
 	private final DbConnection c;
+
 	private final Gson gson = new Gson();
 
 	protected BuldreinfoRepository(DbConnection c) {
@@ -249,21 +253,12 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				try {
-					final Path p = Paths.get(PATH + "web/users").resolve(authUserId + ".jpg");
-					Files.createDirectories(p.getParent());
-					InputStream in = new URL(profile.getPicture()).openStream();
-					Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
-					in.close();
-					Runtime.getRuntime().exec("chmod 777 " + p.toString());
-					ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
-					ps.setString(1, profile.getPicture());
-					ps.setInt(2, authUserId);
-					ps.executeUpdate();
-					ps.close();
-				} catch (FileNotFoundException e) {
-					logger.warn("Could not download image: " + picture + " on userId=" + authUserId);
-				}
+				downloadUserImage(authUserId, profile.getPicture());
+				ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?");
+				ps.setString(1, profile.getPicture());
+				ps.setInt(2, authUserId);
+				ps.executeUpdate();
+				ps.close();
 			}
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
@@ -899,11 +894,6 @@ public class BuldreinfoRepository {
 		Ticks res = new Ticks(ticks, page, numPages);
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, idRegion, page, res);
 		return res;
-	}
-
-	public static void main(String[] args) {
-		int num = 800;
-		System.err.println((int)(Math.ceil(num / 200f)));
 	}
 
 	public List<Type> getTypes(int regionId) throws SQLException {
@@ -1645,6 +1635,9 @@ public class BuldreinfoRepository {
 			ps.execute();
 			ps.close();
 		}
+		if (picture != null) {
+			downloadUserImage(id, picture);
+		}
 		return id;
 	}
 
@@ -1687,6 +1680,19 @@ public class BuldreinfoRepository {
 		ps.setInt(5, id);
 		ps.execute();
 		ps.close();
+	}
+
+	private void downloadUserImage(int userId, String url) {
+		try {
+			final Path p = Paths.get(PATH + "web/users").resolve(userId + ".jpg");
+			Files.createDirectories(p.getParent());
+			InputStream in = new URL(url).openStream();
+			Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
+			in.close();
+			Runtime.getRuntime().exec("chmod 777 " + p.toString());
+		} catch (Exception e) {
+			logger.fatal(e.getMessage(), e);
+		}
 	}
 
 	private List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
