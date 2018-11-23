@@ -1752,15 +1752,14 @@ public class BuldreinfoRepository {
 			if (a.getGrade() != null) {
 				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 			}
-			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
+			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
 						.findAny();
 				if (match.isPresent()) {
-					res.remove(match.get());
-					a.setMedia(match.get().getMedia());
-					a.setProblemRandomMediaId(match.get().getProblemRandomMediaId());
+					match.get().setMedia(a.getMedia());
+					continue;
 				}
 			}
 			res.add(a);
