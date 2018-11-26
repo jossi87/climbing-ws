@@ -1742,6 +1742,9 @@ public class BuldreinfoRepository {
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		List<Activity> res = new ArrayList<>();
 		for (String json : jsonSet) {
+			if (res.size() >= 40) {
+				break;
+			}
 			Activity a = gson.fromJson(json, Activity.class);
 			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
 				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
