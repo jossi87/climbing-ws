@@ -1742,7 +1742,7 @@ public class BuldreinfoRepository {
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		List<Activity> res = new ArrayList<>();
 		for (String json : jsonSet) {
-			if (res.size() >= 20) {
+			if (res.size() >= 40) {
 				break;
 			}
 			Activity a = gson.fromJson(json, Activity.class);
