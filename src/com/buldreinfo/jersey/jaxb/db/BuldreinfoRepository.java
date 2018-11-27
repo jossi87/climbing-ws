@@ -1713,7 +1713,7 @@ public class BuldreinfoRepository {
 						+ "   COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),0),"
 						+ "   COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),0)"
 						+ " ) DESC"
-						+ " LIMIT 50");
+						+ " LIMIT 200");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -1742,7 +1742,7 @@ public class BuldreinfoRepository {
 		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		List<Activity> res = new ArrayList<>();
 		for (String json : jsonSet) {
-			if (res.size() >= 40) {
+			if (res.size() >= 75) {
 				break;
 			}
 			Activity a = gson.fromJson(json, Activity.class);
