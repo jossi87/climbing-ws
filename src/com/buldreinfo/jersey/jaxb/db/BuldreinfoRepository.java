@@ -1745,7 +1745,7 @@ public class BuldreinfoRepository {
 			if (res.size() >= 75) {
 				break;
 			}
-			Activity a = gson.fromJson(json, Activity.class);
+			Activity a = parseJson(json);
 			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
 				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
 				a.setTimeAgo(timeAgo);
@@ -1767,6 +1767,14 @@ public class BuldreinfoRepository {
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
 		return res;
+	}
+
+	private Activity parseJson(String json) {
+		try {
+			return gson.fromJson(json, Activity.class);
+		} catch (Exception e) {
+			throw new RuntimeException("json=" + json + ", error=" + e.getMessage(), e);
+		}
 	}
 
 	private String getDateTaken(Path p) {
