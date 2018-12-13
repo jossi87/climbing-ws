@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -379,6 +380,7 @@ public class BuldreinfoRepository {
 
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<Integer> todoIdPlants = getTodo(authUserId, s).stream().map(x -> x.getProblemId()).collect(Collectors.toList());
 		MarkerHelper markerHelper = new MarkerHelper();
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
@@ -433,7 +435,7 @@ public class BuldreinfoRepository {
 					sectorL.getLat(), sectorL.getLng(), canonical, id, visibility, nr, name, comment,
 					GradeHelper.intToString(s.getIdRegion(), grade),
 					GradeHelper.intToString(s.getIdRegion(), originalGrade), faDate, faDateHr, fa, l.getLat(),
-					l.getLng(), media, numTicks, stars, ticked, null, t);
+					l.getLng(), media, numTicks, stars, ticked, null, t, todoIdPlants.contains(id));
 		}
 		rst.close();
 		ps.close();
@@ -890,6 +892,30 @@ public class BuldreinfoRepository {
 		int numPages = (int)(Math.ceil(numTicks / 200f));
 		Ticks res = new Ticks(ticks, page, numPages);
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, idRegion, page, res);
+		return res;
+	}
+
+	public List<Todo> getTodo(int authUserId, Setup setup) throws SQLException {
+		List<Todo> res = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.priority, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.hidden problem_visibility FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND t.user_id=? AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY t.id, t.priority, a.name, s.name, p.id, p.name, p.grade, p.hidden ORDER BY t.priority");
+		ps.setInt(1, setup.getIdRegion());
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, authUserId);
+		ps.setInt(4, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int id = rst.getInt("id");
+			int priority = rst.getInt("priority");
+			String areaName = rst.getString("area_name");
+			String sectorName = rst.getString("sector_name");
+			int problemId = rst.getInt("problem_id");
+			String problemName = rst.getString("problem_name");
+			int problemGrade = rst.getInt("problem_grade");
+			int problemVisibility = rst.getInt("problem_visibility");
+			res.add(new Todo(id, authUserId, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup.getIdRegion(), problemGrade), problemVisibility));
+		}
+		rst.close();
+		ps.close();
 		return res;
 	}
 
@@ -1457,7 +1483,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 	}
-
+	
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		// Check for write permissions
 		boolean ok = false;
@@ -1505,7 +1531,7 @@ public class BuldreinfoRepository {
 			ps = null;
 		}
 	}
-	
+
 	public void upsertTodo(int authUserId, Todo todo) throws SQLException {
 		// Check permissions
 		Preconditions.checkArgument(todo.getUserId() == authUserId, "Insufficient credentials");
@@ -1712,7 +1738,7 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 	}
-
+	
 	private void downloadUserImage(int userId, String url) {
 		try {
 			final Path p = Paths.get(PATH + "web/users").resolve(userId + ".jpg");
@@ -1725,7 +1751,7 @@ public class BuldreinfoRepository {
 			logger.fatal(e.getMessage(), e);
 		}
 	}
-	
+
 	private List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
 		Comparator<String> comp = (String o1, String o2) -> (o2.compareTo(o1));
 		Set<String> jsonSet = new TreeSet<>(comp);

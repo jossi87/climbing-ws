@@ -268,7 +268,7 @@ public class V2 {
 		}
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
-
+	
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -309,6 +309,21 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request);
 			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup.getIdRegion(), page);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/todo")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getTodo(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			List<Todo> res = c.getBuldreinfoRepo().getTodo(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -505,10 +520,9 @@ public class V2 {
 
 	@POST
 	@Path("/todo")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
 			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
 			c.setSuccess();
