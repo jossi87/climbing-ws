@@ -1756,7 +1756,7 @@ public class BuldreinfoRepository {
 			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
+						.filter(x -> x.getMedia() == null && x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
 						.findAny();
 				if (match.isPresent()) {
 					match.get().setMedia(a.getMedia());
@@ -1766,7 +1766,7 @@ public class BuldreinfoRepository {
 			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
+						.filter(x -> x.getUsers() == null && x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
 						.findAny();
 				if (match.isPresent()) {
 					a.setMedia(match.get().getMedia());
