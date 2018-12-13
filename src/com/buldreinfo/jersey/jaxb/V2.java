@@ -53,6 +53,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -392,7 +393,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -448,7 +449,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -484,7 +485,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
@@ -495,6 +496,21 @@ public class V2 {
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
 			invalidateFrontpageCache();
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@POST
+	@Path("/todo")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

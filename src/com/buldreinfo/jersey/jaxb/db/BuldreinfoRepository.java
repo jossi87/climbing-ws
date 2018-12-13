@@ -65,6 +65,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
@@ -1504,6 +1505,40 @@ public class BuldreinfoRepository {
 			ps = null;
 		}
 	}
+	
+	public void upsertTodo(int authUserId, Todo todo) throws SQLException {
+		// Check permissions
+		Preconditions.checkArgument(todo.getUserId() == authUserId, "Insufficient credentials");
+		// Delete/Insert/Update
+		if (todo.isDelete()) {
+			PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM todo WHERE id=?");
+			ps.setInt(1, todo.getId());
+			ps.execute();
+			ps.close();
+		} else if (todo.getId() <= 0) {
+			int priority = 1;
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MAX(priority) FROM todo WHERE user_id=?");
+			ps.setInt(1, authUserId);
+			ResultSet rst = ps.executeQuery();
+			while (rst.next()) {
+				priority = rst.getInt(1);
+			}
+			rst.close();
+			ps.close();
+			ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id, priority) VALUES (?, ?, ?)");
+			ps.setInt(1, todo.getUserId());
+			ps.setInt(2, todo.getProblemId());
+			ps.setInt(3, priority);
+			ps.execute();
+			ps.close();
+		} else {
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE todo SET priority=? WHERE id=?");
+			ps.setInt(1, todo.getPriority());
+			ps.setInt(2, todo.getId());
+			ps.execute();
+			ps.close();
+		}
+	}
 
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
@@ -1779,14 +1814,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private Activity parseJson(String json) {
-		try {
-			return gson.fromJson(json, Activity.class);
-		} catch (Exception e) {
-			throw new RuntimeException("json=" + json + ", error=" + e.getMessage(), e);
-		}
-	}
-
 	private String getDateTaken(Path p) {
 		if (Files.exists(p) && p.getFileName().toString().toLowerCase().endsWith(".jpg")) {
 			try {
@@ -1926,6 +1953,14 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return res;
+	}
+
+	private Activity parseJson(String json) {
+		try {
+			return gson.fromJson(json, Activity.class);
+		} catch (Exception e) {
+			throw new RuntimeException("json=" + json + ", error=" + e.getMessage(), e);
+		}
 	}
 
 	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution) throws SQLException {
