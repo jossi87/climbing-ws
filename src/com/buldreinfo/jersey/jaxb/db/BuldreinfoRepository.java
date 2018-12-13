@@ -1547,15 +1547,12 @@ public class BuldreinfoRepository {
 			while (rst.next()) {
 				priority = rst.getInt(1);
 			}
-			if (priority == 0) {
-				priority = 1;
-			}
 			rst.close();
 			ps.close();
 			ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id, priority) VALUES (?, ?, ?)");
 			ps.setInt(1, authUserId);
 			ps.setInt(2, todo.getProblemId());
-			ps.setInt(3, priority);
+			ps.setInt(3, ++priority);
 			ps.execute();
 			ps.close();
 		} else {
