@@ -10,7 +10,7 @@ public class Todo {
 	private final String problemName;
 	private final String problemGrade;
 	private final int problemVisibility;
-	private final boolean delete = false;
+	private final boolean isDelete = false;
 	
 	public Todo(int id, int userId, int priority, String areaName, String sectorName, int problemId, String problemName, String problemGrade, int problemVisibility) {
 		this.id = id;
@@ -61,6 +61,6 @@ public class Todo {
 	}
 
 	public boolean isDelete() {
-		return delete;
+		return isDelete;
 	}
 }
