@@ -9,7 +9,7 @@ public class Todo {
 	private final String problemName;
 	private final String problemGrade;
 	private final int problemVisibility;
-	private final boolean isDelete = false;
+	private boolean isDelete;
 	
 	public Todo(int id, int priority, String areaName, String sectorName, int problemId, String problemName, String problemGrade, int problemVisibility) {
 		this.id = id;
@@ -22,6 +22,10 @@ public class Todo {
 		this.problemVisibility = problemVisibility;
 	}
 
+	public String getAreaName() {
+		return areaName;
+	}
+	
 	public int getId() {
 		return id;
 	}
@@ -30,12 +34,8 @@ public class Todo {
 		return priority;
 	}
 
-	public String getAreaName() {
-		return areaName;
-	}
-
-	public String getSectorName() {
-		return sectorName;
+	public String getProblemGrade() {
+		return problemGrade;
 	}
 
 	public int getProblemId() {
@@ -46,15 +46,19 @@ public class Todo {
 		return problemName;
 	}
 
-	public String getProblemGrade() {
-		return problemGrade;
-	}
-
 	public int getProblemVisibility() {
 		return problemVisibility;
 	}
 
+	public String getSectorName() {
+		return sectorName;
+	}
+
 	public boolean isDelete() {
 		return isDelete;
+	}
+
+	public void setDelete(boolean isDelete) {
+		this.isDelete = isDelete;
 	}
 }
