@@ -912,7 +912,7 @@ public class BuldreinfoRepository {
 			String problemName = rst.getString("problem_name");
 			int problemGrade = rst.getInt("problem_grade");
 			int problemVisibility = rst.getInt("problem_visibility");
-			res.add(new Todo(id, authUserId, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup.getIdRegion(), problemGrade), problemVisibility));
+			res.add(new Todo(id, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup.getIdRegion(), problemGrade), problemVisibility));
 		}
 		rst.close();
 		ps.close();
@@ -1533,8 +1533,6 @@ public class BuldreinfoRepository {
 	}
 
 	public void upsertTodo(int authUserId, Todo todo) throws SQLException {
-		// Check permissions
-		Preconditions.checkArgument(todo.getUserId() == authUserId, "Insufficient credentials");
 		// Delete/Insert/Update
 		if (todo.isDelete()) {
 			PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM todo WHERE id=?");
@@ -1552,7 +1550,7 @@ public class BuldreinfoRepository {
 			rst.close();
 			ps.close();
 			ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id, priority) VALUES (?, ?, ?)");
-			ps.setInt(1, todo.getUserId());
+			ps.setInt(1, authUserId);
 			ps.setInt(2, todo.getProblemId());
 			ps.setInt(3, priority);
 			ps.execute();
