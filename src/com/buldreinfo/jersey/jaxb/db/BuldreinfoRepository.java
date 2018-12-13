@@ -1763,6 +1763,16 @@ public class BuldreinfoRepository {
 					continue;
 				}
 			}
+			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
+				Optional<Activity> match = res
+						.stream()
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
+						.findAny();
+				if (match.isPresent()) {
+					a.setMedia(match.get().getMedia());
+					continue;
+				}
+			}
 			res.add(a);
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
