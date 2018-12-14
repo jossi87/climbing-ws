@@ -381,7 +381,8 @@ public class BuldreinfoRepository {
 
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Integer> todoIdPlants = getTodo(authUserId, s.getIdRegion(), authUserId).getTodo().stream().map(x -> x.getProblemId()).collect(Collectors.toList());
+		TodoUser todoUser = getTodo(authUserId, s.getIdRegion(), authUserId);
+		List<Integer> todoIdPlants = todoUser == null? Lists.newArrayList() : todoUser.getTodo().stream().map(x -> x.getProblemId()).collect(Collectors.toList());
 		MarkerHelper markerHelper = new MarkerHelper();
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
@@ -931,6 +932,7 @@ public class BuldreinfoRepository {
 		}
 		rst.close();
 		ps.close();
+		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, idRegion, reqId, res);
 		return res;
 	}
 
