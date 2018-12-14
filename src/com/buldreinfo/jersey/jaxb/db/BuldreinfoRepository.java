@@ -926,7 +926,7 @@ public class BuldreinfoRepository {
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			String picture = rst.getString("picture");
-			boolean readOnly = authUserId != reqId;
+			boolean readOnly = authUserId != userId;
 			String name = rst.getString("name");
 			res = new TodoUser(name, picture, readOnly, todo);
 		}
