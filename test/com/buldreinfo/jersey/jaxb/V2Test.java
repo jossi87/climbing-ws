@@ -129,7 +129,7 @@ public class V2Test {
 	public void testGetTodo() throws Exception {
 		V2 tester = new V2();
 		// User: Jostein Ø
-		Response r = tester.getUsers(getRequest(), 1);
+		Response r = tester.getTodo(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof TodoUser);
 		TodoUser t = (TodoUser)r.getEntity();
