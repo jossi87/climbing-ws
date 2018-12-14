@@ -1416,10 +1416,16 @@ public class BuldreinfoRepository {
 	public void setTick(int authUserId, int regionId, Tick t) throws SQLException, ParseException {
 		Preconditions.checkArgument(authUserId != -1);
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		// Remove from project list (if existing)
+		PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM todo WHERE user_id=? AND problem_id=?");
+		ps.setInt(1, authUserId);
+		ps.setInt(2, t.getIdProblem());
+		ps.execute();
+		ps.close();
+		ps = null;
 		if (t.isDelete()) {
 			Preconditions.checkArgument(t.getId() > 0, "Cannot delete a tick without id");
-			PreparedStatement ps = c.getConnection()
-					.prepareStatement("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?");
+			ps = c.getConnection().prepareStatement("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?");
 			ps.setInt(1, t.getId());
 			ps.setInt(2, authUserId);
 			ps.setInt(3, t.getIdProblem());
@@ -1428,23 +1434,21 @@ public class BuldreinfoRepository {
 			if (res != 1) {
 				throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 			}
+			ps = null;
 		} else if (t.getId() == -1) {
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)");
+			ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)");
 			ps.setInt(1, t.getIdProblem());
 			ps.setInt(2, authUserId);
-			ps.setTimestamp(3,
-					Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
+			ps.setTimestamp(3, Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
 			ps.setInt(4, GradeHelper.stringToInt(regionId, t.getGrade()));
 			ps.setString(5, Strings.emptyToNull(t.getComment()));
 			ps.setDouble(6, t.getStars());
 			ps.execute();
 			ps.close();
+			ps = null;
 		} else if (t.getId() > 0) {
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?");
-			ps.setTimestamp(1,
-					Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
+			ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?");
+			ps.setTimestamp(1, Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
 			ps.setInt(2, GradeHelper.stringToInt(regionId, t.getGrade()));
 			ps.setString(3, Strings.emptyToNull(t.getComment()));
 			ps.setDouble(4, t.getStars());
@@ -1453,6 +1457,7 @@ public class BuldreinfoRepository {
 			ps.setInt(7, authUserId);
 			int res = ps.executeUpdate();
 			ps.close();
+			ps = null;
 			if (res != 1) {
 				throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 			}
@@ -1464,8 +1469,7 @@ public class BuldreinfoRepository {
 	public void upsertComment(int authUserId, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
-			PreparedStatement ps = c.getConnection()
-					.prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?");
 			ps.setBoolean(1, co.isDanger());
 			ps.setBoolean(2, co.isResolved());
 			ps.setInt(3, co.getId());
@@ -1474,8 +1478,7 @@ public class BuldreinfoRepository {
 		} else {
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
 			int parentId = 0;
-			PreparedStatement ps = c.getConnection()
-					.prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?");
 			ps.setInt(1, co.getIdProblem());
 			ResultSet rst = ps.executeQuery();
 			while (rst.next()) {
@@ -1484,8 +1487,7 @@ public class BuldreinfoRepository {
 			rst.close();
 			ps.close();
 
-			ps = c.getConnection().prepareStatement(
-					"INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
+			ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)");
 			ps.setString(1, co.getComment());
 			ps.setInt(2, co.getIdProblem());
 			ps.setInt(3, authUserId);
@@ -1504,8 +1506,7 @@ public class BuldreinfoRepository {
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		// Check for write permissions
 		boolean ok = false;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT 1 FROM ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden) WHERE p.id=?");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT 1 FROM ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden) WHERE p.id=?");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, problemId);
 		ResultSet rst = ps.executeQuery();
