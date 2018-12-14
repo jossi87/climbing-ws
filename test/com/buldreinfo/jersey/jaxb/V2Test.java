@@ -21,6 +21,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
@@ -122,6 +123,19 @@ public class V2Test {
 		assertTrue(u.getNumVideosCreated()>0);
 		assertTrue(u.getNumImageTags()>0);
 		assertTrue(u.getNumVideoTags()>0);
+	}
+	
+	@Test
+	public void testGetTodo() throws Exception {
+		V2 tester = new V2();
+		// User: Jostein Ø
+		Response r = tester.getUsers(getRequest(), 1);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof TodoUser);
+		TodoUser t = (TodoUser)r.getEntity();
+		assertTrue(t.getName() != null);
+		assertTrue(t.getPicture() != null);
+		assertTrue(!t.getTodo().isEmpty());
 	}
 	
 	@Test

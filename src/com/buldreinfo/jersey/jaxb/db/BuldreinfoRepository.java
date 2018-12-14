@@ -67,6 +67,7 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
@@ -380,7 +381,7 @@ public class BuldreinfoRepository {
 
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Integer> todoIdPlants = getTodo(authUserId, s).stream().map(x -> x.getProblemId()).collect(Collectors.toList());
+		List<Integer> todoIdPlants = getTodo(authUserId, s.getIdRegion(), authUserId).getTodo().stream().map(x -> x.getProblemId()).collect(Collectors.toList());
 		MarkerHelper markerHelper = new MarkerHelper();
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
@@ -895,13 +896,14 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<Todo> getTodo(int authUserId, Setup setup) throws SQLException {
-		List<Todo> res = new ArrayList<>();
+	public TodoUser getTodo(int authUserId, int idRegion, int reqId) throws SQLException {
+		final int userId = reqId > 0? reqId : authUserId;
+		List<Todo> todo = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.priority, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.hidden problem_visibility FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND t.user_id=? AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY t.id, t.priority, a.name, s.name, p.id, p.name, p.grade, p.hidden ORDER BY t.priority");
-		ps.setInt(1, setup.getIdRegion());
-		ps.setInt(2, setup.getIdRegion());
-		ps.setInt(3, authUserId);
-		ps.setInt(4, authUserId);
+		ps.setInt(1, idRegion);
+		ps.setInt(2, idRegion);
+		ps.setInt(3, userId);
+		ps.setInt(4, userId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
@@ -912,7 +914,20 @@ public class BuldreinfoRepository {
 			String problemName = rst.getString("problem_name");
 			int problemGrade = rst.getInt("problem_grade");
 			int problemVisibility = rst.getInt("problem_visibility");
-			res.add(new Todo(id, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup.getIdRegion(), problemGrade), problemVisibility));
+			todo.add(new Todo(id, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(idRegion, problemGrade), problemVisibility));
+		}
+		rst.close();
+		ps.close();
+		TodoUser res = null;
+		String sqlStr = "SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?";
+		ps = c.getConnection().prepareStatement(sqlStr);
+		ps.setInt(1, userId);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			String picture = rst.getString("picture");
+			boolean readOnly = authUserId != reqId;
+			String name = rst.getString("name");
+			res = new TodoUser(name, picture, readOnly, todo);
 		}
 		rst.close();
 		ps.close();

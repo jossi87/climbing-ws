@@ -54,6 +54,7 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -319,11 +320,11 @@ public class V2 {
 	@GET
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTodo(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getTodo(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			List<Todo> res = c.getBuldreinfoRepo().getTodo(authUserId, setup);
+			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup.getIdRegion(), id);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
