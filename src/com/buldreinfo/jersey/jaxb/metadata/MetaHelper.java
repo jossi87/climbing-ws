@@ -79,7 +79,7 @@ public class MetaHelper {
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(10)
 				.setSetRobotsDenyAll());
 	}
-	
+
 	public Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
@@ -102,7 +102,7 @@ public class MetaHelper {
 	public List<Setup> getSetups() {
 		return setups;
 	}
-	
+
 	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
 		if (m == null) {
 			return;
@@ -116,7 +116,7 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			
+
 			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia());
 			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
 					.setCanonical(a.getCanonical())
@@ -216,13 +216,15 @@ public class MetaHelper {
 			TodoUser u = (TodoUser)m;
 			String title = String.format("%s (To-do list)", u.getName());
 			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og));
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
 		}
 	}
-	
+
 	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
 		String url = setup.getUrl(suffix);
 		if (media != null) {
