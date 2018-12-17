@@ -12,8 +12,8 @@ import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.FilterRow;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
+import com.buldreinfo.jersey.jaxb.model.FilterResponse;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -143,10 +143,9 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20), 0));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		@SuppressWarnings("unchecked")
-		List<FilterRow> res = (List<FilterRow>)r.getEntity();
-		assertTrue(!res.isEmpty());
+		assertTrue(r.getEntity() instanceof FilterResponse);
+		FilterResponse res = (FilterResponse)r.getEntity();
+		assertTrue(!res.getRows().isEmpty());
 	}
 	
 	@Test
