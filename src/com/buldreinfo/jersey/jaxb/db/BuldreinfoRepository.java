@@ -1779,7 +1779,6 @@ public class BuldreinfoRepository {
 						+ " FROM ((((((((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user fu ON f.user_id=fu.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user tu ON t.user_id=tu.id) LEFT JOIN guestbook g ON p.id=g.problem_id) LEFT JOIN user gu ON g.user_id=gu.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)"
 						+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
 						+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
-						+ "   AND p.grade>0"
 						+ " GROUP BY p.id, p.created, p.name, p.hidden, p.fa_date, p.grade, p.description,"
 						+ "   t.date, t.created, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture, tu.id,"
 						+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture, gu.id,"
