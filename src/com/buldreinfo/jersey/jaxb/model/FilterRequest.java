@@ -4,23 +4,17 @@ import java.util.List;
 
 public class FilterRequest {
 	private final List<Integer> grades;
-	private final int visibility;
 	
-	public FilterRequest(List<Integer> grades, int visibility) {
+	public FilterRequest(List<Integer> grades) {
 		this.grades = grades;
-		this.visibility = visibility;
 	}
 
 	public List<Integer> getGrades() {
 		return grades;
 	}
 	
-	public int getVisibility() {
-		return visibility;
-	}
-
 	@Override
 	public String toString() {
-		return "FilterRequest [grades=" + grades + ", visibility=" + visibility + "]";
+		return "FilterRequest [grades=" + grades + "]";
 	}
 }

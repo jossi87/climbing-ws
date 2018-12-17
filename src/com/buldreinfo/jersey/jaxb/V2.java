@@ -41,8 +41,8 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Comment;
+import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
-import com.buldreinfo.jersey.jaxb.model.FilterResponse;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -402,8 +402,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
-			FilterResponse res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
