@@ -1840,7 +1840,7 @@ public class BuldreinfoRepository {
 					continue;
 				}
 			}
-			if (a.getUsers() != null && !a.getUsers().isEmpty()) {
+			else if (a.getUsers() != null && !a.getUsers().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
 						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
