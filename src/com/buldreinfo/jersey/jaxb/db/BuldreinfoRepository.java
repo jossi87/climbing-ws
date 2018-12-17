@@ -1830,6 +1830,7 @@ public class BuldreinfoRepository {
 			if (a.getGrade() != null) {
 				a.setGrade(GradeHelper.intToString(setup.getIdRegion(), Integer.parseInt(a.getGrade())));
 			}
+			// Try to merge media with FA
 			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
 				Optional<Activity> match = res
 						.stream()
@@ -1841,7 +1842,16 @@ public class BuldreinfoRepository {
 				}
 			}
 			else if (a.getUsers() != null && !a.getUsers().isEmpty()) {
+				// If FA already exists, ignore this. Duplicate possible because of randomProblemMediaId
 				Optional<Activity> match = res
+						.stream()
+						.filter(x -> x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
+						.findAny();
+				if (match.isPresent()) {
+					continue;
+				}
+				// Try to merge FA with media
+				match = res
 						.stream()
 						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
 						.findAny();
