@@ -325,6 +325,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
 			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup.getIdRegion(), id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

@@ -923,15 +923,16 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		TodoUser res = null;
-		String sqlStr = "SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?";
+		String sqlStr = "SELECT u.id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, userId);
 		rst = ps.executeQuery();
 		while (rst.next()) {
+			int id = rst.getInt("id");
 			String picture = rst.getString("picture");
 			boolean readOnly = authUserId != userId;
 			String name = rst.getString("name");
-			res = new TodoUser(name, picture, readOnly, todo);
+			res = new TodoUser(id, name, picture, readOnly, todo);
 		}
 		rst.close();
 		ps.close();

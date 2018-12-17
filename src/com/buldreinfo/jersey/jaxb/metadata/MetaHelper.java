@@ -23,6 +23,7 @@ import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -183,8 +184,7 @@ public class MetaHelper {
 			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			OpenGraph og = getOg(setup, "/user/" + u.getId(), null);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
-					.setDescription(description));
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
@@ -211,6 +211,12 @@ public class MetaHelper {
 			String description = String.format("Page %d/%d", t.getCurrPage(), t.getNumPages());
 			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
+		}
+		else if (m instanceof TodoUser) {
+			TodoUser u = (TodoUser)m;
+			String title = String.format("%s (To-do list)", u.getName());
+			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null);
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
