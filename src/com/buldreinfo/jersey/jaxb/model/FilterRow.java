@@ -1,6 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class Filter {
+public class FilterRow {
 	private final int areaVisibility;
 	private final String areaName;
 	private final int sectorVisibility;
@@ -15,7 +15,7 @@ public class Filter {
 	private final boolean ticked;
 	private final int randomMediaId;
 	
-	public Filter(int areaVisibility, String areaName, int sectorVisibility, String sectorName, int problemId,
+	public FilterRow(int areaVisibility, String areaName, int sectorVisibility, String sectorName, int problemId,
 			int problemVisibility, String problemName, double latitude, double longitude, double stars, String grade,
 			boolean ticked, int randomMediaId) {
 		this.areaVisibility = areaVisibility;

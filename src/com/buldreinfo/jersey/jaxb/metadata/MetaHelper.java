@@ -14,6 +14,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.FilterResponse;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -211,6 +212,10 @@ public class MetaHelper {
 			String description = String.format("Page %d/%d", t.getCurrPage(), t.getNumPages());
 			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
+		}
+		else if (m instanceof FilterResponse) {
+			FilterResponse f = (FilterResponse)m;
+			f.setMetadata(new Metadata(c, setup, authUserId, "Filter", null));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
