@@ -198,6 +198,7 @@ public class V2 {
 			c.setSuccess();
 			CacheControl cc = new CacheControl();
 		    cc.setMaxAge(2678400); // 31 days
+		    cc.setNoTransform(false);
 			if (dimention != null) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
