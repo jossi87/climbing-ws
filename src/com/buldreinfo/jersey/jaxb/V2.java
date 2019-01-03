@@ -22,6 +22,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -195,6 +196,9 @@ public class V2 {
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			c.setSuccess();
+			CacheControl cc = new CacheControl();
+		    cc.setMaxAge(2678400); // 31 days
+		    cc.setPrivate(true);
 			if (dimention != null) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
@@ -206,7 +210,7 @@ public class V2 {
 				baos.close();
 				return Response.ok(imageData).build();
 			}
-			return Response.ok(p.toFile()).build();
+			return Response.ok(p.toFile()).cacheControl(cc).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
