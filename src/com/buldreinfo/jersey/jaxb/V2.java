@@ -207,7 +207,7 @@ public class V2 {
 				ImageIO.write(scaled, "jpg", baos);
 				byte[] imageData = baos.toByteArray();
 				baos.close();
-				return Response.ok(imageData).build();
+				return Response.ok(imageData).cacheControl(cc).build();
 			}
 			return Response.ok(p.toFile()).cacheControl(cc).build();
 		} catch (Exception e) {
