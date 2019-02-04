@@ -71,13 +71,13 @@ public class MetaHelper {
 				.setDescription("Climbing in Jotunheimen (Norway)")
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
 		setups.add(new Setup("buldreforer.tromsoklatring.no")
-				.setIdRegion(5)
+				.setIdRegion(7)
 				.setBouldering(true)
 				.setTitle("Buldring i Tromsø")
 				.setDescription("Bouldering in Tromsø (Norway)")
 				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
 		setups.add(new Setup("klatreforer.tromsoklatring.no")
-				.setIdRegion(6)
+				.setIdRegion(8)
 				.setBouldering(false)
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
