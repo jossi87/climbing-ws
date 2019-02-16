@@ -161,8 +161,9 @@ public class Problem implements IMetadata {
 	private final Type t;
 	private List<Section> sections;
 	private Metadata metadata;
+	private final boolean todo;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -190,6 +191,7 @@ public class Problem implements IMetadata {
 		this.ticked = ticked;
 		this.newMedia = newMedia;
 		this.t = t;
+		this.todo = todo;
 	}
 	
 	public void addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
@@ -205,14 +207,14 @@ public class Problem implements IMetadata {
 		}
 		sections.add(new Section(id, nr, description, grade));
 	}
-
+	
 	public void addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
 		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
 	}
-	
+
 	public int getAreaId() {
 		return areaId;
 	}
@@ -240,11 +242,11 @@ public class Problem implements IMetadata {
 	public String getFaDate() {
 		return faDate;
 	}
-
+	
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-	
+
 	public String getGrade() {
 		return grade;
 	}
@@ -252,11 +254,11 @@ public class Problem implements IMetadata {
 	public int getId() {
 		return id;
 	}
-
+	
 	public double getLat() {
 		return lat;
 	}
-	
+
 	public double getLng() {
 		return lng;
 	}
@@ -277,11 +279,11 @@ public class Problem implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public int getNr() {
 		return nr;
 	}
-	
+
 	public int getNumTicks() {
 		return numTicks;
 	}
@@ -289,15 +291,15 @@ public class Problem implements IMetadata {
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-
+	
 	public List<Section> getSections() {
 		return sections;
 	}
-	
+
 	public int getSectorId() {
 		return sectorId;
 	}
-
+	
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -317,11 +319,11 @@ public class Problem implements IMetadata {
 	public double getStars() {
 		return stars;
 	}
-	
+
 	public Type getT() {
 		return t;
 	}
-
+	
 	public List<Tick> getTicks() {
 		return ticks;
 	}
@@ -332,6 +334,10 @@ public class Problem implements IMetadata {
 
 	public boolean isTicked() {
 		return ticked;
+	}
+
+	public boolean isTodo() {
+		return todo;
 	}
 	
 	@Override

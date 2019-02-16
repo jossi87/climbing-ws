@@ -12,7 +12,7 @@ public class FilterRequest {
 	public List<Integer> getGrades() {
 		return grades;
 	}
-
+	
 	@Override
 	public String toString() {
 		return "FilterRequest [grades=" + grades + "]";

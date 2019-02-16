@@ -23,6 +23,7 @@ import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -69,6 +70,18 @@ public class MetaHelper {
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
 				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
+		setups.add(new Setup("buldreforer.tromsoklatring.no")
+				.setIdRegion(7)
+				.setBouldering(true)
+				.setTitle("Buldring i Tromsø")
+				.setDescription("Bouldering in Tromsø (Norway)")
+				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
+		setups.add(new Setup("klatreforer.tromsoklatring.no")
+				.setIdRegion(8)
+				.setBouldering(false)
+				.setTitle("Klatring i Tromsø")
+				.setDescription("Climbing in Tromsø (Norway)")
+				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
@@ -78,7 +91,7 @@ public class MetaHelper {
 				.setLatLng(58.78119, 5.86361).setDefaultZoom(10)
 				.setSetRobotsDenyAll());
 	}
-	
+
 	public Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
@@ -101,7 +114,7 @@ public class MetaHelper {
 	public List<Setup> getSetups() {
 		return setups;
 	}
-	
+
 	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
 		if (m == null) {
 			return;
@@ -115,7 +128,7 @@ public class MetaHelper {
 			else {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
-			
+
 			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia());
 			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
 					.setCanonical(a.getCanonical())
@@ -183,8 +196,7 @@ public class MetaHelper {
 			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			OpenGraph og = getOg(setup, "/user/" + u.getId(), null);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
-					.setDescription(description));
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
 		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
@@ -212,11 +224,19 @@ public class MetaHelper {
 			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
 		}
+		else if (m instanceof TodoUser) {
+			TodoUser u = (TodoUser)m;
+			String title = String.format("%s (To-do list)", u.getName());
+			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null);
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
+		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
 		}
 	}
-	
+
 	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
 		String url = setup.getUrl(suffix);
 		if (media != null) {
