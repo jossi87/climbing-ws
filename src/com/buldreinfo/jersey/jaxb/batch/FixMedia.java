@@ -75,7 +75,7 @@ public class FixMedia {
 		int idMedia = 0;
 		final String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
 		Preconditions.checkArgument(suffix.equals("mp4"), "Invalid suffix on " + src.toString() + ": " + suffix);
-		PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id) VALUES (1, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
+		PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, suffix);
 		ps.setInt(2, idPhotographerUserId);
 		ps.setInt(3, idUploaderUserId);
@@ -237,7 +237,7 @@ public class FixMedia {
 			}
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				if (!keep.contains(file)) {
-					if (file.toString().contains("\\web\\")) {
+					if (file.toString().contains("\\web\\") && !file.toString().contains("\\users\\")) {
 						final String unixPath = file.toString().replaceAll("\\\\", "/").replace("G:/gdrive/buldreinfo", "/home/jossi");
 						System.out.println("rm \"" + unixPath + "\"");
 					}
