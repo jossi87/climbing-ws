@@ -74,7 +74,7 @@ public class FixMedia {
 		// DB - add media
 		int idMedia = 0;
 		final String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
-		Preconditions.checkArgument(suffix.equals("mp4"), "Invalid suffix on " + src.toString() + ": " + suffix);
+		Preconditions.checkArgument(suffix.equals("mp4") || suffix.equals("mov"), "Invalid suffix on " + src.toString() + ": " + suffix);
 		PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, suffix);
 		ps.setInt(2, idPhotographerUserId);
