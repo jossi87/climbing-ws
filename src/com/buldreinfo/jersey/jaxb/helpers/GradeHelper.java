@@ -107,6 +107,17 @@ public class GradeHelper {
 
 	public static int stringToInt(int regionId, String grade) throws SQLException {
 		Preconditions.checkNotNull(grade, "grade is null");
-		return getGrades(regionId).inverse().get(grade);
+		ImmutableBiMap<String, Integer> grades = getGrades(regionId).inverse();
+		try {
+			return grades.get(grade);
+		} catch (NullPointerException e) {
+			// Check for first part...
+			for (String key : grades.keySet()) {
+				if (key.contains(" ") && key.substring(0, key.indexOf(" ")).equals(grade)) {
+					return grades.get(key);
+				}
+			}
+			throw e;
+		}
 	}
 }
