@@ -138,6 +138,7 @@ public class Problem implements IMetadata {
 	private final String sectorName;
 	private final double sectorLat;
 	private final double sectorLng;
+	private final String sectorPolyline;
 	private final String canonical;
 	private final int id;
 	private final int visibility;
@@ -163,7 +164,7 @@ public class Problem implements IMetadata {
 	private Metadata metadata;
 	private final boolean todo;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -172,6 +173,7 @@ public class Problem implements IMetadata {
 		this.sectorName = sectorName;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
+		this.sectorPolyline = sectorPolyline;
 		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
@@ -214,11 +216,11 @@ public class Problem implements IMetadata {
 		}
 		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
 	}
-
+	
 	public int getAreaId() {
 		return areaId;
 	}
-	
+
 	public String getAreaName() {
 		return areaName;
 	}
@@ -246,11 +248,11 @@ public class Problem implements IMetadata {
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-
+	
 	public String getGrade() {
 		return grade;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
@@ -258,11 +260,11 @@ public class Problem implements IMetadata {
 	public double getLat() {
 		return lat;
 	}
-
+	
 	public double getLng() {
 		return lng;
 	}
-	
+
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -283,11 +285,11 @@ public class Problem implements IMetadata {
 	public int getNr() {
 		return nr;
 	}
-
+	
 	public int getNumTicks() {
 		return numTicks;
 	}
-	
+
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
@@ -295,21 +297,25 @@ public class Problem implements IMetadata {
 	public List<Section> getSections() {
 		return sections;
 	}
-
+	
 	public int getSectorId() {
 		return sectorId;
 	}
-	
+
 	public double getSectorLat() {
 		return sectorLat;
 	}
-
+	
 	public double getSectorLng() {
 		return sectorLng;
 	}
 
 	public String getSectorName() {
 		return sectorName;
+	}
+
+	public String getSectorPolyline() {
+		return sectorPolyline;
 	}
 
 	public int getSectorVisibility() {

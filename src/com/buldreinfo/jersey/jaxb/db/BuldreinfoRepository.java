@@ -386,7 +386,7 @@ public class BuldreinfoRepository {
 		List<Integer> todoIdPlants = todoUser == null? Lists.newArrayList() : todoUser.getTodo().stream().map(x -> x.getProblemId()).collect(Collectors.toList());
 		MarkerHelper markerHelper = new MarkerHelper();
 		Problem p = null;
-		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
+		String sqlStr = "SELECT a.id area_id, a.hidden area_hidden, a.name area_name, s.id sector_id, s.hidden sector_hidden, s.name sector_name, s.parking_latitude sector_lat, s.parking_longitude sector_lng, s.polyline sector_polyline, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.hidden hidden, p.nr, p.name, p.description, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END, '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
@@ -396,7 +396,7 @@ public class BuldreinfoRepository {
 				+ "   AND p.id=?"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND (?=0 OR r.id=? OR auth.user_id IS NOT NULL)"
-				+ " GROUP BY r.url, a.id, a.hidden, a.name, s.id, s.hidden, s.name, s.parking_latitude, s.parking_longitude, p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.hidden, a.name, s.id, s.hidden, s.name, s.parking_latitude, s.parking_longitude, s.polyline, p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype"
 				+ " ORDER BY p.name";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, authUserId);
@@ -416,6 +416,7 @@ public class BuldreinfoRepository {
 			int sectorVisibility = rst.getInt("sector_hidden");
 			String sectorName = rst.getString("sector_name");
 			LatLng sectorL = markerHelper.getLatLng(rst.getDouble("sector_lat"), rst.getDouble("sector_lng"));
+			String sectorPolyline = rst.getString("sector_polyline");
 			String canonical = rst.getString("canonical");
 			int id = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
@@ -435,7 +436,8 @@ public class BuldreinfoRepository {
 			List<Media> media = getMediaProblem(s, sectorId, id);
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			p = new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName,
-					sectorL.getLat(), sectorL.getLng(), canonical, id, visibility, nr, name, comment,
+					sectorL.getLat(), sectorL.getLng(),  sectorPolyline,
+					canonical, id, visibility, nr, name, comment,
 					GradeHelper.intToString(s.getIdRegion(), grade),
 					GradeHelper.intToString(s.getIdRegion(), originalGrade), faDate, faDateHr, fa, l.getLat(),
 					l.getLng(), media, numTicks, stars, ticked, null, t, todoIdPlants.contains(id));
