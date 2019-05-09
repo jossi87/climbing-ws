@@ -526,7 +526,7 @@ public class V2 {
 	
 	@POST
 	@Path("/user")
-	public Response postUser(@Context HttpServletRequest request, boolean useBlueNotRed) throws ExecutionException, IOException {
+	public Response postUser(@Context HttpServletRequest request, @QueryParam("useBlueNotRed") boolean useBlueNotRed) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(authUserId != -1);
