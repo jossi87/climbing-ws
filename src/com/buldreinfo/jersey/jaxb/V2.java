@@ -525,10 +525,9 @@ public class V2 {
 	}
 	
 	@POST
-	@Path("/users")
-	public Response postUsers(@Context HttpServletRequest request, boolean useBlueNotRed) throws ExecutionException, IOException {
+	@Path("/user")
+	public Response postUser(@Context HttpServletRequest request, boolean useBlueNotRed) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
