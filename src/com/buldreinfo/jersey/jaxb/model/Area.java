@@ -18,10 +18,11 @@ public class Area implements IMetadata {
 		private final double lat;
 		private final double lng;
 		private final String polygonCoords;
+		private final String polyline;
 		private final int numProblems;
 		private final int randomMediaId;
 		
-		public Sector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems, int randomMediaId) {
+		public Sector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int numProblems, int randomMediaId) {
 			this.areaId = -1;
 			this.areaName = null;
 			this.areaVisibility = 0;
@@ -32,6 +33,7 @@ public class Area implements IMetadata {
 			this.lat = lat;
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
+			this.polyline = polyline;
 			this.numProblems = numProblems;
 			this.randomMediaId = randomMediaId;
 		}
@@ -72,6 +74,10 @@ public class Area implements IMetadata {
 			return numProblems;
 		}
 		
+		public String getPolyline() {
+			return polyline;
+		}
+		
 		public String getPolygonCoords() {
 			return polygonCoords;
 		}
@@ -88,7 +94,7 @@ public class Area implements IMetadata {
 		public String toString() {
 			return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
 					+ ", id=" + id + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", lat="
-					+ lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", numProblems=" + numProblems
+					+ lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", polyline=" + polyline + ", numProblems=" + numProblems
 					+ ", randomMediaId=" + randomMediaId + "]";
 		}
 	}
@@ -124,8 +130,8 @@ public class Area implements IMetadata {
 		this.newMedia = newMedia;
 	}
 
-	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, int numProblems, int randomMediaId) {
-		sectors.add(new Sector(id, visibility, name, comment, lat, lng, polygonCoords, numProblems, randomMediaId));
+	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int numProblems, int randomMediaId) {
+		sectors.add(new Sector(id, visibility, name, comment, lat, lng, polygonCoords, polyline, numProblems, randomMediaId));
 	}
 
 	public String getCanonical() {

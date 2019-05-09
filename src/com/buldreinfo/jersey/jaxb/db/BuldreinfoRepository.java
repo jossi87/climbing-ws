@@ -157,7 +157,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 
-		ps = c.getConnection().prepareStatement("SELECT s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords ORDER BY s.name");
+		ps = c.getConnection().prepareStatement("SELECT s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ps.setInt(3, authUserId);
@@ -169,10 +169,10 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
+			String polyline = rst.getString("polyline");
 			int numProblems = rst.getInt("num_problems");
 			int randomMediaId = rst.getInt("media_id");
-			a.addSector(id, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, numProblems,
-					randomMediaId);
+			a.addSector(id, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, numProblems, randomMediaId);
 		}
 		rst.close();
 		ps.close();
@@ -752,7 +752,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
@@ -766,12 +766,13 @@ public class BuldreinfoRepository {
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 			String polygonCoords = rst.getString("polygon_coords");
+			String polyline = rst.getString("polyline");
 			List<Media> media = getMediaSector(reqId, 0);
 			media.addAll(getMediaArea(areaId));
 			if (media.isEmpty()) {
 				media = null;
 			}
-			s = new Sector(orderByGrade, areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, media, null);
+			s = new Sector(orderByGrade, areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, media, null);
 		}
 		rst.close();
 		ps.close();
@@ -1377,7 +1378,7 @@ public class BuldreinfoRepository {
 				throw new SQLException("Insufficient credentials");
 			}
 			ps = c.getConnection().prepareStatement(
-					"INSERT INTO sector (android_id, area_id, name, description, parking_latitude, parking_longitude, hidden, polygon_coords, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())",
+					"INSERT INTO sector (android_id, area_id, name, description, parking_latitude, parking_longitude, hidden, polygon_coords, polyline, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
 					PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setLong(1, System.currentTimeMillis());
 			ps.setInt(2, s.getAreaId());
@@ -1395,6 +1396,7 @@ public class BuldreinfoRepository {
 			}
 			ps.setInt(7, s.getVisibility());
 			ps.setString(8, Strings.emptyToNull(s.getPolygonCoords()));
+			ps.setString(9, Strings.emptyToNull(s.getPolyline()));
 			ps.executeUpdate();
 			rst = ps.getGeneratedKeys();
 			if (rst != null && rst.next()) {

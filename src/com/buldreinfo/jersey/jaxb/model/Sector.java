@@ -116,12 +116,13 @@ public class Sector implements IMetadata {
 	private final double lat;
 	private final double lng;
 	private final String polygonCoords;
+	private final String polyline;
 	private final List<Media> media;
 	private final List<Problem> problems = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, List<Media> media, List<NewMedia> newMedia) {
+	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
@@ -134,6 +135,7 @@ public class Sector implements IMetadata {
 		this.lat = lat;
 		this.lng = lng;
 		this.polygonCoords = polygonCoords;
+		this.polyline = polyline;
 		this.media = media;
 		this.newMedia = newMedia;
 	}
@@ -160,6 +162,10 @@ public class Sector implements IMetadata {
 	
 	public String getCanonical() {
 		return canonical;
+	}
+	
+	public String getPolyline() {
+		return polyline;
 	}
 
 	public String getComment() {
@@ -216,7 +222,7 @@ public class Sector implements IMetadata {
 	public String toString() {
 		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
 				+ ", canonical=" + canonical + ", id=" + id + ", visibility=" + visibility + ", name=" + name
-				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords
+				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", polyline=" + polyline
 				+ ", media=" + media + ", problems=" + problems + ", newMedia=" + newMedia + ", metadata=" + metadata
 				+ "]";
 	}
