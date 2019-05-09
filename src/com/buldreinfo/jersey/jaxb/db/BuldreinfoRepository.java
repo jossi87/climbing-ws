@@ -1471,6 +1471,14 @@ public class BuldreinfoRepository {
 		}
 	}
 
+	public void setUser(int authUserId, boolean useBlueNotRed) throws SQLException {
+		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET use_blue_not_red=? WHERE id=?");
+		ps.setBoolean(1, useBlueNotRed);
+		ps.setInt(2, authUserId);
+		ps.execute();
+		ps.close();
+	}
+	
 	public void upsertComment(int authUserId, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
@@ -1507,7 +1515,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 	}
-	
+
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		// Check for write permissions
 		boolean ok = false;
@@ -1718,7 +1726,7 @@ public class BuldreinfoRepository {
 		}
 		return id;
 	}
-
+	
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
 		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
@@ -1759,7 +1767,7 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 	}
-	
+
 	private void downloadUserImage(int userId, String url) {
 		try {
 			final Path p = Paths.get(PATH + "web/users").resolve(userId + ".jpg");

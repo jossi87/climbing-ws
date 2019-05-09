@@ -523,6 +523,21 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
+	
+	@POST
+	@Path("/users")
+	public Response postUsers(@Context HttpServletRequest request, boolean useBlueNotRed) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			Preconditions.checkArgument(authUserId != -1);
+			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
 
 	@POST
 	@Path("/todo")
