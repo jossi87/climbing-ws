@@ -1320,7 +1320,7 @@ public class BuldreinfoRepository {
 	public Sector setSector(int authUserId, boolean orderByGrade, int regionId, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
-			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, permission auth SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.hidden=?, s.polygon_coords=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=s.hidden");
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, permission auth SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.hidden=?, s.polygon_coords=?, s.polyline=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=s.hidden");
 			ps.setString(1, s.getName());
 			ps.setString(2, Strings.emptyToNull(s.getComment()));
 			if (s.getLat() > 0) {
@@ -1335,8 +1335,9 @@ public class BuldreinfoRepository {
 			}
 			ps.setInt(5, s.getVisibility());
 			ps.setString(6, Strings.emptyToNull(s.getPolygonCoords()));
-			ps.setInt(7, s.getId());
-			ps.setInt(8, authUserId);
+			ps.setString(7, Strings.emptyToNull(s.getPolyline()));
+			ps.setInt(8, s.getId());
+			ps.setInt(9, authUserId);
 			int res = ps.executeUpdate();
 			ps.close();
 			ps = null;
