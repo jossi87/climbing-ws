@@ -138,6 +138,7 @@ public class Problem implements IMetadata {
 	private final String sectorName;
 	private final double sectorLat;
 	private final double sectorLng;
+	private final String sectorPolygonCoords;
 	private final String sectorPolyline;
 	private final String canonical;
 	private final int id;
@@ -164,7 +165,7 @@ public class Problem implements IMetadata {
 	private Metadata metadata;
 	private final boolean todo;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -173,6 +174,7 @@ public class Problem implements IMetadata {
 		this.sectorName = sectorName;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
+		this.sectorPolygonCoords = sectorPolygonCoords;
 		this.sectorPolyline = sectorPolyline;
 		this.canonical = canonical;
 		this.id = id;
@@ -252,11 +254,11 @@ public class Problem implements IMetadata {
 	public String getGrade() {
 		return grade;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
-	
+
 	public double getLat() {
 		return lat;
 	}
@@ -264,11 +266,11 @@ public class Problem implements IMetadata {
 	public double getLng() {
 		return lng;
 	}
-
+	
 	public List<Media> getMedia() {
 		return media;
 	}
-	
+
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
@@ -289,11 +291,11 @@ public class Problem implements IMetadata {
 	public int getNumTicks() {
 		return numTicks;
 	}
-
+	
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-	
+
 	public List<Section> getSections() {
 		return sections;
 	}
@@ -301,17 +303,21 @@ public class Problem implements IMetadata {
 	public int getSectorId() {
 		return sectorId;
 	}
-
+	
 	public double getSectorLat() {
 		return sectorLat;
 	}
-	
+
 	public double getSectorLng() {
 		return sectorLng;
 	}
-
+	
 	public String getSectorName() {
 		return sectorName;
+	}
+
+	public String getSectorPolygonCoords() {
+		return sectorPolygonCoords;
 	}
 
 	public String getSectorPolyline() {
