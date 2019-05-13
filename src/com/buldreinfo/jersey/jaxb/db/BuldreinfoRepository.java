@@ -807,11 +807,12 @@ public class BuldreinfoRepository {
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 			boolean hasImages = rst.getInt("num_images")>0;
 			boolean hasMovies = rst.getInt("num_movies")>0;
+			int numTicks = rst.getInt("num_ticks");
 			double stars = rst.getDouble("stars");
 			boolean ticked = rst.getBoolean("ticked");
 			Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 			boolean danger = rst.getBoolean("danger");
-			s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(regionId, grade), fa, hasImages, hasMovies, l.getLat(), l.getLng(), stars, ticked, t, danger);
+			s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(regionId, grade), fa, hasImages, hasMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger);
 		}
 		rst.close();
 		ps.close();
