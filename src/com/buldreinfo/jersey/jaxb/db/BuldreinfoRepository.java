@@ -368,10 +368,8 @@ public class BuldreinfoRepository {
 				+ " GROUP BY p.grade"
 				+ " ORDER BY p.grade";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
-		ps.setInt(1, authUserId);
+		ps.setInt(1, optionalAreaId!=0? optionalAreaId : optionalSectorId);
 		ps.setInt(2, authUserId);
-		ps.setInt(3, optionalAreaId!=0? optionalAreaId : optionalSectorId);
-		ps.setInt(4, authUserId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int gradeNumber = rst.getInt("grade");
