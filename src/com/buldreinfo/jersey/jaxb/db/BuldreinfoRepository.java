@@ -359,7 +359,7 @@ public class BuldreinfoRepository {
 	}
 
 	public Collection<GradeDistribution> getGradeDistribution(int authUserId, int regionId, int optionalAreaId, int optionalSectorId) throws SQLException {
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		Map<String, GradeDistribution> res = GradeHelper.getGradeDistributionBase(regionId);
 		String sqlStr = "SELECT ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, COUNT(DISTINCT p.id) num"
 				+ " FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN tick t ON p.id=t.problem_id"
 				+ " WHERE p.grade!=0"
