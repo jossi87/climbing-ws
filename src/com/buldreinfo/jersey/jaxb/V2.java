@@ -45,6 +45,7 @@ import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
@@ -188,6 +189,21 @@ public class V2 {
 	}
 
 	@GET
+	@Path("/grade/distribution")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getGradeDistribution(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request);
+			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup.getIdRegion(), idArea, idSector);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
 	@Path("/images")
 	@Produces("image/jpeg")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
@@ -231,7 +247,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -525,12 +541,12 @@ public class V2 {
 	}
 	
 	@POST
-	@Path("/user")
-	public Response postUser(@Context HttpServletRequest request, @QueryParam("useBlueNotRed") boolean useBlueNotRed) throws ExecutionException, IOException {
+	@Path("/todo")
+	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request);
-			Preconditions.checkArgument(authUserId != -1);
-			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
+			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -539,12 +555,12 @@ public class V2 {
 	}
 
 	@POST
-	@Path("/todo")
-	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
+	@Path("/user")
+	public Response postUser(@Context HttpServletRequest request, @QueryParam("useBlueNotRed") boolean useBlueNotRed) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request);
-			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
+			Preconditions.checkArgument(authUserId != -1);
+			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

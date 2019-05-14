@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
 
@@ -103,6 +104,30 @@ public class GradeHelper {
 			res = grades.get(++i);
 		}
 		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (regionId=" + regionId + ")");
+	}
+	
+	public static Map<String, GradeDistribution> getGradeDistributionBase(int regionId) {
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		ImmutableBiMap<Integer, String> grades = getGrades(regionId);
+		for (int i : grades.keySet()) {
+			String grade = intToStringBase(regionId, i);
+			if (!res.containsKey(grade)) {
+				res.put(grade, new GradeDistribution(grade));
+			}
+		}
+		return res;
+	}
+	
+	public static String intToStringBase(int regionId, int grade) {
+		String res = intToString(regionId, grade);
+		int ix = res.indexOf("(");
+		if (ix > 0) {
+			res = res.substring(ix+1, ix+3);
+		}
+		else {
+			res = res.replaceAll("\\-", "").replaceAll("\\+", "");
+		}
+		return res;
 	}
 
 	public static int stringToInt(int regionId, String grade) throws SQLException {

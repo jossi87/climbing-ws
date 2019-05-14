@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,7 @@ import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -354,6 +356,32 @@ public class BuldreinfoRepository {
 		}
 		logger.debug("getFrontpage(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
+	}
+
+	public Collection<GradeDistribution> getGradeDistribution(int authUserId, int regionId, int optionalAreaId, int optionalSectorId) throws SQLException {
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		String sqlStr = "SELECT ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, COUNT(DISTINCT p.id) num"
+				+ " FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN tick t ON p.id=t.problem_id"
+				+ " WHERE p.grade!=0"
+				+ (optionalAreaId!=0? " AND a.id=?" : " AND p.sector_id=?")
+				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
+				+ " GROUP BY p.grade"
+				+ " ORDER BY p.grade";
+		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
+		ps.setInt(1, authUserId);
+		ps.setInt(2, authUserId);
+		ps.setInt(3, optionalAreaId!=0? optionalAreaId : optionalSectorId);
+		ps.setInt(4, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int gradeNumber = rst.getInt("grade");
+			final String grade = GradeHelper.intToStringBase(regionId, gradeNumber);
+			int num = rst.getInt("num");
+			res.get(grade).incrementNum(num);
+		}
+		rst.close();
+		ps.close();
+		return res.values();
 	}
 
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
@@ -945,7 +973,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, idRegion, reqId, res);
 		return res;
 	}
-
+	
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement(
