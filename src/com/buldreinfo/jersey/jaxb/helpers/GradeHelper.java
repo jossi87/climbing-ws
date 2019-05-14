@@ -8,7 +8,6 @@ import java.util.Map;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class GradeHelper {
@@ -131,6 +130,15 @@ public class GradeHelper {
 		}
 		else {
 			res = res.replaceAll("\\-", "").replaceAll("\\+", "");
+		}
+		if (res.startsWith("3")) {
+			return "3";
+		}
+		else if (res.startsWith("4")) {
+			return "4";
+		}
+		else if (res.startsWith("5")) {
+			return "5";
 		}
 		return res;
 	}
