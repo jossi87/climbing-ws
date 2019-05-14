@@ -8,6 +8,8 @@ import java.util.Map;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 public class GradeHelper {
 	public static ImmutableBiMap<Integer, String> getGrades(int regionId) {
@@ -109,7 +111,10 @@ public class GradeHelper {
 	public static Map<String, GradeDistribution> getGradeDistributionBase(int regionId) {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		ImmutableBiMap<Integer, String> grades = getGrades(regionId);
-		for (int i : grades.keySet()) {
+		for (int i : Sets.newTreeSet(grades.keySet())) {
+			if (i == 0) {
+				continue;
+			}
 			String grade = intToStringBase(regionId, i);
 			if (!res.containsKey(grade)) {
 				res.put(grade, new GradeDistribution(grade));
