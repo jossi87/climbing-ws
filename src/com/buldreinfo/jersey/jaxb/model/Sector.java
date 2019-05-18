@@ -11,6 +11,7 @@ public class Sector implements IMetadata {
 		private final int visibility;
 		private final int nr;
 		private final String name;
+		private final String comment;
 		private final int gradeNumber;
 		private final String grade;
 		private final String fa;
@@ -24,13 +25,14 @@ public class Sector implements IMetadata {
 		private final Type t;
 		private final boolean danger;
 		
-		public Problem(int id, int visibility, int nr, String name, int gradeNumber, String grade, String fa,
+		public Problem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa,
 				boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t,
 				boolean danger) {
 			this.id = id;
 			this.visibility = visibility;
 			this.nr = nr;
 			this.name = name;
+			this.comment = comment;
 			this.gradeNumber = gradeNumber;
 			this.grade = grade;
 			this.fa = fa;
@@ -45,6 +47,10 @@ public class Sector implements IMetadata {
 			this.danger = danger;
 		}
 
+		public String getComment() {
+			return comment;
+		}
+
 		public String getFa() {
 			return fa;
 		}
@@ -56,7 +62,7 @@ public class Sector implements IMetadata {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-
+		
 		public boolean getHasImages() {
 			return hasImages;
 		}
@@ -147,7 +153,7 @@ public class Sector implements IMetadata {
 	}
 	
 	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, visibility, nr, name, gradeNumber, grade, fa, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
+		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 
 	public int getAreaId() {
