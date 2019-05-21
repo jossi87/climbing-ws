@@ -173,6 +173,12 @@ public class BuldreinfoRepository {
 			String polyline = rst.getString("polyline");
 			int numProblems = rst.getInt("num_problems");
 			int randomMediaId = rst.getInt("media_id");
+			if (randomMediaId == 0) {
+				List<Media> x = getMediaSector(id, 0);
+				if (!x.isEmpty()) {
+					randomMediaId = x.get(0).getId();
+				}
+			}
 			a.addSector(id, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, numProblems, randomMediaId);
 		}
 		rst.close();
