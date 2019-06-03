@@ -7,7 +7,6 @@ public class Setup {
 	private final String domain;
 	private int idRegion;
 	private boolean isBouldering;
-	private boolean useSketches;
 	private String title;
 	private String description;
 	private LatLng defaultCenter;
@@ -64,13 +63,8 @@ public class Setup {
 		return setRobotsDenyAll;
 	}
 	
-	public boolean isUseSketches() {
-		return useSketches;
-	}
-	
-	public Setup setBoulderingAndUseSketches(boolean isBouldering, boolean useSketches) {
+	public Setup setBouldering(boolean isBouldering) {
 		this.isBouldering = isBouldering;
-		this.useSketches = useSketches;
 		return this;
 	}
 	
@@ -106,7 +100,7 @@ public class Setup {
 
 	@Override
 	public String toString() {
-		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", isBouldering=" + isBouldering + ", useSketches=" + useSketches + ", title="
+		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", isBouldering=" + isBouldering + ", title="
 				+ title + ", description=" + description + ", defaultCenter=" + defaultCenter + ", defaultZoom="
 				+ defaultZoom + ", setRobotsDenyAll=" + setRobotsDenyAll + "]";
 	}
