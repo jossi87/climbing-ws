@@ -11,6 +11,8 @@ public class User implements IMetadata {
 		private final int id;
 		private final int idProblem;
 		private final int visibility;
+		private final String areaName;
+		private final String sectorName;
 		private final String name;
 		private final String comment;
 		private final String date;
@@ -20,11 +22,13 @@ public class User implements IMetadata {
 		private final String grade;
 		private final int gradeNumber;
 
-		public Tick(int num, int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		public Tick(int num, int id, int idProblem, int visibility, String areaName, String sectorName, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 			this.num = num;
 			this.id = id;
 			this.idProblem = idProblem;
 			this.visibility = visibility;
+			this.areaName = areaName;
+			this.sectorName = sectorName;
 			this.name = name;
 			this.comment = comment;
 			this.date = date;
@@ -37,6 +41,14 @@ public class User implements IMetadata {
 		
 		public int getNum() {
 			return num;
+		}
+		
+		public String getAreaName() {
+			return areaName;
+		}
+		
+		public String getSectorName() {
+			return sectorName;
 		}
 
 		public String getComment() {
@@ -85,9 +97,10 @@ public class User implements IMetadata {
 
 		@Override
 		public String toString() {
-			return "Tick [id=" + id + ", idProblem=" + idProblem + ", visibility=" + visibility + ", name=" + name
-					+ ", comment=" + comment + ", date=" + date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa="
-					+ fa + ", grade=" + grade + ", gradeNumber=" + gradeNumber + "]";
+			return "Tick [num=" + num + ", id=" + id + ", idProblem=" + idProblem + ", visibility=" + visibility
+					+ ", areaName=" + areaName + ", sectorName=" + sectorName + ", name=" + name + ", comment="
+					+ comment + ", date=" + date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa=" + fa + ", grade="
+					+ grade + ", gradeNumber=" + gradeNumber + "]";
 		}
 	}
 	private final boolean readOnly;
@@ -112,8 +125,8 @@ public class User implements IMetadata {
 		this.numVideoTags = numVideoTags;
 	}
 	
-	public void addTick(int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(ticks.size(), id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	public void addTick(int id, int idProblem, int visibility, String areaName, String sectorName, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(ticks.size(), id, idProblem, visibility, areaName, sectorName, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
 	public int getId() {
