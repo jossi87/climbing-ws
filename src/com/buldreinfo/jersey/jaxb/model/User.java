@@ -7,12 +7,14 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class User implements IMetadata {
 	public class Tick {
+		private final String areaName;
+		private final int areaVisibility;
+		private final String sectorName;
+		private final int sectorVisibility;
 		private final int num;
 		private final int id;
 		private final int idProblem;
 		private final int visibility;
-		private final String areaName;
-		private final String sectorName;
 		private final String name;
 		private final String comment;
 		private final String date;
@@ -22,13 +24,15 @@ public class User implements IMetadata {
 		private final String grade;
 		private final int gradeNumber;
 
-		public Tick(int num, int id, int idProblem, int visibility, String areaName, String sectorName, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		public Tick(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int num, int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+			this.areaName = areaName;
+			this.areaVisibility = areaVisibility;
+			this.sectorName = sectorName;
+			this.sectorVisibility = sectorVisibility;
 			this.num = num;
 			this.id = id;
 			this.idProblem = idProblem;
 			this.visibility = visibility;
-			this.areaName = areaName;
-			this.sectorName = sectorName;
 			this.name = name;
 			this.comment = comment;
 			this.date = date;
@@ -39,18 +43,14 @@ public class User implements IMetadata {
 			this.gradeNumber = gradeNumber;
 		}
 		
-		public int getNum() {
-			return num;
-		}
-		
 		public String getAreaName() {
 			return areaName;
 		}
 		
-		public String getSectorName() {
-			return sectorName;
+		public int getAreaVisibility() {
+			return areaVisibility;
 		}
-
+		
 		public String getComment() {
 			return comment;
 		}
@@ -70,7 +70,7 @@ public class User implements IMetadata {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
@@ -78,9 +78,21 @@ public class User implements IMetadata {
 		public int getIdProblem() {
 			return idProblem;
 		}
-
+		
 		public String getName() {
 			return name;
+		}
+
+		public int getNum() {
+			return num;
+		}
+
+		public String getSectorName() {
+			return sectorName;
+		}
+
+		public int getSectorVisibility() {
+			return sectorVisibility;
 		}
 
 		public double getStars() {
@@ -97,10 +109,11 @@ public class User implements IMetadata {
 
 		@Override
 		public String toString() {
-			return "Tick [num=" + num + ", id=" + id + ", idProblem=" + idProblem + ", visibility=" + visibility
-					+ ", areaName=" + areaName + ", sectorName=" + sectorName + ", name=" + name + ", comment="
-					+ comment + ", date=" + date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa=" + fa + ", grade="
-					+ grade + ", gradeNumber=" + gradeNumber + "]";
+			return "Tick [areaName=" + areaName + ", areaVisibility=" + areaVisibility + ", sectorName=" + sectorName
+					+ ", sectorVisibility=" + sectorVisibility + ", num=" + num + ", id=" + id + ", idProblem="
+					+ idProblem + ", visibility=" + visibility + ", name=" + name + ", comment=" + comment + ", date="
+					+ date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa=" + fa + ", grade=" + grade
+					+ ", gradeNumber=" + gradeNumber + "]";
 		}
 	}
 	private final boolean readOnly;
@@ -125,8 +138,8 @@ public class User implements IMetadata {
 		this.numVideoTags = numVideoTags;
 	}
 	
-	public void addTick(int id, int idProblem, int visibility, String areaName, String sectorName, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(ticks.size(), id, idProblem, visibility, areaName, sectorName, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	public void addTick(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int id, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(areaName, areaVisibility, sectorName, sectorVisibility, ticks.size(), id, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
 	public int getId() {
