@@ -27,7 +27,7 @@
 //public class FillProblems {
 //	private static Logger logger = LogManager.getLogger();
 //	public static enum T {BOLT, TRAD, MIXED, TOPROPE, AID, AIDTRAD};
-//	
+//
 //	private class Data {
 //		private final int typeId;
 //		private final int nr;
@@ -35,10 +35,11 @@
 //		private final String sector;
 //		private final String problem;
 //		private final String comment;
+//		private final int numPitches;
 //		private final String grade;
 //		private final String fa;
 //		private final String faDate;
-//		public Data(int nr, String area, String sector, String problem, T t, String comment, String grade, String fa, String faDate) {
+//		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate) {
 //			if (t.equals(T.BOLT)) {
 //				this.typeId = 2;
 //			}
@@ -65,6 +66,7 @@
 //			this.sector = sector;
 //			this.problem = problem.replace(" (nat)", "").replace(" (miks)", "");
 //			this.comment = comment;
+//			this.numPitches = numPitches;
 //			this.grade = grade;
 //			this.fa = fa;
 //			this.faDate = faDate;
@@ -77,6 +79,9 @@
 //		}
 //		public String getComment() {
 //			return comment;
+//		}
+//		public int getNumPitches() {
+//			return numPitches;
 //		}
 //		public String getFa() {
 //			return fa;
@@ -109,12 +114,12 @@
 //	public static void main(String[] args) {
 //		new FillProblems();
 //	}
-//	
+//
 //	public FillProblems() {
 //		this.setup = new MetaHelper().getSetup(REGION_ID);
 //		List<Data> data = new ArrayList<>();
 //		// FA-date: yyyy-MM-dd
-//		data.add(new Data(1, "Ersfjorden", "Baksiden", "Snøballkrig", T.BOLT, "12m, 5 quickdraws. The route to the left. Bouldery, but with nice moves.", "6+", "Jimmy Halvardsson", "2005-01-01"));
+//		data.add(new Data(11, "Hollenderan", "Baugen, Sydvestvegen", "Dark Side of the Moon", T.TRAD, "100m - Baugens only whole-hearted chimney.", 2, "6+", "Erik Massih, Sofia Sandgren", "2000-07-01"));
 //		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 //			for (Data d : data) {
 //				final int idArea = upsertArea(c, d);
@@ -126,7 +131,7 @@
 //			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 //		}
 //	}
-//	
+//
 //	private List<FaUser> getFas(DbConnection c, String fa) throws SQLException {
 //		List<FaUser> res = new ArrayList<>();
 //		if (!Strings.isNullOrEmpty(fa)) {
@@ -143,15 +148,20 @@
 //		}
 //		return res;
 //	}
-//	
+//
 //	private void insertProblem(DbConnection c, int idArea, int idSector, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ParseException {
 //		logger.debug("insert {}", d);
 //		List<FaUser> fa = getFas(c, d.getFa());
 //		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
 //		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, null, null, null, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, 0, 0, null, 0, 0, false, null, t, false);
+//		if (d.getNumPitches() > 1) {
+//			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
+//				p.addSection(-1, nr, null, "n/a");
+//			}
+//		}
 //		c.getBuldreinfoRepo().setProblem(AUTH_USER_ID, setup, p, null);
 //	}
-//	
+//
 //	private int upsertArea(DbConnection c, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException {
 //		for (Area a : c.getBuldreinfoRepo().getAreaList(AUTH_USER_ID, REGION_ID)) {
 //			if (a.getName().equals(d.getArea())) {
