@@ -39,9 +39,9 @@ public class FillProblems {
 		private final String grade;
 		private final String fa;
 		private final String faDate;
-		private final String lat;
-		private final String lng;
-		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate, String lat, String lng) {
+		private final double lat;
+		private final double lng;
+		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate, double lat, double lng) {
 			if (t.equals(T.BOLT)) {
 				this.typeId = 2;
 			}
@@ -75,10 +75,10 @@ public class FillProblems {
 			this.lat = lat;
 			this.lng = lng;
 		}
-		public String getLng() {
+		public double getLng() {
 			return lng;
 		}
-		public String getLat() {
+		public double getLat() {
 			return lat;
 		}
 		public int getTypeId() {
@@ -129,7 +129,7 @@ public class FillProblems {
 		this.setup = new MetaHelper().getSetup(REGION_ID);
 		List<Data> data = new ArrayList<>();
 		// FA-date: yyyy-MM-dd
-		data.add(new Data(11, "Hollenderan", "Baugen, Sydvestvegen", "Dark Side of the Moon", T.TRAD, "100m - Baugens only whole-hearted chimney.", 2, "6+", "Erik Massih, Sofia Sandgren", "2000-07-01", null, null));
+		data.add(new Data(11, "Hollenderan", "Baugen, Sydvestvegen", "Dark Side of the Moon", T.TRAD, "100m - Baugens only whole-hearted chimney.", 2, "6+", "Erik Massih, Sofia Sandgren", "2000-07-01", 0, 0));
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			for (Data d : data) {
 				final int idArea = upsertArea(c, d);
@@ -163,7 +163,7 @@ public class FillProblems {
 		logger.debug("insert {}", d);
 		List<FaUser> fa = getFas(c, d.getFa());
 		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
-		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, null, null, null, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, 0, 0, null, 0, 0, false, null, t, false);
+		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, null, null, null, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLat(), d.getLng(), null, 0, 0, false, null, t, false);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a");
