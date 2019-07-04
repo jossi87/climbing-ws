@@ -282,6 +282,7 @@ public class BuldreinfoRepository {
 				+ "   AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden)))"
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND p.grade IN (" + Joiner.on(",").join(fr.getGrades()) + ")"
+				+ "   AND p.type_id IN (" + Joiner.on(",").join(fr.getTypes()) + ")"
 				+ "   GROUP BY a.id, a.name, a.hidden, s.id, s.name, s.hidden, p.id, p.hidden, p.name"
 				+ "   ORDER BY p.name, p.latitude, p.longitude, p.grade";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);

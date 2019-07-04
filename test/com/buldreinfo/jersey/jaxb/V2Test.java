@@ -141,7 +141,7 @@ public class V2Test {
 	@Test
 	public void testPostFilter() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20)));
+		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20),Lists.newArrayList(1,2,3,4)));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		@SuppressWarnings("unchecked")
