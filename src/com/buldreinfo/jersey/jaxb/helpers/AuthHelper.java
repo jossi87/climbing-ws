@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
+import java.sql.PreparedStatement;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -39,14 +40,25 @@ public class AuthHelper {
 				}
 			});
 
-	public int getUserId(DbConnection c, HttpServletRequest request) {
+	public int getUserId(DbConnection c, HttpServletRequest request, int regionId) {
 		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (Strings.isNullOrEmpty(authorization)) {
 			return -1;
 		}
 		try {
+			boolean update = cache.getIfPresent(authorization) == null;
 			Auth0Profile profile = cache.get(authorization);
-			return c.getBuldreinfoRepo().getAuthUserId(profile);
+			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
+			if (update) {
+				// Log login
+				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, ip) VALUES (?, ?, ?)");
+				ps.setInt(1, userId);
+				ps.setInt(2, regionId);
+				ps.setString(3, request.getRemoteAddr());
+				ps.execute();
+				ps.close();
+			}
+			return userId;
 		} catch (Exception e) {
 			logger.warn("getUserId(authorizationHeader={}) - authentication failed, login required", authorization);
 			return -1;

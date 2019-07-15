@@ -256,7 +256,8 @@ public class BuldreinfoRepository {
 		}
 		if (authUserId == -1) {
 			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
-		} else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
+		}
+		else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {

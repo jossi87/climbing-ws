@@ -129,7 +129,8 @@ public class V2 {
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(id > 0);
 			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
 			invalidateFrontpageCache();
@@ -146,7 +147,7 @@ public class V2 {
 	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
 			metaHelper.updateMetadata(c, a, setup, authUserId);
 			c.setSuccess();
@@ -162,7 +163,7 @@ public class V2 {
 	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
@@ -179,7 +180,7 @@ public class V2 {
 	public Response getFrontpage(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Frontpage res = frontpageCache.get(setup.getIdRegion() + "_" + authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -194,7 +195,7 @@ public class V2 {
 	public Response getGradeDistribution(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup.getIdRegion(), idArea, idSector);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -238,7 +239,7 @@ public class V2 {
 	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Meta res = new Meta();
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -254,7 +255,7 @@ public class V2 {
 	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -270,7 +271,7 @@ public class V2 {
 	public Response getProblemsHse(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			List<ProblemHse> res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -296,7 +297,7 @@ public class V2 {
 	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			final boolean orderByGrade = setup.isBouldering();
 			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, s, setup, authUserId);
@@ -327,7 +328,7 @@ public class V2 {
 	public Response getTicks(@Context HttpServletRequest request, @QueryParam("page") int page) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup.getIdRegion(), page);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -343,7 +344,7 @@ public class V2 {
 	public Response getTodo(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -359,7 +360,7 @@ public class V2 {
 	public Response getUsers(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			User res = c.getBuldreinfoRepo().getUser(authUserId, setup.getIdRegion(), id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
@@ -374,7 +375,8 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersSearch(@Context HttpServletRequest request, @QueryParam("value") String value) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -391,7 +393,7 @@ public class V2 {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
 			invalidateFrontpageCache();
@@ -406,7 +408,8 @@ public class V2 {
 	@Path("/comments")
 	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			c.getBuldreinfoRepo().upsertComment(authUserId, co);
 			invalidateFrontpageCache();
 			c.setSuccess();
@@ -422,7 +425,7 @@ public class V2 {
 	public Response postFilter(@Context HttpServletRequest request, FilterRequest fr) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -439,7 +442,7 @@ public class V2 {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
@@ -459,7 +462,8 @@ public class V2 {
 	public Response postProblemsMedia(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
@@ -475,7 +479,8 @@ public class V2 {
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
@@ -493,7 +498,7 @@ public class V2 {
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup.getIdRegion(), sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -510,7 +515,7 @@ public class V2 {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
@@ -528,7 +533,7 @@ public class V2 {
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
@@ -545,7 +550,8 @@ public class V2 {
 	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
 			c.setSuccess();
 			return Response.ok().build();
@@ -558,7 +564,8 @@ public class V2 {
 	@Path("/user")
 	public Response postUser(@Context HttpServletRequest request, @QueryParam("useBlueNotRed") boolean useBlueNotRed) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request);
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
 			c.setSuccess();
