@@ -1,6 +1,8 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.sql.PreparedStatement;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +20,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.net.HttpHeaders;
+import com.google.gson.Gson;
 
 public class AuthHelper {
 	private static Logger logger = LogManager.getLogger();
@@ -51,14 +54,12 @@ public class AuthHelper {
 			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
 			if (update) {
 				// Log login
-				String ipAddress = request.getHeader("X-FORWARDED-FOR");  
-				if (ipAddress == null) {  
-					ipAddress = request.getRemoteAddr();  
-				}
-				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, ip) VALUES (?, ?, ?)");
+				Gson gson = new Gson();
+				String headers = gson.toJson(getHeadersInfo(request));
+				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, headers) VALUES (?, ?, ?)");
 				ps.setInt(1, userId);
 				ps.setInt(2, regionId);
-				ps.setString(3, ipAddress);
+				ps.setString(3, headers);
 				ps.execute();
 				ps.close();
 			}
@@ -68,4 +69,15 @@ public class AuthHelper {
 			return -1;
 		}
 	}
+	
+	private Map<String, String> getHeadersInfo(HttpServletRequest request) {
+        Map<String, String> map = new HashMap<String, String>();
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String key = (String) headerNames.nextElement();
+            String value = request.getHeader(key);
+            map.put(key, value);
+        }
+        return map;
+    }
 }
