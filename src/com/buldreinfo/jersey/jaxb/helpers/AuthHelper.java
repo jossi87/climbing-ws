@@ -51,10 +51,14 @@ public class AuthHelper {
 			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
 			if (update) {
 				// Log login
+				String ipAddress = request.getHeader("X-FORWARDED-FOR");  
+				if (ipAddress == null) {  
+					ipAddress = request.getRemoteAddr();  
+				}
 				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, ip) VALUES (?, ?, ?)");
 				ps.setInt(1, userId);
 				ps.setInt(2, regionId);
-				ps.setString(3, request.getRemoteAddr());
+				ps.setString(3, ipAddress);
 				ps.execute();
 				ps.close();
 			}
