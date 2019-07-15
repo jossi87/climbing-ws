@@ -55,6 +55,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.ManagementUser;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -400,6 +401,42 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
+	public List<ManagementUser> getManagementUsers(int authUserId, int idRegion) throws SQLException {
+		// Ensure superadmin
+		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
+		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
+		boolean writePermissions = false;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM permission auth WHERE auth.region_id=? AND auth.user_id=?");
+		ps.setInt(1, idRegion);
+		ps.setInt(2, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int write = rst.getInt("write");
+			writePermissions = write == 2;
+		}
+		rst.close();
+		ps.close();
+		rst = null;
+		ps = null;
+		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
+		// Return users
+		List<ManagementUser> res = new ArrayList<>();
+		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, u.picture, MAX(l.when) last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 4 DESC, 2");
+		ps.setInt(1, idRegion);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			int userId = rst.getInt("id");
+			String name = rst.getString("name");
+			String picture = rst.getString("picture");
+			String lastLogin = rst.getString("last_login");
+			int write = rst.getInt("write");
+			res.add(new ManagementUser(userId, name, picture, lastLogin, write));
+		}
+		rst.close();
+		ps.close();
+		return res;
+	}
+
 	public Point getMediaDimention(int id) throws SQLException {
 		Point res = null;
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?");
@@ -680,7 +717,7 @@ public class BuldreinfoRepository {
 		// Return
 		return regionMap.values();
 	}
-
+	
 	public List<Search> getSearch(int authUserId, int idRegion, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
@@ -783,7 +820,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Sector getSector(int authUserId, boolean orderByGrade, int regionId, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -935,7 +972,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, idRegion, page, res);
 		return res;
 	}
-
+	
 	public TodoUser getTodo(int authUserId, int idRegion, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -978,7 +1015,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, idRegion, reqId, res);
 		return res;
 	}
-	
+
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement(
@@ -1104,13 +1141,9 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
 		int idArea = -1;
 		if (a.getId() > 0) {
-			// Check if this actual area is writable for the user (remember that
-			// all regions can be visible to user, origin does not matter). Area
-			// region can be different to html-page region. Also check for
-			// admin/superadmin.
+			// Check if this actual area is writable for the user (remember that all regions can be visible to user, origin does not matter). Area region can be different to html-page region. Also check for admin/superadmin.
 			int writable = 0;
-			ps = c.getConnection().prepareStatement(
-					"SELECT 1 FROM area a, permission auth WHERE a.id=? AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=a.hidden");
+			ps = c.getConnection().prepareStatement("SELECT 1 FROM area a, permission auth WHERE a.id=? AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=a.hidden");
 			ps.setInt(1, a.getId());
 			ps.setInt(2, authUserId);
 			rst = ps.executeQuery();
@@ -1122,8 +1155,7 @@ public class BuldreinfoRepository {
 			if (writable != 1) {
 				throw new SQLException("Insufficient credentials");
 			}
-			ps = c.getConnection().prepareStatement(
-					"UPDATE area SET name=?, description=?, latitude=?, longitude=?, hidden=? WHERE id=?");
+			ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, hidden=? WHERE id=?");
 			ps.setString(1, a.getName());
 			ps.setString(2, Strings.emptyToNull(a.getComment()));
 			if (a.getLat() > 0) {
@@ -1163,9 +1195,7 @@ public class BuldreinfoRepository {
 				ps.close();
 			}
 		} else {
-			ps = c.getConnection().prepareStatement(
-					"INSERT INTO area (android_id, region_id, name, description, latitude, longitude, hidden, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, now())",
-					PreparedStatement.RETURN_GENERATED_KEYS);
+			ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, hidden, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setLong(1, System.currentTimeMillis());
 			ps.setInt(2, idRegion);
 			ps.setString(3, a.getName());
@@ -1209,8 +1239,7 @@ public class BuldreinfoRepository {
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		int idProblem = -1;
 		if (p.getId() > 0) {
-			PreparedStatement ps = c.getConnection().prepareStatement(
-					"UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden) SET p.name=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.hidden=?, p.nr=?, p.type_id=?, p.last_updated=now() WHERE p.id=?");
+			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden) SET p.name=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.hidden=?, p.nr=?, p.type_id=?, p.last_updated=now() WHERE p.id=?");
 			ps.setInt(1, authUserId);
 			ps.setString(2, p.getName());
 			ps.setString(3, Strings.emptyToNull(p.getComment()));
@@ -1270,8 +1299,7 @@ public class BuldreinfoRepository {
 		if (idProblem == -1) {
 			throw new SQLException("idProblem == -1");
 		}
-		// Also update last_updated on problem, sector and area (ALSO CHECKS
-		// PERMISSION [SINCE INSERT DOES NOT])
+		// Also update last_updated on problem, sector and area (ALSO CHECKS PERMISSION [SINCE INSERT DOES NOT])
 		String sqlStr = "UPDATE problem p, sector s, area a, permission auth SET p.last_updated=now(), s.last_updated=now(), a.last_updated=now() WHERE p.id=? AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden";
 		PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, idProblem);
@@ -1514,7 +1542,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
 	}
-
+	
 	public void setUser(int authUserId, boolean useBlueNotRed) throws SQLException {
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET use_blue_not_red=? WHERE id=?");
 		ps.setBoolean(1, useBlueNotRed);
@@ -1522,7 +1550,7 @@ public class BuldreinfoRepository {
 		ps.execute();
 		ps.close();
 	}
-	
+
 	public void upsertComment(int authUserId, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
@@ -1555,6 +1583,43 @@ public class BuldreinfoRepository {
 			}
 			ps.setBoolean(5, co.isDanger());
 			ps.setBoolean(6, co.isResolved());
+			ps.execute();
+			ps.close();
+		}
+	}
+
+	public void upsertManagementUser(int regionId, int authUserId, ManagementUser u) throws SQLException {
+		// Ensure superadmin
+		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
+		Preconditions.checkArgument(regionId > 0, "Insufficient credentials");
+		boolean writePermissions = false;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM permission auth WHERE auth.region_id=? AND auth.user_id=?");
+		ps.setInt(1, regionId);
+		ps.setInt(2, authUserId);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			int write = rst.getInt("write");
+			writePermissions = write == 2;
+		}
+		rst.close();
+		ps.close();
+		rst = null;
+		ps = null;
+		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
+		// Upsert
+		if (u.getWrite() == 0) {
+			ps = c.getConnection().prepareStatement("DELETE FROM permission WHERE region_id=? AND user_id=?");
+			ps.setInt(1, regionId);
+			ps.setInt(2, u.getUserId());
+			ps.execute();
+			ps.close();
+		}
+		else {
+			ps = c.getConnection().prepareStatement("INSERT INTO permission (region_id, user_id, write) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE write=?");
+			ps.setInt(1, regionId);
+			ps.setInt(2, u.getUserId());
+			ps.setInt(3, u.getWrite());
+			ps.setInt(4, u.getWrite());
 			ps.execute();
 			ps.close();
 		}
@@ -1638,7 +1703,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 	}
-
+	
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
@@ -1770,7 +1835,7 @@ public class BuldreinfoRepository {
 		}
 		return id;
 	}
-	
+
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
 		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
@@ -2108,7 +2173,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 	}
-
+	
 	private int upsertUserReturnId(String uniqueId) throws SQLException {
 		int idUser = 0;
 		if (Strings.isNullOrEmpty(uniqueId)) {

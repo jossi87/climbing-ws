@@ -46,6 +46,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.ManagementUser;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
@@ -234,6 +235,21 @@ public class V2 {
 	}
 
 	@GET
+	@Path("/management/users")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getManagementUsers(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<ManagementUser> res = c.getBuldreinfoRepo().getManagementUsers(authUserId, setup.getIdRegion());
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
@@ -248,7 +264,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -264,7 +280,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems/hse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -290,7 +306,7 @@ public class V2 {
 		}
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
-	
+
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -353,7 +369,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/users")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -369,7 +385,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -418,7 +434,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/filter")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -429,6 +445,20 @@ public class V2 {
 			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
+	@Path("/management/users")
+	public Response postManagementUsers(@Context HttpServletRequest request, ManagementUser u) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			c.getBuldreinfoRepo().upsertManagementUser(setup.getIdRegion(), authUserId, u);
+			c.setSuccess();
+			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
