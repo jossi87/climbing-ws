@@ -1617,7 +1617,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		else {
-			ps = c.getConnection().prepareStatement("INSERT INTO permission (region_id, user_id, write) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE write=?");
+			ps = c.getConnection().prepareStatement("INSERT INTO permission (region_id, user_id, `write`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `write`=?");
 			ps.setInt(1, regionId);
 			ps.setInt(2, u.getUserId());
 			ps.setInt(3, u.getWrite());
