@@ -421,17 +421,18 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
 		// Return users
 		List<ManagementUser> res = new ArrayList<>();
-		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, MAX(l.when) last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 4 DESC, 2");
+		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 4 DESC, 2");
 		ps.setInt(1, idRegion);
 		rst = ps.executeQuery();
+		final LocalDate today = LocalDate.now();
+		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 		while (rst.next()) {
 			int userId = rst.getInt("id");
 			String name = rst.getString("name");
 			String picture = rst.getString("picture");
-			Timestamp lastLogin = rst.getTimestamp("last_login");
+			String lastLogin = rst.getString("last_login");
 			int write = rst.getInt("write");
-			final LocalDate today = LocalDate.now();
-			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(lastLogin.toLocalDateTime().toLocalDate(), today));
+			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(lastLogin, formatter), today));
 			res.add(new ManagementUser(userId, name, picture, timeAgo, write));
 		}
 		rst.close();
@@ -533,8 +534,7 @@ public class BuldreinfoRepository {
 			double stars = rst.getDouble("stars");
 			int grade = rst.getInt("grade");
 			boolean writable = idUser == authUserId;
-			p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s.getIdRegion(), grade), comment,
-					stars, writable);
+			p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s.getIdRegion(), grade), comment, stars, writable);
 		}
 		rst.close();
 		ps.close();
