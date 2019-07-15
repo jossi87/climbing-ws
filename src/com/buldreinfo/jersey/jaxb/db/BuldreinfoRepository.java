@@ -421,7 +421,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
 		// Return users
 		List<ManagementUser> res = new ArrayList<>();
-		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 4 DESC, 2");
+		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 5 DESC, 2");
 		ps.setInt(1, idRegion);
 		rst = ps.executeQuery();
 		final LocalDate today = LocalDate.now();
