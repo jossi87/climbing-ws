@@ -433,7 +433,7 @@ public class BuldreinfoRepository {
 			String lastLogin = rst.getString("last_login");
 			int write = rst.getInt("write");
 			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(lastLogin, formatter), today));
-			res.add(new ManagementUser(userId, name, picture, timeAgo, write));
+			res.add(new ManagementUser(userId, name, picture, timeAgo, write, authUserId==userId));
 		}
 		rst.close();
 		ps.close();
