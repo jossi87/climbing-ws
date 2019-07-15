@@ -428,9 +428,11 @@ public class BuldreinfoRepository {
 			int userId = rst.getInt("id");
 			String name = rst.getString("name");
 			String picture = rst.getString("picture");
-			String lastLogin = rst.getString("last_login");
+			Timestamp lastLogin = rst.getTimestamp("last_login");
 			int write = rst.getInt("write");
-			res.add(new ManagementUser(userId, name, picture, lastLogin, write));
+			final LocalDate today = LocalDate.now();
+			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(lastLogin.toLocalDateTime(), today));
+			res.add(new ManagementUser(userId, name, picture, timeAgo, write));
 		}
 		rst.close();
 		ps.close();
