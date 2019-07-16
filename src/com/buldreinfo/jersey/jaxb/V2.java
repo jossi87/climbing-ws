@@ -46,7 +46,8 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.ManagementUser;
+import com.buldreinfo.jersey.jaxb.model.PermissionUser;
+import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
@@ -235,13 +236,14 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/management/users")
+	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getManagementUsers(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getPermissions(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<ManagementUser> res = c.getBuldreinfoRepo().getManagementUsers(authUserId, setup.getIdRegion());
+			Permissions res = c.getBuldreinfoRepo().getPermissions(authUserId, setup.getIdRegion());
+			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -451,12 +453,12 @@ public class V2 {
 	}
 	
 	@POST
-	@Path("/management/users")
-	public Response postManagementUsers(@Context HttpServletRequest request, ManagementUser u) throws ExecutionException, IOException {
+	@Path("/permissions")
+	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			c.getBuldreinfoRepo().upsertManagementUser(setup.getIdRegion(), authUserId, u);
+			c.getBuldreinfoRepo().upsertPermissionUser(setup.getIdRegion(), authUserId, u);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

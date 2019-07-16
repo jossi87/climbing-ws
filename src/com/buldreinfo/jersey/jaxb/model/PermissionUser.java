@@ -1,6 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class ManagementUser {
+public class PermissionUser {
 	private final int userId;
 	private final String name;
 	private final String picture;
@@ -8,7 +8,7 @@ public class ManagementUser {
 	private final int write;
 	private final boolean readOnly;
 	
-	public ManagementUser(int userId, String name, String picture, String lastLogin, int write, boolean readOnly) {
+	public PermissionUser(int userId, String name, String picture, String lastLogin, int write, boolean readOnly) {
 		this.userId = userId;
 		this.name = name;
 		this.picture = picture;

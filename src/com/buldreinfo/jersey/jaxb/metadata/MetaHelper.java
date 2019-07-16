@@ -20,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
+import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -231,6 +232,11 @@ public class MetaHelper {
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		else if (m instanceof Permissions) {
+			Permissions p = (Permissions)m;
+			OpenGraph og = getOg(setup, "/permissions", null);
+			p.setMetadata(new Metadata(c, setup, authUserId, "Permissions", og));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

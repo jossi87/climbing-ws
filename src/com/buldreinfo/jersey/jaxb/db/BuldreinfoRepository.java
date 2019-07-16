@@ -55,9 +55,10 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.ManagementUser;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
+import com.buldreinfo.jersey.jaxb.model.PermissionUser;
+import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
@@ -401,7 +402,7 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public List<ManagementUser> getManagementUsers(int authUserId, int idRegion) throws SQLException {
+	public Permissions getPermissions(int authUserId, int idRegion) throws SQLException {
 		// Ensure superadmin
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
@@ -420,7 +421,7 @@ public class BuldreinfoRepository {
 		ps = null;
 		Preconditions.checkArgument(writePermissions, "Insufficient credentials");
 		// Return users
-		List<ManagementUser> res = new ArrayList<>();
+		Permissions res = new Permissions();
 		ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', u.lastname)) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login, p.write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN permission p ON u.id=p.user_id AND l.region_id=p.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY 5 DESC, 2");
 		ps.setInt(1, idRegion);
 		rst = ps.executeQuery();
@@ -433,7 +434,7 @@ public class BuldreinfoRepository {
 			String lastLogin = rst.getString("last_login");
 			int write = rst.getInt("write");
 			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(lastLogin, formatter), today));
-			res.add(new ManagementUser(userId, name, picture, timeAgo, write, authUserId==userId));
+			res.getUsers().add(new PermissionUser(userId, name, picture, timeAgo, write, authUserId==userId));
 		}
 		rst.close();
 		ps.close();
@@ -1590,7 +1591,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void upsertManagementUser(int regionId, int authUserId, ManagementUser u) throws SQLException {
+	public void upsertPermissionUser(int regionId, int authUserId, PermissionUser u) throws SQLException {
 		// Ensure superadmin
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(regionId > 0, "Insufficient credentials");
