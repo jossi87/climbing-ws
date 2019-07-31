@@ -1653,23 +1653,25 @@ public class BuldreinfoRepository {
 			ps.close();
 			ps = null;
 		} else if (svg.getId() <= 0) {
-			ps = c.getConnection()
-					.prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor) VALUES (?, ?, ?, ?)");
+			ps = c.getConnection().prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor, anchors, texts) VALUES (?, ?, ?, ?, ?, ?)");
 			ps.setInt(1, mediaId);
 			ps.setInt(2, problemId);
 			ps.setString(3, svg.getPath());
 			ps.setBoolean(4, svg.isHasAnchor());
+			ps.setString(5, svg.getAnchors());
+			ps.setString(6, svg.getTexts());
 			ps.execute();
 			ps.close();
 			ps = null;
 		} else {
-			ps = c.getConnection()
-					.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=? WHERE id=?");
+			ps = c.getConnection().prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=?, anchors=?, texts=? WHERE id=?");
 			ps.setInt(1, mediaId);
 			ps.setInt(2, problemId);
 			ps.setString(3, svg.getPath());
 			ps.setBoolean(4, svg.isHasAnchor());
-			ps.setInt(5, svg.getId());
+			ps.setString(5, svg.getAnchors());
+			ps.setString(6, svg.getTexts());
+			ps.setInt(7, svg.getId());
 			ps.execute();
 			ps.close();
 			ps = null;
@@ -2112,8 +2114,7 @@ public class BuldreinfoRepository {
 
 	private List<Svg> getSvgs(int idMedia) throws SQLException {
 		List<Svg> res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors FROM svg s, problem p WHERE s.media_id=? AND s.problem_id=p.id");
 		ps.setInt(1, idMedia);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -2125,7 +2126,9 @@ public class BuldreinfoRepository {
 			int nr = rst.getInt("nr");
 			String path = rst.getString("path");
 			boolean hasAnchor = rst.getBoolean("has_anchor");
-			res.add(new Svg(false, id, problemId, nr, path, hasAnchor));
+			String texts = rst.getString("texts");
+			String anchors = rst.getString("anchors");
+			res.add(new Svg(false, id, problemId, nr, path, hasAnchor, texts, anchors));
 		}
 		rst.close();
 		ps.close();

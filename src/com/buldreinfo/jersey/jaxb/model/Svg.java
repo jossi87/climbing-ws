@@ -7,20 +7,28 @@ public class Svg {
 	private final int nr;
 	private final String path;
 	private final boolean hasAnchor;
+	private final String texts;
+	private final String anchors;
 	
-	public Svg(boolean delete, int id, int problemId, int nr, String path, boolean hasAnchor) {
+	public Svg(boolean delete, int id, int problemId, int nr, String path, boolean hasAnchor, String texts, String anchors) {
 		this.delete = delete;
 		this.id = id;
 		this.problemId = problemId;
 		this.nr = nr;
 		this.path = path;
 		this.hasAnchor = hasAnchor;
+		this.texts = texts;
+		this.anchors = anchors;
+	}
+	
+	public String getAnchors() {
+		return anchors;
 	}
 	
 	public int getId() {
 		return id;
 	}
-
+	
 	public int getNr() {
 		return nr;
 	}
@@ -31,6 +39,10 @@ public class Svg {
 
 	public int getProblemId() {
 		return problemId;
+	}
+
+	public String getTexts() {
+		return texts;
 	}
 	
 	public boolean isDelete() {
