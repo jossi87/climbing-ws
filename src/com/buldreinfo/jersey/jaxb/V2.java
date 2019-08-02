@@ -409,7 +409,7 @@ public class V2 {
 	@GET
 	@Path("/users/ticks")
 	@Produces(MIME_TYPE_XLSX)
-	public Response getUsersTicks(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getUsersTicks(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
