@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -74,6 +75,9 @@ import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
@@ -402,6 +406,19 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
+	public Point getMediaDimention(int id) throws SQLException {
+		Point res = null;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?");
+		ps.setInt(1, id);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			res = new Point(rst.getInt("width"), rst.getInt("height"));
+		}
+		rst.close();
+		ps.close();
+		return res;
+	}
+
 	public Permissions getPermissions(int authUserId, int idRegion) throws SQLException {
 		// Ensure superadmin
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
@@ -436,19 +453,6 @@ public class BuldreinfoRepository {
 			int write = rst.getInt("w");
 			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(lastLogin, formatter), today));
 			res.getUsers().add(new PermissionUser(userId, name, picture, timeAgo, write, authUserId==userId));
-		}
-		rst.close();
-		ps.close();
-		return res;
-	}
-
-	public Point getMediaDimention(int id) throws SQLException {
-		Point res = null;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?");
-		ps.setInt(1, id);
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			res = new Point(rst.getInt("width"), rst.getInt("height"));
 		}
 		rst.close();
 		ps.close();
@@ -1126,6 +1130,60 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
+	public byte[] getUserTicks(int authUserId) throws SQLException, IOException {
+		byte[] bytes;
+		String sqlStr = "SELECT r.id region_id, ty.type, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade" + 
+				"FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)" + 
+				" WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND (p.hidden=0 OR (auth.user_id IS NOT NULL AND (p.hidden<=1 OR auth.write>=p.hidden)))" + 
+				" GROUP BY r.id, ty.type, r.url, a.name, a.hidden, s.name, s.hidden, t.id, p.id, p.hidden, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade" + 
+				" ORDER BY ty.type, a.name, s.name, p.name";
+		try (ExcelReport report = new ExcelReport();
+				PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, authUserId);
+			ps.setInt(3, authUserId);
+			ResultSet rst = ps.executeQuery();
+			Map<String, SheetWriter> writers = new HashMap<>();
+			while (rst.next()) {
+				int regionId = rst.getInt("region_id");
+				String type = rst.getString("type");
+				String url = rst.getString("url");
+				String areaName = rst.getString("area_name");
+				String sectorName = rst.getString("sector_name");
+				String name = rst.getString("name");
+				String comment = rst.getString("comment");
+				Timestamp date = rst.getTimestamp("date");
+				int stars = rst.getInt("stars");
+				boolean fa = rst.getBoolean("fa");
+				String grade = GradeHelper.intToString(regionId, rst.getInt("grade"));
+				SheetWriter writer = writers.get(type);
+				if (writer == null) {
+					writer = report.addSheet(type);
+					writers.put(type, writer);
+				}
+				writer.incrementRow();
+				writer.write("AREA", areaName);
+				writer.write("SECTOR", sectorName);
+				writer.write("NAME", name);
+				writer.write("FIRST ASCENT", fa? "Yes" : null);
+				writer.write("DATE", date);
+				writer.write("GRADE", grade);
+				writer.write("STARS", stars);
+				writer.write("COMMENT", comment);
+				writer.write("URL", SheetHyperlink.of(url));
+			}
+			for (SheetWriter writer : writers.values()) {
+				writer.close();
+			}
+			ByteArrayOutputStream os = new ByteArrayOutputStream();
+			report.writeExcel(os);
+			bytes = os.toByteArray();
+			os.close();
+			rst.close();
+		}
+		return bytes;
+	}
+
 	public Area setArea(int authUserId, int idRegion, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
@@ -1493,7 +1551,7 @@ public class BuldreinfoRepository {
 		}
 		return getSector(authUserId, orderByGrade, regionId, idSector);
 	}
-
+	
 	public void setTick(int authUserId, int regionId, Tick t) throws SQLException, ParseException {
 		Preconditions.checkArgument(authUserId != -1);
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -1546,7 +1604,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
 	}
-	
+
 	public void setUser(int authUserId, boolean useBlueNotRed) throws SQLException {
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET use_blue_not_red=? WHERE id=?");
 		ps.setBoolean(1, useBlueNotRed);
@@ -1677,7 +1735,7 @@ public class BuldreinfoRepository {
 			ps = null;
 		}
 	}
-
+	
 	public void upsertTodo(int authUserId, Todo todo) throws SQLException {
 		// Delete/Insert/Update
 		if (todo.isDelete()) {
@@ -1709,7 +1767,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 	}
-	
+
 	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
@@ -1868,7 +1926,7 @@ public class BuldreinfoRepository {
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
-		final int crc32 = com.google.common.io.Files.hash(webp.toFile(), Hashing.crc32()).asInt();
+		final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
 
 		/**
 		 * Final DB
@@ -2142,7 +2200,7 @@ public class BuldreinfoRepository {
 			throw new RuntimeException("json=" + json + ", error=" + e.getMessage(), e);
 		}
 	}
-
+	
 	private void setRandomMedia(Frontpage res, int authUserId, int regionId, boolean fallbackSolution) throws SQLException {
 		String sqlStr = "SELECT m.id id_media, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, p.grade,"
 				+ " CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\"}') photographer," 
@@ -2180,7 +2238,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 	}
-	
+
 	private int upsertUserReturnId(String uniqueId) throws SQLException {
 		int idUser = 0;
 		if (Strings.isNullOrEmpty(uniqueId)) {
