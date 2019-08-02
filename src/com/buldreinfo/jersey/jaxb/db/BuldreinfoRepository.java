@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -1152,7 +1153,7 @@ public class BuldreinfoRepository {
 				String sectorName = rst.getString("sector_name");
 				String name = rst.getString("name");
 				String comment = rst.getString("comment");
-				Timestamp date = rst.getTimestamp("date");
+				Date date = rst.getDate("date");
 				int stars = rst.getInt("stars");
 				boolean fa = rst.getBoolean("fa");
 				String grade = GradeHelper.intToString(regionId, rst.getInt("grade"));
