@@ -83,6 +83,12 @@ public class MetaHelper {
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
 				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
+		setups.add(new Setup("klatreforer.narvikklatreklubb.no")
+				.setIdRegion(9)
+				.setBouldering(false)
+				.setTitle("Klatring i Narvik")
+				.setDescription("Climbing in Narvik (Norway)")
+				.setLatLng(68.41312, 17.54277).setDefaultZoom(7));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
