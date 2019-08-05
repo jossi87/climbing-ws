@@ -191,7 +191,7 @@ public class FillProblems {
 			}
 		}
 		Sector s = new Sector(false, idArea, 0, a.getName(), null, -1, 0, d.getSector(), null, 0, 0, null, null, null, null);
-		s = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, REGION_ID, s, null);
+		s = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, new MetaHelper().getSetup(REGION_ID), s, null);
 		return s.getId();
 	}
 }

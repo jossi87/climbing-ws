@@ -201,7 +201,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup.getIdRegion(), idArea, idSector);
+			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, idArea, idSector);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -320,7 +320,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup.getIdRegion(), id);
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
 			metaHelper.updateMetadata(c, s, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -350,7 +350,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup.getIdRegion(), page);
+			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup, page);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -366,7 +366,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup.getIdRegion(), id);
+			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -382,7 +382,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			User res = c.getBuldreinfoRepo().getUser(authUserId, setup.getIdRegion(), id);
+			User res = c.getBuldreinfoRepo().getUser(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -466,7 +466,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup.getIdRegion(), fr);
+			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup, fr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -553,7 +553,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup.getIdRegion(), sr);
+			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup, sr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -573,7 +573,7 @@ public class V2 {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
-			s = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup.getIdRegion(), s, multiPart);
+			s = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup, s, multiPart);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
@@ -590,7 +590,7 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
-			c.getBuldreinfoRepo().setTick(authUserId, setup.getIdRegion(), t);
+			c.getBuldreinfoRepo().setTick(authUserId, setup, t);
 			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();

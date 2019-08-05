@@ -5,15 +5,16 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Sets;
 
 public class GradeHelper {
-	public static ImmutableBiMap<Integer, String> getGrades(int regionId) {
+	public static ImmutableBiMap<Integer, String> getGrades(Setup setup) {
 		Map<Integer, String> map = new LinkedHashMap<>();
-		if (regionId == 4 || regionId == 6 || regionId == 8) {
+		if (!setup.isBouldering()) {
 			map.put(53, "9+ (8c)");
 			map.put(52, "9/9+ (8b+)");
 			map.put(51, "9 (8b)");
@@ -97,24 +98,24 @@ public class GradeHelper {
 		return ImmutableBiMap.copyOf(map);
 	}
 
-	public static String intToString(int regionId, int grade) {
-		ImmutableBiMap<Integer, String> grades = getGrades(regionId);
+	public static String intToString(Setup setup, int grade) {
+		ImmutableBiMap<Integer, String> grades = getGrades(setup);
 		String res = grades.get(grade);
 		int i = grade;
 		while (res == null && i < Collections.max(grades.keySet())) {
 			res = grades.get(++i);
 		}
-		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (regionId=" + regionId + ")");
+		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (isBouldering=" + setup.isBouldering() + ")");
 	}
 	
-	public static Map<String, GradeDistribution> getGradeDistributionBase(int regionId) {
+	public static Map<String, GradeDistribution> getGradeDistributionBase(Setup setup) {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
-		ImmutableBiMap<Integer, String> grades = getGrades(regionId);
+		ImmutableBiMap<Integer, String> grades = getGrades(setup);
 		for (int i : Sets.newTreeSet(grades.keySet())) {
 			if (i == 0) {
 				continue;
 			}
-			String grade = intToStringBase(regionId, i);
+			String grade = intToStringBase(setup, i);
 			if (!res.containsKey(grade)) {
 				res.put(grade, new GradeDistribution(grade));
 			}
@@ -122,8 +123,8 @@ public class GradeHelper {
 		return res;
 	}
 	
-	public static String intToStringBase(int regionId, int grade) {
-		String res = intToString(regionId, grade);
+	public static String intToStringBase(Setup setup, int grade) {
+		String res = intToString(setup, grade);
 		int ix = res.indexOf("(");
 		if (ix > 0) {
 			res = res.substring(ix+1, ix+3);
@@ -143,9 +144,9 @@ public class GradeHelper {
 		return res;
 	}
 
-	public static int stringToInt(int regionId, String grade) throws SQLException {
+	public static int stringToInt(Setup setup, String grade) throws SQLException {
 		Preconditions.checkNotNull(grade, "grade is null");
-		ImmutableBiMap<String, Integer> grades = getGrades(regionId).inverse();
+		ImmutableBiMap<String, Integer> grades = getGrades(setup).inverse();
 		try {
 			return grades.get(grade);
 		} catch (NullPointerException e) {

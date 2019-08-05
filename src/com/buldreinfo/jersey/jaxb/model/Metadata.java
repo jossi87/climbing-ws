@@ -55,7 +55,7 @@ public class Metadata {
 		this.useBlueNotRed = useBlueNotRed;
 		this.og = og;
 		List<Grade> grades = new ArrayList<>();
-		Map<Integer, String> lookup = GradeHelper.getGrades(setup.getIdRegion());
+		Map<Integer, String> lookup = GradeHelper.getGrades(setup);
 		for (int id : lookup.keySet()) {
 			grades.add(new Grade(id, lookup.get(id)));
 		}
