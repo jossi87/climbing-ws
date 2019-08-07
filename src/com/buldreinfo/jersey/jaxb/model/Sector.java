@@ -15,6 +15,7 @@ public class Sector implements IMetadata {
 		private final int gradeNumber;
 		private final String grade;
 		private final String fa;
+		private final int numPitches;
 		private final boolean hasImages;
 		private final boolean hasMovies;
 		private final double lat;
@@ -26,6 +27,7 @@ public class Sector implements IMetadata {
 		private final boolean danger;
 		
 		public Problem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa,
+				int numPitches,
 				boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t,
 				boolean danger) {
 			this.id = id;
@@ -36,6 +38,7 @@ public class Sector implements IMetadata {
 			this.gradeNumber = gradeNumber;
 			this.grade = grade;
 			this.fa = fa;
+			this.numPitches = numPitches;
 			this.hasImages = hasImages;
 			this.hasMovies = hasMovies;
 			this.lat = lat;
@@ -61,6 +64,10 @@ public class Sector implements IMetadata {
 
 		public int getGradeNumber() {
 			return gradeNumber;
+		}
+		
+		public int getNumPitches() {
+			return numPitches;
 		}
 		
 		public boolean getHasImages() {
@@ -152,8 +159,8 @@ public class Sector implements IMetadata {
 		this.newMedia = newMedia;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
+	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
+		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 
 	public int getAreaId() {
