@@ -159,8 +159,7 @@ public class BuldreinfoRepository {
 			if (media.isEmpty()) {
 				media = null;
 			}
-			a = new Area(regionId, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, -1, media,
-					null);
+			a = new Area(regionId, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, -1, media, null);
 		}
 		rst.close();
 		ps.close();
