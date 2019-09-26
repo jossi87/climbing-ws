@@ -15,6 +15,8 @@ public class GradeHelper {
 	public static ImmutableBiMap<Integer, String> getGrades(Setup setup) {
 		Map<Integer, String> map = new LinkedHashMap<>();
 		if (!setup.isBouldering()) {
+			map.put(55, "10- (9a)");
+			map.put(54, "9+/10- (8c+)");
 			map.put(53, "9+ (8c)");
 			map.put(52, "9/9+ (8b+)");
 			map.put(51, "9 (8b)");
