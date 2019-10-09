@@ -164,8 +164,9 @@ public class Problem implements IMetadata {
 	private List<Section> sections;
 	private Metadata metadata;
 	private final boolean todo;
+	private final long hits;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -196,6 +197,7 @@ public class Problem implements IMetadata {
 		this.newMedia = newMedia;
 		this.t = t;
 		this.todo = todo;
+		this.hits = hits;
 	}
 	
 	public void addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
@@ -222,11 +224,11 @@ public class Problem implements IMetadata {
 	public int getAreaId() {
 		return areaId;
 	}
-
+	
 	public String getAreaName() {
 		return areaName;
 	}
-	
+
 	public int getAreaVisibility() {
 		return areaVisibility;
 	}
@@ -253,6 +255,10 @@ public class Problem implements IMetadata {
 	
 	public String getGrade() {
 		return grade;
+	}
+	
+	public long getHits() {
+		return hits;
 	}
 	
 	public int getId() {

@@ -66,10 +66,6 @@ public class Sector implements IMetadata {
 			return gradeNumber;
 		}
 		
-		public int getNumPitches() {
-			return numPitches;
-		}
-		
 		public boolean getHasImages() {
 			return hasImages;
 		}
@@ -77,7 +73,7 @@ public class Sector implements IMetadata {
 		public boolean getHasMovies() {
 			return hasMovies;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
@@ -96,6 +92,10 @@ public class Sector implements IMetadata {
 
 		public int getNr() {
 			return nr;
+		}
+
+		public int getNumPitches() {
+			return numPitches;
 		}
 
 		public int getNumTicks() {
@@ -139,9 +139,10 @@ public class Sector implements IMetadata {
 	private final List<Media> media;
 	private final List<Problem> problems = new ArrayList<>();
 	private final List<NewMedia> newMedia;
+	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia) {
+	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
@@ -157,16 +158,17 @@ public class Sector implements IMetadata {
 		this.polyline = polyline;
 		this.media = media;
 		this.newMedia = newMedia;
+		this.hits = hits;
 	}
 	
 	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
 		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
 	}
-
+	
 	public int getAreaId() {
 		return areaId;
 	}
-	
+
 	public String getAreaName() {
 		return areaName;
 	}
@@ -181,6 +183,10 @@ public class Sector implements IMetadata {
 	
 	public String getComment() {
 		return comment;
+	}
+	
+	public long getHits() {
+		return hits;
 	}
 	
 	public int getId() {

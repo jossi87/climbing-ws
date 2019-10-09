@@ -74,12 +74,12 @@ public class Area implements IMetadata {
 			return numProblems;
 		}
 		
-		public String getPolyline() {
-			return polyline;
-		}
-		
 		public String getPolygonCoords() {
 			return polygonCoords;
+		}
+		
+		public String getPolyline() {
+			return polyline;
 		}
 		
 		public int getRandomMediaId() {
@@ -112,9 +112,10 @@ public class Area implements IMetadata {
 	private final List<Sector> sectors;
 	private final List<Media> media;
 	private final List<NewMedia> newMedia;
+	private final long hits;
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia) {
+	public Area(int regionId, String canonical, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -128,6 +129,7 @@ public class Area implements IMetadata {
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
 		this.newMedia = newMedia;
+		this.hits = hits;
 	}
 
 	public void addSector(int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int numProblems, int randomMediaId) {
@@ -140,6 +142,10 @@ public class Area implements IMetadata {
 	
 	public String getComment() {
 		return comment;
+	}
+	
+	public long getHits() {
+		return hits;
 	}
 	
 	public int getId() {
