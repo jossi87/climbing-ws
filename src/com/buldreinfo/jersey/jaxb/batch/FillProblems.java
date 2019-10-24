@@ -129,60 +129,82 @@
 //		this.setup = new MetaHelper().getSetup(REGION_ID);
 //		List<Data> data = new ArrayList<>();
 //		// FA-date: yyyy-MM-dd
-//		data.add(new Data(1, "Svartdalen", "Skytebanen", "The Asscrack Jammers", T.TRAD, null, 1, "6", "Oskar Roshed, Hans Inga", "1999-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Skytebanen", "Vårkänsla", T.TRAD, null, 1, "6", "Rick McGregor, Håkan Grudd", "1999-01-01", 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Skytebanen", "Rectum Prospector", T.TRAD, null, 1, "4", "Håkan Grudd, Rick McGregor", "1999-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Skytebanen", "Øvre Skytebanen", T.TRAD, null, 3, "7", "Erik Heyman, Malin Holmberg", "2001-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Blanke Hælvete", "The Edge", T.TOPROPE, "Climb the obvious arrete. No bolts, just yet..", 1, "6", null, null, 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Blanke Hælvete", "Blanke Hælvete", T.BOLT, "15m - Sharp crip fest, unfortunately it take a high toll on the skin and multiple tries in the same week are hard to afford.", 1, "8/8+", "Frode Sobhi, Dagfinn Eilertsen", "2007-01-01", 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Blanke Hælvete", "Satanrisset", T.TRAD, "15m - The most obvious crack in the corner on the left side of Blank Hælvete.", 1, "6", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Blanke Hælvete", "Fantarisset", T.TRAD, "15m - Start as Satanrisset, then right", 1, "5+", "Anna Nystedt", "2019-01-01", 0, 0));
-//		data.add(new Data(5, "Svartdalen", "Blanke Hælvete", "Jam for rettferdighet", T.TRAD, "15m - One #4 cam can be nice to have", 1, "5+", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Warspite", "Ildflue", T.BOLT, "Glue in bolts", 1, "7", "Tobias Boström, Jan Carlsson", "2008-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Warspite", "VVS", T.BOLT, "Start on the pile of loose rocks", 1, "7+", "Jan Eirik Holen", "2003-01-01", 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Warspite", "Fallos", T.BOLT, "Shares the start and anchor with VVS", 1, "7-", "Jan Eirik Holen", "2003-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Warspite", "Kill Bill", T.BOLT, null, 1, "8+", "Frode Sobhi, Fredrik Hansson", "2007-01-01", 0, 0));
-//		data.add(new Data(5, "Svartdalen", "Warspite", "Warspite", T.MIXED, "You need a cam and a runout on the upper part. For now..", 1, "9-", "Robert Caspersen, Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(6, "Svartdalen", "Warspite", "Tore den Sterke Klatreren", T.BOLT, null, 1, "7-", "Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(7, "Svartdalen", "Warspite", "Blokka", T.BOLT, null, 1, "6+", null, null, 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Baris", "Hjørnet", T.TOPROPE, "Everything is loose. Stay away!", 1, "6+", null, null, 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Baris", "Onjerka", T.BOLT, "Ever since the block fell out the route hasn't been climbed. Hangers should be removed", 1, "n/a", null, null, 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Baris", "Skitnödig", T.BOLT, null, 1, "6", "Anders Bergwall", "2003-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Baris", "Sommernatt", T.BOLT, "Shares anchor with route on the left.", 1, "7-", "Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(5, "Svartdalen", "Baris", "Baris", T.BOLT, null, 1, "6+", "Tore Dreyer", "2000-01-01", 0, 0));
-//		data.add(new Data(6, "Svartdalen", "Baris", "Gangsterparadiset", T.BOLT, null, 1, "6", "Jan Eirik Holen", "2003-01-01", 0, 0));
-//		data.add(new Data(7, "Svartdalen", "Baris", "Samejenta", T.BOLT, "Starts from the same ledge as Gangsterparadiset", 1, "7", "Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(8, "Svartdalen", "Baris", "Tele Sauvage", T.BOLT, "Follow the crack to 'Fanden på veggen' and follow this line.", 1, "8-", "Jan Eirik Holen", "2003-01-01", 0, 0));
-//		data.add(new Data(9, "Svartdalen", "Baris", "Fanden på veggen", T.BOLT, "Chipped!", 1, "8-", "Frode Sobhi, Jan Eirik Holen", "2003-01-01", 0, 0));
-//		data.add(new Data(10, "Svartdalen", "Baris", "Mini", T.TRAD, "Short and beautifull. Looks like jamming but there's a way around", 1, "6+", "Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(11, "Svartdalen", "Baris", "Barbert Fyrverkeri", T.TRAD, "Take big cams", 1, "6+", null, null, 0, 0));
-//		data.add(new Data(1, "Svartdalen", "KiF", "KiF", T.BOLT, "20m - Once was 7b. Very varried climbing", 1, "7+", "Dagfinn Eilertsen", "2000-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "KiF", "Route 22", T.MIXED, "Rather loose crack", 1, "6-", null, null, 0, 0));
-//		data.add(new Data(3, "Svartdalen", "KiF", "Route 23", T.MIXED, null, 1, "6", null, null, 0, 0));
-//		data.add(new Data(4, "Svartdalen", "KiF", "Slaget om Narvik", T.BOLT, "The black streak. Might need some brushing on top.", 1, "8+", "Frode Sobhi, Fredrik Hansson", "2004-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Sau-veggen", "Sauen", T.BOLT, "20m - Start on the wall, go through the roof on the right and up the slab", 1, "8-", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Sau-veggen", "Kristenmannsblod", T.BOLT, "20m - Same anchor as Sauen. Two finger crimping at its best.", 1, "9-", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Sau-veggen", "Gakk-Gakk", T.BOLT, "15m - Start in the corner, up to the anchor in the middle of the wall, right above the unnecessery bolt.", 1, "7-", "Stian Bruvoll, Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Sau-veggen", "Gach-Gach", T.BOLT, "20m - Extension of Gakk-Gakk, climb through the roof up the slab.", 1, "7+", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Millenial-veggen", "Closed Project C U Next Tuesday", T.BOLT, "20m", 1, "n/a", "Steven Van Dijck, Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Millenial-veggen", "Closed Project Dreamwhipper", T.TRAD, "20m - Shares anchor with CUNT", 1, "n/a", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Counting the Days", "Counting the Days", T.TRAD, "55m", 1, "6+", "Rick McGregor, Fredrik Hansson, A. Stålnacke", "2005-01-01", 0, 0));
-//		data.add(new Data(1, "Svartdalen", "Øvre-veggen", "Grus i Ögat", T.TRAD, "Face climb with no protection", 1, "6-", "Gustav Mellgren", "2007-01-01", 0, 0));
-//		data.add(new Data(2, "Svartdalen", "Øvre-veggen", "Lärdomen", T.TRAD, null, 1, "7-", "Tobias Boström", "2007-01-01", 0, 0));
-//		data.add(new Data(3, "Svartdalen", "Øvre-veggen", "Hjørnedans", T.TRAD, "Crack right of an obvious arete", 1, "5", "Gustav Mellgren", "2007-01-01", 0, 0));
-//		data.add(new Data(4, "Svartdalen", "Øvre-veggen", "Uppvarmingsäventyret", T.TRAD, null, 2, "5+", "Tobias Boström, Jan Carlsson", "2007-01-01", 0, 0));
-//		data.add(new Data(1, "Stiberg", "Stiberg", "Lady", T.TRAD, null, 1, "6+", "Jørn Bjerk", "2008-01-01", 0, 0));
-//		data.add(new Data(2, "Stiberg", "Stiberg", "Landstrykeren", T.TOPROPE, null, 1, "7/7+", "Jan Carlsson", null, 0, 0));
-//		data.add(new Data(3, "Stiberg", "Stiberg", "Fem Plus", T.TRAD, "15m", 1, "7-", "Håkon Wegge", "2019-01-01", 0, 0));
-//		data.add(new Data(4, "Stiberg", "Stiberg", "Pump-o-rama", T.TRAD, "35m", 1, "8", "Fredrik Hansson", "2009-01-01", 0, 0));
-//		data.add(new Data(5, "Stiberg", "Stiberg", "Crack-a-go-go", T.TRAD, "35m", 1, "n/a", null, null, 0, 0));
-//		data.add(new Data(6, "Stiberg", "Stiberg", "En ring av selvtillit", T.MIXED, null, 1, "5", "Thorbjørn Enevold", "1980-01-01", 0, 0));
-//		data.add(new Data(7, "Stiberg", "Stiberg", "Slaverekken", T.TRAD, "35m", 1, "6+", "Thorbjørn Enevold, Steinulv Aarebrot", "1991-01-01", 0, 0));
-//		data.add(new Data(8, "Stiberg", "Stiberg", "La Linja", T.TRAD, "35m", 1, "7+", "Steinulv Aarebrot", "1991-01-01", 0, 0));
-//		data.add(new Data(9, "Stiberg", "Stiberg", "Inn i Grannskauen", T.TRAD, "20m", 1, "7-", "Steinulv Aarebrot", "1991-01-01", 0, 0));
-//		data.add(new Data(10, "Stiberg", "Stiberg", "Flatfoot Sam", T.TRAD, null, 1, "6", "Thorbjørn Enevold", "1980-01-01", 0, 0));
-//		data.add(new Data(11, "Stiberg", "Stiberg", "Peanøtthjerneforbundet", T.TRAD, null, 1, "6", "Ole Ivar Lied", "2004-01-01", 0, 0));
-//		data.add(new Data(12, "Stiberg", "Stiberg", "Helkroppsmasage", T.TRAD, null, 1, "6", "Mikael af Ekenstam, Tobias Boström", "2008-01-01", 0, 0));
+//		data.add(new Data(1, "Kårstø", "Førsteveggen", "Morsmelk", T.BOLT, "Bolt: 4+2", 1, "4", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Førsteveggen", "Espresso", T.BOLT, "Bolt: 5", 1, "6+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Førsteveggen", "Rødsprit", T.BOLT, "Bolt: 5", 1, "6+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Førsteveggen", "Bayer", T.BOLT, "Bolt: 5", 1, "6", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(5, "Kårstø", "Førsteveggen", "Hostesaft", T.BOLT, "Bolt: 5", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(6, "Kårstø", "Førsteveggen", "Styrepils", T.BOLT, "Bolt: 4", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(7, "Kårstø", "Førsteveggen", "Litago", T.BOLT, "Bolt: 3+2", 1, "6+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(1, "Kårstø", "Hovedveggen", "Riskhospitalet", T.BOLT, "Bolt: 4", 1, "7-", "Rudi Schrøder", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Hovedveggen", "Fis", T.BOLT, "Bolt: 2", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Hovedveggen", "Kujon", T.BOLT, "Bolt: 3", 1, "5-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Hovedveggen", "Knotteliten", T.BOLT, "Bolt: 4", 1, "6", "Anne Olufsen", null, 0, 0));
+//		data.add(new Data(5, "Kårstø", "Hovedveggen", "Balle Klorin", T.BOLT, "Bolt: 4", 1, "5+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(6, "Kårstø", "Hovedveggen", "Epoksy", T.BOLT, "Bolt: 6", 1, "6+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(7, "Kårstø", "Hovedveggen", "Lueludder", T.BOLT, "Bolt: 4", 1, "6+", "Rudi Schrøder", null, 0, 0));
+//		data.add(new Data(8, "Kårstø", "Hovedveggen", "Handikt", T.BOLT, "Bolt: 3", 1, "5+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(9, "Kårstø", "Hovedveggen", "Grønn mirage", T.BOLT, "Bolt: 5", 1, "6", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(10, "Kårstø", "Hovedveggen", "Den røde baron", T.BOLT, "Bolt: 4", 1, "6", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(11, "Kårstø", "Hovedveggen", "Bakkestart", T.BOLT, "Bolt: 6", 1, "7+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(12, "Kårstø", "Hovedveggen", "Basketaket", T.BOLT, "Bolt: 6+2", 1, "7", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(13, "Kårstø", "Hovedveggen", "Bråkjekk", T.BOLT, "Bolt: 6+2", 1, "7+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(14, "Kårstø", "Hovedveggen", "Fallos", T.BOLT, "Bolt: 4", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(15, "Kårstø", "Hovedveggen", "Den beskjedne melkemannen", T.BOLT, "Bolt: 5", 1, "6-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(16, "Kårstø", "Hovedveggen", "Mitt Afrika", T.BOLT, "Bolt: 4", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(17, "Kårstø", "Hovedveggen", "L", T.BOLT, "Bolt: 5", 1, "7-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(18, "Kårstø", "Hovedveggen", "U", T.BOLT, "Bolt: 6", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(19, "Kårstø", "Hovedveggen", "Triggerhappy", T.BOLT, "Bolt: 7", 1, "8", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(20, "Kårstø", "Hovedveggen", "Potetmoses", T.BOLT, "Bolt: 6", 1, "7+/8-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(21, "Kårstø", "Hovedveggen", "Kafé ka faen", T.BOLT, "Bolt: 5", 1, "7/7+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(22, "Kårstø", "Hovedveggen", "Klamme hender", T.BOLT, "Bolt: 7", 1, "8/8+", "Håkon Hansen", null, 0, 0));
+//		data.add(new Data(23, "Kårstø", "Hovedveggen", "Det drypper", T.BOLT, "Bolt: 7", 1, "8+", "Håkon Hansen", null, 0, 0));
+//		data.add(new Data(24, "Kårstø", "Hovedveggen", "Blasfeminin", T.BOLT, "Bolt: 7", 1, "8-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(25, "Kårstø", "Hovedveggen", "Vill, vakker og våt", T.BOLT, "Bolt: 6", 1, "8", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(26, "Kårstø", "Hovedveggen", "I", T.BOLT, "Bolt: 6", 1, "7+/8-", "Are Bjørnsgaard", null, 0, 0));
+//		data.add(new Data(27, "Kårstø", "Hovedveggen", "Hylletur", T.BOLT, "Bolt: 7+2", 1, "7+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(28, "Kårstø", "Hovedveggen", "Litt på kanten", T.BOLT, "Bolt: 6", 1, "7+/8-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(29, "Kårstø", "Hovedveggen", "Enigma", T.BOLT, "Bolt: 6", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(30, "Kårstø", "Hovedveggen", "Bulldetektor", T.BOLT, "Bolt: 6", 1, "8-", "Anders Kindlihagen", null, 0, 0));
+//		data.add(new Data(31, "Kårstø", "Hovedveggen", "Sadomaskinisten", T.BOLT, "Bolt: 6", 1, "8", "Gunnar Karlsen", null, 0, 0));
+//		data.add(new Data(32, "Kårstø", "Hovedveggen", "Hizbollah", T.BOLT, "Bolt: 5", 1, "7+/8-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(33, "Kårstø", "Hovedveggen", "[åpent prosjekt]", T.BOLT, "Bolt: 5", 1, "9-", "Anders Kindlihagen", null, 0, 0));
+//		data.add(new Data(34, "Kårstø", "Hovedveggen", "Kan'kje finna fingen", T.BOLT, "Bolt: 5", 1, "7/7+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(35, "Kårstø", "Hovedveggen", "På leit", T.BOLT, "Bolt: 6", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(1, "Kårstø", "Guleveggen", "Ex Undis", T.BOLT, "Bolt: 4", 1, "4+", "Sandra Kristin Svensen", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Guleveggen", "Steinulv", T.BOLT, "Bolt: 5", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Guleveggen", "Bujumbura", T.BOLT, "Bolt: 6", 1, "8+", "Håkon Hansen", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Guleveggen", "Jalalabad", T.BOLT, "Bolt: 6", 1, "8-", "Ståle Brokvam", null, 0, 0));
+//		data.add(new Data(5, "Kårstø", "Guleveggen", "Fluxus", T.BOLT, "Bolt: 5", 1, "7", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(6, "Kårstø", "Guleveggen", "Bløgg", T.BOLT, "Bolt: 5", 1, "8-", "Anders Kindlihagen", null, 0, 0));
+//		data.add(new Data(7, "Kårstø", "Guleveggen", "Judasevangeliet", T.BOLT, "Bolt: 6", 1, "8-", "Ståle Brokvam", null, 0, 0));
+//		data.add(new Data(8, "Kårstø", "Guleveggen", "Et svare skrev", T.BOLT, "Bolt: 6", 1, "8-", "Ståle Brokvam", null, 0, 0));
+//		data.add(new Data(9, "Kårstø", "Guleveggen", "Bevernylon", T.BOLT, "Bolt: 6", 1, "7", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(10, "Kårstø", "Guleveggen", "Den olympiske sild", T.BOLT, "Bolt: 6", 1, "7+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(1, "Kårstø", "Gråveggen", "Tamiltigeren", T.BOLT, "Bolt: 7", 1, "5-", "Rudi Schrøder", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Gråveggen", "Sendero Luminoso", T.BOLT, "Bolt: 5", 1, "6-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Gråveggen", "Summa Sumatra", T.BOLT, "Bolt: 6", 1, "7-", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Gråveggen", "Gulebøy", T.BOLT, "Bolt: 5", 1, "6+", "Annika Klippenberg", null, 0, 0));
+//		data.add(new Data(5, "Kårstø", "Gråveggen", "AN 31", T.BOLT, "Bolt: 7", 1, "6", "Anlaug Nygard", null, 0, 0));
+//		data.add(new Data(6, "Kårstø", "Gråveggen", "Den hissige sauebonden", T.BOLT, "Bolt: 6", 1, "7-", "Bernt Ove Reinertsen", null, 0, 0));
+//		data.add(new Data(7, "Kårstø", "Gråveggen", "Ban Thai", T.BOLT, "Bolt: 7", 1, "7-", "Leif Jensen", null, 0, 0));
+//		data.add(new Data(8, "Kårstø", "Gråveggen", "Brigate Rossi", T.BOLT, "Bolt: 5", 1, "6+", "Odd Arne Hemmingstad", null, 0, 0));
+//		data.add(new Data(9, "Kårstø", "Gråveggen", "IRA", T.BOLT, "Bolt: 6", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(10, "Kårstø", "Gråveggen", "Tinnsoldaten", T.BOLT, "Bolt: 5", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(11, "Kårstø", "Gråveggen", "Den stygge andungen", T.BOLT, "Bolt: 6", 1, "5+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(12, "Kårstø", "Gråveggen", "Feit og klebrig", T.BOLT, "Bolt: 5", 1, "5-", "Rudi Schrøder", null, 0, 0));
+//		data.add(new Data(1, "Kårstø", "Blokkveggen", "Bensin", T.BOLT, "Bolt: 5", 1, "6", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Blokkveggen", "Strømlaus", T.BOLT, "Bolt: 5", 1, "6", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Blokkveggen", "Tetris", T.BOLT, "Bolt: 5", 1, "6", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Blokkveggen", "Tigris", T.BOLT, "Bolt: 3+2", 1, "7", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(5, "Kårstø", "Blokkveggen", "Baris", T.BOLT, "Bolt: 4", 1, "7", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(6, "Kårstø", "Blokkveggen", "Spenning i hverdagen", T.BOLT, "Bolt: 7+2", 1, "7-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(7, "Kårstø", "Blokkveggen", "Løse rykter", T.BOLT, "Bolt: 6+2", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(1, "Kårstø", "Kraterveggen", "Krasj", T.BOLT, "Bolt: 4+2", 1, "6-", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(2, "Kårstø", "Kraterveggen", "Krater", T.BOLT, "Bolt: 4+2", 1, "5+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(3, "Kårstø", "Kraterveggen", "Kråke", T.BOLT, "Bolt: 4+2", 1, "5+", "Lars Audun Nornes", null, 0, 0));
+//		data.add(new Data(4, "Kårstø", "Kraterveggen", "Kake", T.BOLT, "Bolt: 4+2", 1, "5-", "Lars Audun Nornes", null, 0, 0));
+//
 //		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 //			for (Data d : data) {
 //				final int idArea = upsertArea(c, d);
@@ -216,7 +238,7 @@
 //		logger.debug("insert {}", d);
 //		List<FaUser> fa = getFas(c, d.getFa());
 //		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
-//		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, null, null, null, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLat(), d.getLng(), null, 0, 0, false, null, t, false);
+//		Problem p = new Problem(idArea, 0, null, idSector, 0, null, 0, 0, null, null, null, -1, 0, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLat(), d.getLng(), null, 0, 0, false, null, t, false, 0);
 //		if (d.getNumPitches() > 1) {
 //			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 //				p.addSection(-1, nr, null, "n/a");
@@ -231,7 +253,7 @@
 //				return a.getId();
 //			}
 //		}
-//		Area a = new Area(REGION_ID, null, -1, 0, d.getArea(), null, 0, 0, -1, -1, null, null);
+//		Area a = new Area(REGION_ID, null, -1, 0, d.getArea(), null, 0, 0, -1, -1, null, null, 0);
 //		a = c.getBuldreinfoRepo().setArea(AUTH_USER_ID, REGION_ID, a, null);
 //		return a.getId();
 //	}
@@ -243,7 +265,7 @@
 //				return s.getId();
 //			}
 //		}
-//		Sector s = new Sector(false, idArea, 0, a.getName(), null, -1, 0, d.getSector(), null, 0, 0, null, null, null, null);
+//		Sector s = new Sector(false, idArea, 0, a.getName(), null, -1, 0, d.getSector(), null, 0, 0, null, null, null, null, 0);
 //		s = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, new MetaHelper().getSetup(REGION_ID), s, null);
 //		return s.getId();
 //	}
