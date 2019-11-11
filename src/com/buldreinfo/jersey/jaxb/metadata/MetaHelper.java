@@ -91,7 +91,7 @@ public class MetaHelper {
 				.setLatLng(68.41312, 17.54277).setDefaultZoom(7));
 		setups.add(new Setup("tau.fredrikstadklatreklubb.org")
 				.setIdRegion(10)
-				.setBouldering(true)
+				.setBouldering(false)
 				.setTitle("Klatring i Fredrikstad")
 				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
 				.setLatLng(59.22844, 10.91722).setDefaultZoom(10));
