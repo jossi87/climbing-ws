@@ -19,6 +19,17 @@ import jersey.repackaged.com.google.common.collect.Lists;
 public class CrossDomainFilter implements ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
 	private static List<String> LEGAL_ORIGINS = Lists.newArrayList(
+			"https://buldreinfo.com",
+			"https://buldring.bergen-klatreklubb.no",
+			"https://buldring.fredrikstadklatreklubb.org",
+			"https://buldring.jotunheimenfjellsport.com",
+			"https://buldreforer.tromsoklatring.no",
+			
+			"https://brattelinjer.no",
+			"https://klatring.jotunheimenfjellsport.com",
+			"https://klatreforer.tromsoklatring.no",
+			"https://tau.fredrikstadklatreklubb.org",
+			
 			"https://dev.jossi.org",
 			"http://localhost:3000" // TODO REMOVE
 			);
