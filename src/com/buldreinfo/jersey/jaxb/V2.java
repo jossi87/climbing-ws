@@ -22,6 +22,7 @@ import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.CacheControl;
@@ -359,9 +360,9 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static/area")
+	@Path("/static/area/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticArea(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticArea(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
@@ -392,9 +393,9 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static/problem")
+	@Path("/static/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticProblem(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticProblem(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
@@ -408,9 +409,9 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static/sector")
+	@Path("/static/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSector(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticSector(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
@@ -425,9 +426,9 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static/user")
+	@Path("/static/user/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticUser(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticUser(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
