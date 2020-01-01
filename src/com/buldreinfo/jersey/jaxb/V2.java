@@ -193,7 +193,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -208,7 +208,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/images")
 	@Produces("image/jpeg")
@@ -237,7 +237,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -253,7 +253,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -269,7 +269,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -285,7 +285,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems/hse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -338,6 +338,103 @@ public class V2 {
 			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStatic(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			Frontpage res = frontpageCache.get(setup.getIdRegion() + "_" + authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/areas")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			Area res = c.getBuldreinfoRepo().getArea(authUserId, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/browse")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+			Browse res = new Browse(areas);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/problems")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticProblems(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/sectors")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			final boolean orderByGrade = setup.isBouldering();
+			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/users")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticUsers(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			User res = c.getBuldreinfoRepo().getUser(authUserId, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
