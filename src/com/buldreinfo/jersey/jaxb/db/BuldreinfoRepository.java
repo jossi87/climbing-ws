@@ -1303,7 +1303,7 @@ public class BuldreinfoRepository {
 			for (NewMedia m : a.getNewMedia()) {
 				final int idProblem = 0;
 				final int idSector = 0;
-				addNewMedia(authUserId, idProblem, idSector, a.getId(), m, multiPart, now);
+				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
 			}
 		}
 		return getArea(authUserId, idArea);
