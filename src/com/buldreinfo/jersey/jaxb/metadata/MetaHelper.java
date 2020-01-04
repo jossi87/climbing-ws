@@ -202,7 +202,8 @@ public class MetaHelper {
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
+					.setDefaultZoom(setup.getDefaultZoom())
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;
