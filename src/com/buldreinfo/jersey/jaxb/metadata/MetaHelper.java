@@ -184,7 +184,9 @@ public class MetaHelper {
 					.setCanonical(p.getCanonical())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
-					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion()))
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
