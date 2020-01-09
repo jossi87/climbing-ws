@@ -115,7 +115,7 @@ public class BuldreinfoRepository {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
-			addNewMedia(authUserId, p.getId(), idSector, idArea, m, multiPart, now);
+			addNewMedia(authUserId, p.getId(), m.getPitch(), idSector, idArea, m, multiPart, now);
 		}
 	}
 
@@ -713,8 +713,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Media (problems)
-		ps = c.getConnection().prepareStatement(
-				"SELECT mp.problem_id, m.id, m.is_movie, mp.milliseconds t FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY mp.problem_id, m.id, m.is_movie, mp.milliseconds ORDER BY m.is_movie, m.id");
+		ps = c.getConnection().prepareStatement("SELECT mp.problem_id, m.id, m.is_movie, mp.milliseconds t FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id=1 AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY mp.problem_id, m.id, m.is_movie, mp.milliseconds ORDER BY m.is_movie, m.id");
 		ps.setInt(1, idUser);
 		rst = ps.executeQuery();
 		while (rst.next()) {
@@ -1302,8 +1301,9 @@ public class BuldreinfoRepository {
 			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : a.getNewMedia()) {
 				final int idProblem = 0;
+				final int pitch = 0;
 				final int idSector = 0;
-				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, m, multiPart, now);
 			}
 		}
 		return getArea(authUserId, idArea);
@@ -1391,7 +1391,7 @@ public class BuldreinfoRepository {
 			for (NewMedia m : p.getNewMedia()) {
 				final int idSector = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, m.getPitch(), idSector, idArea, m, multiPart, now);
 			}
 		}
 		// FA
@@ -1555,9 +1555,10 @@ public class BuldreinfoRepository {
 		if (s.getNewMedia() != null) {
 			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : s.getNewMedia()) {
+				final int pitch = 0;
 				final int idProblem = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, idSector, idArea, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, m, multiPart, now);
 			}
 		}
 		return getSector(authUserId, orderByGrade, setup, idSector);
@@ -1779,8 +1780,8 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
-		logger.debug("addNewMedia(idUser={}, idProblem={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, idSector, m);
+	private int addNewMedia(int idUser, int idProblem, int pitch, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, pitch, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
 		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
 			/**
@@ -1804,9 +1805,15 @@ public class BuldreinfoRepository {
 			ps = null;
 			Preconditions.checkArgument(idMedia > 0);
 			if (idProblem > 0) {
-				ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id) VALUES (?, ?)");
+				ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch) VALUES (?, ?, ?)");
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idProblem);
+				if (pitch > 0) {
+					ps.setInt(3, pitch);
+				}
+				else { 
+					ps.setNull(4, Types.NUMERIC);
+				}
 				ps.execute();
 				ps.close();
 				ps = null;
@@ -2104,6 +2111,7 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int pitch = 0;
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie") ? 2 : 1;
@@ -2113,7 +2121,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, null, 0, null));
+			media.add(new Media(itId, pitch, width, height, description, tyId, null, 0, null));
 		}
 		rst.close();
 		ps.close();
@@ -2122,12 +2130,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaProblem(Setup s, int sectorId, int problemId) throws SQLException {
 		List<Media> media = getMediaSector(sectorId, problemId);
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT m.id, m.width, m.height, m.is_movie, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) creator, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') in_photo FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.id");
 		ps.setInt(1, problemId);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int pitch = rst.getInt("pitch");
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie") ? 2 : 1;
@@ -2138,7 +2146,7 @@ public class BuldreinfoRepository {
 			if (!Strings.isNullOrEmpty(inPhoto)) {
 				description += ", in photo: " + inPhoto;
 			}
-			media.add(new Media(itId, width, height, description, tyId, t, 0, null));
+			media.add(new Media(itId, pitch, width, height, description, tyId, t, 0, null));
 		}
 		rst.close();
 		ps.close();
@@ -2155,6 +2163,7 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int itId = rst.getInt("id");
+			int pitch = 0;
 			int width = rst.getInt("width");
 			int height = rst.getInt("height");
 			int tyId = rst.getBoolean("is_movie") ? 2 : 1;
@@ -2165,7 +2174,7 @@ public class BuldreinfoRepository {
 				description += ", in photo: " + inPhoto;
 			}
 			List<Svg> svgs = getSvgs(itId);
-			Media m = new Media(itId, width, height, description, tyId, null, optionalIdProblem, svgs);
+			Media m = new Media(itId, pitch, width, height, description, tyId, null, optionalIdProblem, svgs);
 			if (optionalIdProblem != 0 && svgs != null
 					&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 				media.clear();

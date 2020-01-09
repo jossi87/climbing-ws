@@ -4,6 +4,7 @@ import java.util.List;
 
 public class Media {
 	private final int id;
+	private final int pitch;
 	private final int width;
 	private final int height;
 	private final String description;
@@ -12,8 +13,9 @@ public class Media {
 	private final int svgProblemId;
 	private final List<Svg> svgs;
 
-	public Media(int id, int width, int height, String description, int idType, String t, int svgProblemId, List<Svg> svgs) {
+	public Media(int id, int pitch, int width, int height, String description, int idType, String t, int svgProblemId, List<Svg> svgs) {
 		this.id = id;
+		this.pitch = pitch;
 		this.width = width;
 		this.height = height;
 		this.description = description;
@@ -30,7 +32,7 @@ public class Media {
 	public int getHeight() {
 		return height;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -39,19 +41,23 @@ public class Media {
 		return idType;
 	}
 
+	public int getPitch() {
+		return pitch;
+	}
+
+	public int getSvgProblemId() {
+		return svgProblemId;
+	}
+	
 	public List<Svg> getSvgs() {
 		return svgs;
 	}
-	
+
 	public String getT() {
 		return t;
 	}
-
+	
 	public int getWidth() {
 		return width;
-	}
-	
-	public int getSvgProblemId() {
-		return svgProblemId;
 	}
 }
