@@ -1805,7 +1805,7 @@ public class BuldreinfoRepository {
 			ps = null;
 			Preconditions.checkArgument(idMedia > 0);
 			if (idProblem > 0) {
-				ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch) VALUES (?, ?, ?)");
+				ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch) VALUES (?, ?, ?, ?)");
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idProblem);
 				if (pitch > 0) {
