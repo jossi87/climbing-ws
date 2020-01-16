@@ -38,7 +38,7 @@ import com.google.common.hash.Hashing;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
-	private final Path root = Paths.get("G:/gdrive/buldreinfo/buldreinfo_media");
+	private final Path root = Paths.get("G:/gdrive/web/buldreinfo/buldreinfo_media");
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
