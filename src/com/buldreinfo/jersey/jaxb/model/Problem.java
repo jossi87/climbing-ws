@@ -55,11 +55,13 @@ public class Problem implements IMetadata {
 		private final int nr;
 		private final String description;
 		private final String grade;
-		public Section(int id, int nr, String description, String grade) {
+		final List<Media> media;
+		public Section(int id, int nr, String description, String grade, List<Media> media) {
 			this.id = id;
 			this.nr = nr;
 			this.description = description;
 			this.grade = grade;
+			this.media = media;
 		}
 		public String getDescription() {
 			return description;
@@ -72,6 +74,9 @@ public class Problem implements IMetadata {
 		}
 		public int getNr() {
 			return nr;
+		}
+		public List<Media> getMedia() {
+			return media;
 		}
 	}
 	public class Tick {
@@ -207,11 +212,11 @@ public class Problem implements IMetadata {
 		comments.add(new Comment(id, date, idUser, picture, name, message, danger, resolved));
 	}
 	
-	public void addSection(int id, int nr, String description, String grade) {
+	public void addSection(int id, int nr, String description, String grade, List<Media> media) {
 		if (sections == null) {
 			sections = new ArrayList<>();
 		}
-		sections.add(new Section(id, nr, description, grade));
+		sections.add(new Section(id, nr, description, grade, media));
 	}
 	
 	public void addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {

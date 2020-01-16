@@ -148,4 +148,20 @@ public class Metadata {
 		this.types = types;
 		return this;
 	}
+
+	public String toHtml() {
+		return "<html><head>" +
+				"<meta charset=\"UTF-8\">" +
+				"<title>" + title + "</title>" + 
+				"<meta name=\"description\" content=\"" + description + "\" />" + 
+				"<meta property=\"og:type\" content=\"website\" />" + 
+				"<meta property=\"og:description\" content=\"" + description + "\" />" + 
+				"<meta property=\"og:url\" content=\"" + og.getUrl() + "\" />" + 
+				"<meta property=\"og:title\" content=\"" + title + "\" />" + 
+				"<meta property=\"og:image\" content=\"" + og.getImage() + "\" />" + 
+				"<meta property=\"og:image:width\" content=\"" + og.getImageWidth() + "\" />" + 
+				"<meta property=\"og:image:height\" content=\"" + og.getImageHeight() + "\" />" + 
+				"<meta property=\"fb:app_id\" content=\"" + og.getFbAppId() + "\" />" +
+				"</head></html>";
+	}
 }

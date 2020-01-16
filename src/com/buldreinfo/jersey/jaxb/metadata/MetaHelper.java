@@ -89,6 +89,12 @@ public class MetaHelper {
 				.setTitle("Klatring i Narvik")
 				.setDescription("Climbing in Narvik (Norway)")
 				.setLatLng(68.41312, 17.54277).setDefaultZoom(7));
+		setups.add(new Setup("tau.fredrikstadklatreklubb.org")
+				.setIdRegion(10)
+				.setBouldering(false)
+				.setTitle("Klatring i Fredrikstad")
+				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
+				.setLatLng(59.22844, 10.91722).setDefaultZoom(10));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
@@ -178,7 +184,9 @@ public class MetaHelper {
 					.setCanonical(p.getCanonical())
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, p))
-					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion()))
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Sector) {
 			Sector s = (Sector)m;
@@ -196,7 +204,8 @@ public class MetaHelper {
 					.setDescription(description)
 					.setJsonLd(JsonLdCreator.getJsonLd(setup, s))
 					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
+					.setDefaultZoom(setup.getDefaultZoom())
+					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
 		else if (m instanceof User) {
 			User u = (User)m;

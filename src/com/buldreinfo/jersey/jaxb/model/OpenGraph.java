@@ -5,6 +5,7 @@ public class OpenGraph {
 	private final String image;
 	private final int imageWidth;
 	private final int imageHeight;
+	private final String fbAppId = "275320366630912";
 	
 	public OpenGraph(String url, String image, int imageWidth, int imageHeight) {
 		this.url = url;
@@ -27,5 +28,9 @@ public class OpenGraph {
 	
 	public String getUrl() {
 		return url;
+	}
+	
+	public String getFbAppId() {
+		return fbAppId;
 	}
 }
