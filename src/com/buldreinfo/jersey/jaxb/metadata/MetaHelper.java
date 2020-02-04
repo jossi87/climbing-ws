@@ -98,7 +98,7 @@ public class MetaHelper {
 		setups.add(new Setup("hkl.brattelinjer.no")
 				.setIdRegion(11)
 				.setBouldering(false)
-				.setTitle("Klatring i Haugalandet")
+				.setTitle("Klatring på Haugalandet")
 				.setDescription("Climbing in Haugaland (Western Norway)")
 				.setLatLng(59.51196, 5.76736).setDefaultZoom(10));
 		// DEV
