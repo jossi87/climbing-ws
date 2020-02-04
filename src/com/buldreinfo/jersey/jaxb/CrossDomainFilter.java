@@ -29,6 +29,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			"https://klatring.jotunheimenfjellsport.com",
 			"https://klatreforer.tromsoklatring.no",
 			"https://tau.fredrikstadklatreklubb.org",
+			"https://hkl.brattelinjer.no",
 			
 			"https://dev.jossi.org",
 			"http://localhost:3000" // TODO REMOVE

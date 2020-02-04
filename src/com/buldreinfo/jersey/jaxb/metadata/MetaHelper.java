@@ -95,6 +95,12 @@ public class MetaHelper {
 				.setTitle("Klatring i Fredrikstad")
 				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
 				.setLatLng(59.22844, 10.91722).setDefaultZoom(10));
+		setups.add(new Setup("hkl.brattelinjer.no")
+				.setIdRegion(10)
+				.setBouldering(false)
+				.setTitle("Klatring i Haugalandet")
+				.setDescription("Climbing in Haugaland (Western Norway)")
+				.setLatLng(59.51196, 5.76736).setDefaultZoom(10));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
