@@ -581,8 +581,11 @@ public class BuldreinfoRepository {
 			int nr = rst.getInt("nr");
 			String description = rst.getString("description");
 			int grade = rst.getInt("grade");
-			List<Media> sectionMedia = p.getMedia().stream().filter(x -> x.getPitch() == nr).collect(Collectors.toList());
-			p.getMedia().removeAll(sectionMedia);
+			List<Media> sectionMedia = new ArrayList<>();
+			if (p.getMedia() != null) {
+				sectionMedia = p.getMedia().stream().filter(x -> x.getPitch() == nr).collect(Collectors.toList());
+				p.getMedia().removeAll(sectionMedia);
+			}
 			p.addSection(id, nr, description, GradeHelper.intToString(s, grade), sectionMedia);
 		}
 		rst.close();
