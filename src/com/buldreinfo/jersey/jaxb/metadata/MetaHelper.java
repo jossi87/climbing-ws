@@ -265,7 +265,7 @@ public class MetaHelper {
 	}
 
 	private OpenGraph getOg(Setup setup, String suffix, List<Media> media, int requestedIdMedia) {
-		String url = setup.getUrl(suffix);
+		String url = setup.getUrl(suffix + (requestedIdMedia>0? "?idMedia=" + requestedIdMedia : ""));
 		if (media != null) {
 			Optional<Media> optMedia = null;
 			if (requestedIdMedia > 0) {
