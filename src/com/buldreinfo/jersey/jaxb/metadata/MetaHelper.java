@@ -134,7 +134,7 @@ public class MetaHelper {
 		return setups;
 	}
 
-	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId) throws SQLException {
+	public void updateMetadata(DbConnection c, IMetadata m, Setup setup, int authUserId, int requestedIdMedia) throws SQLException {
 		if (m == null) {
 			return;
 		}
@@ -148,7 +148,7 @@ public class MetaHelper {
 				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
 			}
 
-			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia());
+			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia(), requestedIdMedia);
 			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
 					.setCanonical(a.getCanonical())
 					.setDescription(description)
@@ -169,10 +169,10 @@ public class MetaHelper {
 			if (f.getRandomMedia() != null) {
 				RandomMedia x = f.getRandomMedia();
 				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(x.getIdMedia()/100*100) + "/" + x.getIdMedia() + ".jpg");
-				og = new OpenGraph(setup.getUrl(null), image, x.getWidth(), x.getHeight());
+				og = new OpenGraph(setup.getUrl(null), image, x.getWidth(), x.getHeight(), null);
 			}
 			else {
-				og = getOg(setup, null, null);
+				og = getOg(setup, null, null, requestedIdMedia);
 			}
 			f.setMetadata(new Metadata(c, setup, authUserId, null, og)
 					.setDescription(description));
@@ -185,7 +185,7 @@ public class MetaHelper {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.getName().trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
-			OpenGraph og = getOg(setup, "/problem/" + p.getId(), p.getMedia());
+			OpenGraph og = getOg(setup, "/problem/" + p.getId(), p.getMedia(), requestedIdMedia);
 			p.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setCanonical(p.getCanonical())
 					.setDescription(description)
@@ -204,7 +204,7 @@ public class MetaHelper {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			OpenGraph og = getOg(setup, "/sector/" + s.getId(), s.getMedia());
+			OpenGraph og = getOg(setup, "/sector/" + s.getId(), s.getMedia(), requestedIdMedia);
 			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setCanonical(s.getCanonical())
 					.setDescription(description)
@@ -217,7 +217,7 @@ public class MetaHelper {
 			User u = (User)m;
 			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
-			OpenGraph og = getOg(setup, "/user/" + u.getId(), null);
+			OpenGraph og = getOg(setup, "/user/" + u.getId(), null, requestedIdMedia);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
 		}
 		else if (m instanceof Meta) {
@@ -234,7 +234,7 @@ public class MetaHelper {
 					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
 					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
 					setup.isBouldering()? "boulders" : "routes");
-			OpenGraph og = getOg(setup, "/browse", null);
+			OpenGraph og = getOg(setup, "/browse", null, requestedIdMedia);
 			b.setMetadata(new Metadata(c, setup, authUserId, "Browse", og)
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
@@ -243,20 +243,20 @@ public class MetaHelper {
 		else if (m instanceof Ticks) {
 			Ticks t = (Ticks)m;
 			String description = String.format("Page %d/%d", t.getCurrPage(), t.getNumPages());
-			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null);
+			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null, requestedIdMedia);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
 		}
 		else if (m instanceof TodoUser) {
 			TodoUser u = (TodoUser)m;
 			String title = String.format("%s (To-do list)", u.getName());
-			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null);
+			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null, requestedIdMedia);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Permissions) {
 			Permissions p = (Permissions)m;
-			OpenGraph og = getOg(setup, "/permissions", null);
+			OpenGraph og = getOg(setup, "/permissions", null, requestedIdMedia);
 			p.setMetadata(new Metadata(c, setup, authUserId, "Permissions", og));
 		}
 		else {
@@ -264,16 +264,26 @@ public class MetaHelper {
 		}
 	}
 
-	private OpenGraph getOg(Setup setup, String suffix, List<Media> media) {
+	private OpenGraph getOg(Setup setup, String suffix, List<Media> media, int requestedIdMedia) {
 		String url = setup.getUrl(suffix);
 		if (media != null) {
-			Optional<Media> optMedia = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
+			Optional<Media> optMedia = null;
+			if (requestedIdMedia > 0) {
+				optMedia = media.stream().filter(x -> x.getId() == requestedIdMedia).findAny();
+			}
+			if (optMedia == null) {
+				optMedia = media.stream().filter(x -> x.getIdType()==1).reduce((a, b) -> b);
+			}
 			if (optMedia.isPresent()) {
 				Media m = optMedia.get();
 				String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(m.getId()/100*100) + "/" + m.getId() + ".jpg");
-				return new OpenGraph(url, image, m.getWidth(), m.getHeight());
+				String video = null;
+				if (m.getIdType()!=1) {
+					video = setup.getUrl("/buldreinfo_media/mp4/" + String.valueOf(m.getId()/100*100) + "/" + m.getId() + ".mp4");
+				}
+				return new OpenGraph(url, image, m.getWidth(), m.getHeight(), video);
 			}
 		}
-		return new OpenGraph(url, setup.getUrl("/png/buldreinfo_black.png"), 136, 120);
+		return new OpenGraph(url, setup.getUrl("/png/buldreinfo_black.png"), 136, 120, null);
 	}
 }

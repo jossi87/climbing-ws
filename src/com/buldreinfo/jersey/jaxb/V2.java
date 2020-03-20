@@ -98,7 +98,7 @@ public class V2 {
 					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 						Setup setup = metaHelper.getSetup(regionId);
 						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-						metaHelper.updateMetadata(c, f, setup, authUserId);
+						metaHelper.updateMetadata(c, f, setup, authUserId, 0);
 						c.setSuccess();
 						return f;
 					} catch (Exception e) {
@@ -150,12 +150,12 @@ public class V2 {
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
-			metaHelper.updateMetadata(c, a, setup, authUserId);
+			metaHelper.updateMetadata(c, a, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -172,7 +172,7 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -247,7 +247,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Meta res = new Meta();
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -263,7 +263,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Permissions res = c.getBuldreinfoRepo().getPermissions(authUserId, setup.getIdRegion());
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -274,12 +274,12 @@ public class V2 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -316,13 +316,13 @@ public class V2 {
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			final boolean orderByGrade = setup.isBouldering();
 			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-			metaHelper.updateMetadata(c, s, setup, authUserId);
+			metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -362,12 +362,12 @@ public class V2 {
 	@GET
 	@Path("/static/area/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticArea(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticArea(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Area res = c.getBuldreinfoRepo().getArea(authUserId, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -384,7 +384,7 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
 			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -395,12 +395,12 @@ public class V2 {
 	@GET
 	@Path("/static/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticProblem(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticProblem(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -411,13 +411,13 @@ public class V2 {
 	@GET
 	@Path("/static/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSector(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getStaticSector(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			final boolean orderByGrade = setup.isBouldering();
 			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -433,7 +433,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			User res = c.getBuldreinfoRepo().getUser(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -449,7 +449,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup, page);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -465,7 +465,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -481,7 +481,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			User res = c.getBuldreinfoRepo().getUser(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

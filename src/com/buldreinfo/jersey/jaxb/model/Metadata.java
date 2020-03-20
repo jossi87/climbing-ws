@@ -150,6 +150,15 @@ public class Metadata {
 	}
 
 	public String toHtml() {
+		String ogVideoTags = "";
+		if (og.getVideo() != null) {
+			ogVideoTags = "<meta property=\"og:video\" content=\"" + og.getVideo() + "\" />" + 
+					"<meta property=\"og:video:url\" content=\"" + og.getVideo() + "\" />" +
+					"<meta property=\"og:video:secure_url\" content=\"" + og.getVideo() + "\" />" +
+					"<meta property=\"og:video:type\" content=\"video/mp4\" />" +
+					"<meta property=\"og:video:width\" content=\"1920\" />" +
+					"<meta property=\"og:video:height\" content=\"1080\" />";
+		}
 		return "<html><head>" +
 				"<meta charset=\"UTF-8\">" +
 				"<title>" + title + "</title>" + 
@@ -158,6 +167,7 @@ public class Metadata {
 				"<meta property=\"og:description\" content=\"" + description + "\" />" + 
 				"<meta property=\"og:url\" content=\"" + og.getUrl() + "\" />" + 
 				"<meta property=\"og:title\" content=\"" + title + "\" />" + 
+				ogVideoTags +
 				"<meta property=\"og:image\" content=\"" + og.getImage() + "\" />" + 
 				"<meta property=\"og:image:width\" content=\"" + og.getImageWidth() + "\" />" + 
 				"<meta property=\"og:image:height\" content=\"" + og.getImageHeight() + "\" />" + 

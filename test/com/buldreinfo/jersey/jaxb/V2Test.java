@@ -33,7 +33,7 @@ public class V2Test {
 	@Test
 	public void testGetAreas() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getAreas(getRequest(), 7);
+		Response r = tester.getAreas(getRequest(), 7, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Area);
 		Area a = (Area)r.getEntity();
@@ -77,7 +77,7 @@ public class V2Test {
 	@Test
 	public void testGetProblems() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblems(getRequest(), 1193);
+		Response r = tester.getProblems(getRequest(), 1193, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Problem);
 		Problem p = (Problem)r.getEntity();
@@ -94,7 +94,7 @@ public class V2Test {
 	@Test
 	public void testGetSectors() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getSectors(getRequest(), 278);
+		Response r = tester.getSectors(getRequest(), 278, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Sector);
 		Sector s = (Sector)r.getEntity();

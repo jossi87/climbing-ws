@@ -72,11 +72,11 @@ public class Problem implements IMetadata {
 		public int getId() {
 			return id;
 		}
-		public int getNr() {
-			return nr;
-		}
 		public List<Media> getMedia() {
 			return media;
+		}
+		public int getNr() {
+			return nr;
 		}
 	}
 	public class Tick {
@@ -281,12 +281,12 @@ public class Problem implements IMetadata {
 	public List<Media> getMedia() {
 		return media;
 	}
-
+	
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
