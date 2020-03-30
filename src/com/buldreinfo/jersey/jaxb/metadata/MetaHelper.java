@@ -40,7 +40,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldreinfo")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
-				.setLatLng(58.72, 6.62).setDefaultZoom(9));
+				.setLatLng(58.72, 6.62).setDefaultZoom(8));
 		setups.add(new Setup("buldring.bergen-klatreklubb.no")
 				.setIdRegion(2)
 				.setBouldering(true)
