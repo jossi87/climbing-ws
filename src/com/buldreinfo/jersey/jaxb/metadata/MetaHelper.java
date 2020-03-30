@@ -46,7 +46,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
-				.setLatLng(60.37, 5.96).setDefaultZoom(7));
+				.setLatLng(60.37, 5.96).setDefaultZoom(8));
 		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
 				.setIdRegion(3)
 				.setBouldering(true)
@@ -70,19 +70,19 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
-				.setLatLng(61.60500, 8.47750).setDefaultZoom(7));
+				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
 		setups.add(new Setup("buldreforer.tromsoklatring.no")
 				.setIdRegion(7)
 				.setBouldering(true)
 				.setTitle("Buldring i Tromsø")
 				.setDescription("Bouldering in Tromsø (Norway)")
-				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
+				.setLatLng(69.73, 18.49).setDefaultZoom(11));
 		setups.add(new Setup("klatreforer.tromsoklatring.no")
 				.setIdRegion(8)
 				.setBouldering(false)
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
-				.setLatLng(69.65994, 18.66755).setDefaultZoom(7));
+				.setLatLng(69.65994, 18.66755).setDefaultZoom(9));
 		setups.add(new Setup("klatreforer.narvikklatreklubb.no")
 				.setIdRegion(9)
 				.setBouldering(false)
@@ -94,13 +94,13 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Fredrikstad")
 				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.22844, 10.91722).setDefaultZoom(10));
+				.setLatLng(59.17, 10.95).setDefaultZoom(11));
 		setups.add(new Setup("hkl.brattelinjer.no")
 				.setIdRegion(11)
 				.setBouldering(false)
 				.setTitle("Klatring på Haugalandet")
 				.setDescription("Climbing in Haugaland (Western Norway)")
-				.setLatLng(59.51196, 5.76736).setDefaultZoom(8));
+				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
