@@ -40,7 +40,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldreinfo")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(8));
+				.setLatLng(58.72, 6.62).setDefaultZoom(9));
 		setups.add(new Setup("buldring.bergen-klatreklubb.no")
 				.setIdRegion(2)
 				.setBouldering(true)
@@ -58,7 +58,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Bratte Linjer")
 				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(9));
+				.setLatLng(58.72, 6.62).setDefaultZoom(9));
 		setups.add(new Setup("buldring.jotunheimenfjellsport.com")
 				.setIdRegion(5)
 				.setBouldering(true)
@@ -82,7 +82,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
-				.setLatLng(69.65994, 18.66755).setDefaultZoom(10));
+				.setLatLng(69.7, 18.42).setDefaultZoom(10));
 		setups.add(new Setup("klatreforer.narvikklatreklubb.no")
 				.setIdRegion(9)
 				.setBouldering(false)
