@@ -52,7 +52,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.12, 10.95).setDefaultZoom(11));
+				.setLatLng(59.15, 10.92).setDefaultZoom(11));
 		setups.add(new Setup("brattelinjer.no")
 				.setIdRegion(4)
 				.setBouldering(false)
@@ -64,13 +64,13 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Jotunheimen")
 				.setDescription("Bouldering in Jotunheimen (Norway)")
-				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
+				.setLatLng(61.875, 9.086).setDefaultZoom(9));
 		setups.add(new Setup("klatring.jotunheimenfjellsport.com")
 				.setIdRegion(6)
 				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
-				.setLatLng(61.60500, 8.47750).setDefaultZoom(9));
+				.setLatLng(61.875, 9.086).setDefaultZoom(9));
 		setups.add(new Setup("buldreforer.tromsoklatring.no")
 				.setIdRegion(7)
 				.setBouldering(true)
@@ -94,7 +94,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Fredrikstad")
 				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.17, 10.95).setDefaultZoom(11));
+				.setLatLng(59.15, 10.92).setDefaultZoom(11));
 		setups.add(new Setup("hkl.brattelinjer.no")
 				.setIdRegion(11)
 				.setBouldering(false)
