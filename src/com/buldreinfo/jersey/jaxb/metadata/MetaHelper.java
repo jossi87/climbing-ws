@@ -52,7 +52,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.15, 10.92).setDefaultZoom(11));
+				.setLatLng(59.15, 10.92).setDefaultZoom(10));
 		setups.add(new Setup("brattelinjer.no")
 				.setIdRegion(4)
 				.setBouldering(false)
