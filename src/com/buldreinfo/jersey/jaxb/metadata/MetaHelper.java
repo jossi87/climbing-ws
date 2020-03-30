@@ -52,13 +52,13 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
-				.setLatLng(59.15, 10.92).setDefaultZoom(10));
+				.setLatLng(59.15, 10.92).setDefaultZoom(11));
 		setups.add(new Setup("brattelinjer.no")
 				.setIdRegion(4)
 				.setBouldering(false)
 				.setTitle("Bratte Linjer")
 				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
-				.setLatLng(58.72, 6.62).setDefaultZoom(9));
+				.setLatLng(58.72, 6.62).setDefaultZoom(8));
 		setups.add(new Setup("buldring.jotunheimenfjellsport.com")
 				.setIdRegion(5)
 				.setBouldering(true)
