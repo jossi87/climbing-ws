@@ -46,7 +46,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
-				.setLatLng(60.47521, 6.83169).setDefaultZoom(10));
+				.setLatLng(60.37, 5.96).setDefaultZoom(7));
 		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
 				.setIdRegion(3)
 				.setBouldering(true)
