@@ -46,7 +46,7 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
-				.setLatLng(60.37, 5.96).setDefaultZoom(8));
+				.setLatLng(60.37, 5.96).setDefaultZoom(7));
 		setups.add(new Setup("buldring.fredrikstadklatreklubb.org")
 				.setIdRegion(3)
 				.setBouldering(true)
@@ -82,7 +82,7 @@ public class MetaHelper {
 				.setBouldering(false)
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
-				.setLatLng(69.7, 18.42).setDefaultZoom(10));
+				.setLatLng(69.77, 18.78).setDefaultZoom(9));
 		setups.add(new Setup("klatreforer.narvikklatreklubb.no")
 				.setIdRegion(9)
 				.setBouldering(false)
