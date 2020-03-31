@@ -9,13 +9,13 @@ public class Todo {
 	private final String problemName;
 	private final String problemGrade;
 	private final int problemVisibility;
-	private final double problemLat;
-	private final double problemLng;
+	private final double lat;
+	private final double lng;
 	private final int randomMediaId;
 	private boolean isDelete;
 
 	public Todo(int id, int priority, String areaName, String sectorName, int problemId, String problemName,
-			String problemGrade, int problemVisibility, double problemLat, double problemLng, int randomMediaId) {
+			String problemGrade, int problemVisibility, double lat, double lng, int randomMediaId) {
 		this.id = id;
 		this.priority = priority;
 		this.areaName = areaName;
@@ -24,8 +24,8 @@ public class Todo {
 		this.problemName = problemName;
 		this.problemGrade = problemGrade;
 		this.problemVisibility = problemVisibility;
-		this.problemLat = problemLat;
-		this.problemLng = problemLng;
+		this.lat = lat;
+		this.lng = lng;
 		this.randomMediaId = randomMediaId;
 	}
 	
@@ -49,12 +49,12 @@ public class Todo {
 		return problemId;
 	}
 
-	public double getProblemLat() {
-		return problemLat;
+	public double getLat() {
+		return lat;
 	}
 
-	public double getProblemLng() {
-		return problemLng;
+	public double getLng() {
+		return lng;
 	}
 
 	public String getProblemName() {

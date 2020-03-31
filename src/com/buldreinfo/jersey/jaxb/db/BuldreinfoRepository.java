@@ -1004,7 +1004,7 @@ public class BuldreinfoRepository {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
 		List<Todo> todo = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.priority, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.hidden problem_visibility, p.latitude problem_latitude, p.longitude problem_longitude, MAX(CASE WHEN m.is_movie=0 THEN m.id END) problem_random_media_id FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND t.user_id=? AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY t.id, t.priority, a.name, s.name, p.id, p.name, p.grade, p.hidden, p.latitude, p.longitude ORDER BY t.priority");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.priority, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.hidden problem_visibility, p.latitude problem_latitude, p.longitude problem_longitude, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude, MAX(CASE WHEN m.is_movie=0 THEN m.id END) problem_random_media_id FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) LEFT JOIN permission auth ON r.id=auth.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL) AND t.user_id=? AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) GROUP BY t.id, t.priority, a.name, s.name, p.id, p.name, p.grade, p.hidden, p.latitude, p.longitude, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude ORDER BY t.priority");
 		ps.setInt(1, setup.getIdRegion());
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, userId);
@@ -1019,7 +1019,19 @@ public class BuldreinfoRepository {
 			String problemName = rst.getString("problem_name");
 			int problemGrade = rst.getInt("problem_grade");
 			int problemVisibility = rst.getInt("problem_visibility");
-			LatLng l = markerHelper.getLatLng(rst.getDouble("problem_latitude"), rst.getDouble("problem_longitude"));
+			double problemLatitude = rst.getDouble("problem_latitude");
+			double problemLongitude = rst.getDouble("problem_longitude");
+			double sectorLatitude = rst.getDouble("sector_latitude");
+			double sectorLongitude = rst.getDouble("sector_longitude");
+			double areaLatitude = rst.getDouble("area_latitude");
+			double areaLongitude = rst.getDouble("area_longitude");
+			LatLng l = markerHelper.getLatLng(problemLatitude, problemLongitude);
+			if ((problemLatitude == 0 || problemLongitude == 0) && sectorLatitude > 0 && sectorLongitude > 0) {
+				l = markerHelper.getLatLng(sectorLatitude, sectorLongitude);
+			}
+			else if ((problemLatitude == 0 || problemLongitude == 0) && areaLatitude > 0 && areaLongitude > 0) {
+				l = markerHelper.getLatLng(areaLatitude, areaLongitude);
+			}
 			int randomMediaId = rst.getInt("problem_random_media_id");
 			todo.add(new Todo(id, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup, problemGrade), problemVisibility, l.getLat(), l.getLng(), randomMediaId));
 		}
