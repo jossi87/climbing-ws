@@ -194,7 +194,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -209,26 +209,33 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/images")
 	@Produces("image/jpeg")
-	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
+	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention, @QueryParam("maxHeight") int maxHeight) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			boolean webP = false;
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
-			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
+			final Point dimention = minDimention == 0 && maxHeight == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			c.setSuccess();
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
 			if (dimention != null) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
-				b.flush();
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ImageIO.write(scaled, "jpg", baos);
+				if (minDimention != 0) {
+					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+					BufferedImage scaled = Scalr.resize(b, mode, minDimention);
+					ImageIO.write(scaled, "jpg", baos);
+				}
+				else {
+					Mode mode = Scalr.Mode.FIT_TO_HEIGHT;
+					BufferedImage scaled = Scalr.resize(b, mode, maxHeight);
+					ImageIO.write(scaled, "jpg", baos);
+				}
+				b.flush();
 				byte[] imageData = baos.toByteArray();
 				baos.close();
 				return Response.ok(imageData).cacheControl(cc).build();
@@ -238,7 +245,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -254,7 +261,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -270,7 +277,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -286,7 +293,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/problems/hse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
