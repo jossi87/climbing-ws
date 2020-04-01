@@ -21,9 +21,11 @@ import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -100,7 +102,8 @@ import jersey.repackaged.com.google.common.base.Joiner;
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 public class BuldreinfoRepository {
-	private static final String PATH = "/mnt/media/";
+	public static enum ACTIVITY {FA, MEDIA, TICK, GUESTBOOK}
+	private static final String PATH = "/mnt/media/";;
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 
@@ -139,6 +142,142 @@ public class BuldreinfoRepository {
 		ps.setInt(2, id);
 		ps.execute();
 		ps.close();
+	}
+
+	public void fillActivity(int idProblem) throws SQLException {
+		/**
+		 * Delete existing activities on problem
+		 */
+		PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM activity WHERE problem_id=?");
+		ps.setInt(1, idProblem);
+		ps.execute();
+		ps.close();
+		
+		/**
+		 * FA
+		 */
+		LocalDateTime problemActivityTimestamp = null;
+		boolean exists = false;
+		ps = c.getConnection().prepareStatement("SELECT fa_date, last_updated FROM problem WHERE id=?");
+		ps.setInt(1, idProblem);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			exists = true;
+			Timestamp faDate = rst.getTimestamp("fa_date");
+			Timestamp lastUpdated = rst.getTimestamp("last_updated");
+			if (faDate != null && lastUpdated != null) {
+				Calendar faCal = Calendar.getInstance();
+				faCal.setTimeInMillis(faDate.getTime());
+				Calendar luCal = Calendar.getInstance();
+				luCal.setTimeInMillis(lastUpdated.getTime());
+				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH), faCal.get(Calendar.DAY_OF_MONTH), luCal.get(Calendar.HOUR_OF_DAY), luCal.get(Calendar.MINUTE), luCal.get(Calendar.SECOND));
+			}
+			else if (faDate != null) {
+				Calendar faCal = Calendar.getInstance();
+				faCal.setTimeInMillis(faDate.getTime());
+				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH), faCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+			}
+		}
+		rst.close();
+		ps.close();
+		if (!exists) {
+			return;
+		}
+		PreparedStatement psAddActivity = c.getConnection().prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id) VALUES (?, ?, ?, ?, ?, ?)");
+		psAddActivity.setTimestamp(1, problemActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(problemActivityTimestamp));
+		psAddActivity.setString(2, ACTIVITY.FA.name());
+		psAddActivity.setInt(3, idProblem);
+		psAddActivity.setNull(4, Types.INTEGER);
+		psAddActivity.setNull(5, Types.INTEGER);
+		psAddActivity.setNull(6, Types.INTEGER);
+		psAddActivity.addBatch();
+		
+		/**
+		 * Media
+		 */
+		ps = c.getConnection().prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id ORDER BY date_created");
+		ps.setInt(1, idProblem);
+		rst = ps.executeQuery();
+		LocalDateTime useMediaActivityTimestamp = null;
+		while (rst.next()) {
+			int id = rst.getInt("id");
+			LocalDateTime mediaActivityTimestamp = rst.getTimestamp("date_created").toLocalDateTime();
+			if (mediaActivityTimestamp == null || ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp) < 4) {
+				useMediaActivityTimestamp = problemActivityTimestamp;
+			}
+			else if (useMediaActivityTimestamp == null || ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp) > 4) {
+				useMediaActivityTimestamp = mediaActivityTimestamp;
+			}
+			psAddActivity.setTimestamp(1, useMediaActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(useMediaActivityTimestamp));
+			psAddActivity.setString(2, ACTIVITY.MEDIA.name());
+			psAddActivity.setInt(3, idProblem);
+			psAddActivity.setNull(4, id);
+			psAddActivity.setNull(5, Types.INTEGER);
+			psAddActivity.setNull(6, Types.INTEGER);
+			psAddActivity.addBatch();
+		}
+		rst.close();
+		ps.close();
+		
+		/**
+		 * Tick
+		 */
+		ps = c.getConnection().prepareStatement("SELECT user_id, date, created FROM tick WHERE problem_id=? ORDER BY date, created");
+		ps.setInt(1, idProblem);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			int userId = rst.getInt("user_id");
+			LocalDateTime tickActivityTimestamp = null;
+			Timestamp tickDate = rst.getTimestamp("date");
+			Timestamp tickCreated = rst.getTimestamp("created");
+			if (tickDate != null && tickCreated != null) {
+				Calendar tickCal = Calendar.getInstance();
+				tickCal.setTimeInMillis(tickDate.getTime());
+				Calendar createdCal = Calendar.getInstance();
+				createdCal.setTimeInMillis(tickCreated.getTime());
+				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH), tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
+			}
+			else if (tickDate != null) {
+				Calendar tickCal = Calendar.getInstance();
+				tickCal.setTimeInMillis(tickDate.getTime());
+				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH), tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+			}
+			psAddActivity.setTimestamp(1, tickActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(tickActivityTimestamp));
+			psAddActivity.setString(2, ACTIVITY.TICK.name());
+			psAddActivity.setInt(3, idProblem);
+			psAddActivity.setNull(4, Types.INTEGER);
+			psAddActivity.setNull(5, userId);
+			psAddActivity.setNull(6, Types.INTEGER);
+			psAddActivity.addBatch();
+		}
+		rst.close();
+		ps.close();
+		
+		/**
+		 * Guestbook
+		 */
+		ps = c.getConnection().prepareStatement("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time");
+		ps.setInt(1, idProblem);
+		rst = ps.executeQuery();
+		while (rst.next()) {
+			int id = rst.getInt("id");
+			Timestamp postTime = rst.getTimestamp("post_time");
+			psAddActivity.setTimestamp(1, postTime);
+			psAddActivity.setString(2, ACTIVITY.GUESTBOOK.name());
+			psAddActivity.setInt(3, idProblem);
+			psAddActivity.setNull(4, Types.INTEGER);
+			psAddActivity.setNull(5, Types.INTEGER);
+			psAddActivity.setNull(6, id);
+			psAddActivity.addBatch();
+		}
+		rst.close();
+		ps.close();
+		
+		/**
+		 * Execute psAddActivity
+		 */
+		psAddActivity.executeBatch();
+		psAddActivity.close();
 	}
 
 	public Area getArea(int authUserId, int reqId) throws IOException, SQLException {
@@ -619,7 +758,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-
+	
 	public Collection<Region> getRegions(String uniqueId) throws SQLException {
 		final int idUser = upsertUserReturnId(uniqueId);
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -737,7 +876,7 @@ public class BuldreinfoRepository {
 		// Return
 		return regionMap.values();
 	}
-	
+
 	public List<Search> getSearch(int authUserId, Setup setup, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
@@ -952,7 +1091,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return Joiner.on("\r\n").join(urls);
 	}
-
+	
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {
 		final int take = 200;
 		int numTicks = 0;
@@ -999,7 +1138,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
 		return res;
 	}
-	
+
 	public TodoUser getTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -1485,7 +1624,7 @@ public class BuldreinfoRepository {
 		}
 		return getProblem(authUserId, s, idProblem);
 	}
-
+	
 	public Sector setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
@@ -1588,7 +1727,7 @@ public class BuldreinfoRepository {
 		}
 		return getSector(authUserId, orderByGrade, setup, idSector);
 	}
-	
+
 	public void setTick(int authUserId, Setup setup, Tick t) throws SQLException, ParseException {
 		Preconditions.checkArgument(authUserId != -1);
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -1723,7 +1862,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 	}
-
+	
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		// Check for write permissions
 		boolean ok = false;
@@ -1772,7 +1911,7 @@ public class BuldreinfoRepository {
 			ps = null;
 		}
 	}
-	
+
 	public void upsertTodo(int authUserId, Todo todo) throws SQLException {
 		// Delete/Insert/Update
 		if (todo.isDelete()) {
@@ -2178,7 +2317,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-
+	
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ms.sorting DESC, m.id");
