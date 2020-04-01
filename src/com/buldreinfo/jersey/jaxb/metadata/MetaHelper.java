@@ -101,6 +101,12 @@ public class MetaHelper {
 				.setTitle("Klatring på Haugalandet")
 				.setDescription("Climbing in Haugaland (Western Norway)")
 				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
+		setups.add(new Setup("hkl.buldreinfo.com")
+				.setIdRegion(12)
+				.setBouldering(false)
+				.setTitle("Buldring på Haugalandet")
+				.setDescription("Climbing in Haugaland (Western Norway)")
+				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
