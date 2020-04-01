@@ -53,7 +53,7 @@ public class Activity {
 	private final int problemId;
 	private final int problemVisibility;
 	private final String problemName;
-	private final String grade;
+	private String grade;
 	private int problemRandomMediaId;
 	private List<Media> media;
 	private int stars;
@@ -133,11 +133,12 @@ public class Activity {
 		this.picture = picture;
 		this.message = message;
 	}
-	public void setTick(int id, String name, String picture, String description, int stars) {
+	public void setTick(int id, String name, String picture, String description, int stars, String personalGrade) {
 		this.id = id;
 		this.name = name;
 		this.picture = picture;
 		this.description = description;
 		this.stars = stars;
+		this.grade = personalGrade;
 	}
 }

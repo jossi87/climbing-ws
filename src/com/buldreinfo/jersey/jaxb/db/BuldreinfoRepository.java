@@ -2200,7 +2200,7 @@ public class BuldreinfoRepository {
 		ps.close();
 
 		if (!tickActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars" + 
+			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars, t.grade" + 
 					" FROM activity a, tick t, user u" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
 					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id");
@@ -2213,7 +2213,8 @@ public class BuldreinfoRepository {
 				String picture = rst.getString("picture");
 				String description = rst.getString("description");
 				int stars = rst.getInt("stars");
-				a.setTick(userId, name, picture, description, stars);
+				String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
+				a.setTick(userId, name, picture, description, stars, personalGrade);
 			}
 			rst.close();
 			ps.close();
