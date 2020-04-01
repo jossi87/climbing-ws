@@ -209,7 +209,7 @@ public class BuldreinfoRepository {
 		/**
 		 * Media
 		 */
-		ps = c.getConnection().prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id AND m.deleted_timestamp IS NULL ORDER BY date_created");
+		ps = c.getConnection().prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id AND m.deleted_timestamp IS NULL ORDER BY date_created DESC");
 		ps.setInt(1, idProblem);
 		rst = ps.executeQuery();
 		LocalDateTime useMediaActivityTimestamp = null;
