@@ -2200,7 +2200,7 @@ public class BuldreinfoRepository {
 		ps.close();
 
 		if (!tickActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars" + 
+			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars" + 
 					" FROM activity a, tick t, user u" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
 					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id");
@@ -2208,18 +2208,19 @@ public class BuldreinfoRepository {
 			while (rst.next()) {
 				int id = rst.getInt("id");
 				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				int userId = rst.getInt("user_id");
 				String name = rst.getString("name");
 				String picture = rst.getString("picture");
 				String description = rst.getString("description");
 				int stars = rst.getInt("stars");
-				a.setTick(name, picture, description, stars);
+				a.setTick(userId, name, picture, description, stars);
 			}
 			rst.close();
 			ps.close();
 		}
 
 		if (!guestbookActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message" + 
+			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message" + 
 					" FROM activity a, guestbook g, user u" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(guestbookActivitityIds) + ")" + 
 					"   AND a.guestbook_id=g.id AND g.user_id=u.id");
@@ -2227,10 +2228,11 @@ public class BuldreinfoRepository {
 			while (rst.next()) {
 				int id = rst.getInt("id");
 				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				int userId = rst.getInt("user_id");
 				String name = rst.getString("name");
 				String picture = rst.getString("picture");
 				String message = rst.getString("message");
-				a.setGuestbook(name, picture, message);
+				a.setGuestbook(userId, name, picture, message);
 			}
 			rst.close();
 			ps.close();

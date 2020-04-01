@@ -57,6 +57,7 @@ public class Activity {
 	private int problemRandomMediaId;
 	private List<Media> media;
 	private int stars;
+	private int id;
 	private String name;
 	private String picture;
 	private String description;
@@ -96,6 +97,9 @@ public class Activity {
 	public String getGrade() {
 		return grade;
 	}
+	public int getId() {
+		return id;
+	}
 	public String getMessage() {
 		return message;
 	}
@@ -123,12 +127,14 @@ public class Activity {
 	public String getTimeAgo() {
 		return timeAgo;
 	}
-	public void setGuestbook(String name, String picture, String message) {
+	public void setGuestbook(int id, String name, String picture, String message) {
+		this.id = id;
 		this.name = name;
 		this.picture = picture;
 		this.message = message;
 	}
-	public void setTick(String name, String picture, String description, int stars) {
+	public void setTick(int id, String name, String picture, String description, int stars) {
+		this.id = id;
 		this.name = name;
 		this.picture = picture;
 		this.description = description;
