@@ -24,7 +24,7 @@ public class FillActivity {
 			int done = 0;
 			while (rst.next()) {
 				c.getBuldreinfoRepo().fillActivity(rst.getInt("id"));
-				if ((++done) % 500 == 0) {
+				if ((++done) % 50 == 0) {
 					logger.debug("Done with " + done + " problems");
 				}
 			}

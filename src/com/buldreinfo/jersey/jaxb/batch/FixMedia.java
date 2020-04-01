@@ -43,7 +43,7 @@ public class FixMedia {
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			FixMedia service = new FixMedia();
-			//			// Add movie
+			// Add movie
 			//			final int idUploaderUserId = 1;			
 			//			Path src = Paths.get("C:/Users/joste_000/Desktop/new/.mp4");
 			//			int idPhotographerUserId = ;
@@ -51,6 +51,9 @@ public class FixMedia {
 			//			idProblemMsMap.put(, 0l);
 			//			List<Integer> inPhoto = Lists.newArrayList();
 			//			service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto);
+			//			for (int idProblem : idProblemMsMap.keySet()) {
+			//				c.getBuldreinfoRepo().fillActivity(idProblem);
+			//			}
 			// Create all formats and set checksum
 			List<String> warnings = service.fixMovies(c.getConnection());
 			for (String warning : warnings) {
