@@ -170,12 +170,12 @@ public class BuldreinfoRepository {
 				faCal.setTimeInMillis(faDate.getTime());
 				Calendar luCal = Calendar.getInstance();
 				luCal.setTimeInMillis(lastUpdated.getTime());
-				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH), faCal.get(Calendar.DAY_OF_MONTH), luCal.get(Calendar.HOUR_OF_DAY), luCal.get(Calendar.MINUTE), luCal.get(Calendar.SECOND));
+				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH)+1, faCal.get(Calendar.DAY_OF_MONTH), luCal.get(Calendar.HOUR_OF_DAY), luCal.get(Calendar.MINUTE), luCal.get(Calendar.SECOND));
 			}
 			else if (faDate != null) {
 				Calendar faCal = Calendar.getInstance();
 				faCal.setTimeInMillis(faDate.getTime());
-				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH), faCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+				problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH)+1, faCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
 			}
 		}
 		rst.close();
@@ -201,7 +201,8 @@ public class BuldreinfoRepository {
 		LocalDateTime useMediaActivityTimestamp = null;
 		while (rst.next()) {
 			int id = rst.getInt("id");
-			LocalDateTime mediaActivityTimestamp = rst.getTimestamp("date_created").toLocalDateTime();
+			Timestamp ts = rst.getTimestamp("date_created");
+			LocalDateTime mediaActivityTimestamp = ts == null? null : ts.toLocalDateTime();
 			if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp) < 4)) {
 				useMediaActivityTimestamp = problemActivityTimestamp;
 			}
@@ -235,12 +236,12 @@ public class BuldreinfoRepository {
 				tickCal.setTimeInMillis(tickDate.getTime());
 				Calendar createdCal = Calendar.getInstance();
 				createdCal.setTimeInMillis(tickCreated.getTime());
-				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH), tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
+				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
 			}
 			else if (tickDate != null) {
 				Calendar tickCal = Calendar.getInstance();
 				tickCal.setTimeInMillis(tickDate.getTime());
-				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH), tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+				tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
 			}
 			psAddActivity.setTimestamp(1, tickActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(tickActivityTimestamp));
 			psAddActivity.setString(2, ACTIVITY.TICK.name());
