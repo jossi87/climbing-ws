@@ -2168,7 +2168,7 @@ public class BuldreinfoRepository {
 				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)" + 
 				"   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)" + 
 				" GROUP BY x.activity_timestamp, x.problem_id, p.hidden, p.name, p.grade" +
-				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 50");
+				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
