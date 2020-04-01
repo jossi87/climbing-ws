@@ -195,14 +195,14 @@ public class BuldreinfoRepository {
 		/**
 		 * Media
 		 */
-		ps = c.getConnection().prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id ORDER BY date_created");
+		ps = c.getConnection().prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id AND m.deleted_timestamp IS NULL ORDER BY date_created");
 		ps.setInt(1, idProblem);
 		rst = ps.executeQuery();
 		LocalDateTime useMediaActivityTimestamp = null;
 		while (rst.next()) {
 			int id = rst.getInt("id");
 			LocalDateTime mediaActivityTimestamp = rst.getTimestamp("date_created").toLocalDateTime();
-			if (mediaActivityTimestamp == null || ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp) < 4) {
+			if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp) < 4)) {
 				useMediaActivityTimestamp = problemActivityTimestamp;
 			}
 			else if (useMediaActivityTimestamp == null || ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp) > 4) {
@@ -211,7 +211,7 @@ public class BuldreinfoRepository {
 			psAddActivity.setTimestamp(1, useMediaActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(useMediaActivityTimestamp));
 			psAddActivity.setString(2, ACTIVITY.MEDIA.name());
 			psAddActivity.setInt(3, idProblem);
-			psAddActivity.setNull(4, id);
+			psAddActivity.setInt(4, id);
 			psAddActivity.setNull(5, Types.INTEGER);
 			psAddActivity.setNull(6, Types.INTEGER);
 			psAddActivity.addBatch();
@@ -246,7 +246,7 @@ public class BuldreinfoRepository {
 			psAddActivity.setString(2, ACTIVITY.TICK.name());
 			psAddActivity.setInt(3, idProblem);
 			psAddActivity.setNull(4, Types.INTEGER);
-			psAddActivity.setNull(5, userId);
+			psAddActivity.setInt(5, userId);
 			psAddActivity.setNull(6, Types.INTEGER);
 			psAddActivity.addBatch();
 		}
@@ -267,7 +267,7 @@ public class BuldreinfoRepository {
 			psAddActivity.setInt(3, idProblem);
 			psAddActivity.setNull(4, Types.INTEGER);
 			psAddActivity.setNull(5, Types.INTEGER);
-			psAddActivity.setNull(6, id);
+			psAddActivity.setInt(6, id);
 			psAddActivity.addBatch();
 		}
 		rst.close();
