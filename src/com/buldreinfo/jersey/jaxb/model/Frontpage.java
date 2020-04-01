@@ -99,14 +99,14 @@ public class Frontpage implements IMetadata {
 	private int numImages;
 	private int numMovies;
 	private RandomMedia randomMedia;
-	private final List<DeprecatedActivity> activity;
+	private final List<Activity> activity;
 	private Metadata metadata;
 	
-	public Frontpage(List<DeprecatedActivity> activity) {
+	public Frontpage(List<Activity> activity) {
 		this.activity = activity;
 	}
 	
-	public List<DeprecatedActivity> getActivity() {
+	public List<Activity> getActivity() {
 		return activity;
 	}
 	

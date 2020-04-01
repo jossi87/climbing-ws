@@ -27,15 +27,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -55,7 +52,6 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.DeprecatedActivity;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
@@ -490,7 +486,7 @@ public class BuldreinfoRepository {
 
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage(getActivityOld(authUserId, setup));
+		Frontpage res = new Frontpage(getActivity(authUserId, setup));
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -2157,6 +2153,7 @@ public class BuldreinfoRepository {
 	}
 
 	private List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		/**
 		 * Fetch activities to return
@@ -2185,8 +2182,8 @@ public class BuldreinfoRepository {
 			Set<Integer> activityIds = new HashSet<>();
 			for (String activity : rst.getString("activities").split(",")) {
 				String[] str = activity.split("-");
-				String type = str[0];
-				int idActivity = Integer.parseInt(str[1]);
+				int idActivity = Integer.parseInt(str[0]);
+				String type = str[1];
 				activityIds.add(idActivity);
 				switch (type) {
 				case ACTIVITY_TYPE_FA: faActivitityIds.add(idActivity); break;
@@ -2278,104 +2275,7 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 
-		return res;
-	}
-
-	@Deprecated
-	private List<DeprecatedActivity> getActivityOld(int authUserId, Setup setup) throws SQLException {
-		Comparator<String> comp = (String o1, String o2) -> (o2.compareTo(o1));
-		Set<String> jsonSet = new TreeSet<>(comp);
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),''), '\",\"sort\":\"', COALESCE(p.created,2) ,'\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"problemRandomMediaId\":', COALESCE(MAX(CASE WHEN m.is_movie=0 THEN m.id END),0), ',\"grade\":', p.grade, ',\"description\":\"', COALESCE(REPLACE(p.description,'\"','\\\\\"'),''), '\",\"users\":[', group_concat(DISTINCT CONCAT('{\"id\":', fu.id, ',\"name\":\"', TRIM(CONCAT(fu.firstname, ' ', COALESCE(fu.lastname,''))), '\",\"picture\":\"', CASE WHEN fu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', fu.id, '.jpg') ELSE '' END, '\"}') ORDER BY fu.firstname, fu.lastname SEPARATOR ','), ']}') fa,"
-						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),''), '\",\"sort\":\"', COALESCE(t.created,4) ,'\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', t.grade, ',\"stars\":', t.stars, ',\"description\":\"', COALESCE(REPLACE(t.comment,'\"','\\\\\"'),''), '\",\"id\":', tu.id, ',\"name\":\"', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,''))), '\",\"picture\":\"', CASE WHEN tu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', tu.id, '.jpg') ELSE '' END, '\"}') tick,"
-						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),''), '\",\"sort\":\"', COALESCE(g.post_time,3) ,'\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', p.grade, ',\"message\":\"', REPLACE(g.message,'\"','\\\\\"'), '\",\"id\":', gu.id, ',\"name\":\"', TRIM(CONCAT(gu.firstname, ' ', COALESCE(gu.lastname,''))), '\",\"picture\":\"', CASE WHEN gu.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', gu.id, '.jpg') ELSE '' END, '\"}') guestbook,"
-						+ " CONCAT('{\"timestamp\":\"', COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),''), '\",\"sort\":\"', COALESCE(m.date_created,2) ,'\",\"problemId\":', p.id, ',\"problemVisibility\":', p.hidden, ',\"problemName\":\"', p.name, '\",\"grade\":', p.grade, ',\"problemRandomMediaId\":', COALESCE(MAX(CASE WHEN m.is_movie=0 THEN m.id END),0), ',\"media\":[', group_concat(DISTINCT CONCAT('{\"id\":', m.id, ',\"isMovie\":', CASE WHEN COALESCE(m.is_movie,0)=0 THEN 'false' ELSE 'true' END, '}') SEPARATOR ','), ']}') media"
-						+ " FROM ((((((((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user fu ON f.user_id=fu.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user tu ON t.user_id=tu.id) LEFT JOIN guestbook g ON p.id=g.problem_id) LEFT JOIN user gu ON g.user_id=gu.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)"
-						+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)"
-						+ "   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)"
-						+ " GROUP BY p.id, p.created, p.name, p.hidden, p.fa_date, p.grade, p.description,"
-						+ "   t.date, t.created, t.grade, t.stars, t.comment, tu.id, tu.firstname, tu.lastname, tu.picture, tu.id,"
-						+ "   g.post_time, g.message, gu.id, gu.firstname, gu.lastname, gu.picture, gu.id,"
-						+ "   m.date_created"
-						+ " ORDER BY GREATEST("
-						+ "   COALESCE(DATE_FORMAT(p.fa_date,'%Y.%m.%d'),0),"
-						+ "   COALESCE(DATE_FORMAT(t.date,'%Y.%m.%d'),0),"
-						+ "   COALESCE(DATE_FORMAT(g.post_time,'%Y.%m.%d'),0),"
-						+ "   COALESCE(DATE_FORMAT(m.date_created,'%Y.%m.%d'),0)"
-						+ " ) DESC"
-						+ " LIMIT 200");
-		ps.setInt(1, authUserId);
-		ps.setInt(2, setup.getIdRegion());
-		ps.setInt(3, setup.getIdRegion());
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			String faJson = rst.getString("fa");
-			String tickJson = rst.getString("tick");
-			String guestbookJson = rst.getString("guestbook");
-			String mediaJson = rst.getString("media");
-			if (faJson != null) {
-				jsonSet.add(faJson);
-			}
-			if (tickJson != null) {
-				jsonSet.add(tickJson);
-			}
-			if (guestbookJson != null) {
-				jsonSet.add(guestbookJson);
-			}
-			if (mediaJson != null) {
-				jsonSet.add(mediaJson);
-			}
-		}
-		rst.close();
-		ps.close();
-		final LocalDate today = LocalDate.now();
-		final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-		List<DeprecatedActivity> res = new ArrayList<>();
-		for (String json : jsonSet) {
-			if (res.size() >= 75) {
-				break;
-			}
-			DeprecatedActivity a = parseJson(json);
-			if (!Strings.isNullOrEmpty(a.getTimestamp())) {
-				String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(a.getTimestamp(), formatter), today));
-				a.setTimeAgo(timeAgo);
-			}
-			if (a.getGrade() != null) {
-				a.setGrade(GradeHelper.intToString(setup, Integer.parseInt(a.getGrade())));
-			}
-			// Try to merge media with FA
-			if (a.getMedia() != null && !a.getMedia().isEmpty()) {
-				Optional<DeprecatedActivity> match = res
-						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
-						.findAny();
-				if (match.isPresent()) {
-					match.get().setMedia(a.getMedia());
-					continue;
-				}
-			}
-			else if (a.getUsers() != null && !a.getUsers().isEmpty()) {
-				// If FA already exists, ignore this. Duplicate possible because of randomProblemMediaId
-				Optional<DeprecatedActivity> match = res
-						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getUsers() != null && !x.getUsers().isEmpty())
-						.findAny();
-				if (match.isPresent()) {
-					continue;
-				}
-				// Try to merge FA with media
-				match = res
-						.stream()
-						.filter(x -> x.getProblemId()==a.getProblemId() && x.getMedia() != null && !x.getMedia().isEmpty())
-						.findAny();
-				if (match.isPresent()) {
-					a.setMedia(match.get().getMedia());
-					res.remove(match.get());
-				}
-			}
-			res.add(a);
-		}
-		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}", authUserId, setup, res.size());
+		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}, duration={}", authUserId, setup, res.size(), stopwatch);
 		return res;
 	}
 
@@ -2517,14 +2417,6 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return res;
-	}
-
-	private DeprecatedActivity parseJson(String json) {
-		try {
-			return gson.fromJson(json, DeprecatedActivity.class);
-		} catch (Exception e) {
-			throw new RuntimeException("json=" + json + ", error=" + e.getMessage(), e);
-		}
 	}
 
 	private void setRandomMedia(Frontpage res, int authUserId, Setup setup, boolean fallbackSolution) throws SQLException {
