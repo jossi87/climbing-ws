@@ -121,27 +121,41 @@ public class BuldreinfoRepository {
 			final int idArea = 0;
 			addNewMedia(authUserId, p.getId(), m.getPitch(), idSector, idArea, m, multiPart, now);
 		}
+		fillActivity(p.getId());
 	}
 
 	public void deleteMedia(int authUserId, int id) throws SQLException {
+		List<Integer> idProblems = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT problem_id FROM media_problem WHERE media_id=?");
+		ps.setInt(1, id);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			idProblems.add(rst.getInt("problem_id"));
+		}
+		rst.close();
+		ps.close();
+		
 		boolean ok = false;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
+		ps = c.getConnection().prepareStatement("SELECT auth.write FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=?)) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) GROUP BY auth.write");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, id);
 		ps.setInt(3, id);
-		ResultSet rst = ps.executeQuery();
+		rst = ps.executeQuery();
 		while (rst.next()) {
 			ok = rst.getInt(1) != 0;
 		}
 		rst.close();
 		ps.close();
 		Preconditions.checkArgument(ok, "Insufficient credentials");
-		ps = c.getConnection()
-				.prepareStatement("UPDATE media SET deleted_user_id=?, deleted_timestamp=NOW() WHERE id=?");
+		ps = c.getConnection().prepareStatement("UPDATE media SET deleted_user_id=?, deleted_timestamp=NOW() WHERE id=?");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, id);
 		ps.execute();
 		ps.close();
+		
+		for (int idProblem : idProblems) {
+			fillActivity(idProblem);
+		}
 	}
 
 	public void fillActivity(int idProblem) throws SQLException {
@@ -1414,8 +1428,7 @@ public class BuldreinfoRepository {
 			ps = null;
 			idArea = a.getId();
 
-			// Also update sectors and problems (last_updated and visibility [if
-			// >0])
+			// Also update sectors and problems (last_updated and visibility [if>0])
 			String sqlStr = null;
 			if (a.getVisibility() > 0) {
 				sqlStr = "UPDATE (area a LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), a.hidden=?, s.last_updated=now(), s.hidden=?, p.last_updated=now(), p.hidden=? WHERE a.id=?";
@@ -1623,6 +1636,7 @@ public class BuldreinfoRepository {
 			ps.executeBatch();
 			ps.close();
 		}
+		fillActivity(idProblem);
 		return getProblem(authUserId, s, idProblem);
 	}
 	
@@ -1655,8 +1669,7 @@ public class BuldreinfoRepository {
 			}
 			idSector = s.getId();
 
-			// Also update problems (last_updated and visibility [if >1]) +
-			// last_updated on area
+			// Also update problems (last_updated and visibility [if >1]) + last_updated on area
 			String sqlStr = null;
 			if (s.getVisibility() > 0) {
 				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), s.hidden=?, p.last_updated=now(), p.hidden=? WHERE s.id=?";
@@ -1780,6 +1793,7 @@ public class BuldreinfoRepository {
 		} else {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
+		fillActivity(t.getIdProblem());
 	}
 
 	public void setUser(int authUserId, boolean useBlueNotRed) throws SQLException {
@@ -1825,6 +1839,7 @@ public class BuldreinfoRepository {
 			ps.execute();
 			ps.close();
 		}
+		fillActivity(co.getIdProblem());
 	}
 
 	public void upsertPermissionUser(int regionId, int authUserId, PermissionUser u) throws SQLException {
