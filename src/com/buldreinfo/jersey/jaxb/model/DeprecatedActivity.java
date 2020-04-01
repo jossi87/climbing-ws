@@ -1,10 +1,9 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
-public class Activity {
+@Deprecated
+public class DeprecatedActivity {
 	public class Media {
 		private final int id;
 		private final boolean isMovie;
@@ -48,53 +47,51 @@ public class Activity {
 			return "User [id=" + id + ", name=" + name + ", picture=" + picture + "]";
 		}
 	}
-	private final Set<Integer> activityIds;
-	private final String timeAgo;
+	private final String timestamp;
+	private String timeAgo;
 	private final int problemId;
 	private final int problemVisibility;
 	private final String problemName;
-	private final String grade;
 	private int problemRandomMediaId;
 	private List<Media> media;
-	private int stars;
-	private String name;
-	private String picture;
-	private String description;
-	private String message;
-	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, int problemVisibility, String problemName, String grade) {
-		this.activityIds = activityIds;
-		this.timeAgo = timeAgo;
+	private final int id;
+	private String grade;
+	private final int stars;
+	private final String name;
+	private final String picture;
+	private final String description;
+	private final String message;
+	private final List<User> users;
+	public DeprecatedActivity(String timestamp, int problemId, int problemVisibility, String problemName, int problemRandomMediaId,
+			List<Media> media, String grade, int id, int stars, String name, String picture, String description, String message,
+			List<User> users) {
+		super();
+		this.timestamp = timestamp;
 		this.problemId = problemId;
 		this.problemVisibility = problemVisibility;
 		this.problemName = problemName;
-		this.grade = grade;
-	}
-	public void addFa(String name, int userId, String picture, String description, int problemRandomMediaId) {
-		if (this.users == null) {
-			this.users = new ArrayList<>();
-		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", picture));
-		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
-	}
-	public void addMedia(int id, boolean isMovie) {
-		if (this.media == null) {
-			this.media = new ArrayList<>();
-		}
-		this.media.add(new Media(id, isMovie));
-		if (!isMovie) {
-			this.problemRandomMediaId = id;
-		}
-	}
-	public Set<Integer> getActivityIds() {
-		return activityIds;
+		this.media = media;
+		this.grade = grade;
+		this.id = id;
+		this.stars = stars;
+		this.name = name;
+		this.picture = picture;
+		this.description = description;
+		this.message = message;
+		this.users = users;
 	}
 	public String getDescription() {
 		return description;
 	}
 	public String getGrade() {
 		return grade;
+	}
+	public int getId() {
+		return id;
+	}
+	public List<Media> getMedia() {
+		return media;
 	}
 	public String getMessage() {
 		return message;
@@ -123,15 +120,30 @@ public class Activity {
 	public String getTimeAgo() {
 		return timeAgo;
 	}
-	public void setGuestbook(String name, String picture, String message) {
-		this.name = name;
-		this.picture = picture;
-		this.message = message;
+	public String getTimestamp() {
+		return timestamp;
 	}
-	public void setTick(String name, String picture, String description, int stars) {
-		this.name = name;
-		this.picture = picture;
-		this.description = description;
-		this.stars = stars;
+	public List<User> getUsers() {
+		return users;
+	}
+	public void setGrade(String grade) {
+		this.grade = grade;
+	}
+	public void setMedia(List<Media> media) {
+		this.media = media;
+	}
+	public void setProblemRandomMediaId(int problemRandomMediaId) {
+		this.problemRandomMediaId = problemRandomMediaId;
+	}
+	public void setTimeAgo(String timeAgo) {
+		this.timeAgo = timeAgo;
+	}
+	@Override
+	public String toString() {
+		return "Activity [timestamp=" + timestamp + ", timeAgo=" + timeAgo + ", problemId=" + problemId
+				+ ", problemVisibility=" + problemVisibility + ", problemName=" + problemName
+				+ ", problemRandomMediaId=" + problemRandomMediaId + ", media=" + media + ", id=" + id + ", grade="
+				+ grade + ", stars=" + stars + ", name=" + name + ", picture=" + picture + ", description="
+				+ description + ", message=" + message + ", users=" + users + "]";
 	}
 }
