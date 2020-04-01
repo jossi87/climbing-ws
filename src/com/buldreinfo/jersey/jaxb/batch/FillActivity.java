@@ -19,7 +19,7 @@ public class FillActivity {
 
 	public FillActivity() {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM problem WHERE id=5270 ORDER BY id");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM problem ORDER BY id");
 			ResultSet rst = ps.executeQuery();
 			int done = 0;
 			while (rst.next()) {
