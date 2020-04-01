@@ -103,7 +103,7 @@ public class MetaHelper {
 				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
 		setups.add(new Setup("hkl.buldreinfo.com")
 				.setIdRegion(12)
-				.setBouldering(false)
+				.setBouldering(true)
 				.setTitle("Buldring på Haugalandet")
 				.setDescription("Climbing in Haugaland (Western Norway)")
 				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
