@@ -295,7 +295,7 @@ public class BuldreinfoRepository {
 		psAddActivity.close();
 	}
 
-	public List<Activity> getActivity(int authUserId, Setup setup, int minGrade, boolean excludeTicks) throws SQLException {
+	public List<Activity> getActivity(int authUserId, Setup setup, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		/**
@@ -310,8 +310,11 @@ public class BuldreinfoRepository {
 				" FROM (((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)" + 
 				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)" + 
 				"   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)" + 
-				(minGrade > 0? " AND p.grade>=" + minGrade : "") +
-				(excludeTicks? " AND x.type!='TICK'" : "") +
+				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade) +
+				(fa? "" : " AND x.type!='FA'") +
+				(comments? "" : " AND x.type!='GUESTBOOK'") +
+				(ticks? "" : " AND x.type!='TICK'") +
+				(media? "" : " AND x.type!='MEDIA'") +
 				" GROUP BY x.activity_timestamp, x.problem_id, p.hidden, p.name, p.grade" +
 				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100");
 		ps.setInt(1, authUserId);
