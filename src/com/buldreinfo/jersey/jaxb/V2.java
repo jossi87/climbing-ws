@@ -8,12 +8,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
@@ -30,8 +25,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
@@ -66,13 +59,6 @@ import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 
 /**
@@ -80,56 +66,11 @@ import com.google.gson.Gson;
  */
 @Path("/v2/")
 public class V2 {
-	private static Logger logger = LogManager.getLogger();
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	private final static AuthHelper auth = new AuthHelper();
 	private final static MetaHelper metaHelper = new MetaHelper();
-	private final static ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("BuldreinfoCacheRefresher-pool-%d").setDaemon(true).build();
-	private final static ExecutorService parentExecutor = Executors.newSingleThreadExecutor(threadFactory);
-	private final static ListeningExecutorService executorService = MoreExecutors.listeningDecorator(parentExecutor);
-	private final static LoadingCache<String, Frontpage> frontpageCache = CacheBuilder.newBuilder()
-			.maximumSize(1000)
-			.refreshAfterWrite(10, TimeUnit.MINUTES)
-			.build(new CacheLoader<String, Frontpage>() {
-				@Override
-				public Frontpage load(String key) {
-					String[] parts = key.split("_");
-					int regionId = Integer.parseInt(parts[0]);
-					int authUserId = Integer.parseInt(parts[1]);
-					try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-						Setup setup = metaHelper.getSetup(regionId);
-						Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-						metaHelper.updateMetadata(c, f, setup, authUserId, 0);
-						c.setSuccess();
-						return f;
-					} catch (Exception e) {
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-					}    
-				}
-				@Override
-				public ListenableFuture<Frontpage> reload(final String key, Frontpage oldFrontpage) throws Exception {
-					ListenableFuture<Frontpage> task = executorService.submit(new Callable<Frontpage>() {
-						@Override
-						public Frontpage call() throws Exception {
-							logger.debug("reload(key={}) initialized", key);
-							return load(key);
-						}
-					});
-					return task;
-				}
-			});
 
 	public V2() {
-		// Initialize cache
-		if (frontpageCache.asMap().isEmpty()) {
-			try {
-				for (Setup s : metaHelper.getSetups()) {
-					frontpageCache.get(s.getIdRegion() + "_-1");
-				}
-			} catch (Exception e) {
-				logger.fatal(e.getMessage(), e);
-			}
-		}
 	}
 
 	@DELETE
@@ -140,7 +81,6 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkArgument(id > 0);
 			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -188,7 +128,8 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			Frontpage res = frontpageCache.get(setup.getIdRegion() + "_" + authUserId);
+			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -367,7 +308,8 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			Frontpage res = frontpageCache.get(setup.getIdRegion() + "_" + authUserId);
+			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
@@ -550,7 +492,6 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
@@ -565,7 +506,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			c.getBuldreinfoRepo().upsertComment(authUserId, co);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -615,7 +555,6 @@ public class V2 {
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
 			p = c.getBuldreinfoRepo().setProblem(authUserId, setup, p, multiPart);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
 		} catch (Exception e) {
@@ -635,7 +574,6 @@ public class V2 {
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(p).build();
 		} catch (Exception e) {
@@ -688,7 +626,6 @@ public class V2 {
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
 			s = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup, s, multiPart);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().entity(s).build();
 		} catch (Exception e) {
@@ -705,7 +642,6 @@ public class V2 {
 			Preconditions.checkArgument(t.getIdProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup, t);
-			invalidateFrontpageCache();
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
@@ -740,17 +676,6 @@ public class V2 {
 			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	private void invalidateFrontpageCache() {
-		for (String key : frontpageCache.asMap().keySet()) {
-			if (key.endsWith("_-1")) {
-				frontpageCache.refresh(key);
-			}
-			else {
-				frontpageCache.invalidate(key);
-			}
 		}
 	}
 }

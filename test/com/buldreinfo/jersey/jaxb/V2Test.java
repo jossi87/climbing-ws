@@ -65,6 +65,13 @@ public class V2Test {
 	}
 	
 	@Test
+	public void testGetActivity() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getActivity(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
+	
+	@Test
 	public void testGetMeta() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.getMeta(getRequest());
