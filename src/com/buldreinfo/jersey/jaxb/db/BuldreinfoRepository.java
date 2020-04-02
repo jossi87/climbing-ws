@@ -295,6 +295,136 @@ public class BuldreinfoRepository {
 		psAddActivity.close();
 	}
 
+	public List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		final List<Activity> res = new ArrayList<>();
+		/**
+		 * Fetch activities to return
+		 */
+		final Set<Integer> faActivitityIds = new HashSet<>();
+		final Set<Integer> tickActivitityIds = new HashSet<>();
+		final Set<Integer> mediaActivitityIds = new HashSet<>();
+		final Set<Integer> guestbookActivitityIds = new HashSet<>();
+		final LocalDate today = LocalDate.now();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT x.activity_timestamp, x.problem_id, p.hidden problem_visibility, p.name problem_name, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
+				" FROM (((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)" + 
+				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)" + 
+				"   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)" + 
+				" GROUP BY x.activity_timestamp, x.problem_id, p.hidden, p.name, p.grade" +
+				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100");
+		ps.setInt(1, authUserId);
+		ps.setInt(2, setup.getIdRegion());
+		ps.setInt(3, setup.getIdRegion());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			Timestamp activityTimestamp = rst.getTimestamp("activity_timestamp");
+			int problemId = rst.getInt("problem_id");
+			int problemVisibility = rst.getInt("problem_visibility");
+			String problemName = rst.getString("problem_name");
+			String grade = GradeHelper.intToString(setup, rst.getInt("grade"));
+			Set<Integer> activityIds = new HashSet<>();
+			for (String activity : rst.getString("activities").split(",")) {
+				String[] str = activity.split("-");
+				int idActivity = Integer.parseInt(str[0]);
+				String type = str[1];
+				activityIds.add(idActivity);
+				switch (type) {
+				case ACTIVITY_TYPE_FA: faActivitityIds.add(idActivity); break;
+				case ACTIVITY_TYPE_TICK: tickActivitityIds.add(idActivity); break;
+				case ACTIVITY_TYPE_GUESTBOOK: guestbookActivitityIds.add(idActivity); break;
+				case ACTIVITY_TYPE_MEDIA: mediaActivitityIds.add(idActivity); break;
+				default: throw new RuntimeException("Invalid type: " + type);
+				}
+			}
+			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(activityTimestamp.toLocalDateTime().toLocalDate(), today));
+			res.add(new Activity(activityIds, timeAgo, problemId, problemVisibility, problemName, grade));
+		}
+		rst.close();
+		ps.close();
+
+		if (!tickActivitityIds.isEmpty()) {
+			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars, t.grade" + 
+					" FROM activity a, tick t, user u" + 
+					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
+					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id");
+			rst = ps.executeQuery();
+			while (rst.next()) {
+				int id = rst.getInt("id");
+				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				int userId = rst.getInt("user_id");
+				String name = rst.getString("name");
+				String picture = rst.getString("picture");
+				String description = rst.getString("description");
+				int stars = rst.getInt("stars");
+				String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
+				a.setTick(userId, name, picture, description, stars, personalGrade);
+			}
+			rst.close();
+			ps.close();
+		}
+
+		if (!guestbookActivitityIds.isEmpty()) {
+			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message" + 
+					" FROM activity a, guestbook g, user u" + 
+					" WHERE a.id IN (" + Joiner.on(",").join(guestbookActivitityIds) + ")" + 
+					"   AND a.guestbook_id=g.id AND g.user_id=u.id");
+			rst = ps.executeQuery();
+			while (rst.next()) {
+				int id = rst.getInt("id");
+				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				int userId = rst.getInt("user_id");
+				String name = rst.getString("name");
+				String picture = rst.getString("picture");
+				String message = rst.getString("message");
+				a.setGuestbook(userId, name, picture, message);
+			}
+			rst.close();
+			ps.close();
+		}
+		
+		if (!faActivitityIds.isEmpty()) {
+			ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, p.description, MAX(m.id) random_media_id" + 
+					" FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)" + 
+					" WHERE a.id IN (" + Joiner.on(",").join(faActivitityIds) + ")" + 
+					" GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description" +
+					" ORDER BY u.firstname, u.lastname");
+			rst = ps.executeQuery();
+			while (rst.next()) {
+				int id = rst.getInt("id");
+				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				String name = rst.getString("name");
+				int userId = rst.getInt("user_id");
+				String picture = rst.getString("picture");
+				String description = rst.getString("description");
+				int problemRandomMediaId = rst.getInt("random_media_id");
+				a.addFa(name, userId, picture, description, problemRandomMediaId);
+			}
+			rst.close();
+			ps.close();
+		}
+		
+		if (!mediaActivitityIds.isEmpty()) {
+			ps = c.getConnection().prepareStatement("SELECT a.id, m.id media_id, m.is_movie" + 
+					" FROM activity a, media m" + 
+					" WHERE a.id IN (" + Joiner.on(",").join(mediaActivitityIds) + ")" + 
+					"   AND a.media_id=m.id" +
+					" ORDER BY m.id");
+			rst = ps.executeQuery();
+			while (rst.next()) {
+				int id = rst.getInt("id");
+				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+				int mediaId = rst.getInt("media_id");
+				boolean isMovie = rst.getBoolean("is_movie");
+				a.addMedia(mediaId, isMovie);
+			}
+			rst.close();
+			ps.close();
+		}
+
+		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}, duration={}", authUserId, setup, res.size(), stopwatch);
+		return res;
+	}
+
 	public Area getArea(int authUserId, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?");
@@ -486,7 +616,7 @@ public class BuldreinfoRepository {
 
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage(getActivity(authUserId, setup));
+		Frontpage res = new Frontpage();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR auth.user_id IS NOT NULL)");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, setup.getIdRegion());
@@ -2150,136 +2280,6 @@ public class BuldreinfoRepository {
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);
 		}
-	}
-
-	private List<Activity> getActivity(int authUserId, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		final List<Activity> res = new ArrayList<>();
-		/**
-		 * Fetch activities to return
-		 */
-		final Set<Integer> faActivitityIds = new HashSet<>();
-		final Set<Integer> tickActivitityIds = new HashSet<>();
-		final Set<Integer> mediaActivitityIds = new HashSet<>();
-		final Set<Integer> guestbookActivitityIds = new HashSet<>();
-		final LocalDate today = LocalDate.now();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT x.activity_timestamp, x.problem_id, p.hidden problem_visibility, p.name problem_name, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
-				" FROM (((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)" + 
-				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)" + 
-				"   AND (a.hidden=0 OR auth.write>=a.hidden) AND (s.hidden=0 OR auth.write>=s.hidden) AND (p.hidden=0 OR auth.write>=p.hidden)" + 
-				" GROUP BY x.activity_timestamp, x.problem_id, p.hidden, p.name, p.grade" +
-				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100");
-		ps.setInt(1, authUserId);
-		ps.setInt(2, setup.getIdRegion());
-		ps.setInt(3, setup.getIdRegion());
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			Timestamp activityTimestamp = rst.getTimestamp("activity_timestamp");
-			int problemId = rst.getInt("problem_id");
-			int problemVisibility = rst.getInt("problem_visibility");
-			String problemName = rst.getString("problem_name");
-			String grade = GradeHelper.intToString(setup, rst.getInt("grade"));
-			Set<Integer> activityIds = new HashSet<>();
-			for (String activity : rst.getString("activities").split(",")) {
-				String[] str = activity.split("-");
-				int idActivity = Integer.parseInt(str[0]);
-				String type = str[1];
-				activityIds.add(idActivity);
-				switch (type) {
-				case ACTIVITY_TYPE_FA: faActivitityIds.add(idActivity); break;
-				case ACTIVITY_TYPE_TICK: tickActivitityIds.add(idActivity); break;
-				case ACTIVITY_TYPE_GUESTBOOK: guestbookActivitityIds.add(idActivity); break;
-				case ACTIVITY_TYPE_MEDIA: mediaActivitityIds.add(idActivity); break;
-				default: throw new RuntimeException("Invalid type: " + type);
-				}
-			}
-			String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(activityTimestamp.toLocalDateTime().toLocalDate(), today));
-			res.add(new Activity(activityIds, timeAgo, problemId, problemVisibility, problemName, grade));
-		}
-		rst.close();
-		ps.close();
-
-		if (!tickActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, t.comment description, t.stars, t.grade" + 
-					" FROM activity a, tick t, user u" + 
-					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
-					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id");
-			rst = ps.executeQuery();
-			while (rst.next()) {
-				int id = rst.getInt("id");
-				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-				int userId = rst.getInt("user_id");
-				String name = rst.getString("name");
-				String picture = rst.getString("picture");
-				String description = rst.getString("description");
-				int stars = rst.getInt("stars");
-				String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
-				a.setTick(userId, name, picture, description, stars, personalGrade);
-			}
-			rst.close();
-			ps.close();
-		}
-
-		if (!guestbookActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message" + 
-					" FROM activity a, guestbook g, user u" + 
-					" WHERE a.id IN (" + Joiner.on(",").join(guestbookActivitityIds) + ")" + 
-					"   AND a.guestbook_id=g.id AND g.user_id=u.id");
-			rst = ps.executeQuery();
-			while (rst.next()) {
-				int id = rst.getInt("id");
-				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-				int userId = rst.getInt("user_id");
-				String name = rst.getString("name");
-				String picture = rst.getString("picture");
-				String message = rst.getString("message");
-				a.setGuestbook(userId, name, picture, message);
-			}
-			rst.close();
-			ps.close();
-		}
-		
-		if (!faActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, p.description, MAX(m.id) random_media_id" + 
-					" FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)" + 
-					" WHERE a.id IN (" + Joiner.on(",").join(faActivitityIds) + ")" + 
-					" GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description" +
-					" ORDER BY u.firstname, u.lastname");
-			rst = ps.executeQuery();
-			while (rst.next()) {
-				int id = rst.getInt("id");
-				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-				String name = rst.getString("name");
-				int userId = rst.getInt("user_id");
-				String picture = rst.getString("picture");
-				String description = rst.getString("description");
-				int problemRandomMediaId = rst.getInt("random_media_id");
-				a.addFa(name, userId, picture, description, problemRandomMediaId);
-			}
-			rst.close();
-			ps.close();
-		}
-		
-		if (!mediaActivitityIds.isEmpty()) {
-			ps = c.getConnection().prepareStatement("SELECT a.id, m.id media_id, m.is_movie" + 
-					" FROM activity a, media m" + 
-					" WHERE a.id IN (" + Joiner.on(",").join(mediaActivitityIds) + ")" + 
-					"   AND a.media_id=m.id" +
-					" ORDER BY m.id");
-			rst = ps.executeQuery();
-			while (rst.next()) {
-				int id = rst.getInt("id");
-				Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-				int mediaId = rst.getInt("media_id");
-				boolean isMovie = rst.getBoolean("is_movie");
-				a.addMedia(mediaId, isMovie);
-			}
-			rst.close();
-			ps.close();
-		}
-
-		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}, duration={}", authUserId, setup, res.size(), stopwatch);
-		return res;
 	}
 
 	private String getDateTaken(Path p) {

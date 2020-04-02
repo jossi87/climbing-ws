@@ -99,15 +99,9 @@ public class Frontpage implements IMetadata {
 	private int numImages;
 	private int numMovies;
 	private RandomMedia randomMedia;
-	private final List<Activity> activity;
 	private Metadata metadata;
 	
-	public Frontpage(List<Activity> activity) {
-		this.activity = activity;
-	}
-	
-	public List<Activity> getActivity() {
-		return activity;
+	public Frontpage() {
 	}
 	
 	@Override
@@ -180,7 +174,6 @@ public class Frontpage implements IMetadata {
 	public String toString() {
 		return "Frontpage [numProblems=" + numProblems + ", numProblemsWithCoordinates=" + numProblemsWithCoordinates
 				+ ", numProblemsWithTopo=" + numProblemsWithTopo + ", numTicks=" + numTicks + ", numImages=" + numImages
-				+ ", numMovies=" + numMovies + ", randomMedia=" + randomMedia + ", activity=" + activity + ", metadata="
-				+ metadata + "]";
+				+ ", numMovies=" + numMovies + ", randomMedia=" + randomMedia + ", metadata=" + metadata + "]";
 	}
 }
