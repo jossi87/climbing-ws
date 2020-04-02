@@ -140,11 +140,11 @@ public class V2 {
 	@GET
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getActivity(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getActivity(@Context HttpServletRequest request, @QueryParam("minGrade") int minGrade, @QueryParam("excludeTicks") boolean excludeTicks) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup);
+			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, minGrade, excludeTicks);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
