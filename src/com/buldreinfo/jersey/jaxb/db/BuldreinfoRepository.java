@@ -2276,12 +2276,23 @@ public class BuldreinfoRepository {
 
 	private void downloadUserImage(int userId, String url) {
 		try {
-			final Path p = Paths.get(PATH + "web/users").resolve(userId + ".jpg");
-			Files.createDirectories(p.getParent());
+			final Path original = Paths.get(PATH + "original/users").resolve(userId + ".jpg");
+			final Path resized = Paths.get(PATH + "web/users").resolve(userId + ".jpg");
+			Files.createDirectories(original.getParent());
 			InputStream in = new URL(url).openStream();
-			Files.copy(in, p, StandardCopyOption.REPLACE_EXISTING);
+			Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 			in.close();
-			Runtime.getRuntime().exec("chmod 777 " + p.toString());
+			// Resize avatar
+			Files.createDirectories(resized.getParent());
+			Files.deleteIfExists(resized);
+			BufferedImage bOriginal = ImageIO.read(original.toFile());
+			BufferedImage bScaled = Scalr.resize(bOriginal, 35, Scalr.OP_ANTIALIAS);
+			ImageIO.write(bScaled, "jpg", resized.toFile());
+			bOriginal.flush();
+			bOriginal = null;
+			bScaled.flush();
+			bScaled = null;
+			Preconditions.checkArgument(Files.exists(resized));
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);
 		}
