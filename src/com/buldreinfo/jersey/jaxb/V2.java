@@ -51,6 +51,8 @@ import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Sites;
+import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -88,6 +90,26 @@ public class V2 {
 		}
 	}
 
+	@GET
+	@Path("/activity")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getActivity(@Context HttpServletRequest request,
+			@QueryParam("lowerGrade") int lowerGrade,
+			@QueryParam("fa") boolean fa,
+			@QueryParam("comments") boolean comments,
+			@QueryParam("ticks") boolean ticks,
+			@QueryParam("media") boolean media) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, lowerGrade, fa, comments, ticks, media);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -130,26 +152,6 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/activity")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getActivity(@Context HttpServletRequest request,
-			@QueryParam("lowerGrade") int lowerGrade,
-			@QueryParam("fa") boolean fa,
-			@QueryParam("comments") boolean comments,
-			@QueryParam("ticks") boolean ticks,
-			@QueryParam("media") boolean media) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, lowerGrade, fa, comments, ticks, media);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -263,7 +265,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -299,6 +301,23 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/sites")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getSites(@Context HttpServletRequest request, @QueryParam("isBouldering") boolean isBouldering) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
+			Sites res = new Sites(regions, isBouldering);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -354,7 +373,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/static/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -370,7 +389,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/static/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -381,6 +400,42 @@ public class V2 {
 			final boolean orderByGrade = setup.isBouldering();
 			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/sites/bouldering")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticSitesBouldering(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final boolean isBouldering = true;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
+			Sites res = new Sites(regions, isBouldering);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/static/sites/climbing")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticSitesClimbing(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final boolean isBouldering = false;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
+			Sites res = new Sites(regions, isBouldering);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {

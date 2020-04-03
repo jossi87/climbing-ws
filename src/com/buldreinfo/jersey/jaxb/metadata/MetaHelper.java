@@ -15,6 +15,7 @@ import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
@@ -23,6 +24,7 @@ import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -245,6 +247,17 @@ public class MetaHelper {
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		else if (m instanceof Sites) {
+			Sites s = (Sites)m;
+			int total = s.getRegions().stream().mapToInt(r -> r.getNumProblems()).sum();
+			String title = "Map of " + (s.isBouldering()? "bouldering" : "climbing") + " in Norway";
+			String description = title + " (" + total + (s.isBouldering()? " boulders)" : " routes)");
+			OpenGraph og = getOg(setup, "/sites" + (s.isBouldering()? "/bouldering" : "/climbing"), null, requestedIdMedia);
+			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setDescription(description)
+					.setDefaultCenter(new LatLng(65.27462, 18.55251))
+					.setDefaultZoom(5));
 		}
 		else if (m instanceof Ticks) {
 			Ticks t = (Ticks)m;
