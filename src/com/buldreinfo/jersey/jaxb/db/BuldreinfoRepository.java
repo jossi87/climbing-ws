@@ -69,6 +69,7 @@ import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -908,7 +909,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		return res;
 	}
-
+	
 	public Collection<Region> getRegions(String uniqueId) throws SQLException {
 		final int idUser = upsertUserReturnId(uniqueId);
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -917,8 +918,7 @@ public class BuldreinfoRepository {
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Sector> sectorMap = new HashMap<>();
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Problem> problemMap = new HashMap<>();
 		// Regions
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE rt.type_id=1");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE rt.type_id=1");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
@@ -1240,6 +1240,23 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		return Joiner.on("\r\n").join(urls);
+	}
+
+	public List<Site> getSites(int idType) throws SQLException {
+		List<Site> res = new ArrayList<>();
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.name, r.url, r.polygon_coords");
+		ps.setInt(1, idType);
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			String name = rst.getString("name");
+			String url = rst.getString("url");
+			String polygonCoords = rst.getString("polygon_coords");
+			int numProblems = rst.getInt("num_problems");
+			res.add(new Site(name, url, polygonCoords, numProblems));
+		}
+		rst.close();
+		ps.close();
+		return res;
 	}
 
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {

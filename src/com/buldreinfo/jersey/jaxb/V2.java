@@ -51,6 +51,7 @@ import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -88,6 +89,26 @@ public class V2 {
 		}
 	}
 
+	@GET
+	@Path("/activity")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getActivity(@Context HttpServletRequest request,
+			@QueryParam("lowerGrade") int lowerGrade,
+			@QueryParam("fa") boolean fa,
+			@QueryParam("comments") boolean comments,
+			@QueryParam("ticks") boolean ticks,
+			@QueryParam("media") boolean media) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
+			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, lowerGrade, fa, comments, ticks, media);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -130,26 +151,6 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/activity")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getActivity(@Context HttpServletRequest request,
-			@QueryParam("lowerGrade") int lowerGrade,
-			@QueryParam("fa") boolean fa,
-			@QueryParam("comments") boolean comments,
-			@QueryParam("ticks") boolean ticks,
-			@QueryParam("media") boolean media) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
-			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, lowerGrade, fa, comments, ticks, media);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -263,7 +264,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -299,6 +300,19 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/sites")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getSites(@Context HttpServletRequest request, @QueryParam("idType") int idType) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			List<Site> res = c.getBuldreinfoRepo().getSites(idType);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
