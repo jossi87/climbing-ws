@@ -412,7 +412,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getStaticSitesBouldering(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final boolean isBouldering = false;
+			final boolean isBouldering = true;
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, setup.getIdRegion());
 			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
