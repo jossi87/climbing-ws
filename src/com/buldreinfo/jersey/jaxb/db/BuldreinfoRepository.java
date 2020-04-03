@@ -69,7 +69,7 @@ import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Site;
+import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -1215,9 +1215,10 @@ public class BuldreinfoRepository {
 		urls.add(setup.getUrl("/gpl-3.0.txt"));
 		urls.add(setup.getUrl("/browse"));
 		urls.add(setup.getUrl("/filter"));
+		urls.add(setup.getUrl("/sites/bouldering"));
+		urls.add(setup.getUrl("/sites/climbing"));
 		// Users
-		PreparedStatement ps = c.getConnection().prepareStatement(
-				"SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=t.problem_id GROUP BY t.user_id");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0 AND p.id=t.problem_id GROUP BY t.user_id");
 		ps.setInt(1, setup.getIdRegion());
 		ps.setInt(2, setup.getIdRegion());
 		ResultSet rst = ps.executeQuery();
@@ -1228,8 +1229,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		// Areas, sectors, problems
-		ps = c.getConnection().prepareStatement(
-				"SELECT CONCAT('/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
+		ps = c.getConnection().prepareStatement("SELECT CONCAT('/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.hidden=0 AND a.id=s.area_id AND s.hidden=0 AND s.id=p.sector_id AND p.hidden=0");
 		ps.setInt(1, setup.getIdRegion());
 		ps.setInt(2, setup.getIdRegion());
 		ps.setInt(3, setup.getIdRegion());
@@ -1242,17 +1242,17 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<Site> getSites(int idType) throws SQLException {
-		List<Site> res = new ArrayList<>();
+	public List<SitesRegion> getSites(boolean isBouldering) throws SQLException {
+		List<SitesRegion> res = new ArrayList<>();
 		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.name, r.url, r.polygon_coords");
-		ps.setInt(1, idType);
+		ps.setInt(1, isBouldering? 1 : 2);
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			String name = rst.getString("name");
 			String url = rst.getString("url");
 			String polygonCoords = rst.getString("polygon_coords");
 			int numProblems = rst.getInt("num_problems");
-			res.add(new Site(name, url, polygonCoords, numProblems));
+			res.add(new SitesRegion(name, url, polygonCoords, numProblems));
 		}
 		rst.close();
 		ps.close();
