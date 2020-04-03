@@ -251,9 +251,10 @@ public class MetaHelper {
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;
 			int total = s.getRegions().stream().mapToInt(r -> r.getNumProblems()).sum();
-			String description = "Map of bouldering and climbing in Norway (" + total + " boulders and routes)";
+			String title = "Map of " + (s.isBouldering()? "bouldering" : "climbing") + " in Norway";
+			String description = title + " (" + total + (s.isBouldering()? " boulders)" : " routes)");
 			OpenGraph og = getOg(setup, "/sites" + (s.isBouldering()? "/bouldering" : "/climbing"), null, requestedIdMedia);
-			s.setMetadata(new Metadata(c, setup, authUserId, "Map of bouldering and climbing in Norway", og)
+			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setDefaultCenter(new LatLng(65.27462, 18.55251))
 					.setDefaultZoom(5));
