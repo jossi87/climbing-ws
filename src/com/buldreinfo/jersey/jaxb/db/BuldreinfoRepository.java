@@ -411,10 +411,10 @@ public class BuldreinfoRepository {
 		
 		if (!mediaActivitityIds.isEmpty()) {
 			ps = c.getConnection().prepareStatement("SELECT a.id, m.id media_id, m.is_movie" + 
-					" FROM activity a, media m" + 
+					" FROM activity a, media m, media_problem mp" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(mediaActivitityIds) + ")" + 
-					"   AND a.media_id=m.id" +
-					" ORDER BY m.id");
+					"   AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id" +
+					" ORDER BY mp.sorting, m.id");
 			rst = ps.executeQuery();
 			while (rst.next()) {
 				int id = rst.getInt("id");
