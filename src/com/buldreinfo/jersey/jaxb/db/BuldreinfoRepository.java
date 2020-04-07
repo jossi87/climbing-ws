@@ -460,7 +460,7 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 
-		ps = c.getConnection().prepareStatement("SELECT s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name");
+		ps = c.getConnection().prepareStatement("SELECT s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.sorting, s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY -s.sorting DESC, s.name");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ps.setInt(3, authUserId);
@@ -1792,6 +1792,29 @@ public class BuldreinfoRepository {
 		return getProblem(authUserId, s, idProblem);
 	}
 
+	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
+		double latitude = 0;
+		double longitude = 0;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM problem WHERE id=?");
+		ps.setInt(1, p.getId());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			latitude = rst.getDouble("latitude");
+			longitude = rst.getDouble("longitude");
+		}
+		rst.close();
+		ps.close();
+		if (latitude != 0 && longitude != 0 && (latitude != p.getLat() || longitude != p.getLng())) {
+			ps = c.getConnection().prepareStatement("INSERT INTO problem_coordinations_history (problem_id, user_id, latitude, longitude) VALUES (?, ?, ?, ?)");
+			ps.setInt(1, p.getId());
+			ps.setInt(2, authUserId);
+			ps.setDouble(3, latitude);
+			ps.setDouble(4, longitude);
+			ps.execute();
+			ps.close();
+		}
+	}
+
 	public Sector setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
@@ -2312,29 +2335,6 @@ public class BuldreinfoRepository {
 			Preconditions.checkArgument(Files.exists(resized));
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);
-		}
-	}
-
-	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
-		double currLatitude = 0;
-		double currLongitude = 0;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM problem WHERE id=?");
-		ps.setInt(1, p.getId());
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			currLatitude = rst.getDouble("latitude");
-			currLongitude = rst.getDouble("longitude");
-		}
-		rst.close();
-		ps.close();
-		if (currLatitude != 0 && currLongitude != 0 && (currLatitude != p.getLat() || currLongitude != p.getLng())) {
-			ps = c.getConnection().prepareStatement("INSERT INTO problem_coordinations_history (problem_id, user_id, latitude, longitude) VALUES (?, ?, ?, ?)");
-			ps.setInt(1, p.getId());
-			ps.setInt(2, authUserId);
-			ps.setDouble(3, currLatitude);
-			ps.setDouble(4, currLongitude);
-			ps.execute();
-			ps.close();
 		}
 	}
 
