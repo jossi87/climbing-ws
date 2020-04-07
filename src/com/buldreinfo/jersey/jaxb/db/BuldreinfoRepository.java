@@ -1644,13 +1644,13 @@ public class BuldreinfoRepository {
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		int idProblem = -1;
 		if (p.getId() > 0) {
+			fillProblemCoordinationsHistory(authUserId, p);
 			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN permission auth ON (a.region_id=auth.region_id AND auth.user_id=? AND auth.write>0 AND auth.write>=p.hidden) SET p.name=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.hidden=?, p.nr=?, p.type_id=?, p.last_updated=now() WHERE p.id=?");
 			ps.setInt(1, authUserId);
 			ps.setString(2, p.getName());
 			ps.setString(3, Strings.emptyToNull(p.getComment()));
 			ps.setInt(4, GradeHelper.stringToInt(s, p.getOriginalGrade()));
-			ps.setTimestamp(5,
-					Strings.isNullOrEmpty(p.getFaDate()) ? null : new Timestamp(sdf.parse(p.getFaDate()).getTime()));
+			ps.setTimestamp(5, Strings.isNullOrEmpty(p.getFaDate()) ? null : new Timestamp(sdf.parse(p.getFaDate()).getTime()));
 			if (p.getLat() > 0) {
 				ps.setDouble(6, p.getLat());
 			} else {
@@ -2312,6 +2312,29 @@ public class BuldreinfoRepository {
 			Preconditions.checkArgument(Files.exists(resized));
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);
+		}
+	}
+
+	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
+		double currLatitude = 0;
+		double currLongitude = 0;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM problem WHERE id=?");
+		ps.setInt(1, p.getId());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			currLatitude = rst.getDouble("latitude");
+			currLongitude = rst.getDouble("longitude");
+		}
+		rst.close();
+		ps.close();
+		if (currLatitude != 0 && currLongitude != 0 && (currLatitude != p.getLat() || currLongitude != p.getLng())) {
+			ps = c.getConnection().prepareStatement("INSERT INTO problem_coordinations_history (problem_id, user_id, latitude, longitude) VALUES (?, ?, ?, ?)");
+			ps.setInt(1, p.getId());
+			ps.setInt(2, authUserId);
+			ps.setDouble(3, currLatitude);
+			ps.setDouble(4, currLongitude);
+			ps.execute();
+			ps.close();
 		}
 	}
 
