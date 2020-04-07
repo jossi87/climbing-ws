@@ -213,7 +213,7 @@ public class Area implements IMetadata {
 				}
 				private String getName(Sector s) {
 					if (s.getSorting() > 0) {
-						return "00" + s.getSorting();
+						return String.format("%04d", s.getSorting());
 					}
 					return s.getName().toLowerCase()
 							.replace("første", "1første")
