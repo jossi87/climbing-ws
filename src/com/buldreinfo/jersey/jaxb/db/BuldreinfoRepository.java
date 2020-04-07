@@ -460,13 +460,14 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 
-		ps = c.getConnection().prepareStatement("SELECT s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.sorting, s.id, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY -s.sorting DESC, s.name");
+		ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ps.setInt(3, authUserId);
 		rst = ps.executeQuery();
 		while (rst.next()) {
 			int id = rst.getInt("id");
+			int sorting = rst.getInt("sorting");
 			int visibility = rst.getInt("hidden");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
@@ -481,7 +482,7 @@ public class BuldreinfoRepository {
 					randomMediaId = x.get(0).getId();
 				}
 			}
-			a.addSector(id, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, numProblems, randomMediaId);
+			a.addSector(id, sorting, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, numProblems, randomMediaId);
 		}
 		rst.close();
 		ps.close();
