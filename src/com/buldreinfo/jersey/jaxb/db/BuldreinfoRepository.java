@@ -829,7 +829,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		Preconditions.checkNotNull(p);
 		// Ascents
-		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date";
+		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date, t.id";
 		ps = c.getConnection().prepareStatement(sqlStr);
 		ps.setInt(1, p.getId());
 		rst = ps.executeQuery();
@@ -1793,29 +1793,6 @@ public class BuldreinfoRepository {
 		return getProblem(authUserId, s, idProblem);
 	}
 
-	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
-		double latitude = 0;
-		double longitude = 0;
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM problem WHERE id=?");
-		ps.setInt(1, p.getId());
-		ResultSet rst = ps.executeQuery();
-		while (rst.next()) {
-			latitude = rst.getDouble("latitude");
-			longitude = rst.getDouble("longitude");
-		}
-		rst.close();
-		ps.close();
-		if (latitude != 0 && longitude != 0 && (latitude != p.getLat() || longitude != p.getLng())) {
-			ps = c.getConnection().prepareStatement("INSERT INTO problem_coordinations_history (problem_id, user_id, latitude, longitude) VALUES (?, ?, ?, ?)");
-			ps.setInt(1, p.getId());
-			ps.setInt(2, authUserId);
-			ps.setDouble(3, latitude);
-			ps.setDouble(4, longitude);
-			ps.execute();
-			ps.close();
-		}
-	}
-
 	public Sector setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		if (s.getId() > 0) {
@@ -2336,6 +2313,29 @@ public class BuldreinfoRepository {
 			Preconditions.checkArgument(Files.exists(resized));
 		} catch (Exception e) {
 			logger.fatal(e.getMessage(), e);
+		}
+	}
+
+	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
+		double latitude = 0;
+		double longitude = 0;
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM problem WHERE id=?");
+		ps.setInt(1, p.getId());
+		ResultSet rst = ps.executeQuery();
+		while (rst.next()) {
+			latitude = rst.getDouble("latitude");
+			longitude = rst.getDouble("longitude");
+		}
+		rst.close();
+		ps.close();
+		if (latitude != 0 && longitude != 0 && (latitude != p.getLat() || longitude != p.getLng())) {
+			ps = c.getConnection().prepareStatement("INSERT INTO problem_coordinations_history (problem_id, user_id, latitude, longitude) VALUES (?, ?, ?, ?)");
+			ps.setInt(1, p.getId());
+			ps.setInt(2, authUserId);
+			ps.setDouble(3, latitude);
+			ps.setDouble(4, longitude);
+			ps.execute();
+			ps.close();
 		}
 	}
 
