@@ -2234,6 +2234,7 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
 			id = rst.getInt(1);
+			logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - resuktset getInt(1)={}", email, firstname, lastname, picture, id);
 		}
 		rst.close();
 		ps.close();
