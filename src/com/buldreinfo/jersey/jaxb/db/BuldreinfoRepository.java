@@ -559,7 +559,8 @@ public class BuldreinfoRepository {
 			ps.close();
 		}
 		if (authUserId == -1) {
-			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture());
+			final boolean autoCommit = true;
+			authUserId = addUser(profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture(), autoCommit);
 		}
 		else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
@@ -1748,7 +1749,8 @@ public class BuldreinfoRepository {
 						ps2.close();
 					}
 				} else { // New user
-					int idUser = addUser(null, x.getName(), null, null);
+					final boolean autoCommit = false;
+					int idUser = addUser(null, x.getName(), null, null, autoCommit);
 					Preconditions.checkArgument(idUser > 0);
 					PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)");
 					ps2.setInt(1, idProblem);
@@ -2224,7 +2226,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addUser(String email, String firstname, String lastname, String picture) throws SQLException {
+	private int addUser(String email, String firstname, String lastname, String picture, boolean autoCommit) throws SQLException {
 		int id = -1;
 		PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS);
 		ps.setString(1, firstname);
@@ -2234,10 +2236,13 @@ public class BuldreinfoRepository {
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
 			id = rst.getInt(1);
-			logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - resuktset getInt(1)={}", email, firstname, lastname, picture, id);
+			logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}, autoCommit={}) - getInt(1)={}", email, firstname, lastname, picture, autoCommit, id);
 		}
 		rst.close();
 		ps.close();
+		if (autoCommit) {
+			c.getConnection().commit();
+		}
 		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
 		if (!Strings.isNullOrEmpty(email)) {
 			ps = c.getConnection().prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)");
@@ -2249,7 +2254,6 @@ public class BuldreinfoRepository {
 		if (picture != null) {
 			downloadUserImage(id, picture);
 		}
-		logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - id={}", email, firstname, lastname, picture, id);
 		return id;
 	}
 
@@ -2370,7 +2374,8 @@ public class BuldreinfoRepository {
 		rst.close();
 		ps.close();
 		if (usId == -1) {
-			usId = addUser(null, name, null, null);
+			final boolean autoCommit = false;
+			usId = addUser(null, name, null, null, autoCommit);
 		}
 		Preconditions.checkArgument(usId > 0);
 		return usId;

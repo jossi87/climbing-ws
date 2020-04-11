@@ -733,8 +733,8 @@ public class V2 {
 
 	private int getUserId(HttpServletRequest request) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			c.getConnection().setAutoCommit(true);
 			final int authUserId = auth.getUserId(c, request, metaHelper);
+			c.setSuccess();
 			return authUserId;
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
