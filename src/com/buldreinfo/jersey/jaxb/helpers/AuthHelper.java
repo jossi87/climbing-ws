@@ -15,6 +15,8 @@ import com.auth0.client.auth.AuthAPI;
 import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -43,7 +45,7 @@ public class AuthHelper {
 				}
 			});
 
-	public int getUserId(DbConnection c, HttpServletRequest request, int regionId) {
+	public int getUserId(DbConnection c, HttpServletRequest request, MetaHelper metaHelper) {
 		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (Strings.isNullOrEmpty(authorization)) {
 			return -1;
@@ -54,11 +56,12 @@ public class AuthHelper {
 			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
 			if (update) {
 				// Log login
+				final Setup setup = metaHelper.getSetup(request);
 				Gson gson = new Gson();
 				String headers = gson.toJson(getHeadersInfo(request));
 				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, headers) VALUES (?, ?, ?)");
 				ps.setInt(1, userId);
-				ps.setInt(2, regionId);
+				ps.setInt(2, setup.getIdRegion());
 				ps.setString(3, headers);
 				ps.execute();
 				ps.close();
