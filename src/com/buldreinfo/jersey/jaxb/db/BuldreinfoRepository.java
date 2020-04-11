@@ -2248,6 +2248,7 @@ public class BuldreinfoRepository {
 		if (picture != null) {
 			downloadUserImage(id, picture);
 		}
+		logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - id={}", email, firstname, lastname, picture, id);
 		return id;
 	}
 
