@@ -2230,7 +2230,7 @@ public class BuldreinfoRepository {
 		ps.setString(1, firstname);
 		ps.setString(2, lastname);
 		ps.setString(3, picture);
-		ps.execute();
+		ps.executeUpdate();
 		ResultSet rst = ps.getGeneratedKeys();
 		if (rst != null && rst.next()) {
 			id = rst.getInt(1);
