@@ -115,7 +115,7 @@ public class MetaHelper {
 				.setTitle("Buldring i Flatanger")
 				.setDescription("Bouldering in Flatanger (Norway)")
 				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
-		setups.add(new Setup("buldring.flatangeradventure.no")
+		setups.add(new Setup("klatring.flatangeradventure.no")
 				.setIdRegion(14)
 				.setBouldering(false)
 				.setTitle("Klatring i Flatanger")
