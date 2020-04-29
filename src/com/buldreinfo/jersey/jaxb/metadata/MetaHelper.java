@@ -107,8 +107,20 @@ public class MetaHelper {
 				.setIdRegion(12)
 				.setBouldering(true)
 				.setTitle("Buldring på Haugalandet")
-				.setDescription("Climbing in Haugaland (Western Norway)")
+				.setDescription("Bouldering in Haugaland (Western Norway)")
 				.setLatLng(59.67, 5.38).setDefaultZoom(8));
+		setups.add(new Setup("buldring.flatangeradventure.no")
+				.setIdRegion(13)
+				.setBouldering(true)
+				.setTitle("Buldring i Flatanger")
+				.setDescription("Bouldering in Flatanger (Norway)")
+				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
+		setups.add(new Setup("buldring.flatangeradventure.no")
+				.setIdRegion(14)
+				.setBouldering(false)
+				.setTitle("Klatring i Flatanger")
+				.setDescription("Climbing in Flatanger (Norway)")
+				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
