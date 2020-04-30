@@ -110,6 +110,7 @@ public class Area implements IMetadata {
 	private final String canonical;
 	private final int id;
 	private final int visibility;
+	private final boolean forDevelopers;
 	private final String name;
 	private final String comment;
 	private final double lat;
@@ -122,11 +123,12 @@ public class Area implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, int visibility, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, int visibility, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
+		this.forDevelopers = forDevelopers;
 		this.name = name;
 		this.comment = comment;
 		this.lat = lat;
@@ -166,11 +168,11 @@ public class Area implements IMetadata {
 	public double getLng() {
 		return lng;
 	}
-
+	
 	public List<Media> getMedia() {
 		return media;
 	}
-	
+
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
@@ -187,7 +189,7 @@ public class Area implements IMetadata {
 	public int getNumProblems() {
 		return numProblems;
 	}
-
+	
 	public int getNumSectors() {
 		return numSectors;
 	}
@@ -195,13 +197,17 @@ public class Area implements IMetadata {
 	public int getRegionId() {
 		return regionId;
 	}
-	
+
 	public List<Sector> getSectors() {
 		return sectors;
 	}
-
+	
 	public int getVisibility() {
 		return visibility;
+	}
+
+	public boolean isForDevelopers() {
+		return forDevelopers;
 	}
 	
 	public void orderSectors() {

@@ -439,7 +439,7 @@ public class BuldreinfoRepository {
 		ps.close();
 		MarkerHelper markerHelper = new MarkerHelper();
 		Area a = null;
-		ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.hidden, a.name, a.description, a.latitude, a.longitude, a.hits FROM (area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.hidden, a.name, a.description, a.latitude, a.longitude, a.hits");
+		ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.hidden, a.for_developers, a.name, a.description, a.latitude, a.longitude, a.hits FROM (area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (a.hidden=0 OR (auth.user_id=? AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.hidden, a.for_developers, a.name, a.description, a.latitude, a.longitude, a.hits");
 		ps.setInt(1, reqId);
 		ps.setInt(2, authUserId);
 		ResultSet rst = ps.executeQuery();
@@ -447,6 +447,7 @@ public class BuldreinfoRepository {
 			int regionId = rst.getInt("region_id");
 			String canonical = rst.getString("canonical");
 			int visibility = rst.getInt("hidden");
+			boolean forDevelopers = rst.getBoolean("for_developers");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
 			LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
@@ -455,7 +456,7 @@ public class BuldreinfoRepository {
 			if (media.isEmpty()) {
 				media = null;
 			}
-			a = new Area(regionId, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), -1, -1, media, null, hits);
+			a = new Area(regionId, canonical, reqId, visibility, forDevelopers, name, comment, l.getLat(), l.getLng(), -1, -1, media, null, hits);
 		}
 		rst.close();
 		ps.close();
@@ -495,7 +496,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
 		List<Area> res = new ArrayList<>();
-		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.id, a.hidden, a.name, a.description, a.latitude, a.longitude, a.hits ORDER BY a.name");
+		PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.hidden, a.for_developers, a.name, a.description, a.latitude, a.longitude, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND ((a.region_id=? AND a.hidden=0) OR (auth.user_id IS NOT NULL AND (a.hidden<=1 OR auth.write>=a.hidden))) GROUP BY r.id, r.url, a.id, a.hidden, a.for_developers, a.name, a.description, a.latitude, a.longitude, a.hits ORDER BY a.name");
 		ps.setInt(1, authUserId);
 		ps.setInt(2, reqIdRegion);
 		ps.setInt(3, reqIdRegion);
@@ -505,6 +506,7 @@ public class BuldreinfoRepository {
 			String canonical = rst.getString("canonical");
 			int id = rst.getInt("id");
 			int visibility = rst.getInt("hidden");
+			boolean forDevelopers = rst.getBoolean("for_developers");
 			String name = rst.getString("name");
 			String comment = rst.getString("description");
 			if (comment != null) {
@@ -519,7 +521,7 @@ public class BuldreinfoRepository {
 			int numSectors = rst.getInt("num_sectors");
 			int numProblems = rst.getInt("num_problems");
 			int hits = rst.getInt("hits");
-			res.add(new Area(idRegion, canonical, id, visibility, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, hits));
+			res.add(new Area(idRegion, canonical, id, visibility, forDevelopers, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, hits));
 		}
 		rst.close();
 		ps.close();
@@ -1562,7 +1564,7 @@ public class BuldreinfoRepository {
 			if (writable != 1) {
 				throw new SQLException("Insufficient credentials");
 			}
-			ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, hidden=? WHERE id=?");
+			ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, hidden=?, for_developers=? WHERE id=?");
 			ps.setString(1, a.getName());
 			ps.setString(2, Strings.emptyToNull(a.getComment()));
 			if (a.getLat() > 0) {
@@ -1576,7 +1578,8 @@ public class BuldreinfoRepository {
 				ps.setNull(4, Types.DOUBLE);
 			}
 			ps.setInt(5, a.getVisibility());
-			ps.setInt(6, a.getId());
+			ps.setBoolean(6, a.isForDevelopers());
+			ps.setInt(7, a.getId());
 			ps.execute();
 			ps.close();
 			ps = null;
@@ -1601,7 +1604,7 @@ public class BuldreinfoRepository {
 				ps.close();
 			}
 		} else {
-			ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, hidden, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
+			ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, hidden, for_developers, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS);
 			ps.setLong(1, System.currentTimeMillis());
 			ps.setInt(2, idRegion);
 			ps.setString(3, a.getName());
@@ -1617,6 +1620,7 @@ public class BuldreinfoRepository {
 				ps.setNull(6, Types.DOUBLE);
 			}
 			ps.setInt(7, a.getVisibility());
+			ps.setBoolean(8, a.isForDevelopers());
 			ps.executeUpdate();
 			rst = ps.getGeneratedKeys();
 			if (rst != null && rst.next()) {
