@@ -22,7 +22,7 @@ public class GradeHelper {
 			map.put(51, "9 (8b)");
 			map.put(50, "9-/9 (8a+)");
 			map.put(49, "9- (8a)");
-			map.put(48, "8+/9- (7c+)");
+			map.put(48, "8+/9- (7c+/8a)");
 			map.put(47, "8+ (7c+)");
 			map.put(46, "8/8+ (7c)");
 			map.put(45, "8 (7b+)");
