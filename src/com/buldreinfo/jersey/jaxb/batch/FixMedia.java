@@ -42,6 +42,7 @@ public class FixMedia {
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			c.getConnection().setAutoCommit(true);
 			FixMedia service = new FixMedia();
 			// Add movie
 			//			final int idUploaderUserId = 1;			
