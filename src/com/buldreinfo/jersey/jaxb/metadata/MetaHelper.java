@@ -121,6 +121,12 @@ public class MetaHelper {
 				.setTitle("Klatring i Flatanger")
 				.setDescription("Climbing in Flatanger (Norway)")
 				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
+		setups.add(new Setup("buldring.narvikklatreklubb.no")
+				.setIdRegion(15)
+				.setBouldering(true)
+				.setTitle("Buldring i Narvik")
+				.setDescription("Bouldering in Narvik (Norway)")
+				.setLatLng(68.41312, 17.54277).setDefaultZoom(9));
 		// DEV
 		setups.add(new Setup("dev.jossi.org")
 				.setIdRegion(4)
