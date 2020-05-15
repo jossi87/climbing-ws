@@ -16,7 +16,7 @@ public class ConnectionPool {
 	
 	public ConnectionPool() {
 		this.bds = new BasicDataSource();
-		this.bds.setUrl(String.format("jdbc:mysql://%s/%s?user=%s&password=%s", HOST, DATABASE, USER, PASSWORD));
+		this.bds.setUrl(String.format("jdbc:mysql://%s/%s?user=%s&password=%s&serverTimezone=UTC", HOST, DATABASE, USER, PASSWORD));
 	}
 	
 	protected BasicDataSource getBasicDataSource() throws SQLException {
