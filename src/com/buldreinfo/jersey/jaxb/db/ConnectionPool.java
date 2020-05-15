@@ -16,6 +16,7 @@ public class ConnectionPool {
 	
 	public ConnectionPool() {
 		this.bds = new BasicDataSource();
+		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		this.bds.setUrl(String.format("jdbc:mysql://%s/%s?user=%s&password=%s&serverTimezone=UTC", HOST, DATABASE, USER, PASSWORD));
 	}
 	
