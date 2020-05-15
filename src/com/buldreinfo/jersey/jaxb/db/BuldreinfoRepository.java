@@ -2185,6 +2185,16 @@ public class BuldreinfoRepository {
 			 */
 			long ms = System.currentTimeMillis();
 
+			/**
+			 * To fix:
+			 * 2020.05.15 13:59:48,610 [http-nio-8080-exec-258] FATAL com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions:20 - /mnt/media/temp/1589543988604_a.jpg: Read-only file system
+			 * 
+			 * Add the following to /lib/systemd/system/tomcat9.service
+			 * ReadWritePaths=/mnt/media/
+			 * 
+			 * systemctl daemon-reload
+			 * service tomcat9 restart
+			 */
 			// Save received file
 			Path original = Paths.get(PATH + "temp");
 			Files.createDirectories(original);
