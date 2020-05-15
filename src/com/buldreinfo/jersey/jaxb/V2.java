@@ -108,7 +108,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -157,7 +157,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -172,7 +172,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/images")
 	@Produces("image/jpeg")
@@ -190,18 +190,18 @@ public class V2 {
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
 				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
 				b.flush();
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ImageIO.write(scaled, "jpg", baos);
-				byte[] imageData = baos.toByteArray();
-				baos.close();
-				return Response.ok(imageData).cacheControl(cc).build();
+				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+					ImageIO.write(scaled, "jpg", baos);
+					byte[] imageData = baos.toByteArray();
+					return Response.ok(imageData).cacheControl(cc).build();
+				}
 			}
 			return Response.ok(p.toFile()).cacheControl(cc).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -217,7 +217,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -233,7 +233,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -249,7 +249,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/problems/hse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -264,7 +264,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -275,7 +275,7 @@ public class V2 {
 		}
 		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
 	}
-	
+
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -388,7 +388,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/static/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -405,7 +405,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/static/sites/bouldering")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
