@@ -9,7 +9,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  */
 public class ConnectionPool {
 	private static final String HOST = "172.104.157.185";
-	private static final String DATABASE = "buldreinfo";
+	private static final String DATABASE = "localhost";
 	private static final String USER = "buldreinfo";
 	private static final String PASSWORD = "5459OoiwqQwerJgfg12_224WrejvJqGhhJ";
 	private final BasicDataSource bds;
