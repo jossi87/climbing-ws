@@ -1640,6 +1640,7 @@ public class BuldreinfoRepository {
 	public Problem setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
 		int idProblem = -1;
 		if (p.getId() > 0) {
 			fillProblemCoordinationsHistory(authUserId, p);
@@ -1648,7 +1649,7 @@ public class BuldreinfoRepository {
 				ps.setString(2, p.getName());
 				ps.setString(3, Strings.emptyToNull(p.getComment()));
 				ps.setInt(4, GradeHelper.stringToInt(s, p.getOriginalGrade()));
-				ps.setTimestamp(5, Strings.isNullOrEmpty(p.getFaDate()) ? null : new Timestamp(sdf.parse(p.getFaDate()).getTime()));
+				ps.setDate(5, dt);
 				if (p.getLat() > 0) {
 					ps.setDouble(6, p.getLat());
 				} else {
@@ -1676,7 +1677,7 @@ public class BuldreinfoRepository {
 				ps.setString(3, p.getName());
 				ps.setString(4, Strings.emptyToNull(p.getComment()));
 				ps.setInt(5, GradeHelper.stringToInt(s, p.getOriginalGrade()));
-				ps.setTimestamp(6, Strings.isNullOrEmpty(p.getFaDate()) ? null : new Timestamp(sdf.parse(p.getFaDate()).getTime()));
+				ps.setDate(6, dt);
 				if (p.getLat() > 0) {
 					ps.setDouble(7, p.getLat());
 				} else {
