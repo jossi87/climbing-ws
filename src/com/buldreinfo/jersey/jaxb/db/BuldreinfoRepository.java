@@ -1899,7 +1899,8 @@ public class BuldreinfoRepository {
 			ps.setInt(2, t.getIdProblem());
 			ps.execute();
 		}
-
+		final Timestamp dt = Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime());
+		logger.debug("setTick(authUserId={}, dt={}, t={}", authUserId, dt, t);
 		if (t.isDelete()) {
 			Preconditions.checkArgument(t.getId() > 0, "Cannot delete a tick without id");
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?")) {
@@ -1915,7 +1916,7 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")) {
 				ps.setInt(1, t.getIdProblem());
 				ps.setInt(2, authUserId);
-				ps.setTimestamp(3, Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
+				ps.setTimestamp(3, dt);
 				ps.setInt(4, GradeHelper.stringToInt(setup, t.getGrade()));
 				ps.setString(5, Strings.emptyToNull(t.getComment()));
 				ps.setDouble(6, t.getStars());
@@ -1924,7 +1925,7 @@ public class BuldreinfoRepository {
 
 		} else if (t.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
-				ps.setTimestamp(1, Strings.isNullOrEmpty(t.getDate()) ? null : new Timestamp(sdf.parse(t.getDate()).getTime()));
+				ps.setTimestamp(1, dt);
 				ps.setInt(2, GradeHelper.stringToInt(setup, t.getGrade()));
 				ps.setString(3, Strings.emptyToNull(t.getComment()));
 				ps.setDouble(4, t.getStars());
