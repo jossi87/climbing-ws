@@ -1511,8 +1511,7 @@ public class BuldreinfoRepository {
 		// Order ticks
 		res.getTicks().sort((t1, t2) -> -ComparisonChain
 				.start()
-				.compareFalseFirst(!Strings.isNullOrEmpty(t1.getDate()), !Strings.isNullOrEmpty(t2.getDate()))
-				.compare(t1.getDate(), t2.getDate())
+				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
 				.compare(t1.getIdProblem(), t2.getIdProblem())
 				.result());
 		for (int i = 0; i < res.getTicks().size(); i++) {
