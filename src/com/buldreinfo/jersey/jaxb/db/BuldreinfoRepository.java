@@ -1495,10 +1495,10 @@ public class BuldreinfoRepository {
 						String name = rst.getString("name");
 						String comment = rst.getString("description");
 						if (!Strings.isNullOrEmpty(comment)) {
-							comment = "First AID ascent: " + comment;
+							comment = "First ascent (AID): " + comment;
 						}
 						else {
-							comment = "First AID ascent";
+							comment = "First ascent (AID)";
 						}
 						String date = rst.getString("date");
 						String dateHr = rst.getString("date_hr");
