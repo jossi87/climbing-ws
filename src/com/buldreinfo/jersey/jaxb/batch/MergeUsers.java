@@ -14,68 +14,74 @@ public class MergeUsers {
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			// guestbook
-			PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// media
-			ps = c.getConnection().prepareStatement("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
-			ps = c.getConnection().prepareStatement("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
-			ps = c.getConnection().prepareStatement("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// media_user
-			ps = c.getConnection().prepareStatement("UPDATE media_user SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_user SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// fa
-			ps = c.getConnection().prepareStatement("UPDATE fa SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE fa SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
+			// fa_aid_user
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE fa_aid_user SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// tick
-			ps = c.getConnection().prepareStatement("UPDATE tick SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// user_email
-			ps = c.getConnection().prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// android_user
-			ps = c.getConnection().prepareStatement("UPDATE android_user SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE android_user SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// android_user
-			ps = c.getConnection().prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?");
-			ps.setInt(1, USER_ID_KEEP);
-			ps.setInt(2, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?")) {
+				ps.setInt(1, USER_ID_KEEP);
+				ps.setInt(2, USER_ID_DELETE);
+				ps.execute();
+			}
 			// user
-			ps = c.getConnection().prepareStatement("DELETE FROM user WHERE id=?");
-			ps.setInt(1, USER_ID_DELETE);
-			ps.execute();
-			ps.close();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM user WHERE id=?")) {
+				ps.setInt(1, USER_ID_DELETE);
+				ps.execute();
+			}
 			c.setSuccess();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
