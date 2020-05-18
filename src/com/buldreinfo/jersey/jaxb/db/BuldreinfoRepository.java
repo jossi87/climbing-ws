@@ -1494,7 +1494,7 @@ public class BuldreinfoRepository {
 						int visibility = rst.getInt("hidden");
 						String name = rst.getString("name");
 						String comment = rst.getString("description");
-						if (comment == null) {
+						if (!Strings.isNullOrEmpty(comment)) {
 							comment = "First AID ascent";
 						}
 						else {
