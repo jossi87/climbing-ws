@@ -1910,8 +1910,14 @@ public class BuldreinfoRepository {
 				if (!faAid.getUsers().isEmpty()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)")) {
 						for (FaUser u : faAid.getUsers()) {
+							int idUser = u.getId();
+							if (idUser <= 0) {
+								final boolean autoCommit = false;
+								idUser = addUser(null, u.getName(), null, null, autoCommit);
+							}
+							Preconditions.checkArgument(idUser > 0);
 							ps.setInt(1, faAid.getProblemId());
-							ps.setInt(2, u.getId());
+							ps.setInt(2, idUser);
 							ps.addBatch();
 						}
 						ps.executeBatch();
