@@ -1,5 +1,7 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -7,8 +9,16 @@ import com.google.common.collect.Lists;
 public class TimeAgo {
 	private static final List<Long> times = Lists.newArrayList(365l, 30l, 7l, 1l);
 	private static final List<String> timesString = Lists.newArrayList("year","month","week","day");
+	
+	public static String getTimeAgo(LocalDate date) {
+		if (date == null || date.getYear() < 1971) {
+			return "";
+		}
+		final LocalDate today = LocalDate.now();
+		return toDuration(ChronoUnit.DAYS.between(date, today));
+	}
 
-	public static String toDuration(long daysAgo) {
+	private static String toDuration(long daysAgo) {
 		StringBuffer res = new StringBuffer();
 		for(int i=0;i< TimeAgo.times.size(); i++) {
 			Long current = TimeAgo.times.get(i);

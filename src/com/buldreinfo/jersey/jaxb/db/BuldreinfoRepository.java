@@ -309,7 +309,6 @@ public class BuldreinfoRepository {
 		final Set<Integer> tickActivitityIds = new HashSet<>();
 		final Set<Integer> mediaActivitityIds = new HashSet<>();
 		final Set<Integer> guestbookActivitityIds = new HashSet<>();
-		final LocalDate today = LocalDate.now();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT x.activity_timestamp, x.problem_id, p.hidden problem_visibility, p.name problem_name, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
 				" FROM (((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN permission auth ON (r.id=auth.region_id AND auth.user_id=?)" + 
 				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR auth.user_id IS NOT NULL)" + 
@@ -347,7 +346,8 @@ public class BuldreinfoRepository {
 						default: throw new RuntimeException("Invalid type: " + type);
 						}
 					}
-					String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(activityTimestamp.toLocalDateTime().toLocalDate(), today));
+					
+					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDateTime().toLocalDate());
 					res.add(new Activity(activityIds, timeAgo, problemId, problemVisibility, problemName, grade));
 				}
 			}
@@ -744,7 +744,6 @@ public class BuldreinfoRepository {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
 			try (ResultSet rst = ps.executeQuery()) {
-				final LocalDate today = LocalDate.now();
 				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 				while (rst.next()) {
 					int userId = rst.getInt("id");
@@ -752,7 +751,7 @@ public class BuldreinfoRepository {
 					String picture = rst.getString("picture");
 					String lastLogin = rst.getString("last_login");
 					int write = rst.getInt("w");
-					String timeAgo = TimeAgo.toDuration(ChronoUnit.DAYS.between(LocalDate.parse(lastLogin, formatter), today));
+					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
 					res.getUsers().add(new PermissionUser(userId, name, picture, timeAgo, write, authUserId==userId));
 				}
 			}
