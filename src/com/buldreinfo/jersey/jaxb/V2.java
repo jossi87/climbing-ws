@@ -93,6 +93,8 @@ public class V2 {
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getActivity(@Context HttpServletRequest request,
+			@QueryParam("idArea") int idArea,
+			@QueryParam("idSector") int idSector,
 			@QueryParam("lowerGrade") int lowerGrade,
 			@QueryParam("fa") boolean fa,
 			@QueryParam("comments") boolean comments,
@@ -101,7 +103,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, lowerGrade, fa, comments, ticks, media);
+			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

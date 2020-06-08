@@ -299,7 +299,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public List<Activity> getActivity(int authUserId, Setup setup, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
+	public List<Activity> getActivity(int authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		/**
@@ -319,6 +319,8 @@ public class BuldreinfoRepository {
 				(comments? "" : " AND x.type!='GUESTBOOK'") +
 				(ticks? "" : " AND x.type!='TICK'") +
 				(media? "" : " AND x.type!='MEDIA'") +
+				(idArea==0? "" : " AND a.id=" + idArea) +
+				(idSector==0? "" : " AND s.id=" + idSector) +
 				" GROUP BY x.activity_timestamp, x.problem_id, p.hidden, p.name, p.grade" +
 				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100")) {
 			ps.setInt(1, authUserId);
