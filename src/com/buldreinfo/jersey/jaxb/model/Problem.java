@@ -145,6 +145,8 @@ public class Problem implements IMetadata {
 	private final double sectorLng;
 	private final String sectorPolygonCoords;
 	private final String sectorPolyline;
+	private final int sectorIdProblemPrev;
+	private final int sectorIdProblemNext;
 	private final String canonical;
 	private final int id;
 	private final int visibility;
@@ -172,7 +174,7 @@ public class Problem implements IMetadata {
 	private final long hits;
 	private FaAid faAid;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
+	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
 		this.areaId = areaId;
 		this.areaVisibility = areaVisibility;
 		this.areaName = areaName;
@@ -183,6 +185,8 @@ public class Problem implements IMetadata {
 		this.sectorLng = sectorLng;
 		this.sectorPolygonCoords = sectorPolygonCoords;
 		this.sectorPolyline = sectorPolyline;
+		this.sectorIdProblemPrev = sectorIdProblemPrev;
+		this.sectorIdProblemNext = sectorIdProblemNext;
 		this.canonical = canonical;
 		this.id = id;
 		this.visibility = visibility;
@@ -237,6 +241,14 @@ public class Problem implements IMetadata {
 	
 	public int getAreaVisibility() {
 		return areaVisibility;
+	}
+	
+	public int getSectorIdProblemNext() {
+		return sectorIdProblemNext;
+	}
+	
+	public int getSectorIdProblemPrev() {
+		return sectorIdProblemPrev;
 	}
 	
 	public String getCanonical() {

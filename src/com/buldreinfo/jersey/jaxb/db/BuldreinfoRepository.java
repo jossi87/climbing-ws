@@ -346,7 +346,7 @@ public class BuldreinfoRepository {
 						default: throw new RuntimeException("Invalid type: " + type);
 						}
 					}
-					
+
 					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDateTime().toLocalDate());
 					res.add(new Activity(activityIds, timeAgo, problemId, problemVisibility, problemName, grade));
 				}
@@ -820,8 +820,23 @@ public class BuldreinfoRepository {
 					List<Media> media = getMediaProblem(s, sectorId, id);
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int hits = rst.getInt("hits");
+
+					int sectorIdProblemPrev = 0;
+					int sectorIdProblemNext = 0;
+					List<Sector.Problem> problems = getSectorDontUpdateHits(authUserId, false, s, sectorId).getProblems();
+					if (problems.size() > 1) {
+						for (int i = 0; i < problems.size(); i++) {
+							Sector.Problem prob = problems.get(i);
+							if (prob.getId() == id) {
+								sectorIdProblemPrev = (i == 0? problems.size()-1 : i-1);
+								sectorIdProblemNext = (i == problems.size()-1? 0 : i+1);
+							}
+						}
+					}
+
 					p = new Problem(areaId, areaVisibility, areaName, sectorId, sectorVisibility, sectorName,
 							sectorL.getLat(), sectorL.getLng(), sectorPolygonCoords, sectorPolyline,
+							sectorIdProblemPrev, sectorIdProblemNext,
 							canonical, id, visibility, nr, name, comment,
 							GradeHelper.intToString(s, grade),
 							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, l.getLat(),
@@ -1157,82 +1172,15 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
-			ps.setInt(1, reqId);
-			ps.execute();
-		}
-		MarkerHelper markerHelper = new MarkerHelper();
-		Sector s = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits")) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					int areaVisibility = rst.getInt("area_hidden");
-					String areaName = rst.getString("area_name");
-					String canonical = rst.getString("canonical");
-					int visibility = rst.getInt("hidden");
-					String name = rst.getString("name");
-					String comment = rst.getString("description");
-					LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
-					String polygonCoords = rst.getString("polygon_coords");
-					String polyline = rst.getString("polyline");
-					int hits = rst.getInt("hits");
-					List<Media> media = getMediaSector(reqId, 0);
-					media.addAll(getMediaArea(areaId));
-					if (media.isEmpty()) {
-						media = null;
-					}
-					s = new Sector(orderByGrade, areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, media, null, hits);
-				}
-			}
-		}
-		String sqlStr = "SELECT p.id, p.hidden, p.nr, p.name, p.description, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.latitude, p.longitude,"
-				+ " COUNT(DISTINCT ps.id) num_pitches,"
-				+ " COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,"
-				+ " COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,"
-				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
-				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
-				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
-				+ " danger.danger"
-				+ " FROM (((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
-				+ " WHERE p.sector_id=?"
-				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
-				+ " GROUP BY p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype, danger.danger"
-				+ (orderByGrade? " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC, p.name" : " ORDER BY p.nr");
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId);
-			ps.setInt(2, authUserId);
-			ps.setInt(3, reqId);
-			ps.setInt(4, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					int visibility = rst.getInt("hidden");
-					int nr = rst.getInt("nr");
-					int grade = rst.getInt("grade");
-					String name = rst.getString("name");
-					String comment = rst.getString("description");
-					String fa = rst.getString("fa");
-					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-					int numPitches = rst.getInt("num_pitches");
-					boolean hasImages = rst.getInt("num_images")>0;
-					boolean hasMovies = rst.getInt("num_movies")>0;
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					boolean danger = rst.getBoolean("danger");
-					s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger);
-				}
-			}
-		}
-		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
-		return s;
+		final boolean updateHits = true;
+		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
+	}
+	
+	public Sector getSectorDontUpdateHits(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
+		final boolean updateHits = false;
+		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
 
 	public String getSitemapTxt(Setup setup) throws SQLException {
@@ -2592,6 +2540,85 @@ public class BuldreinfoRepository {
 			}
 		}
 		return media;
+	}
+
+	private Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		if (updateHits) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
+				ps.setInt(1, reqId);
+				ps.execute();
+			}
+		}
+		MarkerHelper markerHelper = new MarkerHelper();
+		Sector s = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits")) {
+			ps.setInt(1, reqId);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areaId = rst.getInt("area_id");
+					int areaVisibility = rst.getInt("area_hidden");
+					String areaName = rst.getString("area_name");
+					String canonical = rst.getString("canonical");
+					int visibility = rst.getInt("hidden");
+					String name = rst.getString("name");
+					String comment = rst.getString("description");
+					LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
+					String polygonCoords = rst.getString("polygon_coords");
+					String polyline = rst.getString("polyline");
+					int hits = rst.getInt("hits");
+					List<Media> media = getMediaSector(reqId, 0);
+					media.addAll(getMediaArea(areaId));
+					if (media.isEmpty()) {
+						media = null;
+					}
+					s = new Sector(orderByGrade, areaId, areaVisibility, areaName, canonical, reqId, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, media, null, hits);
+				}
+			}
+		}
+		String sqlStr = "SELECT p.id, p.hidden, p.nr, p.name, p.description, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.latitude, p.longitude,"
+				+ " COUNT(DISTINCT ps.id) num_pitches,"
+				+ " COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,"
+				+ " COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,"
+				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
+				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
+				+ " danger.danger"
+				+ " FROM (((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN permission auth ON a.region_id=auth.region_id) LEFT JOIN (media_problem mp LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
+				+ " WHERE p.sector_id=?"
+				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
+				+ " GROUP BY p.id, p.hidden, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype, danger.danger"
+				+ (orderByGrade? " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC, p.name" : " ORDER BY p.nr");
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, authUserId);
+			ps.setInt(3, reqId);
+			ps.setInt(4, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					int visibility = rst.getInt("hidden");
+					int nr = rst.getInt("nr");
+					int grade = rst.getInt("grade");
+					String name = rst.getString("name");
+					String comment = rst.getString("description");
+					String fa = rst.getString("fa");
+					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
+					int numPitches = rst.getInt("num_pitches");
+					boolean hasImages = rst.getInt("num_images")>0;
+					boolean hasMovies = rst.getInt("num_movies")>0;
+					int numTicks = rst.getInt("num_ticks");
+					double stars = rst.getDouble("stars");
+					boolean ticked = rst.getBoolean("ticked");
+					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					boolean danger = rst.getBoolean("danger");
+					s.addProblem(id, visibility, nr, name, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger);
+				}
+			}
+		}
+		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
+		return s;
 	}
 
 	private List<Svg> getSvgs(int idMedia) throws SQLException {
