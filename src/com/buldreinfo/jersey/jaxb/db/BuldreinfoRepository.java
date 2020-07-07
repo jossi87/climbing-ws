@@ -828,8 +828,8 @@ public class BuldreinfoRepository {
 						for (int i = 0; i < problems.size(); i++) {
 							Sector.Problem prob = problems.get(i);
 							if (prob.getId() == id) {
-								sectorIdProblemPrev = (i == 0? problems.size()-1 : i-1);
-								sectorIdProblemNext = (i == problems.size()-1? 0 : i+1);
+								sectorIdProblemPrev = problems.get((i == 0? problems.size()-1 : i-1)).getId();
+								sectorIdProblemNext = problems.get((i == problems.size()-1? 0 : i+1)).getId();
 							}
 						}
 					}
