@@ -10,6 +10,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
+import com.buldreinfo.jersey.jaxb.model.app.Area;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
@@ -32,8 +33,11 @@ public class StatisticsGenerator {
 				try (Reader reader = CharSource.wrap(new String(buffer)).openStream()) {
 					Gson gson = new Gson();
 					List<Region> regions = gson.fromJson(reader, new TypeToken<ArrayList<Region>>(){}.getType());
-					for (Region r : regions) {
-						System.err.println(r.getName());
+					Region r = regions.stream().filter(x -> x.getId() == 4).findAny().get();
+					System.err.println(r.getName());
+					System.err.println(r.getAreas());
+					for (Area a : r.getAreas()) {
+						System.err.println(a);
 					}
 				}
 			}
