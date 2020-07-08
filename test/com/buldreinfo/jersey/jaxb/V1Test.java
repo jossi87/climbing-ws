@@ -26,7 +26,7 @@ public class V1Test {
 	private int getRegionAreas(String uniqueId) throws ExecutionException, IOException {
 		int numAreas = 0;
 		V1 tester = new V1();
-		Response r = tester.getRegions(uniqueId);
+		Response r = tester.getRegions(uniqueId, false);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Collection<?>);
 		Collection<?> res = (Collection<?>) r.getEntity();

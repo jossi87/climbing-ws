@@ -953,7 +953,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Collection<Region> getRegions(String uniqueId) throws SQLException {
+	public Collection<Region> getRegions(String uniqueId, boolean climbingNotBouldering) throws SQLException {
 		final int idUser = upsertUserReturnId(uniqueId);
 		MarkerHelper markerHelper = new MarkerHelper();
 		Map<Integer, Region> regionMap = new HashMap<>();
@@ -961,7 +961,7 @@ public class BuldreinfoRepository {
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Sector> sectorMap = new HashMap<>();
 		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Problem> problemMap = new HashMap<>();
 		// Regions
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE rt.type_id=1")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE rt.type_id" + (climbingNotBouldering? "!=1" : "=1"))) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
