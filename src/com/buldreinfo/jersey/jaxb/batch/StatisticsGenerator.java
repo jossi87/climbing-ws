@@ -6,7 +6,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import org.apache.http.HttpEntity;
@@ -26,6 +28,8 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 public class StatisticsGenerator {
+	private final Set<String> badAverage = new TreeSet<>();
+
 	public static void main(String[] args) throws Exception {
 		new StatisticsGenerator();
 	}
@@ -95,9 +99,61 @@ public class StatisticsGenerator {
 			StatisticsUser u = orderedUsers.get(i);
 			System.err.println(u.getTotal() + " - " + u.getName());
 		}
+
+		for (String x : badAverage) {
+			System.err.println(x);
+		}
 	}
 
 	private int getAverageFaDecade(Sector s) {
+		switch (s.getId()) {
+		case 2956: return 201; // Dale - Dalsvågen
+		case 2946: return 198; // Dale - Hammeren
+		case 2988: return 198; // Dale - Hovedveggen - venstre (Ataraxia)
+		case 2873: return 199; // Bersagel - Storesva
+		case 2874: return 199; // Bersagel - Storveggen
+		case 2875: return 199; // Bersagel - Nedre gulvegg
+		case 2876: return 199; // Bersagel - Øvre gulvegg
+		case 2878: return 200; // Ålgård - Ålgård
+		case 3536: return 199; // Jøssingfjord - Conanveggen
+		case 2909: return 201; // Kalvatødne - Kalvatødne
+		case 2910: return 201; // Litla Hetland - Litla Hetland
+		case 3009: return 201; // Svihus - Svihusveggen
+		case 2915: return 199; // Nordland - Første etasje
+		case 2984: return 199; // Nordland - Andre etasje
+		case 2985: return 199; // Nordland - Tredje etasje
+		case 2924: return 199; // Oltedal Steinene - Apesteinen
+		case 2922: return 199; // Oltedal Steinene - Bryggeristeinen
+		case 2918: return 200; // Oltedal Steinene - Svenskesteinen
+		case 2919: return 199; // Oltedal Steinene - Søppelsteinen
+		case 2921: return 200; // Oltedal Steinene - Tørrsteinen
+		case 2923: return 199; // Oltedal Steinene - Huginsteinen
+		case 2925: return 199; // Oltedal Steinene - Oppvarmingssteinen
+		case 2954: return 201; // Skogsveggen - Venstre
+		case 2955: return 201; // Skogsveggen - Høyre
+		case 2929: return 201; // Krusafjell - Andre etasje
+		case 2931: return 200; // Spinneriveggen - Venstresiden
+		case 2932: return 200; // Spinneriveggen - Svaet
+		case 2933: return 200; // Spinneriveggen - Hovedveggen
+		case 2934: return 200; // Spinneriveggen - Høyreveggen
+		case 2962: return 201; // Bogafjell - Bogafjell
+		case 2940: return 200; // Trellskår - Hovedveggen
+		case 3003: return 200; // Trellskår - Høyreveggen
+		case 2939: return 200; // Trellskår - Strandveggen
+		case 2966: return 201; // Lauvås - Hammeren (østvendt)
+		case 2967: return 201; // Lauvås - Vestveggen
+		case 2968: return 201; // Lauvås - Sør-øst-veggen
+		case 2957: return 201; // Hesteveggen - Hovedveggen
+		case 2958: return 201; // Hesteveggen - Høyreveggen
+		case 3261: return 200; // Urdviki - Stein nede ved fossen
+		case 3524: return 200; // Lysebotn - Lysebotn
+		case 2890: return 199; // Sirekrok - Skammekroken
+		case 2935: return 199; // Sporaland - Sporaland
+		case 2973: return 201; // Lutsifjellet - Lutsifjellet
+		case 2913: return 199; // Monsterveggen - Monsterveggen
+		case 2926: return 199; // Planet Ø - Planet Ø
+		case 2938: return 200; // Tengesdalsveggen - Tengesdalsveggen
+		}
 		List<Integer> decades = new ArrayList<>();
 		for (Problem p : s.getProblems()) {
 			int decade = getFaDecade(p);
@@ -107,35 +163,13 @@ public class StatisticsGenerator {
 		}
 		int avg = (int)Math.round(decades.stream().mapToInt(val -> val).average().orElse(0));
 		if (avg == 0) {
-			switch (s.getId()) {
-			case 2956: return 201; // Dale - Dalsvågen
-			case 2873: return 199; // Bersagel - Storesva
-			case 2878: return 200; // Ålgård - Ålgård
-			case 3536: return 199; // Jøssingfjord - Conanveggen
-			case 2909: return 201; // Kalvatødne - Kalvatødne
-			case 2910: return 201; // Litla Hetland - Litla Hetland
-			case 3009: return 201; // Svihus - Svihusveggen
-			case 2984: return 199; // Nordland - Andre etasje
-			case 2918: return 200; // Oltedal Steinene - Svenskesteinen
-			case 2919: return 199; // Oltedal Steinene - Søppelsteinen
-			case 2921: return 200; // Oltedal Steinene - Tørrsteinen
-			case 2923: return 199; // Oltedal Steinene - Huginsteinen
-			case 2925: return 199; // Oltedal Steinene - Oppvarmingssteinen
-			case 2954: return 201; // Skogsveggen - Venstre
-			case 2955: return 201; // Skogsveggen - Høyre
-			case 2929: return 201; // Krusafjell - Andre etasje
-			case 2931: return 200; // Spinneriveggen - Venstresiden
-			case 2932: return 200; // Spinneriveggen - Svaet
-			case 2934: return 200; // Spinneriveggen - Høyreveggen
-			case 2962: return 201; // Bogafjell - Bogafjell
-			case 3003: return 200; // Trellskår - Høyreveggen
-			case 2966: return 201; // Lauvås - Hammeren (østvendt)
-			case 2967: return 201; // Lauvås - Vestveggen
-			case 2968: return 201; // Lauvås - Sør-øst-veggen
-			case 2958: return 201; // Hesteveggen - Høyreveggen
-			case 3261: return 200; // Urdviki - Stein nede ved fossen
-			case 3524: return 200; // Lysebotn - Lysebotn
-			default: throw new RuntimeException("No decade for " + s.getName() + " (id=" + s.getId() + ")");
+			throw new RuntimeException("No decade for " + s.getName() + " (id=" + s.getId() + ")");
+		}
+		// Ensure more than 25% of routes in sector has FA-Date
+		if (avg > 0) {
+			long numWithFaYear = s.getProblems().stream().filter(x -> getFaDecade(x) > 0).count();
+			if (numWithFaYear < s.getProblems().size()/4) {
+				badAverage.add("Bad average on " + s.getName() + " (" + s.getId() + "): " + avg + ", numWithFaYear=" + numWithFaYear + ", numProblems=" + s.getProblems().size());
 			}
 		}
 		return avg;
