@@ -242,7 +242,7 @@ public class FixMedia {
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				if (!keep.contains(file)) {
 					if (file.toString().contains("\\web\\") && !file.toString().contains("\\users\\")) {
-						final String unixPath = file.toString().replaceAll("\\\\", "/").replace("G:/gdrive/web/buldreinfo/buldreinfo_media", "/mnt/media");
+						final String unixPath = file.toString().replaceAll("\\\\", "/").replace("G:/gdrive/web/buldreinfo/buldreinfo_media", "/mnt/buldreinfo/media");
 						System.out.println("rm \"" + unixPath + "\"");
 					}
 					Files.setAttribute(file, "dos:readonly", false); // Remove read only

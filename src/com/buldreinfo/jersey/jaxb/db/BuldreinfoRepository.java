@@ -106,7 +106,7 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
-	private static final String PATH = "/mnt/media/";
+	private static final String PATH = "/mnt/buldreinfo/media/";
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 
@@ -2253,10 +2253,10 @@ public class BuldreinfoRepository {
 
 			/**
 			 * To fix:
-			 * 2020.05.15 13:59:48,610 [http-nio-8080-exec-258] FATAL com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions:20 - /mnt/media/temp/1589543988604_a.jpg: Read-only file system
+			 * 2020.05.15 13:59:48,610 [http-nio-8080-exec-258] FATAL com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions:20 - /mnt/buldreinfo/media/temp/1589543988604_a.jpg: Read-only file system
 			 * 
 			 * Add the following to /lib/systemd/system/tomcat9.service
-			 * ReadWritePaths=/mnt/media/
+			 * ReadWritePaths=/mnt/buldreinfo/media/
 			 * 
 			 * systemctl daemon-reload
 			 * service tomcat9 restart
