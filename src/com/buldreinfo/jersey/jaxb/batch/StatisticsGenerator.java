@@ -17,11 +17,16 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
+import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
+import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.app.Area;
 import com.buldreinfo.jersey.jaxb.model.app.Problem;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.model.app.Sector;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CharSource;
 import com.google.gson.Gson;
@@ -36,6 +41,7 @@ public class StatisticsGenerator {
 
 	public StatisticsGenerator() throws Exception {
 		TreeMap<Integer, Integer> decadeFaMap = new TreeMap<>();
+		Multimap<Integer, Problem> decadeProblemMap = ArrayListMultimap.create();
 		Map<String, StatisticsUser> userLookup = new HashMap<>();
 		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
 			HttpGet request = new HttpGet("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v1/regions?uniqueId=419920f881c6cc94&climbingNotBouldering=true");
@@ -58,6 +64,7 @@ public class StatisticsGenerator {
 									}
 									int num = decadeFaMap.getOrDefault(decade, 0);
 									decadeFaMap.put(decade, num+1);
+									decadeProblemMap.put(decade, p);
 									if (users != null) {
 										for (String user : users.split(",")) {
 											user = user.trim();
@@ -103,13 +110,33 @@ public class StatisticsGenerator {
 		for (String x : badAverage) {
 			System.err.println(x);
 		}
+
+		// Print hardest per decade
+		System.err.println("####");
+		Setup setup = new MetaHelper().getSetup(4);
+		for (int decade : decadeProblemMap.keySet()) {
+			if (decade != 202) {
+				List<Problem> problems = decadeProblemMap.get(decade)
+						.stream()
+						.sorted((p1, p2) -> Integer.compare(p2.getGrade(), p1.getGrade()))
+						.collect(Collectors.toList());
+				System.err.println(decade*10);
+				for (int i = 0; i < Math.min(10, problems.size()); i++) {
+					Problem p = problems.get(i);
+					String grade = GradeHelper.intToString(setup, p.getGrade());
+					String txt = "- " + grade + " - " + p.getName() + " - " + p.getFa();
+					System.err.println(txt);
+				}
+			}
+		}
 	}
 
 	private int getAverageFaDecade(Sector s) {
 		switch (s.getId()) {
 		case 2956: return 201; // Dale - Dalsvågen
-		case 2946: return 198; // Dale - Hammeren
+		case 2856: return 198; // Dale - Hammeren
 		case 2988: return 198; // Dale - Hovedveggen - venstre (Ataraxia)
+		case 2946: return 199; // Bersagel - Hammeren
 		case 2873: return 199; // Bersagel - Storesva
 		case 2874: return 199; // Bersagel - Storveggen
 		case 2875: return 199; // Bersagel - Nedre gulvegg
