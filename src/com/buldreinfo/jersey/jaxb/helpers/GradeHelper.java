@@ -158,6 +158,12 @@ public class GradeHelper {
 					return grades.get(key);
 				}
 			}
+			// Check for last part...
+			for (String key : grades.keySet()) {
+				if (key.endsWith("(" + grade + ")")) {
+					return grades.get(key);
+				}
+			}
 			throw e;
 		}
 	}

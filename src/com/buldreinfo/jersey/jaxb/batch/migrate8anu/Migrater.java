@@ -22,38 +22,60 @@ import com.buldreinfo.jersey.jaxb.batch.migrate8anu.beans.Tick;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
+import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 
 public class Migrater {
-	private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 	private static Logger logger = LogManager.getLogger();
+	private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+	private final Setup setup;
 
 	public static void main(String[] args) throws IOException {
 		int userId = 2562; // Jan
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
-		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
+		Path p = Paths.get("c:/users/joste_000/desktop/1.json");
 		new Migrater(userId, p);
 	}
 
 	public Migrater(int userId, Path p) throws IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction();
 				BufferedReader reader = Files.newReader(p.toFile(), Charset.forName("UTF-8"))) {
+			c.getConnection().setAutoCommit(true);
+			this.setup = new MetaHelper().getSetup(4);
 			Gson gson = new Gson();
 			Root r = gson.fromJson(reader, Root.class);
 			for (Tick t : r.getAscents()) {
 				List<Integer> problemIds = new ArrayList<>();
-				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id FROM problem p, sector s, area a WHERE p.sector_id=s.id AND s.area_id=a.id AND a.region_id!=1 AND a.name=? AND p.name=?")) {
-					ps.setString(1, t.getCragName());
-					ps.setString(2, t.getZlaggableName());
-					try (ResultSet rst = ps.executeQuery()) {
-						problemIds.add(rst.getInt("id"));
+				switch (t.getZlaggableName()) {
+				// case "": problemIds.add(); break;
+				default:
+					// Search in db
+					try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name, p.id FROM problem p, sector s, area a WHERE p.sector_id=s.id AND s.area_id=a.id AND a.region_id!=1 AND p.name=?")) {
+						ps.setString(1, t.getZlaggableName());
+						try (ResultSet rst = ps.executeQuery()) {
+							while (rst.next()) {
+								String areaName = rst.getString("name");
+								int id = rst.getInt("id");
+								if (areaName.equals(t.getCragName())) {
+									problemIds.clear();
+									problemIds.add(id);
+									break;
+								}
+								problemIds.add(id);
+							}
+						}
 					}
 				}
 				if (problemIds.isEmpty()) {
-					logger.warn("Could not find problem: " + t);
+					if (t.getCountrySlug().equals("norway")) {
+						logger.warn("Could not find problem: " + t.getZlaggableName() + "\t\t" + t);
+					}
 				}
-				else if(problemIds.size() > 1) {
+				else if (problemIds.size() > 1) {
 					logger.warn("More than one match on problem: " + t);
 				}
 				else {
@@ -68,22 +90,66 @@ public class Migrater {
 
 	private void tick(DbConnection c, int userId, int problemId, Tick t) throws SQLException, ParseException {
 		final String date = t.getDate().substring(0, 10);
+		final Date dateObj = new java.sql.Date(sdf.parse(date).getTime());
+		// Update date (if ticked with wrong date)
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, date FROM tick WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, userId);
 			ps.setInt(2, problemId);
 			try (ResultSet rst = ps.executeQuery()) {
-				int id = rst.getInt("id");
-				Date d = rst.getDate("date");
-				String dt = d == null? null : sdf.format(d);
-				if (!dt.equals(date)) {
-					try (PreparedStatement psUpdate = c.getConnection().prepareStatement("UPDATE tick SET date=? WHERE id=?")) {
-						psUpdate.setDate(1, new java.sql.Date(sdf.parse(date).getTime()));
-						psUpdate.setInt(2, id);
-						psUpdate.executeUpdate();
-						logger.debug("Update date on tick: " + t);
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					Date d = rst.getDate("date");
+					String dt = d == null? "" : sdf.format(d);
+					if (!dt.equals(date)) {
+						try (PreparedStatement psUpdate = c.getConnection().prepareStatement("UPDATE tick SET date=? WHERE id=?")) {
+							psUpdate.setDate(1, dateObj);
+							psUpdate.setInt(2, id);
+							psUpdate.executeUpdate();
+							logger.debug("Update date on tick: " + t);
+						}
 					}
+					return; // Tick is already existing!
 				}
 			}
+		}
+		// Create tick
+		int stars = 0;
+		switch (t.getRating()) {
+		case 0: stars = 0; break;
+		case 1: stars = 1; break;
+		case 2: stars = 1; break;
+		case 3: stars = 2; break;
+		case 4: stars = 2; break;
+		case 5: stars = 3; break;
+		default: throw new RuntimeException("Invalid rating: " + t);
+		}
+		String comment = null;
+		if (t.isSecondGo()) {
+			comment = "Second go";
+		}
+		else if (t.getType().equals("os")) {
+			comment = "OS";
+		}
+		else if (t.getType().equals("f")) {
+			comment = "Flash";
+		}
+		if (!Strings.isNullOrEmpty(t.getNotes())) {
+			if (comment == null) {
+				comment = t.getNotes();
+			}
+			else {
+				comment += " - " + t.getNotes();
+			}
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")) {
+			ps.setInt(1, problemId);
+			ps.setInt(2, userId);
+			ps.setDate(3, dateObj);
+			ps.setInt(4, GradeHelper.stringToInt(setup, t.getDifficulty()));
+			ps.setString(5, comment);
+			ps.setDouble(6, stars);
+			ps.execute();
+			logger.debug("Created tick: " + t);
 		}
 	}
 }

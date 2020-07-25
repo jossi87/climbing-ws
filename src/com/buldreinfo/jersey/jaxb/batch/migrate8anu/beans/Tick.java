@@ -10,8 +10,9 @@ public class Tick {
 	private final String type;
 	private final String notes;
 	private final int rating;
+	private final String countrySlug;
 	
-	public Tick(String cragName, String sectorSlug, String zlaggableName, String difficulty, String date, boolean secondGo, String type, String notes, int rating) {
+	public Tick(String cragName, String sectorSlug, String zlaggableName, String difficulty, String date, boolean secondGo, String type, String notes, int rating, String countrySlug) {
 		this.cragName = cragName;
 		this.sectorSlug = sectorSlug;
 		this.zlaggableName = zlaggableName;
@@ -21,6 +22,7 @@ public class Tick {
 		this.type = type;
 		this.notes = notes;
 		this.rating = rating;
+		this.countrySlug = countrySlug;
 	}
 
 	public String getCragName() {
@@ -59,10 +61,14 @@ public class Tick {
 		return rating;
 	}
 
+	public String getCountrySlug() {
+		return countrySlug;
+	}
+
 	@Override
 	public String toString() {
 		return "Tick [cragName=" + cragName + ", sectorSlug=" + sectorSlug + ", zlaggableName=" + zlaggableName
 				+ ", difficulty=" + difficulty + ", date=" + date + ", secondGo=" + secondGo + ", type=" + type
-				+ ", notes=" + notes + ", rating=" + rating + "]";
+				+ ", notes=" + notes + ", rating=" + rating + ", countrySlug=" + countrySlug + "]";
 	}
 }
