@@ -26,6 +26,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 
@@ -34,12 +35,15 @@ public class Migrater {
 	private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 	private final Setup setup;
 
+	/**
+	 * TODO: Default: Only update date on existing tick, and only if date in buldreinfo is null
+	 */
 	public static void main(String[] args) throws IOException {
-		int userId = 2562; // Jan
+		int userId = 397; // Stian Engelsvoll
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
-		Path p = Paths.get("c:/users/joste_000/desktop/1.json");
+		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
-		System.out.println("Ikke oppdater gamle grader? Sjekk resultat fra query under foer commit...");
+		System.out.println("Ikke oppdater gamle ticker? Sjekk resultat fra query under foer commit...");
 		System.out.println("UPDATE problem p, tick t SET t.grade=p.grade WHERE p.id=t.problem_id AND t.user_id=" + userId + " AND p.grade!=t.grade AND ( (p.grade IN (43,44) AND t.grade IN (43,44)) OR (p.grade IN (37,38) AND t.grade IN (37,38)) OR (p.grade IN (35,36) AND t.grade IN (35,36)) OR (p.grade IN (33,34) AND t.grade IN (33,34))  OR (p.grade IN (31,32) AND t.grade IN (31,32)) )");
 	}
 
@@ -51,6 +55,12 @@ public class Migrater {
 			Gson gson = new Gson();
 			Root r = gson.fromJson(reader, Root.class);
 			for (Tick t : r.getAscents()) {
+				if (!Strings.isNullOrEmpty(t.getCountrySlug()) && Lists.newArrayList("sweden","spain","italy","greece","thailand","france","germany").contains(t.getCountrySlug())) {
+					continue;
+				}
+				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
+					continue;
+				}
 				List<Integer> problemIds = new ArrayList<>();
 				switch (t.getZlaggableName()) {
 				// case "": problemIds.add(); break;
@@ -73,9 +83,7 @@ public class Migrater {
 					}
 				}
 				if (problemIds.isEmpty()) {
-					if (t.getCountrySlug().equals("norway")) {
-						logger.warn("Could not find problem: " + t.getZlaggableName() + "\t\t" + t);
-					}
+					logger.warn("Could not find problem: " + t.getZlaggableName() + "\t\t" + t);
 				}
 				else if (problemIds.size() > 1) {
 					logger.warn("More than one match on problem: " + t);
@@ -125,30 +133,12 @@ public class Migrater {
 		case 5: stars = 3; break;
 		default: throw new RuntimeException("Invalid rating: " + t);
 		}
-		String comment = null;
-		if (t.isSecondGo()) {
-			comment = "Second go";
-		}
-		else if (t.getType().equals("os")) {
-			comment = "OS";
-		}
-		else if (t.getType().equals("f")) {
-			comment = "Flash";
-		}
-		if (!Strings.isNullOrEmpty(t.getNotes())) {
-			if (comment == null) {
-				comment = t.getNotes();
-			}
-			else {
-				comment += " - " + t.getNotes();
-			}
-		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")) {
 			ps.setInt(1, problemId);
 			ps.setInt(2, userId);
 			ps.setDate(3, dateObj);
 			ps.setInt(4, GradeHelper.stringToInt(setup, t.getDifficulty()));
-			ps.setString(5, comment);
+			ps.setString(5, t.getComment());
 			ps.setDouble(6, stars);
 			ps.execute();
 			logger.debug("Created tick: " + t);
