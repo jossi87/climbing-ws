@@ -39,7 +39,7 @@ public class Migrater {
 	 * TODO: Default: Only update date on existing tick, and only if date in buldreinfo is null
 	 */
 	public static void main(String[] args) throws IOException {
-		int userId = 397; // Stian Engelsvoll
+		int userId = 1072; // Jon Egil Auestad
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
@@ -56,7 +56,7 @@ public class Migrater {
 				if (!Strings.isNullOrEmpty(t.getCountrySlug()) && Lists.newArrayList("sweden","spain","italy","greece","thailand","france","germany").contains(t.getCountrySlug())) {
 					continue;
 				}
-				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
+				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("syltøy","hjalla","glesnes","propagandaveggen","stjerneveggen","drømmehagen","mojavato","myggveggen","loven","hjallaveggen","vågeveggen","sageveggen","rævuri","mostraumen","perleveggen","paradis","stryn","furunkulose","goltastraumen","loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
 					continue;
 				}
 				List<Integer> problemIds = new ArrayList<>();
@@ -81,7 +81,7 @@ public class Migrater {
 					}
 				}
 				if (problemIds.isEmpty() || problemIds.size() > 1) {
-					logger.warn("case \"" + t.getZlaggableName() + "\": problemIds.add(); break;\t\t\t" + t);
+					logger.warn("case \"" + t.getZlaggableName() + "\": problemIds.add(); break;\t\t\t\t\t\t" + t);
 				}
 				else {
 					tick(c, userId, problemIds.get(0), t);
