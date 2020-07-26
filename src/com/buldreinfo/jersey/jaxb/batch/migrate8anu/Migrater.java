@@ -62,7 +62,7 @@ public class Migrater {
 					continue;
 				}
 				List<Integer> problemIds = new ArrayList<>();
-				switch (t.getZlaggableName()) {
+				switch (t.getZlaggableName()) {	
 				// case "": problemIds.add(); break;
 				default:
 					// Search in db
@@ -82,11 +82,8 @@ public class Migrater {
 						}
 					}
 				}
-				if (problemIds.isEmpty()) {
-					logger.warn("Could not find problem: " + t.getZlaggableName() + "\t\t" + t);
-				}
-				else if (problemIds.size() > 1) {
-					logger.warn("More than one match on problem: " + t);
+				if (problemIds.isEmpty() || problemIds.size() > 1) {
+					logger.warn("case \"" + t.getZlaggableName() + "\": problemIds.add(); break;\t\t\t" + t);
 				}
 				else {
 					tick(c, userId, problemIds.get(0), t);
