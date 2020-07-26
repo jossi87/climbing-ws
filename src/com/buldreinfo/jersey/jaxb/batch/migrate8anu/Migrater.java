@@ -39,6 +39,7 @@ public class Migrater {
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/1.json");
 		new Migrater(userId, p);
+		System.out.println("Ikke oppdater gamle grader? Sjekk resultat fra query under foer commit...");
 		System.out.println("UPDATE problem p, tick t SET t.grade=p.grade WHERE p.id=t.problem_id AND t.user_id=" + userId + " AND p.grade!=t.grade AND ( (p.grade IN (43,44) AND t.grade IN (43,44)) OR (p.grade IN (37,38) AND t.grade IN (37,38)) OR (p.grade IN (35,36) AND t.grade IN (35,36)) OR (p.grade IN (33,34) AND t.grade IN (33,34))  OR (p.grade IN (31,32) AND t.grade IN (31,32)) )");
 	}
 
@@ -92,7 +93,7 @@ public class Migrater {
 	private void tick(DbConnection c, int userId, int problemId, Tick t) throws SQLException, ParseException {
 		final String date = t.getDate().substring(0, 10);
 		final Date dateObj = new java.sql.Date(sdf.parse(date).getTime());
-		// Update date (if ticked with wrong date)
+		// Update date (if ticked without date)
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, date FROM tick WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, userId);
 			ps.setInt(2, problemId);
@@ -100,8 +101,7 @@ public class Migrater {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					Date d = rst.getDate("date");
-					String dt = d == null? "" : sdf.format(d);
-					if (!dt.equals(date)) {
+					if (d == null) {
 						try (PreparedStatement psUpdate = c.getConnection().prepareStatement("UPDATE tick SET date=? WHERE id=?")) {
 							psUpdate.setDate(1, dateObj);
 							psUpdate.setInt(2, id);
