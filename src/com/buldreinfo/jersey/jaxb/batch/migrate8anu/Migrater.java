@@ -43,8 +43,6 @@ public class Migrater {
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
-		System.out.println("Ikke oppdater gamle ticker? Sjekk resultat fra query under foer commit...");
-		System.out.println("UPDATE problem p, tick t SET t.grade=p.grade WHERE p.id=t.problem_id AND t.user_id=" + userId + " AND p.grade!=t.grade AND ( (p.grade IN (43,44) AND t.grade IN (43,44)) OR (p.grade IN (37,38) AND t.grade IN (37,38)) OR (p.grade IN (35,36) AND t.grade IN (35,36)) OR (p.grade IN (33,34) AND t.grade IN (33,34))  OR (p.grade IN (31,32) AND t.grade IN (31,32)) )");
 	}
 
 	public Migrater(int userId, Path p) throws IOException {
@@ -89,6 +87,8 @@ public class Migrater {
 					tick(c, userId, problemIds.get(0), t);
 				}
 			}
+			System.out.println("Ikke oppdater gamle ticker? Sjekk resultat fra query under foer commit...");
+			System.out.println("UPDATE problem p, tick t SET t.grade=p.grade WHERE p.id=t.problem_id AND t.user_id=" + userId + " AND p.grade!=t.grade AND ( (p.grade IN (43,44) AND t.grade IN (43,44)) OR (p.grade IN (37,38) AND t.grade IN (37,38)) OR (p.grade IN (35,36) AND t.grade IN (35,36)) OR (p.grade IN (33,34) AND t.grade IN (33,34))  OR (p.grade IN (31,32) AND t.grade IN (31,32)) )");
 			c.setSuccess();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
