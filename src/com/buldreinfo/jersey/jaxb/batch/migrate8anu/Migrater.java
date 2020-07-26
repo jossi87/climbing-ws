@@ -39,6 +39,7 @@ public class Migrater {
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/1.json");
 		new Migrater(userId, p);
+		System.out.println("UPDATE problem p, tick t SET t.grade=p.grade WHERE p.id=t.problem_id AND t.user_id=" + userId + " AND p.grade!=t.grade AND ( (p.grade IN (43,44) AND t.grade IN (43,44)) OR (p.grade IN (37,38) AND t.grade IN (37,38)) OR (p.grade IN (35,36) AND t.grade IN (35,36)) OR (p.grade IN (33,34) AND t.grade IN (33,34))  OR (p.grade IN (31,32) AND t.grade IN (31,32)) )");
 	}
 
 	public Migrater(int userId, Path p) throws IOException {
@@ -106,6 +107,7 @@ public class Migrater {
 							psUpdate.setInt(2, id);
 							psUpdate.executeUpdate();
 							logger.debug("Update date on tick: " + t);
+							c.getBuldreinfoRepo().fillActivity(problemId);
 						}
 					}
 					return; // Tick is already existing!
@@ -150,6 +152,7 @@ public class Migrater {
 			ps.setDouble(6, stars);
 			ps.execute();
 			logger.debug("Created tick: " + t);
+			c.getBuldreinfoRepo().fillActivity(problemId);
 		}
 	}
 }
