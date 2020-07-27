@@ -43,13 +43,14 @@ public class Migrater {
 		 * DONE (brattelinjer):
 		 * - Andreas Ladstein (2020-07-27)
 		 * - Eivind Helgøy (2020-07-27)
+		 * - Fredric Møllerop (2020-07-27)
 		 * - Jan Robert (2020-07-25)
 		 * - Leiv Aspelund (2020-07-27)
 		 * - Matteo Gennaro (2020-07-26)
 		 * - Stian Engelsvoll (2020-07-26)
 		 * - Thomas Holgersen (2020-07-26)
 		 */
-		int userId = 1955;
+		int userId = 1233;
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
