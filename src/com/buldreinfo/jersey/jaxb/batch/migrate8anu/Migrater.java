@@ -39,7 +39,16 @@ public class Migrater {
 	 * TODO: Default: Only update date on existing tick, and only if date in buldreinfo is null
 	 */
 	public static void main(String[] args) throws IOException {
-		int userId = 1951; // Matteo Gennaro
+		/**
+		 * DONE (brattelinjer):
+		 * - Andreas Ladstein (2020-07-27)
+		 * - Eivind Helgøy (2020-07-27)
+		 * - Jan Robert (2020-07-25)
+		 * - Matteo Gennaro (2020-07-26)
+		 * - Stian Engelsvoll (2020-07-26)
+		 * - Thomas Holgersen (2020-07-26)
+		 */
+		int userId = 513; // Eivind Helgøy
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
@@ -56,7 +65,7 @@ public class Migrater {
 				if (!Strings.isNullOrEmpty(t.getCountrySlug()) && Lists.newArrayList("united-kingdom","turkey","australia","sweden","spain","italy","greece","thailand","france","germany").contains(t.getCountrySlug())) {
 					continue;
 				}
-				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("helleneset","oddane","kastetskogen","missiveggen","fiskesleppet","neseveggen","bymuren","selvågen","hjernemasseveggen","vikso","hvarnes","sandviken","kastetskogen","gjøkeredet","veatåa","bolstadøyri","oksåsen","bikkjeveggen","uteveggen","møtteveggen","syltøy","hjalla","glesnes","propagandaveggen","stjerneveggen","drømmehagen","mojavato","myggveggen","loven","hjallaveggen","vågeveggen","sageveggen","rævuri","mostraumen","perleveggen","paradis","stryn","furunkulose","goltastraumen","loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
+				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("tortelsvik","hellen festning","blåbærveggen","krabbeveggen","oldtidshelleren","bratthammaren","gandalfveggen","skyggehelleren","lofoten","pianokrakken","kvarven","storheia","røyrvika","bobleveggen","claret","turøy","avsnes","viitapohja","bøtteveggen","slettafossen","avsnes","bjørnebakken","piratbukta","finnvika","ekne","festvåg","krågedal","hodnedalen","mustavuori","lofotoen","paradiset","dronningen","helleneset","oddane","kastetskogen","missiveggen","fiskesleppet","neseveggen","bymuren","selvågen","hjernemasseveggen","vikso","hvarnes","sandviken","kastetskogen","gjøkeredet","veatåa","bolstadøyri","oksåsen","bikkjeveggen","uteveggen","møtteveggen","syltøy","hjalla","glesnes","propagandaveggen","stjerneveggen","drømmehagen","mojavato","myggveggen","loven","hjallaveggen","vågeveggen","sageveggen","rævuri","mostraumen","perleveggen","paradis","stryn","furunkulose","goltastraumen","loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
 					continue;
 				}
 				List<Integer> problemIds = new ArrayList<>();
