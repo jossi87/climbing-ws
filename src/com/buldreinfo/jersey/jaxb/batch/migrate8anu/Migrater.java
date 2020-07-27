@@ -44,11 +44,12 @@ public class Migrater {
 		 * - Andreas Ladstein (2020-07-27)
 		 * - Eivind Helgøy (2020-07-27)
 		 * - Jan Robert (2020-07-25)
+		 * - Leiv Aspelund (2020-07-27)
 		 * - Matteo Gennaro (2020-07-26)
 		 * - Stian Engelsvoll (2020-07-26)
 		 * - Thomas Holgersen (2020-07-26)
 		 */
-		int userId = 513; // Eivind Helgøy
+		int userId = 1955;
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
@@ -90,7 +91,7 @@ public class Migrater {
 					}
 				}
 				if (problemIds.isEmpty() || problemIds.size() > 1) {
-					logger.warn("case \"" + t.getZlaggableName() + "\": problemIds.add(); break;\t\t\t\t\t\t" + t);
+					logger.warn("case \"" + t.getZlaggableName() + "\": problemIds.add(); break;\t\t\t\t\t\t\t\t\t\t\t" + t);
 				}
 				else {
 					tick(c, userId, problemIds.get(0), t);
