@@ -112,14 +112,14 @@ public class MetaHelper {
 		setups.add(new Setup("buldring.flatangeradventure.no")
 				.setIdRegion(13)
 				.setBouldering(true)
-				.setTitle("Buldring i Flatanger")
-				.setDescription("Bouldering in Flatanger (Norway)")
+				.setTitle("Buldring i Trøndelag")
+				.setDescription("Bouldering in Trøndelag (Norway)")
 				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
 		setups.add(new Setup("klatring.flatangeradventure.no")
 				.setIdRegion(14)
 				.setBouldering(false)
-				.setTitle("Klatring i Flatanger")
-				.setDescription("Climbing in Flatanger (Norway)")
+				.setTitle("Klatring i Trøndelag")
+				.setDescription("Climbing in Trøndelag (Norway)")
 				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
 		setups.add(new Setup("buldring.narvikklatreklubb.no")
 				.setIdRegion(15)
