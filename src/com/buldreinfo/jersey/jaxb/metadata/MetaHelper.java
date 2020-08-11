@@ -114,13 +114,13 @@ public class MetaHelper {
 				.setBouldering(true)
 				.setTitle("Buldring i Trøndelag")
 				.setDescription("Bouldering in Trøndelag (Norway)")
-				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
+				.setLatLng(64.06897, 10.50973).setDefaultZoom(8));
 		setups.add(new Setup("klatring.flatangeradventure.no")
 				.setIdRegion(14)
 				.setBouldering(false)
 				.setTitle("Klatring i Trøndelag")
 				.setDescription("Climbing in Trøndelag (Norway)")
-				.setLatLng(63.35041, 9.06559).setDefaultZoom(8));
+				.setLatLng(64.06897, 10.50973).setDefaultZoom(8));
 		setups.add(new Setup("buldring.narvikklatreklubb.no")
 				.setIdRegion(15)
 				.setBouldering(true)
