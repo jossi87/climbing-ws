@@ -15,8 +15,17 @@ public class GradeHelper {
 	public static ImmutableBiMap<Integer, String> getGrades(Setup setup) {
 		Map<Integer, String> map = new LinkedHashMap<>();
 		if (!setup.isBouldering()) {
-			map.put(55, "10- (9a)");
-			map.put(54, "9+/10- (8c+)");
+			map.put(64, "9c");
+			//			map.put(63, "9b+/9c");
+			map.put(62, "9b+");
+			map.put(61, "9b/9b+");
+			map.put(60, "9b");
+			//			map.put(59, "9a+/9b");
+			map.put(58, "9a+");
+			//			map.put(57, "9a/9a+");
+			map.put(56, "10 (9a)");
+			map.put(55, "10-/10 (8c+/9a)");
+			map.put(54, "10- (8c+)");
 			map.put(53, "9+ (8c)");
 			map.put(52, "9/9+ (8b+)");
 			map.put(51, "9 (8b)");
@@ -109,7 +118,7 @@ public class GradeHelper {
 		}
 		return Preconditions.checkNotNull(res, "Invalid grade=" + grade + " (isBouldering=" + setup.isBouldering() + ")");
 	}
-	
+
 	public static Map<String, GradeDistribution> getGradeDistributionBase(Setup setup) {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		ImmutableBiMap<Integer, String> grades = getGrades(setup);
@@ -124,7 +133,7 @@ public class GradeHelper {
 		}
 		return res;
 	}
-	
+
 	public static String intToStringBase(Setup setup, int grade) {
 		String res = intToString(setup, grade);
 		int ix = res.indexOf("(");
