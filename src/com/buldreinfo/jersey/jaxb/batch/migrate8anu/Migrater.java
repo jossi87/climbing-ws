@@ -42,15 +42,17 @@ public class Migrater {
 		/**
 		 * DONE (brattelinjer):
 		 * - Andreas Ladstein (2020-07-27)
+		 * - Asbjørn Moe (2020-08-11)
 		 * - Eivind Helgøy (2020-07-27)
 		 * - Fredric Møllerop (2020-07-27)
 		 * - Jan Robert (2020-07-25)
+		 * - Lars Ove Gudevang (2020-08-11)
 		 * - Leiv Aspelund (2020-07-27)
 		 * - Matteo Gennaro (2020-07-26)
 		 * - Stian Engelsvoll (2020-07-26)
 		 * - Thomas Holgersen (2020-07-26)
 		 */
-		int userId = 1233;
+		int userId = 1055;
 		// https://www.8a.nu/api/users/62809/ascents?category=sportclimbing&pageIndex=0&pageSize=400&sortfield=grade_desc&timeFilter=0&gradeFilter=0&typeFilter=&isAscented=true
 		Path p = Paths.get("c:/users/joste_000/desktop/0.json");
 		new Migrater(userId, p);
@@ -71,7 +73,7 @@ public class Migrater {
 				if (!Strings.isNullOrEmpty(t.getCountrySlug()) && Lists.newArrayList("united-kingdom","turkey","australia","sweden","spain","italy","greece","thailand","france","germany").contains(t.getCountrySlug())) {
 					continue;
 				}
-				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("tortelsvik","hellen festning","blåbærveggen","krabbeveggen","oldtidshelleren","bratthammaren","gandalfveggen","skyggehelleren","lofoten","pianokrakken","kvarven","storheia","røyrvika","bobleveggen","claret","turøy","avsnes","viitapohja","bøtteveggen","slettafossen","avsnes","bjørnebakken","piratbukta","finnvika","ekne","festvåg","krågedal","hodnedalen","mustavuori","lofotoen","paradiset","dronningen","helleneset","oddane","kastetskogen","missiveggen","fiskesleppet","neseveggen","bymuren","selvågen","hjernemasseveggen","vikso","hvarnes","sandviken","kastetskogen","gjøkeredet","veatåa","bolstadøyri","oksåsen","bikkjeveggen","uteveggen","møtteveggen","syltøy","hjalla","glesnes","propagandaveggen","stjerneveggen","drømmehagen","mojavato","myggveggen","loven","hjallaveggen","vågeveggen","sageveggen","rævuri","mostraumen","perleveggen","paradis","stryn","furunkulose","goltastraumen","loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
+				if (!Strings.isNullOrEmpty(t.getCragName()) && Lists.newArrayList("ewige jagdgründe","gimmelwald","jubelveggen","gastlosen","tveita","ponte brolla","hønjum","karakush","karakors","jarlsberget","skarvann","arcidona","lærdal","berdorf","lehn","kanalen","neuhaus","øksningan","asylet","lahell","beachen","erdal","sørkedalen","wanaka","mekka","stella maris","osp/misja pec","lier","hellerud","damtjern","hauktjern","fetsund","kvam","mekka","løkenhavna","missingmyr","tortelsvik","hellen festning","blåbærveggen","krabbeveggen","oldtidshelleren","bratthammaren","gandalfveggen","skyggehelleren","lofoten","pianokrakken","kvarven","storheia","røyrvika","bobleveggen","claret","turøy","avsnes","viitapohja","bøtteveggen","slettafossen","avsnes","bjørnebakken","piratbukta","finnvika","ekne","festvåg","krågedal","hodnedalen","mustavuori","lofotoen","paradiset","dronningen","helleneset","oddane","kastetskogen","missiveggen","fiskesleppet","neseveggen","bymuren","selvågen","hjernemasseveggen","vikso","hvarnes","sandviken","kastetskogen","gjøkeredet","veatåa","bolstadøyri","oksåsen","bikkjeveggen","uteveggen","møtteveggen","syltøy","hjalla","glesnes","propagandaveggen","stjerneveggen","drømmehagen","mojavato","myggveggen","loven","hjallaveggen","vågeveggen","sageveggen","rævuri","mostraumen","perleveggen","paradis","stryn","furunkulose","goltastraumen","loddefjord","sykehusveggen","flatanger","buråsen","sødal","hell","bukkespranget","tjøm","mjelvahammeren","laxefeltet","sødal").contains(t.getCragName().toLowerCase())) {
 					continue;
 				}
 				List<Integer> problemIds = new ArrayList<>();
@@ -149,7 +151,9 @@ public class Migrater {
 			ps.setInt(1, problemId);
 			ps.setInt(2, userId);
 			ps.setDate(3, dateObj);
-			ps.setInt(4, GradeHelper.stringToInt(setup, t.getDifficulty()));
+			String grade = t.getDifficulty();
+			if (grade.equals("3a")) grade="3";
+			ps.setInt(4, GradeHelper.stringToInt(setup, grade));
 			ps.setString(5, t.getComment());
 			ps.setDouble(6, stars);
 			ps.execute();
