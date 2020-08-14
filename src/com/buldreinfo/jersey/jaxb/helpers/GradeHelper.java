@@ -142,6 +142,10 @@ public class GradeHelper {
 		}
 		else {
 			res = res.replaceAll("\\-", "").replaceAll("\\+", "");
+			ix = res.indexOf("/");
+			if (ix > 0) {
+				res = res.substring(0, ix);
+			}
 		}
 		if (res.startsWith("3")) {
 			return "3";
