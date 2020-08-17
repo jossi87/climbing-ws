@@ -2514,8 +2514,9 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
+					List<Svg> svgs = getSvgs(itId);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					media.add(new Media(itId, pitch, width, height, tyId, t, 0, null, mediaMetadata));
+					media.add(new Media(itId, pitch, width, height, tyId, t, 0, svgs, mediaMetadata));
 				}
 			}
 		}
