@@ -2638,15 +2638,19 @@ public class BuldreinfoRepository {
 					int grade = rst.getInt("grade");
 					String name = rst.getString("name");
 					String comment = rst.getString("description");
-					String fa = rst.getString("fa");
+					String firstAscent = rst.getString("fa");
+					String fa = null;
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
 						String aid = "FA: " + problemIdFirstAidAscentLookup.get(id);
-						if (Strings.isNullOrEmpty(fa)) {
+						if (Strings.isNullOrEmpty(firstAscent)) {
 							fa = aid;
 						}
 						else {
-							fa = aid + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
+							fa = aid + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + firstAscent;
 						}
+					}
+					else {
+						fa = firstAscent;
 					}
 					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 					int numPitches = rst.getInt("num_pitches");
