@@ -2640,11 +2640,12 @@ public class BuldreinfoRepository {
 					String comment = rst.getString("description");
 					String fa = rst.getString("fa");
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
+						String aid = "FA: " + problemIdFirstAidAscentLookup.get(id);
 						if (Strings.isNullOrEmpty(fa)) {
-							fa = problemIdFirstAidAscentLookup.get(id);
+							fa = aid;
 						}
 						else {
-							fa = problemIdFirstAidAscentLookup.get(id) + ", " + fa;
+							fa = aid + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
 						}
 					}
 					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
