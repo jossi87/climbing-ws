@@ -2475,6 +2475,21 @@ public class BuldreinfoRepository {
 		return usId;
 	}
 
+	private Map<Integer, String> getFaAidNamesOnSector(int sectorId) throws SQLException {
+		Map<Integer, String> res = new HashMap<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
+			ps.setInt(1, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idProblem = rst.getInt("id");
+					String fa = rst.getString("fa");
+					res.put(idProblem, fa);
+				}
+			}
+		}
+		return res;
+	}
+
 	private List<Media> getMediaArea(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ma.sorting DESC, m.id")) {
@@ -2525,7 +2540,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-
+	
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ms.sorting DESC, m.id")) {
@@ -2568,6 +2583,10 @@ public class BuldreinfoRepository {
 		}
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
+		Map<Integer, String> problemIdFirstAidAscentLookup = null;
+		if (!setup.isBouldering()) {
+			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(reqId);
+		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.hidden area_hidden, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE s.id=? AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY r.url, a.id, a.hidden, a.name, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits")) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -2620,6 +2639,14 @@ public class BuldreinfoRepository {
 					String name = rst.getString("name");
 					String comment = rst.getString("description");
 					String fa = rst.getString("fa");
+					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
+						if (Strings.isNullOrEmpty(fa)) {
+							fa = problemIdFirstAidAscentLookup.get(id);
+						}
+						else {
+							fa = problemIdFirstAidAscentLookup.get(id) + ", " + fa;
+						}
+					}
 					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 					int numPitches = rst.getInt("num_pitches");
 					boolean hasImages = rst.getInt("num_images")>0;
