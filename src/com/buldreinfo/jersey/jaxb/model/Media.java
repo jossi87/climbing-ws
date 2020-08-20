@@ -9,28 +9,22 @@ public class Media {
 	private final int height;
 	private final int idType;
 	private final String t;
-	private final String description;
 	private final int svgProblemId;
 	private final List<Svg> svgs;
 	private final MediaMetadata mediaMetadata;
 
-	public Media(int id, int pitch, int width, int height, int idType, String t, String description, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata) {
+	public Media(int id, int pitch, int width, int height, int idType, String t, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata) {
 		this.id = id;
 		this.pitch = pitch;
 		this.width = width;
 		this.height = height;
 		this.idType = idType;
 		this.t = t;
-		this.description = description;
 		this.svgProblemId = svgProblemId;
 		this.svgs = svgs;
 		this.mediaMetadata = mediaMetadata;
 	}
 	
-	public String getDescription() {
-		return description;
-	}
-
 	public int getHeight() {
 		return height;
 	}

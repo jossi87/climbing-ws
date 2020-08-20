@@ -7,33 +7,39 @@ public class MediaMetadata {
 	private final String dateTaken;
 	private final String capturer;
 	private final String tagged;
+	private final String description;
 	private final String alt;
 	
-	public MediaMetadata(String dateCreated, String dateTaken, String capturer, String tagged) {
+	public MediaMetadata(String dateCreated, String dateTaken, String capturer, String tagged, String description) {
 		this.dateCreated = dateCreated;
 		this.dateTaken = dateTaken;
 		this.capturer = capturer;
 		this.tagged = tagged;
-		this.alt = "Captured by " + capturer + (!Strings.isNullOrEmpty(tagged)? ", in photo: " + tagged : "");
+		this.description = description;
+		this.alt = "Captured by " + capturer + (!Strings.isNullOrEmpty(tagged)? ", in photo: " + tagged : "") + (!Strings.isNullOrEmpty(description)? " - " + description : "");
 	}
 
-	public String getDateCreated() {
-		return dateCreated;
-	}
-
-	public String getDateTaken() {
-		return dateTaken;
+	public String getAlt() {
+		return alt;
 	}
 
 	public String getCapturer() {
 		return capturer;
 	}
 
-	public String getTagged() {
-		return tagged;
+	public String getDateCreated() {
+		return dateCreated;
+	}
+	
+	public String getDateTaken() {
+		return dateTaken;
 	}
 
-	public String getAlt() {
-		return alt;
+	public String getDescription() {
+		return description;
+	}
+
+	public String getTagged() {
+		return tagged;
 	}
 }

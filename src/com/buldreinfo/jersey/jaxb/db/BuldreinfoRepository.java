@@ -2507,8 +2507,8 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					media.add(new Media(itId, pitch, width, height, tyId, null, description, 0, null, mediaMetadata));
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					media.add(new Media(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata));
 				}
 			}
 		}
@@ -2533,8 +2533,8 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<Svg> svgs = getSvgs(itId);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					media.add(new Media(itId, pitch, width, height, tyId, t, description, problemId, svgs, mediaMetadata));
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					media.add(new Media(itId, pitch, width, height, tyId, t, problemId, svgs, mediaMetadata));
 				}
 			}
 		}
@@ -2561,8 +2561,8 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<Svg> svgs = getSvgs(itId);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					Media m = new Media(itId, pitch, width, height, tyId, null, description, optionalIdProblem, svgs, mediaMetadata);
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					Media m = new Media(itId, pitch, width, height, tyId, null, optionalIdProblem, svgs, mediaMetadata);
 					if (optionalIdProblem != 0 && svgs != null
 							&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 						media.clear();
