@@ -2213,12 +2213,13 @@ public class BuldreinfoRepository {
 			 */
 			int idMedia = -1;
 			final String suffix = "jpg";
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description) VALUES (?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, false);
 				ps.setString(2, suffix);
 				ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
 				ps.setInt(4, idUser);
 				ps.setTimestamp(5, now);
+				ps.setString(6, m.getDescription());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -2492,11 +2493,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaArea(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ma.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ma.sorting DESC, m.id")) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int itId = rst.getInt("id");
+					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
@@ -2506,7 +2508,7 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					media.add(new Media(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata));
+					media.add(new Media(itId, pitch, width, height, tyId, null, description, 0, null, mediaMetadata));
 				}
 			}
 		}
@@ -2515,11 +2517,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaProblem(Setup s, int sectorId, int problemId) throws SQLException {
 		List<Media> media = getMediaSector(sectorId, problemId);
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, -mp.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, -mp.sorting DESC, m.id")) {
 			ps.setInt(1, problemId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int itId = rst.getInt("id");
+					String description = rst.getString("description");
 					int pitch = rst.getInt("pitch");
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
@@ -2531,7 +2534,7 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<Svg> svgs = getSvgs(itId);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					media.add(new Media(itId, pitch, width, height, tyId, t, problemId, svgs, mediaMetadata));
+					media.add(new Media(itId, pitch, width, height, tyId, t, description, problemId, svgs, mediaMetadata));
 				}
 			}
 		}
@@ -2543,11 +2546,12 @@ public class BuldreinfoRepository {
 	
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.width, m.height, m.is_movie, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ms.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ms.sorting DESC, m.id")) {
 			ps.setInt(1, idSector);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int itId = rst.getInt("id");
+					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
@@ -2558,7 +2562,7 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<Svg> svgs = getSvgs(itId);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged);
-					Media m = new Media(itId, pitch, width, height, tyId, null, optionalIdProblem, svgs, mediaMetadata);
+					Media m = new Media(itId, pitch, width, height, tyId, null, description, optionalIdProblem, svgs, mediaMetadata);
 					if (optionalIdProblem != 0 && svgs != null
 							&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 						media.clear();
