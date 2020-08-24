@@ -128,6 +128,7 @@ public class PdfGenerator {
 			addTableCell(table, true, "Type");
 		}
 		addTableCell(table, true, "FA");
+		addTableCell(table, true, "Note");
 		for (Problem p : s.getProblems()) {
 			addTableCell(table, false, String.valueOf(p.getNr()));
 			addTableCell(table, false, p.getName());
