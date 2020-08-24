@@ -18,6 +18,7 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.Problem;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
@@ -45,6 +46,7 @@ public class PdfGenerator {
 	private final List<Sector> sectors;
 
 	public PdfGenerator(OutputStream output, Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+		Preconditions.checkArgument(area != null && !sectors.isEmpty());
 		this.area = area;
 		this.sectors = sectors;
 		this.document = new Document();
@@ -93,7 +95,9 @@ public class PdfGenerator {
 			Anchor anchor = new Anchor(s.getName(), FONT_CHAPTER);
 			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
 			Chapter chapter = new Chapter(new Paragraph(anchor), (i+1));
-			writeSectorTopo(chapter, s);
+			if (s.getMedia() != null && !s.getMedia().isEmpty()) {
+				writeSectorTopo(chapter, s);
+			}
 			writeSectorTable(chapter, s);
 			document.add(chapter);
 		}
