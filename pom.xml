@@ -9,19 +9,6 @@
 	<name>com.buldreinfo.jersey.jaxb</name>
 	<description>WebService for buldreinfo.com</description>
 
-	<repositories>
-		<repository>
-			<id>verico-public</id>
-			<name>Verico Public</name>
-			<url>http://map.verico.no/maven-repo/content/groups/public/</url>
-		</repository>
-		<repository>
-			<id>verico-snapshots</id>
-			<name>Verico Snapshots</name>
-			<url>http://map.verico.no/maven-repo/content/repositories/snapshots/</url>
-		</repository>
-	</repositories>
-
 	<properties>
 		<project.build.sourceEncoding>Cp1252</project.build.sourceEncoding>
 	</properties>
@@ -212,9 +199,9 @@
 			<version>4.1.0</version>
 		</dependency>
 		<dependency>
-			<groupId>com.verico</groupId>
-			<artifactId>ThumbnailCreator</artifactId>
-			<version>1.3.1-SNAPSHOT</version>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-imaging</artifactId>
+			<version>1.0-alpha1</version>
 		</dependency>
 	</dependencies>
 </project>

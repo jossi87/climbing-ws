@@ -79,6 +79,8 @@ import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
+import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
@@ -93,8 +95,6 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.verico.pictures.ExifOrientation;
-import com.verico.pictures.ThumbnailCreation;
 
 import jersey.repackaged.com.google.common.base.Joiner;
 
