@@ -152,6 +152,9 @@ public class PdfGenerator {
 			Anchor anchor = new Anchor(s.getName(), FONT_CHAPTER);
 			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
 			Chapter chapter = new Chapter(new Paragraph(anchor), (i+1));
+			if (!Strings.isNullOrEmpty(s.getComment())) {
+				chapter.add(new Paragraph(s.getComment()));
+			}
 			writeSectorTable(chapter, s);
 			if (s.getMedia() != null) {
 				writeSectorTopo(chapter, s);
