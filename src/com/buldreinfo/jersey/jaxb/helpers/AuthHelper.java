@@ -34,7 +34,7 @@ public class AuthHelper {
 				@Override
 				public Auth0Profile load(String authorization) throws Exception {
 					try {
-						Request<UserInfo> req = auth.userInfo(authorization.substring(7));
+						Request<UserInfo> req = auth.userInfo(authorization);
 						UserInfo info = req.execute();
 						Map<String, Object> values = info.getValues();
 						return new Auth0Profile(values);
@@ -45,42 +45,47 @@ public class AuthHelper {
 				}
 			});
 
+	public int getUserId(DbConnection c, HttpServletRequest request, MetaHelper metaHelper, String accessToken) {
+		try {
+			boolean update = cache.getIfPresent(accessToken) == null;
+			Auth0Profile profile = cache.get(accessToken);
+			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
+			if (update) {
+				Setup setup = metaHelper.getSetup(request);
+				Gson gson = new Gson();
+				String headers = gson.toJson(getHeadersInfo(request));
+				// Log login
+				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, headers) VALUES (?, ?, ?)")) {
+					ps.setInt(1, userId);
+					ps.setInt(2, setup.getIdRegion());
+					ps.setString(3, headers);
+					ps.execute();
+				}
+			}
+			return userId;
+		} catch (Exception e) {
+			logger.warn("getUserId(accessToken={}) - authentication failed, login required", accessToken);
+			return -1;
+		}
+	}
+
 	public int getUserId(DbConnection c, HttpServletRequest request, MetaHelper metaHelper) {
 		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (Strings.isNullOrEmpty(authorization)) {
 			return -1;
 		}
-		try {
-			boolean update = cache.getIfPresent(authorization) == null;
-			Auth0Profile profile = cache.get(authorization);
-			int userId = c.getBuldreinfoRepo().getAuthUserId(profile);
-			if (update) {
-				// Log login
-				final Setup setup = metaHelper.getSetup(request);
-				Gson gson = new Gson();
-				String headers = gson.toJson(getHeadersInfo(request));
-				PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_login (user_id, region_id, headers) VALUES (?, ?, ?)");
-				ps.setInt(1, userId);
-				ps.setInt(2, setup.getIdRegion());
-				ps.setString(3, headers);
-				ps.execute();
-				ps.close();
-			}
-			return userId;
-		} catch (Exception e) {
-			logger.warn("getUserId(authorizationHeader={}) - authentication failed, login required", authorization);
-			return -1;
-		}
+		String accessToken = authorization.substring(7); // Remove "Bearer "
+		return getUserId(c, request, metaHelper, accessToken);
 	}
-	
+
 	private Map<String, String> getHeadersInfo(HttpServletRequest request) {
-        Map<String, String> map = new HashMap<String, String>();
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String key = (String) headerNames.nextElement();
-            String value = request.getHeader(key);
-            map.put(key, value);
-        }
-        return map;
-    }
+		Map<String, String> map = new HashMap<String, String>();
+		Enumeration<String> headerNames = request.getHeaderNames();
+		while (headerNames.hasMoreElements()) {
+			String key = (String) headerNames.nextElement();
+			String value = request.getHeader(key);
+			map.put(key, value);
+		}
+		return map;
+	}
 }

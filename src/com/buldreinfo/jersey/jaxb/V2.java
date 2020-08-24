@@ -133,30 +133,13 @@ public class V2 {
 	}
 	
 	@GET
-	@Path("/browse")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
-	public Response getFactsheet(@Context final HttpServletRequest request, @QueryParam("id") int id) throws Throwable{
+	public Response getAreasPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
-			final int authUserId = getUserId(request);
+			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Area area = c.getBuldreinfoRepo().getArea(authUserId, id);
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			final List<Sector> sectors = new ArrayList<>();
@@ -183,6 +166,23 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 			}
+
+	@GET
+	@Path("/browse")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+			Browse res = new Browse(areas);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
 
 	@GET
 	@Path("/frontpage")
