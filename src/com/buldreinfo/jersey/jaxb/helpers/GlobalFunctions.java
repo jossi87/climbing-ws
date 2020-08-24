@@ -20,4 +20,8 @@ public class GlobalFunctions {
 		logger.fatal(e.getMessage(), e);
 		return new WebApplicationException(Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity(e.getMessage()).build());
 	}
+	
+	public static String getUrlJpgToImage(int id) {
+		return "https://brattelinjer.no/buldreinfo_media/jpg/" + String.valueOf(id / 100 * 100) + "/" + id + ".jpg";
+	}
 }

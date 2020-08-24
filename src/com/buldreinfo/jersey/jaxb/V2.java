@@ -4,8 +4,10 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -20,10 +22,12 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
@@ -59,6 +63,7 @@ import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -126,7 +131,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -143,6 +148,41 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
+
+	@GET
+	@Path("/areas/pdf")
+	@Produces("application/pdf")
+	public Response getFactsheet(@Context final HttpServletRequest request, @QueryParam("id") int id) throws Throwable{
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int requestedIdMedia = 0;
+			final int authUserId = getUserId(request);
+			final Area area = c.getBuldreinfoRepo().getArea(authUserId, id);
+			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
+			final List<Sector> sectors = new ArrayList<>();
+			final boolean orderByGrade = false;
+			for (Area.Sector sector : area.getSectors()) {
+				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, sector.getId());
+				metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
+				sectors.add(s);
+			}
+			c.setSuccess();
+			StreamingOutput stream = new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					try {
+						new PdfGenerator(output, area, sectors);
+					} catch (Throwable e) {
+						e.printStackTrace();
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
+					}	            	 
+				}
+			};
+			return Response.ok(stream).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+			}
 
 	@GET
 	@Path("/frontpage")
