@@ -88,6 +88,7 @@ public class PdfGenerator {
 
 	private void writeSectors() throws DocumentException, IOException, TranscoderException, TransformerException {
 		for (int i = 0; i < sectors.size(); i++) {
+			document.newPage();
 			Sector s = sectors.get(i);
 			Anchor anchor = new Anchor(s.getName(), FONT_CHAPTER);
 			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
