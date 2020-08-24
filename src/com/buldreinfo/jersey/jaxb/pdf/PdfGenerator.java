@@ -116,8 +116,10 @@ public class PdfGenerator {
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
 				img = Image.getInstance(url);
 			}
-			img.scaleToFit(527, 527);
-			section.add(img);
+			if (img != null) {
+				img.scaleToFit(527, 527);
+				section.add(img);
+			}
 		}
 	}
 
