@@ -118,7 +118,7 @@ public class PdfGenerator {
 	}
 
 	private void writeSectorTable(Section section, Sector s) {
-		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5} : new float[]{1, 5, 2, 2, 5};
+		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
 		PdfPTable table = new PdfPTable(relativeWidths);
 		table.setWidthPercentage(100);
 		addTableCell(table, true, "#");
@@ -136,6 +136,7 @@ public class PdfGenerator {
 				addTableCell(table, false, p.getT().getSubType());
 			}
 			addTableCell(table, false, p.getFa());
+			addTableCell(table, false, p.getComment());
 		}
 		section.add(new Paragraph(" "));
 		section.add(table);
