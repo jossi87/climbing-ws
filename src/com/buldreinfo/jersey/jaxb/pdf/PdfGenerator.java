@@ -50,8 +50,6 @@ public class PdfGenerator {
 		this.sectors = sectors;
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
-		FooterPageEvent event = new FooterPageEvent();
-		writer.setPageEvent(event);
 		document.open();
 		addMetaData();
 		if (!Strings.isNullOrEmpty(area.getComment()) || (area.getMedia() != null && area.getMedia().isEmpty())) {
