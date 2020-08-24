@@ -153,7 +153,7 @@ public class PdfGenerator {
 			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
 			Chapter chapter = new Chapter(new Paragraph(anchor), (i+1));
 			if (!Strings.isNullOrEmpty(s.getComment())) {
-				chapter.add(new Paragraph(s.getComment()));
+				chapter.add(new Paragraph(s.getComment(), FONT_REGULAR));
 			}
 			writeSectorTable(chapter, s);
 			if (s.getMedia() != null) {
