@@ -7,7 +7,6 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.xml.transform.TransformerException;
 
@@ -95,7 +94,7 @@ public class PdfGenerator {
 			Anchor anchor = new Anchor(s.getName(), FONT_CHAPTER);
 			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
 			Chapter chapter = new Chapter(new Paragraph(anchor), (i+1));
-			if (s.getMedia() != null && !s.getMedia().isEmpty()) {
+			if (s.getMedia() != null) {
 				writeSectorTopo(chapter, s);
 			}
 			writeSectorTable(chapter, s);
@@ -104,12 +103,16 @@ public class PdfGenerator {
 	}
 
 	private void writeSectorTopo(Section section, Sector s) throws BadElementException, IOException, TranscoderException, TransformerException {
-		for (Media m : s.getMedia()
-				.stream()
-				.filter(x -> x.getSvgs() != null && !x.getSvgs().isEmpty())
-				.collect(Collectors.toList())) {
-			Path topo = TopoGenerator.generateTopo(m);
-			Image img = Image.getInstance(topo.toString());
+		for (Media m : s.getMedia()) {
+			Image img = null;
+			if (m.getSvgs() != null && !m.getSvgs().isEmpty()) {
+				Path topo = TopoGenerator.generateTopo(m);
+				img = Image.getInstance(topo.toString());
+			}
+			else {
+				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
+				img = Image.getInstance(url);
+			}
 			img.scaleToFit(527, 527);
 			section.add(img);
 		}
