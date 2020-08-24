@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.transform.TransformerException;
 
@@ -19,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.Problem;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.Chapter;
@@ -43,6 +45,7 @@ public class PdfGenerator {
 	private final Document document;
 	private final Area area;
 	private final List<Sector> sectors;
+	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
 
 	public PdfGenerator(OutputStream output, Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
@@ -78,6 +81,7 @@ public class PdfGenerator {
 		}
 		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 			for (Media m : area.getMedia()) {
+				mediaIdProcessed.add(m.getId());
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
 				Image img = Image.getInstance(url);
 				img.scaleToFit(527, 527);
@@ -108,7 +112,7 @@ public class PdfGenerator {
 				Path topo = TopoGenerator.generateTopo(m);
 				img = Image.getInstance(topo.toString());
 			}
-			else {
+			else if (mediaIdProcessed.add(m.getId())) {
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
 				img = Image.getInstance(url);
 			}
