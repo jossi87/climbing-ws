@@ -384,6 +384,10 @@ public class Problem implements IMetadata {
 		this.faAid = faAid;
 	}
 	
+	public List<Comment> getComments() {
+		return comments;
+	}
+	
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;

@@ -154,7 +154,9 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
-						new PdfGenerator(output, area, sectors);
+						try (PdfGenerator generator = new PdfGenerator(output)) {
+							generator.writeArea(area, sectors);
+						}
 					} catch (Throwable e) {
 						e.printStackTrace();
 						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
@@ -166,7 +168,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 			}
-
+	
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -306,6 +308,40 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
+
+	@GET
+	@Path("/problems/pdf")
+	@Produces("application/pdf")
+	public Response getProblemsPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int requestedIdMedia = 0;
+			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
+			final Area area = c.getBuldreinfoRepo().getArea(authUserId, problem.getAreaId());
+			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
+			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
+			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			StreamingOutput stream = new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					try {
+						try (PdfGenerator generator = new PdfGenerator(output)) {
+							generator.writeProblem(area, sector, problem);
+						}
+					} catch (Throwable e) {
+						e.printStackTrace();
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
+					}	            	 
+				}
+			};
+			return Response.ok(stream).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+			}
 
 	@GET
 	@Path("/robots.txt")

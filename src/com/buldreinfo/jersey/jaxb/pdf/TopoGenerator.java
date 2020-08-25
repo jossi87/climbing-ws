@@ -28,22 +28,21 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 public class TopoGenerator {
-	public static Path generateTopo(Media media) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
+	public static Path generateTopo(int mediaId, int width, int height, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
 		Path dst = Files.createTempFile("topo", "jpg");
-		try (Reader reader = new StringReader(generateDocument(media))) {
+		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, svgs))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (OutputStream os = new FileOutputStream(dst.toString())) {
 				TranscoderOutput to = new TranscoderOutput(os);
 				JPEGTranscoder t = new JPEGTranscoder();
 				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, new Float(1));
-				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, new Float(media.getWidth()));
-				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, new Float(media.getHeight()));
+				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, new Float(width));
+				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, new Float(height));
 				t.addTranscodingHint(JPEGTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "*");
 				t.addTranscodingHint(JPEGTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, new Boolean(true));
 				t.addTranscodingHint(JPEGTranscoder.KEY_EXECUTE_ONLOAD, new Boolean(true));
@@ -53,17 +52,17 @@ public class TopoGenerator {
 		return dst;
 	}
 
-	private static String generateDocument(Media media) throws TransformerException {
+	private static String generateDocument(int mediaId, int width, int height, List<Svg> svgs) throws TransformerException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 		Document doc = impl.createDocument(svgNS, "svg", null);
 		Element svgRoot = doc.getDocumentElement();
-		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + media.getWidth() + " " + media.getHeight());
+		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
 		svgRoot.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
 
 		// Image
 		Element image = doc.createElementNS(null, "image");
-		String url = GlobalFunctions.getUrlJpgToImage(media.getId());
+		String url = GlobalFunctions.getUrlJpgToImage(mediaId);
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "height", "100%");
@@ -71,8 +70,8 @@ public class TopoGenerator {
 		svgRoot.appendChild(image);
 
 		List<Element> texts = Lists.newArrayList(); // Text always on top
-		for (Svg svg : media.getSvgs()) {
-			final int imgMax = Math.max(media.getHeight(), media.getWidth());
+		for (Svg svg : svgs) {
+			final int imgMax = Math.max(width, height);
 			List<String> parts = Lists.newArrayList(Splitter.on("L").omitEmptyStrings().trimResults().split(svg.getPath().replace("M", "L").replace("C", "L")));
 			float x0 = Float.parseFloat(parts.get(0).split(" ")[0]);
 			float y0 = Float.parseFloat(parts.get(0).split(" ")[1]);

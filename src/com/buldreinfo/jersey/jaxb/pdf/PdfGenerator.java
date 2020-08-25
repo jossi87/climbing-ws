@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.transform.TransformerException;
 
@@ -22,17 +23,23 @@ import org.apache.batik.transcoder.TranscoderException;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.FaAid;
+import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Media;
+import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
+import com.buldreinfo.jersey.jaxb.model.Problem.Section;
+import com.buldreinfo.jersey.jaxb.model.Problem.Tick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Sector.Problem;
+import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
-import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Chapter;
 import com.itextpdf.text.Chunk;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -41,94 +48,227 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
-import com.itextpdf.text.Section;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
+import com.itextpdf.text.pdf.PdfDestination;
+import com.itextpdf.text.pdf.PdfOutline;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfPageEventHelper;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
 
-public class PdfGenerator {
+public class PdfGenerator implements AutoCloseable {
 	class MyFooter extends PdfPageEventHelper {
-        public void onEndPage(PdfWriter writer, Document document) {
-            PdfContentByte cb = writer.getDirectContent();
-            Phrase header = new Phrase("\u00A9 buldreinfo.com & brattelinjer.no", FONT_SMALL);
-            Phrase footer = new Phrase("Page " + document.getPageNumber(), FONT_SMALL);
-            ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
-                    header,
-                    (document.right() - document.left()) / 2 + document.leftMargin(),
-                    document.top() + 10, 0);
-            ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
-                    footer,
-                    (document.right() - document.left()) / 2 + document.leftMargin(),
-                    document.bottom() - 10, 0);
-        }
-    }
+		public void onEndPage(PdfWriter writer, Document document) {
+			PdfContentByte cb = writer.getDirectContent();
+			Phrase header = new Phrase("\u00A9 buldreinfo.com & brattelinjer.no", FONT_SMALL);
+			Phrase footer = new Phrase("Page " + document.getPageNumber(), FONT_SMALL);
+			ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
+					header,
+					(document.right() - document.left()) / 2 + document.leftMargin(),
+					document.top() + 10, 0);
+			ColumnText.showTextAligned(cb, Element.ALIGN_CENTER,
+					footer,
+					(document.right() - document.left()) / 2 + document.leftMargin(),
+					document.bottom() - 10, 0);
+		}
+	}
 	private static Font FONT_SMALL = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
-	private static Font FONT_HEADER = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
-	private static Font FONT_CHAPTER = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
+	private static Font FONT_H1 = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
+	private static Font FONT_H2 = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
 	private static Font FONT_REGULAR = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL);
 	private static Font FONT_ITALIC = new Font(Font.FontFamily.HELVETICA, 9, Font.ITALIC);
 	private static Font FONT_REGULAR_LINK = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.BLUE);
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
-	public static void main(String[] args) throws IOException, DocumentException, TranscoderException, TransformerException {
-		int areaId = 2754;
+	private final static int IMAGE_STAR_SIZE = 9;
+	public static void main(String[] args) throws Exception {
+		int areaId = 2891;
+		int problemId = 7752;
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
-			Area area = null;
 			List<Sector> sectors = new ArrayList<>();
 			URL obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/areas?id=" + areaId);
 			HttpURLConnection con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
-			int responseCode = con.getResponseCode();
-			if (responseCode == HttpURLConnection.HTTP_OK) {
-				area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
-			}
+			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
 			for (Area.Sector s : area.getSectors()) {
 				obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
-				responseCode = con.getResponseCode();
-				if (responseCode == HttpURLConnection.HTTP_OK) {
-					sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
-				}
+				sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
 			}
-			new PdfGenerator(fos, area, sectors);
+			obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
+			con = (HttpURLConnection)obj.openConnection();
+			con.setRequestMethod("GET");
+			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
+			try (PdfGenerator generator = new PdfGenerator(fos)) {
+				// generator.writeArea(area, sectors);
+				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+			}
 		}
 	}
 	private final PdfWriter writer;
 	private final Document document;
-	private final Area area;
-	private final List<Sector> sectors;
 	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
-	private final static int IMAGE_STAR_SIZE = 9;
 	private Image imageStarFilled;
 	private Image imageStarHalf;
 	private Image imageStarEmpty;
-	
-	public PdfGenerator(OutputStream output, Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
-		Preconditions.checkArgument(area != null && !sectors.isEmpty());
-		this.area = area;
-		this.sectors = sectors;
+	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException, TransformerException {
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
-        writer.setPageEvent(new MyFooter());
+		writer.setPageEvent(new MyFooter());
 		document.open();
-		addMetaData();
-		if (!Strings.isNullOrEmpty(area.getComment()) || (area.getMedia() != null && area.getMedia().isEmpty())) {
-			writeFrontpage();
-		}
-		writeSectors();
-		document.close();
 	}
-	
-	private void addMetaData() {
-		document.addTitle(area.getName());
-		document.addSubject(area.getName());
-		document.addKeywords(area.getName());
+
+	@Override
+	public void close() throws Exception {
+		document.close();		
+	}
+
+	public void writeArea(Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+		Preconditions.checkArgument(area != null && !sectors.isEmpty());
+		String title = area.getName();
+		addMetaData(title);
+		document.add(new Paragraph(title, FONT_H1));
+		if (!Strings.isNullOrEmpty(area.getComment())) {
+			writeHtml(area.getComment());
+		}
+		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
+			for (Media m : area.getMedia()) {
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+			}
+		}
+		writeSectors(sectors);
+	}
+
+	public void writeProblem(Area area, Sector sector, Problem problem) throws DocumentException, IOException, TranscoderException, TransformerException {
+		Preconditions.checkArgument(area != null && sector != null && problem != null);
+		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());
+		addMetaData(title);
+		document.add(new Paragraph(title, FONT_H1));
+		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
+		if (!Strings.isNullOrEmpty(html)) {
+			writeHtml(html);
+		}
+
+		// Route/Problem info
+		Paragraph paragraph = new Paragraph();
+		paragraph.add(new Chunk("Type: ", FONT_BOLD));
+		paragraph.add(new Chunk(problem.getT().getSubType(), FONT_REGULAR));
+		document.add(paragraph);
+		paragraph = new Paragraph();
+		paragraph.add(new Chunk("Grade: ", FONT_BOLD));
+		paragraph.add(new Chunk(problem.getGrade(), FONT_REGULAR));
+		document.add(paragraph);
+		if (problem.getFaAid() != null) {
+			FaAid faAid = problem.getFaAid();
+			paragraph = new Paragraph();
+			paragraph.add(new Chunk("First ascent (Aid): ", FONT_BOLD));
+			String faUsers = faAid.getUsers() == null || faAid.getUsers().isEmpty()? null : faAid.getUsers().stream().map(FaUser::getName).collect(Collectors.joining(", "));
+			if (!Strings.isNullOrEmpty(faUsers) && !Strings.isNullOrEmpty(faAid.getDateHr())) {
+				paragraph.add(new Chunk(faUsers + " (" + faAid.getDateHr() + "). ", FONT_REGULAR));
+			}
+			else if (!Strings.isNullOrEmpty(faUsers)) {
+				paragraph.add(new Chunk(faUsers + ". ", FONT_REGULAR));
+			}
+			else if (!Strings.isNullOrEmpty(faAid.getDateHr())) {
+				paragraph.add(new Chunk(faAid.getDateHr() + ". ", FONT_REGULAR));
+			}
+			if (!Strings.isNullOrEmpty(faAid.getDescription())) {
+				paragraph.add(new Chunk(faAid.getDescription(), FONT_ITALIC));
+			}
+			document.add(paragraph);
+		}
+		paragraph = new Paragraph();
+		paragraph.add(new Chunk(problem.getFaAid() != null? "First free ascent (FFA): ": "First ascent: ", FONT_BOLD));
+		String faUsers = problem.getFa() == null || problem.getFa().isEmpty()? null : problem.getFa().stream().map(FaUser::getName).collect(Collectors.joining(", "));
+		if (!Strings.isNullOrEmpty(faUsers) && !Strings.isNullOrEmpty(problem.getFaDateHr())) {
+			paragraph.add(new Chunk(faUsers + " (" + problem.getFaDateHr() + "). ", FONT_REGULAR));
+		}
+		else if (!Strings.isNullOrEmpty(faUsers)) {
+			paragraph.add(new Chunk(faUsers + ". ", FONT_REGULAR));
+		}
+		else if (!Strings.isNullOrEmpty(problem.getFaDateHr())) {
+			paragraph.add(new Chunk(problem.getFaDateHr() + ". ", FONT_REGULAR));
+		}
+		if (!Strings.isNullOrEmpty(problem.getComment())) {
+			paragraph.add(new Chunk(problem.getComment(), FONT_ITALIC));
+		}
+		document.add(paragraph);
+
+
+		// Pitches
+		if (problem.getSections() != null && !problem.getSections().isEmpty()) {
+			document.add(new Paragraph(" "));
+			PdfPTable table = new PdfPTable(new float[] {1, 1, 10});
+			table.setWidthPercentage(100);
+			addTableCell(table, FONT_BOLD, "#");
+			addTableCell(table, FONT_BOLD, "Grade");
+			addTableCell(table, FONT_BOLD, "Description");
+			for (Section section : problem.getSections()) {
+				addTableCell(table, FONT_REGULAR, String.valueOf(section.getNr()));
+				addTableCell(table, FONT_REGULAR, section.getGrade());
+				addTableCell(table, FONT_REGULAR, section.getDescription());
+			}
+			document.add(table);
+		}
+
+		// Public ascents
+		if (problem.getTicks() != null && !problem.getTicks().isEmpty()) {
+			document.add(new Paragraph(" "));
+			PdfPTable table = new PdfPTable(new float[] {1, 1, 1, 5});
+			table.setWidthPercentage(100);
+			addTableCell(table, FONT_BOLD, "Date");
+			addTableCell(table, FONT_BOLD, "Grade");
+			addTableCell(table, FONT_BOLD, "Name");
+			addTableCell(table, FONT_BOLD, "Comment");
+			for (Tick tick : problem.getTicks()) {
+				addTableCell(table, FONT_REGULAR, tick.getDate());
+				Phrase grade = new Phrase(tick.getSuggestedGrade(), FONT_REGULAR);
+				appendStarIcons(grade, tick.getStars());
+				table.addCell(new PdfPCell(grade));
+				addTableCell(table, FONT_REGULAR, tick.getName());
+				addTableCell(table, FONT_REGULAR, tick.getComment());
+			}
+			document.add(table);
+		}
+
+		// Comments
+		if (problem.getComments() != null && !problem.getComments().isEmpty()) {
+			document.add(new Paragraph(" "));
+			PdfPTable table = new PdfPTable(new float[] {1, 1, 5});
+			table.setWidthPercentage(100);
+			addTableCell(table, FONT_BOLD, "Date");
+			addTableCell(table, FONT_BOLD, "Name");
+			addTableCell(table, FONT_BOLD, "Message");
+			for (Comment comment : problem.getComments()) {
+				addTableCell(table, FONT_REGULAR, comment.getDate());
+				addTableCell(table, FONT_REGULAR, comment.getName());
+				addTableCell(table, FONT_REGULAR, comment.getMessage());
+			}
+			document.add(table);
+		}
+
+		// Media
+		if (area.getMedia() != null) {
+			for (Media m : area.getMedia()) {
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+			}
+		}
+		if (problem.getMedia() != null) {
+			for (Media m : problem.getMedia()) {
+				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), svgs);
+			}
+		}
+	}
+
+	private void addMetaData(String title) {
+		document.addTitle(title);
+		document.addSubject(title);
+		document.addKeywords(title);
 		document.addAuthor("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 	}
@@ -145,14 +285,6 @@ public class PdfGenerator {
 		table.addCell(cell);
 	}
 
-	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
-		if (imageStarHalf == null) {
-			imageStarHalf = Image.getInstance(PdfGenerator.class.getResource("star-half-empty.png"));
-			imageStarHalf.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
-		}
-		return imageStarHalf;
-	}
-
 	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
 		if (imageStarEmpty == null) {
 			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
@@ -160,7 +292,7 @@ public class PdfGenerator {
 		}
 		return imageStarEmpty;
 	}
-	
+
 	private Image getImageStarFilled() throws BadElementException, MalformedURLException, IOException {
 		if (imageStarFilled == null) {
 			imageStarFilled = Image.getInstance(PdfGenerator.class.getResource("filled-star.png"));
@@ -169,47 +301,41 @@ public class PdfGenerator {
 		return imageStarFilled;
 	}
 
+	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarHalf == null) {
+			imageStarHalf = Image.getInstance(PdfGenerator.class.getResource("star-half-empty.png"));
+			imageStarHalf.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
+		}
+		return imageStarHalf;
+	}
+
 	private void scaleImage(Image img) {
 		img.scaleToFit(527, 350);
 	}
-	
-	private void writeFrontpage() throws DocumentException, IOException, TranscoderException, TransformerException {
-		document.add(new Paragraph(area.getName(), FONT_HEADER));
-		if (!Strings.isNullOrEmpty(area.getComment())) {
-			document.add(new Paragraph(" "));
-			try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+area.getComment()+"</p>").getBytes())) {
-				XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
-			}
+
+	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
+		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
+			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
 		}
-		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
-			for (Media m : area.getMedia()) {
-				mediaIdProcessed.add(m.getId());
-				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
-				Image img = Image.getInstance(url);
-				scaleImage(img);
-				document.add(img);
+	}
+
+	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+		for (Sector s : sectors) {
+			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
+			document.add(new Paragraph(s.getName(), FONT_H2));
+			if (!Strings.isNullOrEmpty(s.getComment())) {
+				document.add(new Phrase(s.getComment(), FONT_REGULAR));
+			}
+			writeSectorTable(s);
+			if (s.getMedia() != null) {
+				for (Media m : s.getMedia()) {
+					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+				}
 			}
 		}
 	}
 
-	private void writeSectors() throws DocumentException, IOException, TranscoderException, TransformerException {
-		for (int i = 0; i < sectors.size(); i++) {
-			Sector s = sectors.get(i);
-			Anchor anchor = new Anchor(s.getName(), FONT_CHAPTER);
-			anchor.setName(s.getName() + " (" + s.getAreaName() + ")");
-			Chapter chapter = new Chapter(new Paragraph(anchor), (i+1));
-			if (!Strings.isNullOrEmpty(s.getComment())) {
-				chapter.add(new Phrase(s.getComment(), FONT_REGULAR));
-			}
-			writeSectorTable(chapter, s);
-			if (s.getMedia() != null) {
-				writeSectorTopo(chapter, s);
-			}
-			document.add(chapter);
-		}
-	}
-	
-	private void writeSectorTable(Section section, Sector s) throws BadElementException, MalformedURLException, IOException {
+	private void writeSectorTable(Sector s) throws MalformedURLException, IOException, DocumentException {
 		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
 		PdfPTable table = new PdfPTable(relativeWidths);
 		table.setWidthPercentage(100);
@@ -221,7 +347,7 @@ public class PdfGenerator {
 		}
 		addTableCell(table, FONT_BOLD, "FA");
 		addTableCell(table, FONT_BOLD, "Note");
-		for (Problem p : s.getProblems()) {
+		for (Sector.Problem p : s.getProblems()) {
 			addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
 			String url = s.getMetadata().getCanonical();
 			url = url.substring(0, url.indexOf("/sector"));
@@ -234,41 +360,7 @@ public class PdfGenerator {
 			addTableCell(table, FONT_REGULAR, p.getFa());
 			Phrase note = new Phrase();
 			if (p.getNumTicks() > 0) {
-				if (p.getStars() == 0) {
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-				}
-				else if (p.getStars() == 0.5) {
-					note.add(new Chunk(getImageStarHalf(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-				}
-				else if (p.getStars() == 1) {
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-				}
-				else if (p.getStars() == 1.5) {
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarHalf(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-				}
-				else if (p.getStars() == 2) {
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarEmpty(), 0, 0));
-				}
-				else if (p.getStars() == 2.5) {
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarHalf(), 0, 0));
-				}
-				else if (p.getStars() == 3) {
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-					note.add(new Chunk(getImageStarFilled(), 0, 0));
-				}
+				appendStarIcons(note, p.getStars());
 				note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
 			}
 			if (!Strings.isNullOrEmpty(p.getComment())) {
@@ -276,24 +368,62 @@ public class PdfGenerator {
 			}
 			table.addCell(new PdfPCell(note));
 		}
-		section.add(new Paragraph(" "));
-		section.add(table);
+		document.add(new Paragraph(" "));
+		document.add(table);
 	}
-	
-	private void writeSectorTopo(Section section, Sector s) throws BadElementException, IOException, TranscoderException, TransformerException {
-		for (Media m : s.getMedia()) {
-			if (m.getSvgs() != null && !m.getSvgs().isEmpty()) {
-				Path topo = TopoGenerator.generateTopo(m);
-				Image img = Image.getInstance(topo.toString());
-				scaleImage(img);
-				section.add(img);
-			}
-			else if (mediaIdProcessed.add(m.getId())) {
-				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
+
+	private void appendStarIcons(Phrase phrase, double stars) throws BadElementException, MalformedURLException, IOException {
+		if (stars == 0) {
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+		}
+		else if (stars == 0.5) {
+			phrase.add(new Chunk(getImageStarHalf(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+		}
+		else if (stars == 1) {
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+		}
+		else if (stars == 1.5) {
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarHalf(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+		}
+		else if (stars == 2) {
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
+		}
+		else if (stars == 2.5) {
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarHalf(), 0, 0));
+		}
+		else if (stars == 3) {
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+			phrase.add(new Chunk(getImageStarFilled(), 0, 0));
+		}
+	}
+
+	private void writeMedia(int mediaId, int width, int height, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+		if (svgs == null || svgs.isEmpty()) {
+			if (mediaIdProcessed.add(mediaId)) {
+				URL url = new URL(GlobalFunctions.getUrlJpgToImage(mediaId));
 				Image img = Image.getInstance(url);
 				scaleImage(img);
-				section.add(img);
+				document.add(img);
 			}
+		}
+		else {
+			Path topo = TopoGenerator.generateTopo(mediaId, width, height, svgs);
+			Image img = Image.getInstance(topo.toString());
+			scaleImage(img);
+			document.add(img);
 		}
 	}
 }
