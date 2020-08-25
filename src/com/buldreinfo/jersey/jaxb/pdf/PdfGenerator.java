@@ -104,9 +104,10 @@ public class PdfGenerator {
 	private final Area area;
 	private final List<Sector> sectors;
 	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
-	private Image imageStar;
-	
-	private Image imageHalfStar;
+	private final static int IMAGE_STAR_SIZE = 9;
+	private Image imageStarFilled;
+	private Image imageStarHalf;
+	private Image imageStarEmpty;
 	
 	public PdfGenerator(OutputStream output, Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
@@ -144,20 +145,28 @@ public class PdfGenerator {
 		table.addCell(cell);
 	}
 
-	private Image getImageStar() throws BadElementException, MalformedURLException, IOException {
-		if (imageStar == null) {
-			 imageStar = Image.getInstance(PdfGenerator.class.getResource("star.png"));
-			 imageStar.scaleAbsolute(10, 10);
+	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarHalf == null) {
+			imageStarHalf = Image.getInstance(PdfGenerator.class.getResource("star-half-empty.png"));
+			imageStarHalf.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
 		}
-		return imageStar;
+		return imageStarHalf;
 	}
 
-	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
-		if (imageHalfStar == null) {
-			imageHalfStar = Image.getInstance(PdfGenerator.class.getResource("star-half.png"));
-			imageHalfStar.scaleAbsolute(10, 10);
+	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarEmpty == null) {
+			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
+			imageStarEmpty.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
 		}
-		return imageHalfStar;
+		return imageStarEmpty;
+	}
+	
+	private Image getImageStarFilled() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarFilled == null) {
+			imageStarFilled = Image.getInstance(PdfGenerator.class.getResource("filled-star.png"));
+			imageStarFilled.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
+		}
+		return imageStarFilled;
 	}
 
 	private void scaleImage(Image img) {
@@ -225,15 +234,42 @@ public class PdfGenerator {
 			addTableCell(table, FONT_REGULAR, p.getFa());
 			Phrase note = new Phrase();
 			if (p.getNumTicks() > 0) {
-				if (p.getStars() != 0) {
-					for (int i = 0; i < (int)p.getStars(); i++) {
-						note.add(new Chunk(getImageStar(), 0, 0));
-					}
-					if (p.getStars()%1 == 0.5) {
-						note.add(new Chunk(getImageStarHalf(), 0, 0));
-					}
+				if (p.getStars() == 0) {
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
 				}
-				note.add(new Chunk(p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
+				else if (p.getStars() == 0.5) {
+					note.add(new Chunk(getImageStarHalf(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+				}
+				else if (p.getStars() == 1) {
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+				}
+				else if (p.getStars() == 1.5) {
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarHalf(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+				}
+				else if (p.getStars() == 2) {
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarEmpty(), 0, 0));
+				}
+				else if (p.getStars() == 2.5) {
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarHalf(), 0, 0));
+				}
+				else if (p.getStars() == 3) {
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+					note.add(new Chunk(getImageStarFilled(), 0, 0));
+				}
+				note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
 			}
 			if (!Strings.isNullOrEmpty(p.getComment())) {
 				note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
