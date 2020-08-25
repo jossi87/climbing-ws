@@ -144,9 +144,12 @@ public class PdfGenerator implements AutoCloseable {
 			writeHtml(area.getComment());
 		}
 		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
+			PdfPTable table = new PdfPTable(1);
+			table.setWidthPercentage(100);
 			for (Media m : area.getMedia()) {
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
 			}
+			document.add(table);
 		}
 		writeSectors(sectors);
 	}
@@ -281,18 +284,23 @@ public class PdfGenerator implements AutoCloseable {
 				}
 			}
 		}
-		for (Media m : media) {
-			List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
-			String txt = m.getPitch() > 0? "Pitch " + m.getPitch() : null;
-			if (!Strings.isNullOrEmpty(m.getMediaMetadata().getDescription())) {
-				if (txt != null) {
-					txt += " - " + m.getMediaMetadata().getDescription();
+		if (!media.isEmpty()) {
+			PdfPTable table = new PdfPTable(1);
+			table.setWidthPercentage(100);
+			for (Media m : media) {
+				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
+				String txt = m.getPitch() > 0? "Pitch " + m.getPitch() : null;
+				if (!Strings.isNullOrEmpty(m.getMediaMetadata().getDescription())) {
+					if (txt != null) {
+						txt += " - " + m.getMediaMetadata().getDescription();
+					}
+					else {
+						txt = m.getMediaMetadata().getDescription();
+					}
 				}
-				else {
-					txt = m.getMediaMetadata().getDescription();
-				}
+				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), txt, svgs);
 			}
-			writeMedia(m.getId(), m.getWidth(), m.getHeight(), txt, svgs);
+			document.add(table);
 		}
 	}
 
@@ -394,7 +402,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeMedia(int mediaId, int width, int height, String txt, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+	private void writeMediaCell(PdfPTable table, int mediaId, int width, int height, String txt, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
 		Image img = null;
 		if (svgs == null || svgs.isEmpty()) {
 			if (mediaIdProcessed.add(mediaId)) {
@@ -407,14 +415,14 @@ public class PdfGenerator implements AutoCloseable {
 			img = Image.getInstance(topo.toString());
 		}
 		if (img != null) {
-			PdfPTable table = new PdfPTable(1);
-			table.setWidthPercentage(100);
 			PdfPCell cell = new PdfPCell(img, true);
+			cell.setColspan(table.getNumberOfColumns());
 			table.addCell(cell);
 			if (!Strings.isNullOrEmpty(txt)) {
-				addTableCell(table, FONT_ITALIC, txt);
+				cell = new PdfPCell(new Phrase(txt, FONT_ITALIC));
+				cell.setColspan(table.getNumberOfColumns());
+				table.addCell(cell);
 			}
-			document.add(table);
 		}
 	}
 
@@ -426,49 +434,46 @@ public class PdfGenerator implements AutoCloseable {
 			if (!Strings.isNullOrEmpty(s.getComment())) {
 				document.add(new Phrase(s.getComment(), FONT_REGULAR));
 			}
-			writeSectorTable(s);
+			// Table
+			float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
+			PdfPTable table = new PdfPTable(relativeWidths);
+			table.setWidthPercentage(100);
+			addTableCell(table, FONT_BOLD, "#");
+			addTableCell(table, FONT_BOLD, "Name");
+			addTableCell(table, FONT_BOLD, "Grade");
+			if (!s.getMetadata().isBouldering()) {
+				addTableCell(table, FONT_BOLD, "Type");
+			}
+			addTableCell(table, FONT_BOLD, "FA");
+			addTableCell(table, FONT_BOLD, "Note");
+			for (Sector.Problem p : s.getProblems()) {
+				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
+				String url = s.getMetadata().getCanonical();
+				url = url.substring(0, url.indexOf("/sector"));
+				url += "/problem/" + p.getId();
+				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
+				addTableCell(table, FONT_REGULAR, p.getGrade());
+				if (!s.getMetadata().isBouldering()) {
+					addTableCell(table, FONT_REGULAR, p.getT().getSubType());
+				}
+				addTableCell(table, FONT_REGULAR, p.getFa());
+				Phrase note = new Phrase();
+				if (p.getNumTicks() > 0) {
+					appendStarIcons(note, p.getStars());
+					note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
+				}
+				if (!Strings.isNullOrEmpty(p.getComment())) {
+					note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
+				}
+				table.addCell(new PdfPCell(note));
+			}
 			if (s.getMedia() != null) {
 				for (Media m : s.getMedia()) {
-					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
 				}
 			}
+			document.add(new Paragraph(" "));
+			document.add(table);
 		}
-	}
-
-	private void writeSectorTable(Sector s) throws MalformedURLException, IOException, DocumentException {
-		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
-		PdfPTable table = new PdfPTable(relativeWidths);
-		table.setWidthPercentage(100);
-		addTableCell(table, FONT_BOLD, "#");
-		addTableCell(table, FONT_BOLD, "Name");
-		addTableCell(table, FONT_BOLD, "Grade");
-		if (!s.getMetadata().isBouldering()) {
-			addTableCell(table, FONT_BOLD, "Type");
-		}
-		addTableCell(table, FONT_BOLD, "FA");
-		addTableCell(table, FONT_BOLD, "Note");
-		for (Sector.Problem p : s.getProblems()) {
-			addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
-			String url = s.getMetadata().getCanonical();
-			url = url.substring(0, url.indexOf("/sector"));
-			url += "/problem/" + p.getId();
-			addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
-			addTableCell(table, FONT_REGULAR, p.getGrade());
-			if (!s.getMetadata().isBouldering()) {
-				addTableCell(table, FONT_REGULAR, p.getT().getSubType());
-			}
-			addTableCell(table, FONT_REGULAR, p.getFa());
-			Phrase note = new Phrase();
-			if (p.getNumTicks() > 0) {
-				appendStarIcons(note, p.getStars());
-				note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
-			}
-			if (!Strings.isNullOrEmpty(p.getComment())) {
-				note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
-			}
-			table.addCell(new PdfPCell(note));
-		}
-		document.add(new Paragraph(" "));
-		document.add(table);
 	}
 }
