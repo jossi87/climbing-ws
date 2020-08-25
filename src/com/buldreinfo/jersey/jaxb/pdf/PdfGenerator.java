@@ -420,6 +420,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		for (Sector s : sectors) {
+			document.newPage();
 			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
 			document.add(new Paragraph(s.getName(), FONT_H2));
 			if (!Strings.isNullOrEmpty(s.getComment())) {
