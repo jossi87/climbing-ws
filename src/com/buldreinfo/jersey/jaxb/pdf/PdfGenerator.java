@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Chapter;
+import com.itextpdf.text.Chunk;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
@@ -68,16 +70,11 @@ public class PdfGenerator {
 	private static Font FONT_HEADER = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
 	private static Font FONT_CHAPTER = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
 	private static Font FONT_REGULAR = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL);
+	private static Font FONT_ITALIC = new Font(Font.FontFamily.HELVETICA, 9, Font.ITALIC);
 	private static Font FONT_REGULAR_LINK = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.BLUE);
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
-	private final PdfWriter writer;
-	private final Document document;
-	private final Area area;
-	private final List<Sector> sectors;
-	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
-	
 	public static void main(String[] args) throws IOException, DocumentException, TranscoderException, TransformerException {
-		int areaId = 2780;
+		int areaId = 2754;
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
@@ -102,7 +99,15 @@ public class PdfGenerator {
 			new PdfGenerator(fos, area, sectors);
 		}
 	}
-
+	private final PdfWriter writer;
+	private final Document document;
+	private final Area area;
+	private final List<Sector> sectors;
+	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
+	private Image imageStar;
+	
+	private Image imageHalfStar;
+	
 	public PdfGenerator(OutputStream output, Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
 		this.area = area;
@@ -118,7 +123,7 @@ public class PdfGenerator {
 		writeSectors();
 		document.close();
 	}
-
+	
 	private void addMetaData() {
 		document.addTitle(area.getName());
 		document.addSubject(area.getName());
@@ -127,6 +132,38 @@ public class PdfGenerator {
 		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 	}
 
+	private void addTableCell(PdfPTable table, Font font, String str) {
+		addTableCell(table, font, str, null);
+	}
+
+	private void addTableCell(PdfPTable table, Font font, String str, String url) {
+		PdfPCell cell = new PdfPCell(new Phrase(str, font));
+		if (url != null) {
+			cell.setCellEvent(new LinkInCell(url));
+		}
+		table.addCell(cell);
+	}
+
+	private Image getImageStar() throws BadElementException, MalformedURLException, IOException {
+		if (imageStar == null) {
+			 imageStar = Image.getInstance(PdfGenerator.class.getResource("star.png"));
+			 imageStar.scaleAbsolute(10, 10);
+		}
+		return imageStar;
+	}
+
+	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
+		if (imageHalfStar == null) {
+			imageHalfStar = Image.getInstance(PdfGenerator.class.getResource("star-half.png"));
+			imageHalfStar.scaleAbsolute(10, 10);
+		}
+		return imageHalfStar;
+	}
+
+	private void scaleImage(Image img) {
+		img.scaleToFit(527, 350);
+	}
+	
 	private void writeFrontpage() throws DocumentException, IOException, TranscoderException, TransformerException {
 		document.add(new Paragraph(area.getName(), FONT_HEADER));
 		if (!Strings.isNullOrEmpty(area.getComment())) {
@@ -162,29 +199,8 @@ public class PdfGenerator {
 			document.add(chapter);
 		}
 	}
-
-	private void writeSectorTopo(Section section, Sector s) throws BadElementException, IOException, TranscoderException, TransformerException {
-		for (Media m : s.getMedia()) {
-			if (m.getSvgs() != null && !m.getSvgs().isEmpty()) {
-				Path topo = TopoGenerator.generateTopo(m);
-				Image img = Image.getInstance(topo.toString());
-				scaleImage(img);
-				section.add(img);
-			}
-			else if (mediaIdProcessed.add(m.getId())) {
-				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
-				Image img = Image.getInstance(url);
-				scaleImage(img);
-				section.add(img);
-			}
-		}
-	}
 	
-	private void scaleImage(Image img) {
-		img.scaleToFit(527, 350);
-	}
-
-	private void writeSectorTable(Section section, Sector s) {
+	private void writeSectorTable(Section section, Sector s) throws BadElementException, MalformedURLException, IOException {
 		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
 		PdfPTable table = new PdfPTable(relativeWidths);
 		table.setWidthPercentage(100);
@@ -207,21 +223,41 @@ public class PdfGenerator {
 				addTableCell(table, FONT_REGULAR, p.getT().getSubType());
 			}
 			addTableCell(table, FONT_REGULAR, p.getFa());
-			addTableCell(table, FONT_REGULAR, p.getComment());
+			Phrase note = new Phrase();
+			if (p.getNumTicks() > 0) {
+				if (p.getStars() != 0) {
+					for (int i = 0; i < (int)p.getStars(); i++) {
+						note.add(new Chunk(getImageStar(), 0, 0));
+					}
+					if (p.getStars()%1 == 0.5) {
+						note.add(new Chunk(getImageStarHalf(), 0, 0));
+					}
+				}
+				note.add(new Chunk(p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
+			}
+			if (!Strings.isNullOrEmpty(p.getComment())) {
+				note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
+			}
+			table.addCell(new PdfPCell(note));
 		}
 		section.add(new Paragraph(" "));
 		section.add(table);
 	}
 	
-	private void addTableCell(PdfPTable table, Font font, String str) {
-		addTableCell(table, font, str, null);
-	}
-	
-	private void addTableCell(PdfPTable table, Font font, String str, String url) {
-		PdfPCell cell = new PdfPCell(new Phrase(str, font));
-		if (url != null) {
-			cell.setCellEvent(new LinkInCell(url));
+	private void writeSectorTopo(Section section, Sector s) throws BadElementException, IOException, TranscoderException, TransformerException {
+		for (Media m : s.getMedia()) {
+			if (m.getSvgs() != null && !m.getSvgs().isEmpty()) {
+				Path topo = TopoGenerator.generateTopo(m);
+				Image img = Image.getInstance(topo.toString());
+				scaleImage(img);
+				section.add(img);
+			}
+			else if (mediaIdProcessed.add(m.getId())) {
+				URL url = new URL(GlobalFunctions.getUrlJpgToImage(m.getId()));
+				Image img = Image.getInstance(url);
+				scaleImage(img);
+				section.add(img);
+			}
 		}
-		table.addCell(cell);
 	}
 }
