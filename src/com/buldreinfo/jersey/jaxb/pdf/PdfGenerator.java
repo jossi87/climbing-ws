@@ -85,7 +85,7 @@ public class PdfGenerator implements AutoCloseable {
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
 		int areaId = 2891;
-		int problemId = 7752;
+		int problemId = 7750;
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
@@ -119,6 +119,7 @@ public class PdfGenerator implements AutoCloseable {
 	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException, TransformerException {
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
+		writer.setStrictImageSequence(true);
 		writer.setPageEvent(new MyFooter());
 		document.open();
 	}
@@ -144,7 +145,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 			for (Media m : area.getMedia()) {
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), false);
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
 			}
 		}
 		writeSectors(sectors);
@@ -266,28 +267,34 @@ public class PdfGenerator implements AutoCloseable {
 		}
 
 		// Media
+		List<Media> media = Lists.newArrayList();
 		if (area.getMedia() != null) {
-			for (Media m : area.getMedia()) {
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), true);
-			}
+			media.addAll(area.getMedia());
 		}
 		if (problem.getMedia() != null) {
-			for (Media m : problem.getMedia()) {
-				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), svgs, true);
+			media.addAll(problem.getMedia());
+		}
+		if (problem.getSections() != null) {
+			for (Section s : problem.getSections()) {
+				if (s.getMedia() != null) {
+					media.addAll(s.getMedia());
+				}
 			}
 		}
+		for (Media m : media) {
+			List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
+			String txt = m.getPitch() > 0? "Pitch " + m.getPitch() : null;
+			if (!Strings.isNullOrEmpty(m.getMediaMetadata().getDescription())) {
+				if (txt != null) {
+					txt += " - " + m.getMediaMetadata().getDescription();
+				}
+				else {
+					txt = m.getMediaMetadata().getDescription();
+				}
+			}
+			writeMedia(m.getId(), m.getWidth(), m.getHeight(), txt, svgs);
+		}
 	}
-
-	private boolean isValidUrl(String url)  {
-		/* Try creating a valid URL */
-		try { 
-			new URL(url).toURI(); 
-			return true; 
-		} catch (Exception e) { 
-			return false; 
-		} 
-	} 
 
 	private void addMetaData(String title) {
 		document.addTitle(title);
@@ -295,7 +302,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.addKeywords(title);
 		document.addAuthor("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
-	}
+	} 
 
 	private void addTableCell(PdfPTable table, Font font, String str) {
 		addTableCell(table, font, str, null);
@@ -307,93 +314,6 @@ public class PdfGenerator implements AutoCloseable {
 			cell.setCellEvent(new LinkInCell(url));
 		}
 		table.addCell(cell);
-	}
-
-	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
-		if (imageStarEmpty == null) {
-			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
-			imageStarEmpty.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
-		}
-		return imageStarEmpty;
-	}
-
-	private Image getImageStarFilled() throws BadElementException, MalformedURLException, IOException {
-		if (imageStarFilled == null) {
-			imageStarFilled = Image.getInstance(PdfGenerator.class.getResource("filled-star.png"));
-			imageStarFilled.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
-		}
-		return imageStarFilled;
-	}
-
-	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
-		if (imageStarHalf == null) {
-			imageStarHalf = Image.getInstance(PdfGenerator.class.getResource("star-half-empty.png"));
-			imageStarHalf.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
-		}
-		return imageStarHalf;
-	}
-
-	private void scaleImage(Image img, boolean huge) {
-		img.scaleToFit(527, huge? 800 : 350);
-	}
-
-	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
-		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
-			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
-		}
-	}
-
-	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
-		for (Sector s : sectors) {
-			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
-			document.add(new Paragraph(s.getName(), FONT_H2));
-			if (!Strings.isNullOrEmpty(s.getComment())) {
-				document.add(new Phrase(s.getComment(), FONT_REGULAR));
-			}
-			writeSectorTable(s);
-			if (s.getMedia() != null) {
-				for (Media m : s.getMedia()) {
-					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), false);
-				}
-			}
-		}
-	}
-
-	private void writeSectorTable(Sector s) throws MalformedURLException, IOException, DocumentException {
-		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
-		PdfPTable table = new PdfPTable(relativeWidths);
-		table.setWidthPercentage(100);
-		addTableCell(table, FONT_BOLD, "#");
-		addTableCell(table, FONT_BOLD, "Name");
-		addTableCell(table, FONT_BOLD, "Grade");
-		if (!s.getMetadata().isBouldering()) {
-			addTableCell(table, FONT_BOLD, "Type");
-		}
-		addTableCell(table, FONT_BOLD, "FA");
-		addTableCell(table, FONT_BOLD, "Note");
-		for (Sector.Problem p : s.getProblems()) {
-			addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
-			String url = s.getMetadata().getCanonical();
-			url = url.substring(0, url.indexOf("/sector"));
-			url += "/problem/" + p.getId();
-			addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
-			addTableCell(table, FONT_REGULAR, p.getGrade());
-			if (!s.getMetadata().isBouldering()) {
-				addTableCell(table, FONT_REGULAR, p.getT().getSubType());
-			}
-			addTableCell(table, FONT_REGULAR, p.getFa());
-			Phrase note = new Phrase();
-			if (p.getNumTicks() > 0) {
-				appendStarIcons(note, p.getStars());
-				note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
-			}
-			if (!Strings.isNullOrEmpty(p.getComment())) {
-				note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
-			}
-			table.addCell(new PdfPCell(note));
-		}
-		document.add(new Paragraph(" "));
-		document.add(table);
 	}
 
 	private void appendStarIcons(Phrase phrase, double stars) throws BadElementException, MalformedURLException, IOException {
@@ -434,20 +354,120 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeMedia(int mediaId, int width, int height, List<Svg> svgs, boolean huge) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarEmpty == null) {
+			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
+			imageStarEmpty.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
+		}
+		return imageStarEmpty;
+	}
+
+	private Image getImageStarFilled() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarFilled == null) {
+			imageStarFilled = Image.getInstance(PdfGenerator.class.getResource("filled-star.png"));
+			imageStarFilled.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
+		}
+		return imageStarFilled;
+	}
+
+	private Image getImageStarHalf() throws BadElementException, MalformedURLException, IOException {
+		if (imageStarHalf == null) {
+			imageStarHalf = Image.getInstance(PdfGenerator.class.getResource("star-half-empty.png"));
+			imageStarHalf.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
+		}
+		return imageStarHalf;
+	}
+
+	private boolean isValidUrl(String url)  {
+		/* Try creating a valid URL */
+		try { 
+			new URL(url).toURI(); 
+			return true; 
+		} catch (Exception e) { 
+			return false; 
+		} 
+	}
+
+	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
+		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
+			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
+		}
+	}
+
+	private void writeMedia(int mediaId, int width, int height, String txt, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+		Image img = null;
 		if (svgs == null || svgs.isEmpty()) {
 			if (mediaIdProcessed.add(mediaId)) {
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(mediaId));
-				Image img = Image.getInstance(url);
-				scaleImage(img, huge);
-				document.add(img);
+				img = Image.getInstance(url);
 			}
 		}
 		else {
 			Path topo = TopoGenerator.generateTopo(mediaId, width, height, svgs);
-			Image img = Image.getInstance(topo.toString());
-			scaleImage(img, huge);
-			document.add(img);
+			img = Image.getInstance(topo.toString());
 		}
+		if (img != null) {
+			PdfPTable table = new PdfPTable(1);
+			table.setWidthPercentage(100);
+			PdfPCell cell = new PdfPCell(img, true);
+			table.addCell(cell);
+			if (!Strings.isNullOrEmpty(txt)) {
+				addTableCell(table, FONT_ITALIC, txt);
+			}
+			document.add(table);
+		}
+	}
+
+	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+		for (Sector s : sectors) {
+			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
+			document.add(new Paragraph(s.getName(), FONT_H2));
+			if (!Strings.isNullOrEmpty(s.getComment())) {
+				document.add(new Phrase(s.getComment(), FONT_REGULAR));
+			}
+			writeSectorTable(s);
+			if (s.getMedia() != null) {
+				for (Media m : s.getMedia()) {
+					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+				}
+			}
+		}
+	}
+
+	private void writeSectorTable(Sector s) throws MalformedURLException, IOException, DocumentException {
+		float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
+		PdfPTable table = new PdfPTable(relativeWidths);
+		table.setWidthPercentage(100);
+		addTableCell(table, FONT_BOLD, "#");
+		addTableCell(table, FONT_BOLD, "Name");
+		addTableCell(table, FONT_BOLD, "Grade");
+		if (!s.getMetadata().isBouldering()) {
+			addTableCell(table, FONT_BOLD, "Type");
+		}
+		addTableCell(table, FONT_BOLD, "FA");
+		addTableCell(table, FONT_BOLD, "Note");
+		for (Sector.Problem p : s.getProblems()) {
+			addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
+			String url = s.getMetadata().getCanonical();
+			url = url.substring(0, url.indexOf("/sector"));
+			url += "/problem/" + p.getId();
+			addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
+			addTableCell(table, FONT_REGULAR, p.getGrade());
+			if (!s.getMetadata().isBouldering()) {
+				addTableCell(table, FONT_REGULAR, p.getT().getSubType());
+			}
+			addTableCell(table, FONT_REGULAR, p.getFa());
+			Phrase note = new Phrase();
+			if (p.getNumTicks() > 0) {
+				appendStarIcons(note, p.getStars());
+				note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
+			}
+			if (!Strings.isNullOrEmpty(p.getComment())) {
+				note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
+			}
+			table.addCell(new PdfPCell(note));
+		}
+		document.add(new Paragraph(" "));
+		document.add(table);
 	}
 }
