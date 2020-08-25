@@ -218,7 +218,7 @@ public class PdfGenerator implements AutoCloseable {
 		// Public ascents
 		if (problem.getTicks() != null && !problem.getTicks().isEmpty()) {
 			document.add(new Paragraph(" "));
-			PdfPTable table = new PdfPTable(new float[] {1, 1, 1, 5});
+			PdfPTable table = new PdfPTable(new float[] {1, 1, 1, 3});
 			table.setWidthPercentage(100);
 			addTableCell(table, FONT_BOLD, "Date");
 			addTableCell(table, FONT_BOLD, "Grade");
@@ -238,9 +238,9 @@ public class PdfGenerator implements AutoCloseable {
 		// Comments
 		if (problem.getComments() != null && !problem.getComments().isEmpty()) {
 			document.add(new Paragraph(" "));
-			PdfPTable table = new PdfPTable(new float[] {1, 1, 5});
+			PdfPTable table = new PdfPTable(new float[] {1, 1, 4});
 			table.setWidthPercentage(100);
-			addTableCell(table, FONT_BOLD, "Date");
+			addTableCell(table, FONT_BOLD, "When");
 			addTableCell(table, FONT_BOLD, "Name");
 			addTableCell(table, FONT_BOLD, "Message");
 			for (Comment comment : problem.getComments()) {
