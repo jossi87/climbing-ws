@@ -259,7 +259,8 @@ public class PdfGenerator implements AutoCloseable {
 			for (Comment comment : problem.getComments()) {
 				addTableCell(table, FONT_REGULAR, comment.getDate());
 				addTableCell(table, FONT_REGULAR, comment.getName());
-				addTableCell(table, FONT_REGULAR, comment.getMessage(), isValidUrl(comment.getMessage())? comment.getMessage() : null);
+				String url = isValidUrl(comment.getMessage())? comment.getMessage() : null;
+				addTableCell(table, url != null? FONT_REGULAR_LINK : FONT_REGULAR, comment.getMessage(), url);
 			}
 			document.add(table);
 		}
