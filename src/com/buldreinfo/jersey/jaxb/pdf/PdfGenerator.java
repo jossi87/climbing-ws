@@ -38,6 +38,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Chunk;
@@ -132,6 +133,12 @@ public class PdfGenerator implements AutoCloseable {
 		String title = area.getName();
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
+		Paragraph paragraph = new Paragraph();
+		paragraph.add(new Chunk("URL: ", FONT_BOLD));
+		Anchor anchor = new Anchor(area.getCanonical(), FONT_REGULAR_LINK);
+		anchor.setReference(area.getCanonical());
+		paragraph.add(anchor);
+		document.add(paragraph);
 		if (!Strings.isNullOrEmpty(area.getComment())) {
 			writeHtml(area.getComment());
 		}
@@ -155,6 +162,12 @@ public class PdfGenerator implements AutoCloseable {
 
 		// Route/Problem info
 		Paragraph paragraph = new Paragraph();
+		paragraph.add(new Chunk("URL: ", FONT_BOLD));
+		Anchor anchor = new Anchor(problem.getCanonical(), FONT_REGULAR_LINK);
+		anchor.setReference(problem.getCanonical());
+		paragraph.add(anchor);
+		document.add(paragraph);
+		paragraph = new Paragraph();
 		paragraph.add(new Chunk("Type: ", FONT_BOLD));
 		paragraph.add(new Chunk(problem.getT().getSubType(), FONT_REGULAR));
 		document.add(paragraph);
