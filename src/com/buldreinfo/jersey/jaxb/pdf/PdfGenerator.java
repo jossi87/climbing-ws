@@ -144,7 +144,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 			for (Media m : area.getMedia()) {
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), false);
 			}
 		}
 		writeSectors(sectors);
@@ -268,13 +268,13 @@ public class PdfGenerator implements AutoCloseable {
 		// Media
 		if (area.getMedia() != null) {
 			for (Media m : area.getMedia()) {
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), true);
 			}
 		}
 		if (problem.getMedia() != null) {
 			for (Media m : problem.getMedia()) {
 				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
-				writeMedia(m.getId(), m.getWidth(), m.getHeight(), svgs);
+				writeMedia(m.getId(), m.getWidth(), m.getHeight(), svgs, true);
 			}
 		}
 	}
@@ -333,8 +333,8 @@ public class PdfGenerator implements AutoCloseable {
 		return imageStarHalf;
 	}
 
-	private void scaleImage(Image img) {
-		img.scaleToFit(527, 350);
+	private void scaleImage(Image img, boolean huge) {
+		img.scaleToFit(527, huge? 800 : 350);
 	}
 
 	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
@@ -353,7 +353,7 @@ public class PdfGenerator implements AutoCloseable {
 			writeSectorTable(s);
 			if (s.getMedia() != null) {
 				for (Media m : s.getMedia()) {
-					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs());
+					writeMedia(m.getId(), m.getWidth(), m.getHeight(), m.getSvgs(), false);
 				}
 			}
 		}
@@ -434,19 +434,19 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeMedia(int mediaId, int width, int height, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+	private void writeMedia(int mediaId, int width, int height, List<Svg> svgs, boolean huge) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
 		if (svgs == null || svgs.isEmpty()) {
 			if (mediaIdProcessed.add(mediaId)) {
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(mediaId));
 				Image img = Image.getInstance(url);
-				scaleImage(img);
+				scaleImage(img, huge);
 				document.add(img);
 			}
 		}
 		else {
 			Path topo = TopoGenerator.generateTopo(mediaId, width, height, svgs);
 			Image img = Image.getInstance(topo.toString());
-			scaleImage(img);
+			scaleImage(img, huge);
 			document.add(img);
 		}
 	}
