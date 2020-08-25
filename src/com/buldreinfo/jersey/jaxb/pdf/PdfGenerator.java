@@ -86,21 +86,22 @@ public class PdfGenerator implements AutoCloseable {
 	public static void main(String[] args) throws Exception {
 		int areaId = 2891;
 		int problemId = 7750;
+		String urlBase = "https://brattelinjer.no";
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
 			List<Sector> sectors = new ArrayList<>();
-			URL obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/areas?id=" + areaId);
+			URL obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/areas?id=" + areaId);
 			HttpURLConnection con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
 			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
 			for (Area.Sector s : area.getSectors()) {
-				obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
+				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
 			}
-			obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
+			obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
 			con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
 			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
@@ -173,7 +174,8 @@ public class PdfGenerator implements AutoCloseable {
 		document.add(paragraph);
 		paragraph = new Paragraph();
 		paragraph.add(new Chunk("Type: ", FONT_BOLD));
-		paragraph.add(new Chunk(problem.getT().getSubType(), FONT_REGULAR));
+		String type = problem.getT().getSubType() != null? problem.getT().getType() + " - " + problem.getT().getSubType() : problem.getT().getType();
+		paragraph.add(new Chunk(type, FONT_REGULAR));
 		document.add(paragraph);
 		paragraph = new Paragraph();
 		paragraph.add(new Chunk("Grade: ", FONT_BOLD));
