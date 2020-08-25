@@ -259,7 +259,7 @@ public class PdfGenerator implements AutoCloseable {
 			for (Comment comment : problem.getComments()) {
 				addTableCell(table, FONT_REGULAR, comment.getDate());
 				addTableCell(table, FONT_REGULAR, comment.getName());
-				addTableCell(table, FONT_REGULAR, comment.getMessage());
+				addTableCell(table, FONT_REGULAR, comment.getMessage(), isValidUrl(comment.getMessage())? comment.getMessage() : null);
 			}
 			document.add(table);
 		}
@@ -277,6 +277,16 @@ public class PdfGenerator implements AutoCloseable {
 			}
 		}
 	}
+
+	private boolean isValidUrl(String url)  {
+		/* Try creating a valid URL */
+		try { 
+			new URL(url).toURI(); 
+			return true; 
+		} catch (Exception e) { 
+			return false; 
+		} 
+	} 
 
 	private void addMetaData(String title) {
 		document.addTitle(title);
