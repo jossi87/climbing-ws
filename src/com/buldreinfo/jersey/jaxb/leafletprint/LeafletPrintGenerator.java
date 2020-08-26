@@ -54,7 +54,7 @@ public class LeafletPrintGenerator {
 	}
 	
 	public LeafletPrintGenerator(boolean windows) {
-		this.chrome = !windows? "google-chrome" : "\"C:/Program Files (x86)/Google/Chrome/Application/chrome\"";
+		this.chrome = !windows? "/usr/bin/google-chrome" : "\"C:/Program Files (x86)/Google/Chrome/Application/chrome\"";
 	}
 	
 	public Path capture(Leaflet leaflet) throws IOException, InterruptedException {
