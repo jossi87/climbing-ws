@@ -59,6 +59,15 @@ public class LeafletPrintGenerator {
 	}
 	
 	public Path capture(Leaflet leaflet) throws IOException, InterruptedException {
+		Path res = captureLeaflet(leaflet);
+		if (res == null) {
+			Thread.sleep(500);
+			res = captureLeaflet(leaflet);
+		}
+		return res;
+	}
+	
+	private Path captureLeaflet(Leaflet leaflet) throws IOException, InterruptedException {
 		Path res = Files.createTempFile("leaflet", ".png");
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
@@ -68,7 +77,11 @@ public class LeafletPrintGenerator {
 		builder.redirectErrorStream(true);
 		final Process process = builder.start();
 		watch(process);
-		process.waitFor(7, TimeUnit.SECONDS);
+		process.waitFor(10, TimeUnit.SECONDS);
+		if (!Files.exists(res)) {
+			logger.warn("captureLeaflet(leaflet={}) - res=null", leaflet);
+			return null;
+		}
 		return res;
 	}
 	

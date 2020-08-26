@@ -339,7 +339,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.addAuthor("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 	}
-	
+
 	private void addTableCell(PdfPTable table, Font font, String str) {
 		addTableCell(table, font, str, null);
 	}
@@ -461,14 +461,16 @@ public class PdfGenerator implements AutoCloseable {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
-				PdfPTable table = new PdfPTable(1);
-				table.setWidthPercentage(100);
-				Image img = Image.getInstance(png.toString());
-				PdfPCell cell = new PdfPCell(img, true);
-				cell.setColspan(table.getNumberOfColumns());
-				table.addCell(cell);
-				document.add(new Paragraph(" "));
-				document.add(table);
+				if (png != null) {
+					PdfPTable table = new PdfPTable(1);
+					table.setWidthPercentage(100);
+					Image img = Image.getInstance(png.toString());
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setColspan(table.getNumberOfColumns());
+					table.addCell(cell);
+					document.add(new Paragraph(" "));
+					document.add(table);
+				}
 			}
 		} catch (Exception | Error e) {
 			logger.warn(e.getMessage(), e);
@@ -515,14 +517,16 @@ public class PdfGenerator implements AutoCloseable {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
-				PdfPTable table = new PdfPTable(1);
-				table.setWidthPercentage(100);
-				Image img = Image.getInstance(png.toString());
-				PdfPCell cell = new PdfPCell(img, true);
-				cell.setColspan(table.getNumberOfColumns());
-				table.addCell(cell);
-				document.add(new Paragraph(" "));
-				document.add(table);
+				if (png != null) {
+					PdfPTable table = new PdfPTable(1);
+					table.setWidthPercentage(100);
+					Image img = Image.getInstance(png.toString());
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setColspan(table.getNumberOfColumns());
+					table.addCell(cell);
+					document.add(new Paragraph(" "));
+					document.add(table);
+				}
 			}
 		} catch (Exception | Error e) {
 			logger.warn(e.getMessage(), e);
