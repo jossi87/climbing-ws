@@ -452,7 +452,8 @@ public class PdfGenerator implements AutoCloseable {
 					outlines.add(new Outline(null, sector.getPolygonCoords()));
 				}
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-					polylines.add(new Polyline(null, sector.getPolyline()));
+					String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
+					polylines.add(new Polyline(name, sector.getPolyline()));
 				}
 			}
 
@@ -506,7 +507,8 @@ public class PdfGenerator implements AutoCloseable {
 				outlines.add(new Outline(name, sector.getPolygonCoords()));
 			}
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-				polylines.add(new Polyline(null, sector.getPolyline()));
+				String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
+				polylines.add(new Polyline(name, sector.getPolyline()));
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {

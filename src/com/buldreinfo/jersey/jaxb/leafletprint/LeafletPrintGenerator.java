@@ -63,7 +63,7 @@ public class LeafletPrintGenerator {
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
 		String url = "https://buldreinfo.com/leaflet-print/" + json;
-		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=5000", "--window-size=1280,720", "-screenshot=" + res, url);
+		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--dump-dom", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", "--window-size=1280,720", "-screenshot=" + res, url);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
 		builder.redirectErrorStream(true);
 		final Process process = builder.start();
