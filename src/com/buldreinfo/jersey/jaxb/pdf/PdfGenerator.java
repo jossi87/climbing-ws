@@ -442,7 +442,7 @@ public class PdfGenerator implements AutoCloseable {
 			else {
 				defaultCenter = area.getMetadata().getDefaultCenter();
 			}
-			int defaultZoom = 14;
+			int defaultZoom = 15;
 
 			for (Sector sector : sectors) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
