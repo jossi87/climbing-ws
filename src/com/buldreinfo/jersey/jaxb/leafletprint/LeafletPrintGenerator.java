@@ -17,6 +17,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Polyline;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
+import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
 /**
@@ -54,7 +55,7 @@ public class LeafletPrintGenerator {
 	}
 	
 	public LeafletPrintGenerator(boolean windows) {
-		this.chrome = !windows? "/usr/bin/google-chrome" : "\"C:/Program Files (x86)/Google/Chrome/Application/chrome\"";
+		this.chrome = !windows? "/usr/bin/google-chrome" : "C:/Program Files (x86)/Google/Chrome/Application/chrome";
 	}
 	
 	public Path capture(Leaflet leaflet) throws IOException, InterruptedException {
@@ -63,9 +64,8 @@ public class LeafletPrintGenerator {
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
 		String url = "https://buldreinfo.com/leaflet-print/" + json;
-		String cmd = chrome + " --headless --disable-gpu --hide-scrollbars --no-sandbox --window-size=1280,720 -screenshot=\"" + res + "\" \"" + url + "\"";
-		logger.debug("Running command: " + cmd);
-		ProcessBuilder builder = new ProcessBuilder(cmd);
+		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox", "--window-size=1280,720", "-screenshot=" + res, url);
+		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
 		builder.redirectErrorStream(true);
 		final Process process = builder.start();
 		watch(process);
