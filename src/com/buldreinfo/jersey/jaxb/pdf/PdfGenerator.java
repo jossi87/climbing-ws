@@ -449,8 +449,7 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
 				}
 				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-					String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
-					outlines.add(new Outline(name, sector.getPolygonCoords()));
+					outlines.add(new Outline(null, sector.getPolygonCoords()));
 				}
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
 					polylines.add(new Polyline(null, sector.getPolyline()));
@@ -503,7 +502,8 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(problem.getLat(), problem.getLng(), false, name));
 			}
 			if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-				outlines.add(new Outline(null, sector.getPolygonCoords()));
+				String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
+				outlines.add(new Outline(name, sector.getPolygonCoords()));
 			}
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
 				polylines.add(new Polyline(null, sector.getPolyline()));
