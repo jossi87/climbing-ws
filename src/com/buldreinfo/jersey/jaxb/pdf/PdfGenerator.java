@@ -12,6 +12,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -20,11 +21,19 @@ import java.util.stream.Collectors;
 import javax.xml.transform.TransformerException;
 
 import org.apache.batik.transcoder.TranscoderException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.Polyline;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
+import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
@@ -75,6 +84,7 @@ public class PdfGenerator implements AutoCloseable {
 					document.bottom() - 10, 0);
 		}
 	}
+	private static Logger logger = LogManager.getLogger();
 	private static Font FONT_SMALL = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
 	private static Font FONT_H1 = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
 	private static Font FONT_H2 = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
@@ -105,19 +115,21 @@ public class PdfGenerator implements AutoCloseable {
 			con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
 			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
-			try (PdfGenerator generator = new PdfGenerator(fos)) {
+			try (PdfGenerator generator = new PdfGenerator(fos, true)) {
 				// generator.writeArea(area, sectors);
 				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
+	private final boolean windows;
 	private final PdfWriter writer;
 	private final Document document;
 	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
 	private Image imageStarFilled;
 	private Image imageStarHalf;
 	private Image imageStarEmpty;
-	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException, TransformerException {
+	public PdfGenerator(OutputStream output, boolean windows) throws DocumentException, IOException, TranscoderException, TransformerException {
+		this.windows = windows;
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
 		writer.setStrictImageSequence(true);
@@ -135,11 +147,16 @@ public class PdfGenerator implements AutoCloseable {
 		String title = area.getName();
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
+		writeMapArea(area, sectors);
 		Paragraph paragraph = new Paragraph();
 		paragraph.add(new Chunk("URL: ", FONT_BOLD));
 		Anchor anchor = new Anchor(area.getCanonical(), FONT_REGULAR_LINK);
 		anchor.setReference(area.getCanonical());
 		paragraph.add(anchor);
+		document.add(paragraph);
+		paragraph = new Paragraph();
+		paragraph.add(new Chunk("PDF generated: ", FONT_BOLD));
+		paragraph.add(new Chunk(String.valueOf(LocalDateTime.now()), FONT_REGULAR));
 		document.add(paragraph);
 		if (!Strings.isNullOrEmpty(area.getComment())) {
 			writeHtml(area.getComment());
@@ -160,6 +177,7 @@ public class PdfGenerator implements AutoCloseable {
 		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
+		writeMapProblem(area, sector, problem);
 		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
 		if (!Strings.isNullOrEmpty(html)) {
 			writeHtml(html);
@@ -171,6 +189,14 @@ public class PdfGenerator implements AutoCloseable {
 		Anchor anchor = new Anchor(problem.getCanonical(), FONT_REGULAR_LINK);
 		anchor.setReference(problem.getCanonical());
 		paragraph.add(anchor);
+		document.add(paragraph);
+		paragraph = new Paragraph();
+		paragraph.add(new Chunk("PDF generated: ", FONT_BOLD));
+		paragraph.add(new Chunk(String.valueOf(LocalDateTime.now()), FONT_REGULAR));
+		document.add(paragraph);
+		paragraph = new Paragraph();
+		paragraph.add(new Chunk("Nr: ", FONT_BOLD));
+		paragraph.add(new Chunk(String.valueOf(problem.getNr()), FONT_REGULAR));
 		document.add(paragraph);
 		paragraph = new Paragraph();
 		paragraph.add(new Chunk("Type: ", FONT_BOLD));
@@ -312,8 +338,8 @@ public class PdfGenerator implements AutoCloseable {
 		document.addKeywords(title);
 		document.addAuthor("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
 		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
-	} 
-
+	}
+	
 	private void addTableCell(PdfPTable table, Font font, String str) {
 		addTableCell(table, font, str, null);
 	}
@@ -324,7 +350,7 @@ public class PdfGenerator implements AutoCloseable {
 			cell.setCellEvent(new LinkInCell(url));
 		}
 		table.addCell(cell);
-	}
+	} 
 
 	private void appendStarIcons(Phrase phrase, double stars) throws BadElementException, MalformedURLException, IOException {
 		if (stars == 0) {
@@ -401,6 +427,103 @@ public class PdfGenerator implements AutoCloseable {
 	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
 		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
 			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
+		}
+	}
+
+	private void writeMapArea(Area area, List<Sector> sectors) {
+		try {
+			List<Marker> markers = new ArrayList<>();
+			List<Outline> outlines = new ArrayList<>();
+			List<Polyline> polylines = new ArrayList<>();
+			LatLng defaultCenter = null;
+			if (area.getLat() > 0 && area.getLng() > 0) {
+				defaultCenter = new LatLng(area.getLat(), area.getLng());
+			}
+			else {
+				defaultCenter = area.getMetadata().getDefaultCenter();
+			}
+			int defaultZoom = 14;
+
+			for (Sector sector : sectors) {
+				if (sector.getLat() > 0 && sector.getLng() > 0) {
+					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+				}
+				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+					String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
+					outlines.add(new Outline(name, sector.getPolygonCoords()));
+				}
+				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
+					polylines.add(new Polyline(null, sector.getPolyline()));
+				}
+			}
+
+			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
+				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
+				Path png = generator.capture(leaflet);
+				PdfPTable table = new PdfPTable(1);
+				table.setWidthPercentage(100);
+				Image img = Image.getInstance(png.toString());
+				PdfPCell cell = new PdfPCell(img, true);
+				cell.setColspan(table.getNumberOfColumns());
+				table.addCell(cell);
+				document.add(new Paragraph(" "));
+				document.add(table);
+			}
+		} catch (Exception | Error e) {
+			logger.warn(e.getMessage(), e);
+		}
+	}
+
+	private void writeMapProblem(Area area, Sector sector, Problem problem) {
+		try {
+			List<Marker> markers = new ArrayList<>();
+			List<Outline> outlines = new ArrayList<>();
+			List<Polyline> polylines = new ArrayList<>();
+			LatLng defaultCenter = null;
+			if (problem.getLat() > 0 && problem.getLng() > 0) {
+				defaultCenter = new LatLng(problem.getLat(), problem.getLng());
+			}
+			else if (sector.getLat() > 0 && sector.getLng() > 0) {
+				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
+			}
+			else if (area.getLat() > 0 && area.getLng() > 0) {
+				defaultCenter = new LatLng(area.getLat(), area.getLng());
+			}
+			else {
+				defaultCenter = area.getMetadata().getDefaultCenter();
+			}
+			int defaultZoom = 15;
+
+			if (sector.getLat() > 0 && sector.getLng() > 0) {
+				markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+			}
+			if (problem.getLat() > 0 && problem.getLng() > 0) {
+				String name = problem.getName().replaceAll("[^a-zA-Z0-9]", " ");
+				markers.add(new Marker(problem.getLat(), problem.getLng(), false, name));
+			}
+			if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+				outlines.add(new Outline(null, sector.getPolygonCoords()));
+			}
+			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
+				polylines.add(new Polyline(null, sector.getPolyline()));
+			}
+
+			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
+				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
+				Path png = generator.capture(leaflet);
+				PdfPTable table = new PdfPTable(1);
+				table.setWidthPercentage(100);
+				Image img = Image.getInstance(png.toString());
+				PdfPCell cell = new PdfPCell(img, true);
+				cell.setColspan(table.getNumberOfColumns());
+				table.addCell(cell);
+				document.add(new Paragraph(" "));
+				document.add(table);
+			}
+		} catch (Exception | Error e) {
+			logger.warn(e.getMessage(), e);
 		}
 	}
 

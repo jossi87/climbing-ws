@@ -154,7 +154,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
+						try (PdfGenerator generator = new PdfGenerator(output, false)) {
 							generator.writeArea(area, sectors);
 						}
 					} catch (Throwable e) {
@@ -328,7 +328,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
+						try (PdfGenerator generator = new PdfGenerator(output, false)) {
 							generator.writeProblem(area, sector, problem);
 						}
 					} catch (Throwable e) {
