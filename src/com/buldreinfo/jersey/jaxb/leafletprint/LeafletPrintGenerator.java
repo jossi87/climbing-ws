@@ -5,13 +5,16 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.db.BuldreinfoRepository;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
@@ -30,7 +33,7 @@ import com.google.gson.Gson;
  */
 public class LeafletPrintGenerator {
 	private static Logger logger = LogManager.getLogger();
-	private final String chrome;
+	private final boolean windows;
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
 		List<Marker> markers = new ArrayList<>();
@@ -55,7 +58,7 @@ public class LeafletPrintGenerator {
 	}
 	
 	public LeafletPrintGenerator(boolean windows) {
-		this.chrome = !windows? "/usr/bin/google-chrome" : "C:/Program Files (x86)/Google/Chrome/Application/chrome";
+		this.windows = windows;
 	}
 	
 	public Path capture(Leaflet leaflet) throws IOException, InterruptedException {
@@ -68,10 +71,18 @@ public class LeafletPrintGenerator {
 	}
 	
 	private Path captureLeaflet(Leaflet leaflet) throws IOException, InterruptedException {
-		Path res = Files.createTempFile("leaflet", ".png");
+		Path res = null;
+		if (windows) {
+			res = Files.createTempFile("leaflet", ".png");
+		}
+		else {
+			res = Paths.get(BuldreinfoRepository.PATH).resolve("temp").resolve("leaflet").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+			Files.createDirectories(res.getParent());
+		}
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
 		String url = "https://buldreinfo.com/leaflet-print/" + json;
+		String chrome = !windows? "/usr/bin/google-chrome" : "C:/Program Files (x86)/Google/Chrome/Application/chrome";
 		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--user-data-dir=" + res.getParent().toString(), "--no-sandbox", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", "--window-size=1280,720", "-screenshot=" + res, url);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
 		builder.redirectErrorStream(true);

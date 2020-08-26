@@ -106,7 +106,7 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
-	private static final String PATH = "/mnt/buldreinfo/media/";
+	public static final String PATH = "/mnt/buldreinfo/media/";
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 
