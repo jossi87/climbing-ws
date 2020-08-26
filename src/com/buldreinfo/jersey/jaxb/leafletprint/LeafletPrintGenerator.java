@@ -47,7 +47,7 @@ public class LeafletPrintGenerator {
 		logger.debug(png);
 	}
 	
-	private static String encode(String json) {
+	private String encode(String json) {
 		return json
 				.replaceAll("\\{", "%7B")
 				.replaceAll("\\}", "%7D")
@@ -60,17 +60,15 @@ public class LeafletPrintGenerator {
 	
 	public Path capture(Leaflet leaflet) throws IOException, InterruptedException {
 		Path res = Files.createTempFile("leaflet", ".png");
-		
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
 		String url = "https://buldreinfo.com/leaflet-print/" + json;
-		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox", "--window-size=1280,720", "-screenshot=" + res, url);
+		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox", "--window-size=640,480", "-screenshot=" + res, url);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
 		builder.redirectErrorStream(true);
 		final Process process = builder.start();
 		watch(process);
-		process.waitFor(5, TimeUnit.SECONDS);
-		
+		process.waitFor(7, TimeUnit.SECONDS);
 		return res;
 	}
 	
