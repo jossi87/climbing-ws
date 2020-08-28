@@ -10,6 +10,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.transform.Transformer;
@@ -29,8 +30,13 @@ import org.w3c.dom.Element;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.buldreinfo.jersey.jaxb.model.SvgAnchor;
+import com.buldreinfo.jersey.jaxb.model.SvgText;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class TopoGenerator {
 	public static Path generateTopo(int mediaId, int width, int height, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
@@ -114,6 +120,34 @@ public class TopoGenerator {
 			text.setAttributeNS(null, "font-size", String.valueOf(0.013 * imgMax));
 			text.appendChild(doc.createTextNode(String.valueOf(svg.getNr())));
 			texts.add(text);
+			
+			Gson gson = new Gson();
+			// Texts
+			if (!Strings.isNullOrEmpty(svg.getTexts())) {
+				List<SvgText> svgTexts = gson.fromJson(svg.getTexts(), new TypeToken<ArrayList<SvgText>>(){}.getType());
+				for (SvgText svgText : svgTexts) {
+					text = doc.createElementNS(null, "text");
+					text.setAttributeNS(null, "style", "fill: #FF0000;");
+					text.setAttributeNS(null, "x", String.valueOf(svgText.getX()));
+					text.setAttributeNS(null, "y", String.valueOf(svgText.getY()));
+					text.setAttributeNS(null, "dy", ".3em");
+					text.setAttributeNS(null, "font-size", "5em");
+					text.appendChild(doc.createTextNode(svgText.getTxt()));
+				}
+				texts.add(text);
+			}
+			// Anchors
+			if (!Strings.isNullOrEmpty(svg.getAnchors())) {
+				List<SvgAnchor> svgAnchors = gson.fromJson(svg.getAnchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
+				for (SvgAnchor svgAnchor : svgAnchors) {
+					circle = doc.createElementNS(null, "circle");
+					circle.setAttributeNS(null, "style", "fill: #E2011A;");
+					circle.setAttributeNS(null, "cx", String.valueOf(svgAnchor.getX()));
+					circle.setAttributeNS(null, "cy", String.valueOf(svgAnchor.getY())); 
+					circle.setAttributeNS(null, "r", String.valueOf(0.008 * imgMax));
+					svgRoot.appendChild(circle);
+				}
+			}
 		}
 		for (Element text : texts) {
 			svgRoot.appendChild(text);

@@ -94,9 +94,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2891;
-		int problemId = 7750;
-		String urlBase = "https://brattelinjer.no";
+		int areaId = 2864;
+		int problemId = 10514;
+		String urlBase = "https://klatreforer.tromsoklatring.no";
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
