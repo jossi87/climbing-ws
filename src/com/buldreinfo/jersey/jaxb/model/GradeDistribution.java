@@ -2,10 +2,16 @@ package com.buldreinfo.jersey.jaxb.model;
 
 public class GradeDistribution {
 	private final String grade;
-	private int num = 0;
+	private int num;
 	
 	public GradeDistribution(String grade) {
 		this.grade = grade;
+		this.num = 0;
+	}
+	
+	public GradeDistribution(String grade, int num) {
+		this.grade = grade;
+		this.num = num;
 	}
 
 	public String getGrade() {

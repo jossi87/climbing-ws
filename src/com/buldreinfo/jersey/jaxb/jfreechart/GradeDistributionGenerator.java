@@ -4,11 +4,7 @@ import java.awt.Color;
 import java.awt.SystemColor;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -29,16 +25,14 @@ import org.jfree.chart.ui.TextAnchor;
 import org.jfree.data.category.DefaultCategoryDataset;
 
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 public class GradeDistributionGenerator {
 	public static void main(String[] args) throws Exception {
-		Gson gson = new Gson();
-		URL obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=2754&idSector=0");
-		HttpURLConnection con = (HttpURLConnection)obj.openConnection();
-		con.setRequestMethod("GET");
-		List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
+		List<GradeDistribution> gradeDistribution = new ArrayList<>();
+		gradeDistribution.add(new GradeDistribution("6b", 2));
+		gradeDistribution.add(new GradeDistribution("6c", 2));
+		gradeDistribution.add(new GradeDistribution("7a", 4));
+		gradeDistribution.add(new GradeDistribution("7b", 4));
 		Path dst = Paths.get("c:/users/jostein/desktop/test.png");
 		write(dst, gradeDistribution);
 	}
@@ -64,7 +58,8 @@ public class GradeDistributionGenerator {
 		plot.setBackgroundPaint(SystemColor.inactiveCaption);//change background color
 		BarRenderer renderer = (BarRenderer) plot.getRenderer();
         renderer.setDrawBarOutline(false);
-        renderer.setItemMargin(-6);
+        renderer.setMaximumBarWidth(30.05);
+        renderer.setItemMargin(-0.80);
         renderer.setBarPainter(new StandardBarPainter());
         for (int i = 0; i < gradeDistribution.size(); i++) {
         	renderer.setSeriesPaint(i, Color.WHITE);
