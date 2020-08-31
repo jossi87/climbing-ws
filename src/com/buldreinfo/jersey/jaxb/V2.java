@@ -142,6 +142,7 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Area area = c.getBuldreinfoRepo().getArea(authUserId, id);
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
+			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.Sector sector : area.getSectors()) {
@@ -155,7 +156,7 @@ public class V2 {
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
 						try (PdfGenerator generator = new PdfGenerator(output, false)) {
-							generator.writeArea(area, sectors);
+							generator.writeArea(area, gradeDistribution, sectors);
 						}
 					} catch (Throwable e) {
 						e.printStackTrace();

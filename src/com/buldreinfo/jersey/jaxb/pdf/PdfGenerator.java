@@ -10,12 +10,15 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.xml.transform.TransformerException;
@@ -24,7 +27,9 @@ import org.apache.batik.transcoder.TranscoderException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.db.BuldreinfoRepository;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
@@ -33,6 +38,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.Polyline;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -47,6 +53,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.itextpdf.text.Anchor;
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
@@ -116,8 +123,12 @@ public class PdfGenerator implements AutoCloseable {
 			con.setRequestMethod("GET");
 			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
 			try (PdfGenerator generator = new PdfGenerator(fos, true)) {
-				// generator.writeArea(area, sectors);
-				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
+				con = (HttpURLConnection)obj.openConnection();
+				con.setRequestMethod("GET");
+				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
+				generator.writeArea(area, gradeDistribution, sectors);
+				// generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -142,7 +153,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.close();		
 	}
 
-	public void writeArea(Area area, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+	public void writeArea(Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
 		String title = area.getName();
 		addMetaData(title);
@@ -161,11 +172,27 @@ public class PdfGenerator implements AutoCloseable {
 		if (!Strings.isNullOrEmpty(area.getComment())) {
 			writeHtml(area.getComment());
 		}
-		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
+		if ( (gradeDistribution != null && !gradeDistribution.isEmpty()) || (area.getMedia() != null && !area.getMedia().isEmpty()) ) {
 			PdfPTable table = new PdfPTable(1);
 			table.setWidthPercentage(100);
-			for (Media m : area.getMedia()) {
-				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
+				Path png = null;
+				if (windows) {
+					png = Files.createTempFile("gradeDistribution", ".png");
+				}
+				else {
+					png = Paths.get(BuldreinfoRepository.PATH).resolve("temp").resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+					Files.createDirectories(png.getParent());
+				}
+				GradeDistributionGenerator.write(png, gradeDistribution);
+				Image img = Image.getInstance(png.toString());
+				PdfPCell cell = new PdfPCell(img, true);
+				table.addCell(cell);
+			}
+			if (area.getMedia() != null && !area.getMedia().isEmpty()) {
+				for (Media m : area.getMedia()) {
+					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+				}
 			}
 			document.add(table);
 		}
