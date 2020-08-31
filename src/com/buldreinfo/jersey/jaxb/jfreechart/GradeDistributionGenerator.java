@@ -40,7 +40,7 @@ public class GradeDistributionGenerator {
 	public static void write(Path dst, Collection<GradeDistribution> gradeDistribution) throws IOException {
 		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 		for (GradeDistribution x : gradeDistribution) {
-			dataset.addValue(x.getNum(), x.getGrade(), x.getGrade());
+			dataset.addValue(x.getNum(), "row", x.getGrade());
 		}
 		
 		JFreeChart chart = ChartFactory.createBarChart("Distribution", // chart title
@@ -58,13 +58,10 @@ public class GradeDistributionGenerator {
 		plot.setBackgroundPaint(SystemColor.inactiveCaption);//change background color
 		BarRenderer renderer = (BarRenderer) plot.getRenderer();
         renderer.setDrawBarOutline(false);
-        renderer.setMaximumBarWidth(30.05);
-        renderer.setItemMargin(-0.80);
         renderer.setBarPainter(new StandardBarPainter());
         for (int i = 0; i < gradeDistribution.size(); i++) {
         	renderer.setSeriesPaint(i, Color.WHITE);
         }
-        
         renderer.setDefaultItemLabelGenerator(new StandardCategoryItemLabelGenerator());
         renderer.setDefaultItemLabelsVisible(true);
         ItemLabelPosition position = new ItemLabelPosition(ItemLabelAnchor.OUTSIDE12, TextAnchor.TOP_CENTER);
