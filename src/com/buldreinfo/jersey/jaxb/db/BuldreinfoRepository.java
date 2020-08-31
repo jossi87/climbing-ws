@@ -584,7 +584,7 @@ public class BuldreinfoRepository {
 
 	public List<Filter> getFilter(int authUserId, Setup setup, FilterRequest fr) throws SQLException {
 		List<Filter> res = new ArrayList<>();
-		String sqlStr = "SELECT a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.hidden problem_visibility, p.name problem_name, p.latitude, p.longitude, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars, p.grade grade, MAX(m.id) media_id, MAX(CASE WHEN t.user_id=? THEN 1 ELSE 0 END) ticked"
+		String sqlStr = "SELECT a.name area_name, a.hidden area_visibility, s.name sector_name, s.hidden sector_visibility, p.id problem_id, p.hidden problem_visibility, p.name problem_name, coalesce(p.latitude,coalesce(s.parking_latitude,a.latitude)) latitude, coalesce(p.longitude,coalesce(s.parking_longitude,a.longitude)) longitude, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars, p.grade grade, MAX(m.id) media_id, MAX(CASE WHEN t.user_id=? THEN 1 ELSE 0 END) ticked"
 				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN permission auth ON r.id=auth.region_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (r.id=? OR auth.user_id IS NOT NULL)"
@@ -593,7 +593,7 @@ public class BuldreinfoRepository {
 				+ "   AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))"
 				+ "   AND p.grade IN (" + Joiner.on(",").join(fr.getGrades()) + ")"
 				+ "   AND p.type_id IN (" + Joiner.on(",").join(fr.getTypes()) + ")"
-				+ "   GROUP BY a.id, a.name, a.hidden, s.id, s.name, s.hidden, p.id, p.hidden, p.name"
+				+ "   GROUP BY a.id, a.name, a.hidden, s.id, s.name, s.hidden, p.id, p.hidden, p.name, p.latitude, p.longitude, s.parking_latitude, s.parking_longitude, a.latitude, s.longitude"
 				+ "   ORDER BY p.name, p.latitude, p.longitude, p.grade";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
