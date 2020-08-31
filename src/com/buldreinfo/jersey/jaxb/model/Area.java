@@ -221,6 +221,9 @@ public class Area implements IMetadata {
 					if (s.getSorting() > 0) {
 						return String.format("%04d", s.getSorting());
 					}
+					if (s.getName().toLowerCase().contains("vestre")) {
+						return s.getName().toLowerCase();
+					}
 					return s.getName().toLowerCase()
 							.replace("første", "1første")
 							.replace("sør", "1sør")
