@@ -20,7 +20,7 @@ import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
 public class LeafletPrintGenerator {
-	private static final String INIT = "mkdir /puppeteer &&	mkdir /puppeteer/temp && cd /puppeteer && npm install puppeteer";
+	private static final String INIT = "mkdir /mnt/buldreinfo/media/puppeteer && mkdir /mnt/buldreinfo/media/puppeteer/temp && cd /mnt/buldreinfo/media/puppeteer && npm install puppeteer && chmod -R 777 /mnt/buldreinfo/media/puppeteer/temp";
 	private static Logger logger = LogManager.getLogger();
 	public static String getDistance(String polyline) {
 		double distance = 0;
@@ -44,12 +44,12 @@ public class LeafletPrintGenerator {
 	}
 	
 	public static Path takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
-		final Path root = Paths.get("/puppeteer/temp");
+		final Path root = Paths.get("/mnt/buldreinfo/media/puppeteer/temp");
 		final String filenamePrefix = System.currentTimeMillis() + "_" + UUID.randomUUID();
 		final Path js = root.resolve(filenamePrefix + ".js");
 		final Path png = root.resolve(filenamePrefix + ".png");
 		if (!Files.exists(root)) {
-			logger.warn(root + " does not exist (" + INIT + ")");
+			logger.error("takeSnapshot(leaflet={}) - {} does not exist ({})", leaflet, root, INIT);
 			return null;
 		}
 		Gson gson = new Gson();
@@ -82,7 +82,7 @@ public class LeafletPrintGenerator {
 		watch(process);
 		process.waitFor(10, TimeUnit.SECONDS);
 		if (!Files.exists(png) || Files.size(png) == 0) {
-			logger.warn("captureLeaflet(leaflet={}) - corrupt res={}", leaflet, png);
+			logger.error("takeSnapshot(leaflet={}) - corrupt res={}", leaflet, png);
 			return null;
 		}
 		return png;
