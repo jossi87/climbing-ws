@@ -69,7 +69,7 @@ public class LeafletPrintGenerator {
 		legends.add("2 - test 2");
 		LatLng defaultCenter = new LatLng(58.9381417663, 5.9510064125);
 		int defaultZoom = 16;
-		Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom);
+		Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
 		LeafletPrintGenerator generator = new LeafletPrintGenerator(true);
 		Path png = generator.capture(leaflet);
 		logger.debug(png);

@@ -100,9 +100,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2782;
-		int problemId = 10514;
-		String urlBase = "https://brattelinjer.no";
+		int areaId = 242;
+		int problemId = 3398;
+		String urlBase = "https://buldreinfo.com";
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
@@ -122,7 +122,7 @@ public class PdfGenerator implements AutoCloseable {
 			con.setRequestMethod("GET");
 			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
 			try (PdfGenerator generator = new PdfGenerator(fos, true)) {
-				obj = new URL("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
+				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
@@ -496,7 +496,47 @@ public class PdfGenerator implements AutoCloseable {
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
+				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
+				Path png = generator.capture(leaflet);
+				if (png != null) {
+					PdfPTable table = new PdfPTable(1);
+					table.setWidthPercentage(100);
+					Image img = Image.getInstance(png.toString());
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setColspan(table.getNumberOfColumns());
+					table.addCell(cell);
+					document.add(new Paragraph(" "));
+					document.add(table);
+				}
+			}
+		} catch (Exception | Error e) {
+			logger.warn(e.getMessage(), e);
+		}
+	}
+	
+	private void writeMapSector(Sector sector) {
+		try {
+			List<Outline> outlines = new ArrayList<>();
+			List<String> polylines = new ArrayList<>();
+			List<Marker> markers = new ArrayList<>();
+			LatLng defaultCenter = null;
+			if (sector.getLat() > 0 && sector.getLng() > 0) {
+				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
+			}
+			else {
+				defaultCenter = sector.getMetadata().getDefaultCenter();
+			}
+			int defaultZoom = 14;
+			List<String> legends = new ArrayList<>();
+			for (Sector.Problem p : sector.getProblems()) {
+				if (p.getLat() > 0 && p.getLng() > 0) {
+					markers.add(new Marker(p.getLat(), p.getLng(), false, String.valueOf(p.getNr())));
+				}
+			}
+
+			if (!markers.isEmpty()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
 				if (png != null) {
@@ -553,7 +593,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
 				if (png != null) {
@@ -611,6 +651,7 @@ public class PdfGenerator implements AutoCloseable {
 			if (!Strings.isNullOrEmpty(s.getComment())) {
 				document.add(new Phrase(s.getComment(), FONT_REGULAR));
 			}
+			writeMapSector(s);
 			// Table
 			float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
 			PdfPTable table = new PdfPTable(relativeWidths);

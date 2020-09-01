@@ -11,14 +11,16 @@ public class Leaflet {
 	private final List<String> legends;
 	private final LatLng defaultCenter;
 	private final int defaultZoom;
+	private final boolean showPhotoNotMap; 
 	
-	public Leaflet(List<Marker> markers, List<Outline> outlines, List<String> polylines, List<String> legends, LatLng defaultCenter, int defaultZoom) {
+	public Leaflet(List<Marker> markers, List<Outline> outlines, List<String> polylines, List<String> legends, LatLng defaultCenter, int defaultZoom, boolean showPhotoNotMap) {
 		this.markers = markers;
 		this.outlines = outlines;
 		this.polylines = polylines;
 		this.legends = legends;
 		this.defaultCenter = defaultCenter;
 		this.defaultZoom = defaultZoom;
+		this.showPhotoNotMap = showPhotoNotMap;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -44,10 +46,15 @@ public class Leaflet {
 	public List<String> getPolylines() {
 		return polylines;
 	}
+	
+	public boolean isShowPhotoNotMap() {
+		return showPhotoNotMap;
+	}
 
 	@Override
 	public String toString() {
 		return "Leaflet [markers=" + markers + ", outlines=" + outlines + ", polylines=" + polylines + ", legends="
-				+ legends + ", defaultCenter=" + defaultCenter + ", defaultZoom=" + defaultZoom + "]";
+				+ legends + ", defaultCenter=" + defaultCenter + ", defaultZoom=" + defaultZoom + ", showPhotoNotMap="
+				+ showPhotoNotMap + "]";
 	}
 }
