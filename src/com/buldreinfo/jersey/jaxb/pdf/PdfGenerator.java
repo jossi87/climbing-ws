@@ -100,9 +100,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 242;
-		int problemId = 3398;
-		String urlBase = "https://buldreinfo.com";
+		int areaId = 2733;
+		int problemId = 3842;
+		String urlBase = "https://brattelinjer.no";
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
@@ -650,7 +650,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			writeMapSector(s);
 			// Table
-			float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 5, 2, 5, 5} : new float[]{1, 5, 2, 2, 5, 5};
+			float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 3, 1, 3, 8} : new float[]{1, 4, 2, 2, 4, 7};
 			PdfPTable table = new PdfPTable(relativeWidths);
 			table.setWidthPercentage(100);
 			addTableCell(table, FONT_BOLD, "#");
