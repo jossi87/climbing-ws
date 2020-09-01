@@ -4,16 +4,16 @@ public class Search {
 	private final String title;
 	private final String description;
 	private final String url;
-	private final String mediaUrl;
-	private final int mediaId;
+	private final String mediaurl;
+	private final int mediaid;
 	private final int visibility;
 	
-	public Search(String title, String description, String url, String mediaUrl, int mediaId, int visibility) {
+	public Search(String title, String description, String url, String mediaurl, int mediaid, int visibility) {
 		this.title = title;
 		this.description = description;
 		this.url = url;
-		this.mediaUrl = mediaUrl;
-		this.mediaId = mediaId;
+		this.mediaurl = mediaurl;
+		this.mediaid = mediaid;
 		this.visibility = visibility;
 	}
 	
@@ -22,11 +22,11 @@ public class Search {
 	}
 	
 	public int getMediaId() {
-		return mediaId;
+		return mediaid;
 	}
 
 	public String getMediaUrl() {
-		return mediaUrl;
+		return mediaurl;
 	}
 
 	public String getTitle() {
