@@ -3,6 +3,9 @@ package com.buldreinfo.jersey.jaxb.leafletprint;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -112,7 +115,7 @@ public class LeafletPrintGenerator {
 		}
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
-		String url = "https://buldreinfo.com/leaflet-print/" + json;
+		String url = "http://localhost:3000/leaflet-print/" + json;
 		String chrome = !windows? "/usr/bin/google-chrome" : "C:/Program Files (x86)/Google/Chrome/Application/chrome";
 		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--user-data-dir=" + res.getParent().toString(), "--no-sandbox", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", "--window-size=1280,720", "-screenshot=" + res, url);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
@@ -127,11 +130,8 @@ public class LeafletPrintGenerator {
 		return res;
 	}
 	
-	private String encode(String json) {
-		return json
-				.replaceAll("\\{", "%7B")
-				.replaceAll("\\}", "%7D")
-				.replaceAll("\"", "%22");
+	private String encode(String json) throws UnsupportedEncodingException {
+		return URLEncoder.encode(json, StandardCharsets.UTF_8.toString());
 	}
 	
 	private void watch(final Process process) {
