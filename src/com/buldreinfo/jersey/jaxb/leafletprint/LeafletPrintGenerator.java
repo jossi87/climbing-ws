@@ -81,8 +81,12 @@ public class LeafletPrintGenerator {
 		final Process process = builder.start();
 		watch(process);
 		process.waitFor(10, TimeUnit.SECONDS);
-		if (!Files.exists(png) || Files.size(png) == 0) {
-			logger.error("takeSnapshot(leaflet={}) - corrupt res={}", leaflet, png);
+		if (!Files.exists(png)) {
+			logger.error("takeSnapshot(leaflet={}) - {} does not exist", png);
+			return null;
+		}
+		else if (Files.size(png) == 0) {
+			logger.error("takeSnapshot(leaflet={}) - size on {} = 0", png);
 			return null;
 		}
 		return png;
