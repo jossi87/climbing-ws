@@ -115,7 +115,7 @@ public class LeafletPrintGenerator {
 		}
 		Gson gson = new Gson();
 		String json = encode(gson.toJson(leaflet));
-		String url = "http://localhost:3000/leaflet-print/" + json;
+		String url = "https://buldreinfo.com/leaflet-print/" + json;
 		String chrome = !windows? "/usr/bin/google-chrome" : "C:/Program Files (x86)/Google/Chrome/Application/chrome";
 		ProcessBuilder builder = new ProcessBuilder(chrome, "--headless", "--disable-gpu", "--user-data-dir=" + res.getParent().toString(), "--no-sandbox", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", "--window-size=1280,720", "-screenshot=" + res, url);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
