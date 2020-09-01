@@ -497,8 +497,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
-				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
-				Path png = generator.capture(leaflet);
+				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -537,8 +536,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
-				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
-				Path png = generator.capture(leaflet);
+				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -594,8 +592,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
-				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
-				Path png = generator.capture(leaflet);
+				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
