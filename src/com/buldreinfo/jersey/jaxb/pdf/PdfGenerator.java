@@ -34,7 +34,6 @@ import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
-import com.buldreinfo.jersey.jaxb.leafletprint.beans.Polyline;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -101,9 +100,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2864;
+		int areaId = 2782;
 		int problemId = 10514;
-		String urlBase = "https://klatreforer.tromsoklatring.no";
+		String urlBase = "https://brattelinjer.no";
 		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
@@ -461,7 +460,7 @@ public class PdfGenerator implements AutoCloseable {
 		try {
 			List<Marker> markers = new ArrayList<>();
 			List<Outline> outlines = new ArrayList<>();
-			List<Polyline> polylines = new ArrayList<>();
+			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
 			if (area.getLat() > 0 && area.getLng() > 0) {
 				defaultCenter = new LatLng(area.getLat(), area.getLng());
@@ -471,22 +470,33 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			int defaultZoom = 14;
 
+			boolean useLegend = sectors.size()>1;
+			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
 					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
 				}
-				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-					String name = sector.getName().replaceAll("[^a-zA-Z0-9]", " ");
-					outlines.add(new Outline(name, sector.getPolygonCoords()));
-				}
+				String distance = null;
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-					
-					polylines.add(new Polyline(null, sector.getPolyline()));
+					polylines.add(sector.getPolyline());
+					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
+				}
+				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+					String name = removeIllegalChars(sector.getName());
+					String label = null;
+					if (useLegend) {
+						label = String.valueOf(legends.size() + 1);
+						legends.add(label + ": " + name + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : ""));
+					}
+					else {
+						label = name;
+					}
+					outlines.add(new Outline(label, sector.getPolygonCoords()));
 				}
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
 				if (png != null) {
@@ -509,7 +519,7 @@ public class PdfGenerator implements AutoCloseable {
 		try {
 			List<Marker> markers = new ArrayList<>();
 			List<Outline> outlines = new ArrayList<>();
-			List<Polyline> polylines = new ArrayList<>();
+			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
 			if (problem.getLat() > 0 && problem.getLng() > 0) {
 				defaultCenter = new LatLng(problem.getLat(), problem.getLng());
@@ -529,18 +539,21 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
 			}
 			if (problem.getLat() > 0 && problem.getLng() > 0) {
-				String name = problem.getName().replaceAll("[^a-zA-Z0-9]", " ");
+				String name = removeIllegalChars(problem.getName());
 				markers.add(new Marker(problem.getLat(), problem.getLng(), false, name));
 			}
-			if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-				outlines.add(new Outline(null, sector.getPolygonCoords()));
-			}
+			String distance = null;
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-				polylines.add(new Polyline(null, sector.getPolyline()));
+				polylines.add(sector.getPolyline());
+				distance = LeafletPrintGenerator.getDistance(sector.getPolyline());	
+			}
+			if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+				outlines.add(new Outline(label, sector.getPolygonCoords()));
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, defaultCenter, defaultZoom);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom);
 				LeafletPrintGenerator generator = new LeafletPrintGenerator(windows);
 				Path png = generator.capture(leaflet);
 				if (png != null) {
@@ -557,6 +570,13 @@ public class PdfGenerator implements AutoCloseable {
 		} catch (Exception | Error e) {
 			logger.warn(e.getMessage(), e);
 		}
+	}
+	
+	private String removeIllegalChars(String name) {
+		if (name != null) {
+			return name.replaceAll("[^ÆØÅæøåa-zA-Z0-9]", " ");
+		}
+		return name;
 	}
 
 	private void writeMediaCell(PdfPTable table, int mediaId, int width, int height, String txt, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
