@@ -482,11 +482,11 @@ public class PdfGenerator implements AutoCloseable {
 					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
 				}
 				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-					String name = removeIllegalChars(sector.getName());
+					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
 					String label = null;
 					if (useLegend) {
 						label = String.valueOf(legends.size() + 1);
-						legends.add(label + ": " + name + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : ""));
+						legends.add(label + ": " + name);
 					}
 					else {
 						label = name;
