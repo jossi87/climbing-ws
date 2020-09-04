@@ -81,7 +81,7 @@ public class LeafletPrintGenerator {
 		watch(process);
 		process.waitFor(5, TimeUnit.SECONDS);
 		if (!Files.exists(png) || Files.size(png) == 0) {
-			logger.warn("takeSnapshot() failed - Files.exists({})={}", png.toString(), Files.exists(png));
+			logger.warn("takeSnapshot() failed - Files.exists({})={}, json={}", png.toString(), Files.exists(png), json);
 			return null;
 		}
 		return png;
