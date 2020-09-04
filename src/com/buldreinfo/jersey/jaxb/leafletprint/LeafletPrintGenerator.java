@@ -83,15 +83,25 @@ public class LeafletPrintGenerator {
 		final Process process = builder.start();
 		watch(process);
 		process.waitFor(10, TimeUnit.SECONDS);
-		if (!Files.exists(png)) {
-			logger.error("takeSnapshot(leaflet={}) - {} does not exist", png);
-			return null;
-		}
-		else if (Files.size(png) == 0) {
-			logger.error("takeSnapshot(leaflet={}) - size on {} = 0", png);
-			return null;
+		if (!ensureIoDone(png)) {
+			Thread.sleep(1000);
+			if (!ensureIoDone(png)) {
+				return null;
+			}
 		}
 		return png;
+	}
+	
+	private static boolean ensureIoDone(Path png) throws IOException {
+		if (!Files.exists(png)) {
+			logger.error("ensureIoDone() - {} does not exist", png);
+			return false;
+		}
+		else if (Files.size(png) == 0) {
+			logger.error("ensureIoDone() - size on {} = 0", png);
+			return false;
+		}
+		return true;
 	}
 	
 	private static double distance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {
