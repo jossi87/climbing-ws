@@ -27,7 +27,6 @@ import org.apache.batik.transcoder.TranscoderException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.db.BuldreinfoRepository;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
@@ -189,7 +188,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		writeSectors(sectors);
 	}
-
+	
 	public void writeProblem(Area area, Sector sector, Problem problem) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && sector != null && problem != null);
 		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());

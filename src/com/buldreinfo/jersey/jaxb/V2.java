@@ -66,6 +66,7 @@ import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 /**
@@ -131,7 +132,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
@@ -168,8 +169,8 @@ public class V2 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
-			}
-	
+	}
+
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -342,7 +343,7 @@ public class V2 {
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
-			}
+	}
 
 	@GET
 	@Path("/robots.txt")
@@ -367,6 +368,39 @@ public class V2 {
 			metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(s).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/sectors/pdf")
+	@Produces("application/pdf")
+	public Response getSectorsPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int requestedIdMedia = 0;
+			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
+			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
+			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
+			final Area area = c.getBuldreinfoRepo().getArea(authUserId, sector.getAreaId());
+			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			StreamingOutput stream = new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					try {
+						try (PdfGenerator generator = new PdfGenerator(output)) {
+							generator.writeArea(area, gradeDistribution, Lists.newArrayList(sector));
+						}
+					} catch (Throwable e) {
+						e.printStackTrace();
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
+					}	            	 
+				}
+			};
+			return Response.ok(stream).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
