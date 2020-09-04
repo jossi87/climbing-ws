@@ -121,7 +121,7 @@ public class PdfGenerator implements AutoCloseable {
 			con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
 			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
-			try (PdfGenerator generator = new PdfGenerator(fos, true)) {
+			try (PdfGenerator generator = new PdfGenerator(fos)) {
 				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
@@ -131,15 +131,13 @@ public class PdfGenerator implements AutoCloseable {
 			}
 		}
 	}
-	private final boolean windows;
 	private final PdfWriter writer;
 	private final Document document;
 	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
 	private Image imageStarFilled;
 	private Image imageStarHalf;
 	private Image imageStarEmpty;
-	public PdfGenerator(OutputStream output, boolean windows) throws DocumentException, IOException, TranscoderException, TransformerException {
-		this.windows = windows;
+	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException, TransformerException {
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
 		writer.setStrictImageSequence(true);
@@ -175,14 +173,8 @@ public class PdfGenerator implements AutoCloseable {
 			PdfPTable table = new PdfPTable(1);
 			table.setWidthPercentage(100);
 			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-				Path png = null;
-				if (windows) {
-					png = Files.createTempFile("gradeDistribution", ".png");
-				}
-				else {
-					png = Paths.get(BuldreinfoRepository.PATH).resolve("temp").resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-					Files.createDirectories(png.getParent());
-				}
+				Path png = GlobalFunctions.getPathTemp().resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+				Files.createDirectories(png.getParent());
 				GradeDistributionGenerator.write(png, gradeDistribution);
 				Image img = Image.getInstance(png.toString());
 				PdfPCell cell = new PdfPCell(img, true);

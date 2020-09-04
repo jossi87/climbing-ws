@@ -5,22 +5,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
 public class LeafletPrintGenerator {
-	private static final String INIT = "mkdir /mnt/buldreinfo/media/puppeteer && mkdir /mnt/buldreinfo/media/puppeteer/temp && cd /mnt/buldreinfo/media/puppeteer && npm install puppeteer && chmod -R 777 /mnt/buldreinfo/media/puppeteer/temp";
 	private static Logger logger = LogManager.getLogger();
 	public static String getDistance(String polyline) {
 		double distance = 0;
@@ -44,62 +41,23 @@ public class LeafletPrintGenerator {
 	}
 	
 	public static Path takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
-		final Path root = Paths.get("/mnt/buldreinfo/media/puppeteer/temp");
-		final String filenamePrefix = System.currentTimeMillis() + "_" + UUID.randomUUID();
-		final Path js = root.resolve(filenamePrefix + ".js");
-		final Path png = root.resolve(filenamePrefix + ".png");
-		if (!Files.exists(root)) {
-			logger.error("takeSnapshot(leaflet={}) - {} does not exist ({})", leaflet, root, INIT);
-			return null;
-		}
+		Path png = GlobalFunctions.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+		Files.createDirectories(png.getParent());
+		Path script = GlobalFunctions.getPathLeafletPrint();
 		Gson gson = new Gson();
 		String json = gson.toJson(leaflet);
 		String base64EncodedJson = Base64.getEncoder().encodeToString(json.getBytes());
-		String url = "https://buldreinfo.com/leaflet-print/" + base64EncodedJson;
-		// Write script
-		List<String> lines = new ArrayList<>();
-		lines.add("const puppeteer = require('puppeteer');");
-		lines.add("(async () => {");
-		lines.add("  const browser = await puppeteer.launch({");
-		lines.add("    args: ['--no-sandbox', '--disable-setuid-sandbox']");
-		lines.add("  });");
-		lines.add("  const page = await browser.newPage();");
-		lines.add("  await page.setViewport({");
-		lines.add("    width: 1280,");
-		lines.add("    height: 720,");
-		lines.add("    deviceScaleFactor: 1,");
-		lines.add("  });");
-		lines.add("  await page.goto('" + url + "', {waitUntil: 'networkidle2'});");
-		lines.add("  await page.screenshot({path: '" + png + "'});");
-		lines.add("");
-		lines.add("  await browser.close();");
-		lines.add("})();");
-		Files.write(js, lines);
-		ProcessBuilder builder = new ProcessBuilder("node", js.toString());
+		ProcessBuilder builder = new ProcessBuilder("node", script.toString(), png.toString(), base64EncodedJson);
 		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
 		builder.redirectErrorStream(true);
 		final Process process = builder.start();
 		watch(process);
-		process.waitFor(10, TimeUnit.SECONDS);
-		if (!ensureIoDone(png)) {
-			Thread.sleep(1000);
-			if (!ensureIoDone(png)) {
-				return null;
-			}
+		process.waitFor(5, TimeUnit.SECONDS);
+		if (!Files.exists(png) || Files.size(png) == 0) {
+			logger.error("takeSnapshot(...) failed on base64EncodedJson: {}, json: {}", base64EncodedJson, json);
+			return null;
 		}
 		return png;
-	}
-	
-	private static boolean ensureIoDone(Path png) throws IOException {
-		if (!Files.exists(png)) {
-			logger.error("ensureIoDone() - {} does not exist", png);
-			return false;
-		}
-		else if (Files.size(png) == 0) {
-			logger.error("ensureIoDone() - size on {} = 0", png);
-			return false;
-		}
-		return true;
 	}
 	
 	private static double distance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {

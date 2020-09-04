@@ -9,7 +9,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
@@ -43,6 +42,7 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
@@ -106,7 +106,6 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
-	public static final String PATH = "/mnt/buldreinfo/media/";
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 
@@ -715,9 +714,9 @@ public class BuldreinfoRepository {
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
-			p = Paths.get(PATH + "web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
+			p = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		} else {
-			p = Paths.get(PATH + "web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
+			p = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 		}
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
@@ -2277,7 +2276,7 @@ public class BuldreinfoRepository {
 			 * service tomcat9 restart
 			 */
 			// Save received file
-			Path original = Paths.get(PATH + "temp");
+			Path original = GlobalFunctions.getPathTemp();
 			Files.createDirectories(original);
 			original = original.resolve(ms + "_" + m.getName());
 			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
@@ -2285,7 +2284,7 @@ public class BuldreinfoRepository {
 			Files.copy(is, original);
 			Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
 
-			final Path p = Paths.get(PATH + "original").resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
+			final Path p = GlobalFunctions.getPathMediaOriginal().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
 			Files.createDirectories(p.getParent());
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 
@@ -2353,9 +2352,9 @@ public class BuldreinfoRepository {
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
-		final Path original = Paths.get(PATH + "original").resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
-		final Path webp = Paths.get(PATH + "web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
-		final Path jpg = Paths.get(PATH + "web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
+		final Path original = GlobalFunctions.getPathMediaOriginal().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
+		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
+		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 		Files.createDirectories(webp.getParent());
 		Files.createDirectories(jpg.getParent());
 		Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
@@ -2395,8 +2394,8 @@ public class BuldreinfoRepository {
 
 	private void downloadUserImage(int userId, String url) {
 		try {
-			final Path original = Paths.get(PATH + "original/users").resolve(userId + ".jpg");
-			final Path resized = Paths.get(PATH + "web/users").resolve(userId + ".jpg");
+			final Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
+			final Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
 			Files.createDirectories(original.getParent());
 			try (InputStream in = new URL(url).openStream()) {
 				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
