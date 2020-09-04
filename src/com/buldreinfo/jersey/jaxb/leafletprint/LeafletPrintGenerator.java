@@ -70,6 +70,7 @@ public class LeafletPrintGenerator {
 		lines.add("    deviceScaleFactor: 1,");
 		lines.add("  });");
 		lines.add("  await page.goto('" + url + "', {waitUntil: 'networkidle2'});");
+		lines.add("  await page.waitFor(500);");
 		// lines.add("  await page.waitFor('my-selector', { timeout: 10000 }).catch(() => console.log('Waiting for my-selector timeouted'));");
 		lines.add("  await page.screenshot({path: '" + png + "'});");
 		lines.add("");
