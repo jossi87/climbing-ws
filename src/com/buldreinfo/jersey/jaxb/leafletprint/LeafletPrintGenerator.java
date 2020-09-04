@@ -41,26 +41,12 @@ public class LeafletPrintGenerator {
 	}
 	
 	public static Path takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
-		Path png = GlobalFunctions.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-		Files.createDirectories(png.getParent());
-		Path script = GlobalFunctions.getPathLeafletPrint();
-		Gson gson = new Gson();
-		String json = gson.toJson(leaflet);
-		String base64EncodedJson = Base64.getEncoder().encodeToString(json.getBytes());
-		ProcessBuilder builder = new ProcessBuilder("node", script.toString(), png.toString(), base64EncodedJson);
-		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
-		builder.redirectErrorStream(true);
-		final Process process = builder.start();
-		watch(process);
-		process.waitFor(5, TimeUnit.SECONDS);
-		if (!Files.exists(png) || Files.size(png) == 0) {
+		Path res = takeSnapshotWorker(leaflet);
+		if (res == null) {
 			Thread.sleep(1000);
-			if (!Files.exists(png) || Files.size(png) == 0) {
-				logger.warn("takeSnapshot() failed - Files.exists({})={}", png.toString(), Files.exists(png));
-				return null;
-			}
+			res = takeSnapshotWorker(leaflet);
 		}
-		return png;
+		return res;
 	}
 	
 	private static double distance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {
@@ -79,6 +65,26 @@ public class LeafletPrintGenerator {
 	    distance = Math.pow(distance, 2) + Math.pow(height, 2);
 
 	    return Math.sqrt(distance);
+	}
+	
+	private static Path takeSnapshotWorker(Leaflet leaflet) throws IOException, InterruptedException {
+		Path png = GlobalFunctions.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+		Files.createDirectories(png.getParent());
+		Path script = GlobalFunctions.getPathLeafletPrint();
+		Gson gson = new Gson();
+		String json = gson.toJson(leaflet);
+		String base64EncodedJson = Base64.getEncoder().encodeToString(json.getBytes());
+		ProcessBuilder builder = new ProcessBuilder("node", script.toString(), png.toString(), base64EncodedJson);
+		logger.debug("Running: " + Joiner.on(" ").join(builder.command()));
+		builder.redirectErrorStream(true);
+		final Process process = builder.start();
+		watch(process);
+		process.waitFor(5, TimeUnit.SECONDS);
+		if (!Files.exists(png) || Files.size(png) == 0) {
+			logger.warn("takeSnapshot() failed - Files.exists({})={}", png.toString(), Files.exists(png));
+			return null;
+		}
+		return png;
 	}
 	
 	private static void watch(final Process process) {
