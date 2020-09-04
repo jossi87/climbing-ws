@@ -524,6 +524,20 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(p.getLat(), p.getLng(), false, String.valueOf(p.getNr())));
 				}
 			}
+			if (markers.size() >= 1 && markers.size() <= 8) {
+				if (sector.getLat() > 0 && sector.getLng() > 0) {
+					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+				}
+				String distance = null;
+				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
+					polylines.add(sector.getPolyline());
+					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
+				}
+				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+					outlines.add(new Outline(label, sector.getPolygonCoords()));
+				}
+			}
 
 			if (!markers.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
