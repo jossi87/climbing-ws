@@ -54,8 +54,11 @@ public class LeafletPrintGenerator {
 		watch(process);
 		process.waitFor(5, TimeUnit.SECONDS);
 		if (!Files.exists(png) || Files.size(png) == 0) {
-			logger.error("takeSnapshot(...) failed on base64EncodedJson: {}, json: {}", base64EncodedJson, json);
-			return null;
+			Thread.sleep(1000);
+			if (!Files.exists(png) || Files.size(png) == 0) {
+				logger.warn("takeSnapshot() failed - Files.exists({})={}", png.toString(), Files.exists(png));
+				return null;
+			}
 		}
 		return png;
 	}
