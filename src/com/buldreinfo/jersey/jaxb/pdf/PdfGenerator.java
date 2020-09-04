@@ -194,6 +194,7 @@ public class PdfGenerator implements AutoCloseable {
 		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
+		writeMapArea(area, Lists.newArrayList(sector));
 		writeMapProblem(area, sector, problem);
 		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
 		if (!Strings.isNullOrEmpty(html)) {
@@ -596,7 +597,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, true);
 				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
