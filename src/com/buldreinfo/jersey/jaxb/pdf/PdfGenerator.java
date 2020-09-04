@@ -194,7 +194,6 @@ public class PdfGenerator implements AutoCloseable {
 		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
-		writeMapArea(area, Lists.newArrayList(sector));
 		writeMapProblem(area, sector, problem);
 		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
 		if (!Strings.isNullOrEmpty(html)) {
@@ -597,7 +596,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, true);
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
 				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
@@ -606,6 +605,22 @@ public class PdfGenerator implements AutoCloseable {
 					PdfPCell cell = new PdfPCell(img, true);
 					cell.setColspan(table.getNumberOfColumns());
 					table.addCell(cell);
+					
+					// Also append photo map
+					markers = markers.stream().filter(m -> !m.isParking()).collect(Collectors.toList());
+					if (!markers.isEmpty()) {
+						outlines.clear();
+						polylines.clear();
+						leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, true);
+						png = LeafletPrintGenerator.takeSnapshot(leaflet);
+						if (png != null) {
+							img = Image.getInstance(png.toString());
+							cell = new PdfPCell(img, true);
+							cell.setColspan(table.getNumberOfColumns());
+							table.addCell(cell);
+						}
+					}
+					
 					document.add(new Paragraph(" "));
 					document.add(table);
 				}
