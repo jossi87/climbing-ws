@@ -28,8 +28,10 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
@@ -77,6 +79,7 @@ import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.Type;
+import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
@@ -463,8 +466,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, COUNT(DISTINCT p.id) num_problems, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.id IS NULL OR (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden)))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, s.sorting, s.hidden, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name")) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
 			ps.setInt(3, authUserId);
@@ -478,7 +480,6 @@ public class BuldreinfoRepository {
 					LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"), rst.getDouble("parking_longitude"));
 					String polygonCoords = rst.getString("polygon_coords");
 					String polyline = rst.getString("polyline");
-					int numProblems = rst.getInt("num_problems");
 					int randomMediaId = rst.getInt("media_id");
 					if (randomMediaId == 0) {
 						List<Media> x = getMediaSector(id, 0);
@@ -486,7 +487,40 @@ public class BuldreinfoRepository {
 							randomMediaId = x.get(0).getId();
 						}
 					}
-					a.addSector(id, sorting, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, numProblems, randomMediaId);
+					a.addSector(id, sorting, visibility, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId);
+				}
+			}
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, COALESCE(ty.subtype, ty.type) type, COUNT(DISTINCT p.id) num, COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN permission auth ON a.region_id=auth.region_id WHERE a.id=? AND (p.hidden=0 OR (auth.user_id=? AND (p.hidden<=1 OR auth.write>=p.hidden))) AND (s.hidden=0 OR (auth.user_id=? AND (s.hidden<=1 OR auth.write>=s.hidden))) GROUP BY s.id, COALESCE(ty.subtype, ty.type) ORDER BY s.id, COALESCE(ty.subtype, ty.type)")) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, authUserId);
+			ps.setInt(3, reqId);
+			ps.setInt(4, authUserId);
+			ps.setInt(5, authUserId);
+			Map<String, TypeNumTicked> lookup = new LinkedHashMap<>();
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int sectorId = rst.getInt("id");
+					String type = rst.getString("type");
+					int num = rst.getInt("num");
+					int numTicked = rst.getInt("num_ticked");
+					TypeNumTicked typeNumTicked = new TypeNumTicked(type, num, numTicked);
+					// Sector
+					Optional<Area.Sector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
+					if (optSector.isPresent()) {
+						optSector.get().getTypeNumTicked().add(typeNumTicked);
+					}
+					// Area
+					TypeNumTicked areaTnt = lookup.get(type);
+					if (areaTnt == null) {
+						areaTnt = new TypeNumTicked(type, num, numTicked);
+						a.getTypeNumTicked().add(areaTnt);
+						lookup.put(type, areaTnt);
+					}
+					else {
+						areaTnt.addNum(num);
+						areaTnt.addTicked(numTicked);
+					}
 				}
 			}
 		}

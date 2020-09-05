@@ -20,10 +20,10 @@ public class Area implements IMetadata {
 		private final double lng;
 		private final String polygonCoords;
 		private final String polyline;
-		private final int numProblems;
 		private final int randomMediaId;
+		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
-		public Sector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int numProblems, int randomMediaId) {
+		public Sector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
 			this.areaId = -1;
 			this.areaName = null;
 			this.areaVisibility = 0;
@@ -36,7 +36,6 @@ public class Area implements IMetadata {
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
 			this.polyline = polyline;
-			this.numProblems = numProblems;
 			this.randomMediaId = randomMediaId;
 		}
 
@@ -55,11 +54,11 @@ public class Area implements IMetadata {
 		public String getComment() {
 			return comment;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
-		
+
 		public double getLat() {
 			return lat;
 		}
@@ -67,11 +66,11 @@ public class Area implements IMetadata {
 		public double getLng() {
 			return lng;
 		}
-
+		
 		public String getName() {
 			return name;
 		}
-		
+
 		public int getNumProblems() {
 			return numProblems;
 		}
@@ -90,6 +89,10 @@ public class Area implements IMetadata {
 		
 		public int getSorting() {
 			return sorting;
+		}
+		
+		public List<TypeNumTicked> getTypeNumTicked() {
+			return typeNumTicked;
 		}
 		
 		public int getVisibility() {
@@ -121,6 +124,7 @@ public class Area implements IMetadata {
 	private final List<Media> media;
 	private final List<NewMedia> newMedia;
 	private final long hits;
+	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
 	public Area(int regionId, String canonical, int id, int visibility, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
@@ -141,8 +145,8 @@ public class Area implements IMetadata {
 		this.hits = hits;
 	}
 
-	public void addSector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int numProblems, int randomMediaId) {
-		sectors.add(new Sector(id, sorting, visibility, name, comment, lat, lng, polygonCoords, polyline, numProblems, randomMediaId));
+	public void addSector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
+		sectors.add(new Sector(id, sorting, visibility, name, comment, lat, lng, polygonCoords, polyline, randomMediaId));
 	}
 
 	public String getCanonical() {
@@ -172,12 +176,12 @@ public class Area implements IMetadata {
 	public List<Media> getMedia() {
 		return media;
 	}
-
+	
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
@@ -193,13 +197,17 @@ public class Area implements IMetadata {
 	public int getNumSectors() {
 		return numSectors;
 	}
-
+	
 	public int getRegionId() {
 		return regionId;
 	}
 
 	public List<Sector> getSectors() {
 		return sectors;
+	}
+
+	public List<TypeNumTicked> getTypeNumTicked() {
+		return typeNumTicked;
 	}
 	
 	public int getVisibility() {
