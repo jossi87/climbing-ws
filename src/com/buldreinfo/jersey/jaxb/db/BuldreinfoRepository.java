@@ -1424,7 +1424,7 @@ public class BuldreinfoRepository {
 					String sectorName = rst.getString("sector_name");
 					int sectorVisibility = rst.getInt("sector_visibility");
 					int id = rst.getInt("id_tick");
-					String subtype = rst.getString("subtype");
+					String subType = rst.getString("subtype");
 					int idProblem = rst.getInt("id_problem");
 					int visibility = rst.getInt("hidden");
 					String name = rst.getString("name");
@@ -1434,7 +1434,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
-					res.addTick(areaName, areaVisibility, sectorName, sectorVisibility, id, subtype, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
+					res.addTick(areaName, areaVisibility, sectorName, sectorVisibility, id, subType, idProblem, visibility, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
 				}
 			}
 		}
@@ -1522,7 +1522,7 @@ public class BuldreinfoRepository {
 					while (rst.next()) {
 						int regionId = rst.getInt("region_id");
 						String type = rst.getString("type");
-						String subtype = rst.getString("subtype");
+						String subType = rst.getString("subType");
 						String url = rst.getString("url");
 						String areaName = rst.getString("area_name");
 						String sectorName = rst.getString("sector_name");
@@ -1540,8 +1540,8 @@ public class BuldreinfoRepository {
 						writer.incrementRow();
 						writer.write("AREA", areaName);
 						writer.write("SECTOR", sectorName);
-						if (subtype != null) {
-							writer.write("TYPE", subtype);							
+						if (subType != null) {
+							writer.write("TYPE", subType);							
 						}
 						writer.write("NAME", name);
 						writer.write("FIRST ASCENT", fa? "Yes" : null);
