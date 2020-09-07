@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
@@ -110,10 +111,10 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static Logger logger = LogManager.getLogger();
-	public static boolean downloadUserImage(int userId, String url) {
+	public static boolean downloadUserImage(Path originalFolder, Path resizedFolder, int userId, String url) {
 		try {
-			final Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
-			final Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
+			final Path original = originalFolder.resolve(userId + ".jpg");
+			final Path resized = resizedFolder.resolve(userId + ".jpg");
 			Files.createDirectories(original.getParent());
 			try (InputStream in = new URL(url).openStream()) {
 				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
@@ -122,7 +123,7 @@ public class BuldreinfoRepository {
 				Files.createDirectories(resized.getParent());
 				Files.deleteIfExists(resized);
 				BufferedImage bOriginal = ImageIO.read(original.toFile());
-				BufferedImage bScaled = Scalr.resize(bOriginal, 35, Scalr.OP_ANTIALIAS);
+				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
 				ImageIO.write(bScaled, "jpg", resized.toFile());
 				bOriginal.flush();
 				bOriginal = null;
@@ -630,7 +631,7 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				if (downloadUserImage(authUserId, profile.getPicture())) {
+				if (downloadUserImage(GlobalFunctions.getPathOriginalUsers(), GlobalFunctions.getPathWebUsers(), authUserId, profile.getPicture())) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.getPicture());
 						ps.setInt(2, authUserId);
@@ -2387,7 +2388,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addUser(String email, String firstname, String lastname, String picture, boolean autoCommit) throws SQLException {
+	private int addUser(String email, String firstname, String lastname, String picture, boolean autoCommit) throws SQLException, IOException {
 		int id = -1;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, firstname);
@@ -2413,7 +2414,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (picture != null) {
-			downloadUserImage(id, picture);
+			downloadUserImage(GlobalFunctions.getPathOriginalUsers(), GlobalFunctions.getPathWebUsers(), id, picture);
 		}
 		return id;
 	}
@@ -2496,7 +2497,7 @@ public class BuldreinfoRepository {
 		return null;
 	}
 
-	private int getExistingOrInsertUser(String name) throws SQLException, NoSuchAlgorithmException {
+	private int getExistingOrInsertUser(String name) throws SQLException, NoSuchAlgorithmException, IOException {
 		if (Strings.isNullOrEmpty(name)) {
 			return 1049; // Unknown
 		}
