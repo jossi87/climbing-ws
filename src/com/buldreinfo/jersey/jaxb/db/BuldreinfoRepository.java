@@ -9,7 +9,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
@@ -111,33 +110,6 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static Logger logger = LogManager.getLogger();
-	public static boolean downloadUserImage(Path originalFolder, Path resizedFolder, int userId, String url) {
-		try {
-			final Path original = originalFolder.resolve(userId + ".jpg");
-			final Path resized = resizedFolder.resolve(userId + ".jpg");
-			Files.createDirectories(original.getParent());
-			try (InputStream in = new URL(url).openStream()) {
-				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
-				in.close();
-				// Resize avatar
-				Files.createDirectories(resized.getParent());
-				Files.deleteIfExists(resized);
-				BufferedImage bOriginal = ImageIO.read(original.toFile());
-				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-				ImageIO.write(bScaled, "jpg", resized.toFile());
-				bOriginal.flush();
-				bOriginal = null;
-				bScaled.flush();
-				bScaled = null;
-				Preconditions.checkArgument(Files.exists(resized));
-				return true;
-			}
-		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
-			return false;
-		}
-	}
-
 	private final DbConnection c;
 
 	private final Gson gson = new Gson();
@@ -631,7 +603,7 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				if (downloadUserImage(GlobalFunctions.getPathOriginalUsers(), GlobalFunctions.getPathWebUsers(), authUserId, profile.getPicture())) {
+				if (downloadUserImage(authUserId, profile.getPicture())) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.getPicture());
 						ps.setInt(2, authUserId);
@@ -2414,7 +2386,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (picture != null) {
-			downloadUserImage(GlobalFunctions.getPathOriginalUsers(), GlobalFunctions.getPathWebUsers(), id, picture);
+			downloadUserImage(id, picture);
 		}
 		return id;
 	}
@@ -2457,6 +2429,33 @@ public class BuldreinfoRepository {
 			ps.setInt(4, height);
 			ps.setInt(5, id);
 			ps.execute();
+		}
+	}
+
+	private boolean downloadUserImage(int userId, String url) throws IOException {
+		try {
+			Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
+			Files.createDirectories(original.getParent());
+			try (InputStream in = new URL(url).openStream()) {
+				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
+				in.close();
+				// Resize avatar
+				Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
+				Files.createDirectories(resized.getParent());
+				Files.deleteIfExists(resized);
+				BufferedImage bOriginal = ImageIO.read(original.toFile());
+				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
+				ImageIO.write(bScaled, "jpg", resized.toFile());
+				bOriginal.flush();
+				bOriginal = null;
+				bScaled.flush();
+				bScaled = null;
+				Preconditions.checkArgument(Files.exists(resized));
+				return true;
+			}
+		} catch (Exception e) {
+			logger.fatal(e.getMessage(), e);
+			return false;
 		}
 	}
 
