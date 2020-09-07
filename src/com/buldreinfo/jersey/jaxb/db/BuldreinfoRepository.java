@@ -110,6 +110,33 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static Logger logger = LogManager.getLogger();
+	public static boolean downloadUserImage(int userId, String url) {
+		try {
+			final Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
+			final Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
+			Files.createDirectories(original.getParent());
+			try (InputStream in = new URL(url).openStream()) {
+				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
+				in.close();
+				// Resize avatar
+				Files.createDirectories(resized.getParent());
+				Files.deleteIfExists(resized);
+				BufferedImage bOriginal = ImageIO.read(original.toFile());
+				BufferedImage bScaled = Scalr.resize(bOriginal, 35, Scalr.OP_ANTIALIAS);
+				ImageIO.write(bScaled, "jpg", resized.toFile());
+				bOriginal.flush();
+				bOriginal = null;
+				bScaled.flush();
+				bScaled = null;
+				Preconditions.checkArgument(Files.exists(resized));
+				return true;
+			}
+		} catch (Exception e) {
+			logger.fatal(e.getMessage(), e);
+			return false;
+		}
+	}
+
 	private final DbConnection c;
 
 	private final Gson gson = new Gson();
@@ -603,11 +630,12 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				downloadUserImage(authUserId, profile.getPicture());
-				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
-					ps.setString(1, profile.getPicture());
-					ps.setInt(2, authUserId);
-					ps.executeUpdate();
+				if (downloadUserImage(authUserId, profile.getPicture())) {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
+						ps.setString(1, profile.getPicture());
+						ps.setInt(2, authUserId);
+						ps.executeUpdate();
+					}
 				}
 			}
 		}
@@ -1220,12 +1248,12 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = true;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
-	
+
 	public Sector getSectorDontUpdateHits(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = false;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
@@ -2431,31 +2459,6 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private void downloadUserImage(int userId, String url) {
-		try {
-			final Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
-			final Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
-			Files.createDirectories(original.getParent());
-			try (InputStream in = new URL(url).openStream()) {
-				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
-				in.close();
-				// Resize avatar
-				Files.createDirectories(resized.getParent());
-				Files.deleteIfExists(resized);
-				BufferedImage bOriginal = ImageIO.read(original.toFile());
-				BufferedImage bScaled = Scalr.resize(bOriginal, 35, Scalr.OP_ANTIALIAS);
-				ImageIO.write(bScaled, "jpg", resized.toFile());
-				bOriginal.flush();
-				bOriginal = null;
-				bScaled.flush();
-				bScaled = null;
-				Preconditions.checkArgument(Files.exists(resized));
-			}
-		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
-		}
-	}
-
 	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
 		double latitude = 0;
 		double longitude = 0;
@@ -2581,7 +2584,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-	
+
 	private List<Media> getMediaSector(int idSector, int optionalIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, -ms.sorting DESC, m.id")) {
