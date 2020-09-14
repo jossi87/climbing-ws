@@ -64,6 +64,7 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -353,7 +354,11 @@ public class V2 {
 		if (setup.isSetRobotsDenyAll()) {
 			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
 		}
-		return Response.ok().entity("Sitemap: " + setup.getUrl("/sitemap.txt")).build(); 
+		List<String> lines = Lists.newArrayList(
+				"Sitemap: " + setup.getUrl("/sitemap.txt"),
+				"User-agent: *",
+				"Disallow: /todo/*");
+		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
 	@GET
