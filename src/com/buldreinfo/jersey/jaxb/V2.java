@@ -357,7 +357,8 @@ public class V2 {
 		List<String> lines = Lists.newArrayList(
 				"Sitemap: " + setup.getUrl("/sitemap.txt"),
 				"User-agent: *",
-				"Disallow: /todo/*");
+				"Disallow: /todo/*",
+				"Disallow: /*pdf*");
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
