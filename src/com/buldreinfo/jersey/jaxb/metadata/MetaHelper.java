@@ -167,11 +167,15 @@ public class MetaHelper {
 		if (m instanceof Area) {
 			Area a = (Area)m;
 			String description = null;
+			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
+					.stream()
+					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
+					.collect(Collectors.joining(", "));
 			if (setup.isBouldering()) {
-				description = String.format("Bouldering in %s (%d sectors, %d boulders)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
+				description = String.format("Bouldering in %s (%s)", a.getName(), info);
 			}
 			else {
-				description = String.format("Climbing in %s (%d sectors, %d routes)", a.getName(), a.getSectors().size(), a.getSectors().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum());
+				description = String.format("Climbing in %s (%s)", a.getName(), info);
 			}
 
 			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia(), requestedIdMedia);
