@@ -180,6 +180,8 @@ public class StatisticsGenerator {
 		case 2913: return 199; // Monsterveggen - Monsterveggen
 		case 2926: return 199; // Planet Ø - Planet Ø
 		case 2938: return 200; // Tengesdalsveggen - Tengesdalsveggen
+		case 3633: return 202; // Gloppedalen - Gloppeveggen
+		case 3702: return 202; // Tjersland - Hellerheia
 		}
 		List<Integer> decades = new ArrayList<>();
 		for (Problem p : s.getProblems()) {
