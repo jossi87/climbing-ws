@@ -40,11 +40,13 @@ public class StatisticsGenerator {
 	}
 
 	public StatisticsGenerator() throws Exception {
+		boolean climbingNotBouldering = false;
+		int idRegion = climbingNotBouldering? 4 : 1;
 		TreeMap<Integer, Integer> decadeFaMap = new TreeMap<>();
 		Multimap<Integer, Problem> decadeProblemMap = ArrayListMultimap.create();
 		Map<String, StatisticsUser> userLookup = new HashMap<>();
 		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-			HttpGet request = new HttpGet("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v1/regions?uniqueId=419920f881c6cc94&climbingNotBouldering=true");
+			HttpGet request = new HttpGet("https://brattelinjer.no/com.buldreinfo.jersey.jaxb/v1/regions?uniqueId=419920f881c6cc94&climbingNotBouldering=" + climbingNotBouldering);
 			try (CloseableHttpResponse response = httpClient.execute(request)) {
 				Preconditions.checkArgument(response.getStatusLine().getStatusCode() == 200, response.getStatusLine().getStatusCode() + ": " + response.getStatusLine().getReasonPhrase());
 				HttpEntity entity = response.getEntity();
@@ -52,7 +54,7 @@ public class StatisticsGenerator {
 				try (Reader reader = CharSource.wrap(new String(buffer, "UTF-8")).openStream()) {
 					Gson gson = new Gson();
 					List<Region> regions = gson.fromJson(reader, new TypeToken<ArrayList<Region>>(){}.getType());
-					Region r = regions.stream().filter(x -> x.getId() == 4).findAny().get();
+					Region r = regions.stream().filter(x -> x.getId() == idRegion).findAny().get();
 					for (Area a : r.getAreas()) {
 						for (Sector s : a.getSectors()) {
 							for (Problem p : s.getProblems()) {
@@ -86,7 +88,7 @@ public class StatisticsGenerator {
 		// Print decade
 		for (int decade : decadeFaMap.keySet()) {
 			if (decade != 202) {
-				System.err.println(decade*10 + " (" + decadeFaMap.get(decade) + " new routes)");
+				System.err.println(decade*10 + " (" + decadeFaMap.get(decade) + " new " + (climbingNotBouldering? "routes" : "boulders") + ")");
 				List<StatisticsUser> users = userLookup.values()
 						.stream()
 						.sorted((x1, x2) -> Integer.compare(x2.getNumOnDecade(decade), x1.getNumOnDecade(decade)))
@@ -113,7 +115,7 @@ public class StatisticsGenerator {
 
 		// Print hardest per decade
 		System.err.println("####");
-		Setup setup = new MetaHelper().getSetup(4);
+		Setup setup = new MetaHelper().getSetup(idRegion);
 		for (int decade : decadeProblemMap.keySet()) {
 			if (decade != 202) {
 				List<Problem> problems = decadeProblemMap.get(decade)
@@ -121,7 +123,7 @@ public class StatisticsGenerator {
 						.sorted((p1, p2) -> Integer.compare(p2.getGrade(), p1.getGrade()))
 						.collect(Collectors.toList());
 				System.err.println(decade*10);
-				for (int i = 0; i < Math.min(10, problems.size()); i++) {
+				for (int i = 0; i < Math.min((climbingNotBouldering? 10 : 110), problems.size()); i++) {
 					Problem p = problems.get(i);
 					String grade = GradeHelper.intToString(setup, p.getGrade());
 					String txt = "- " + grade + " - " + p.getName() + " - " + p.getFa();
@@ -182,6 +184,22 @@ public class StatisticsGenerator {
 		case 2938: return 200; // Tengesdalsveggen - Tengesdalsveggen
 		case 3633: return 202; // Gloppedalen - Gloppeveggen
 		case 3702: return 202; // Tjersland - Hellerheia
+		
+		// Bouldering
+		case 3265: return 201; // Aspervika nedre del
+		case 3266: return 201; // Aspervika øvre del
+		case 1798: return 201; // Ragstjørna øst
+		case 265: return 201; // Bekkjarvik
+		case 2821: return 201; // Øvre vikesdal
+		case 3225: return 202; // Bø
+		case 2159: return 200; // Parkeringsplass
+		case 2671: return 201; // 2 etasje. Sector Ura
+		case 2672: return 201; // 2 etasje. Sektor høyre
+		case 2677: return 201; // 3 etasje, sektor loungen
+		case 2680: return 201; // Sveinveggen
+		case 2808: return 200; // Kamman
+		case 3598: return 201; // Top of Hell
+		case 284: return 200; // Klagefeltet
 		}
 		List<Integer> decades = new ArrayList<>();
 		for (Problem p : s.getProblems()) {
