@@ -42,6 +42,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
@@ -195,10 +196,15 @@ public class V2 {
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getCameras(@Context HttpServletRequest request) {
-		try {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			List<Camera> cameras = vegvesenPaser.getCameras();
-			return Response.ok().entity(cameras).build();
+			Cameras res = new Cameras(cameras);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
