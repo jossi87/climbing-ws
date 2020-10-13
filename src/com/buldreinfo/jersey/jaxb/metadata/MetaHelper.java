@@ -189,9 +189,10 @@ public class MetaHelper {
 		}
 		else if (m instanceof Cameras) {
 			Cameras f = (Cameras)m;
+			String title =  "Weather map";
 			String description = "Weather map";
-			OpenGraph og = getOg(setup, null, null, requestedIdMedia);
-			f.setMetadata(new Metadata(c, setup, authUserId, null, og)
+			OpenGraph og = getOg(setup, "/weather", null, requestedIdMedia);
+			f.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
