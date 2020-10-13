@@ -64,6 +64,8 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
+import com.buldreinfo.jersey.jaxb.xml.Camera;
+import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -184,6 +186,19 @@ public class V2 {
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/cameras")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getCameras(@Context HttpServletRequest request) {
+		try {
+			VegvesenParser vegvesenPaser = new VegvesenParser();
+			List<Camera> cameras = vegvesenPaser.getCameras();
+			return Response.ok().entity(cameras).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
