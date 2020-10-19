@@ -201,9 +201,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
-			List<Camera> cameras = vegvesenPaser.getCameras();
-			cameras.add(new Camera("skolten.info", LocalDateTime.now().toString(), "http://skolten.info", "http://skolten.net:8080/axis-cgi/jpg/image.cgi?resolution=640x480", null, 58.50141, 5.80058));
-			Cameras res = new Cameras(cameras);
+			Cameras res = new Cameras(vegvesenPaser.getCameras());
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
