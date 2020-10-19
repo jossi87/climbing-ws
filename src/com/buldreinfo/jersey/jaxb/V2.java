@@ -201,6 +201,7 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			List<Camera> cameras = vegvesenPaser.getCameras();
+			cameras.add(new Camera("skolten.info", null, "http://skolten.info", "http://skolten.net/bilder/siste.jpg", null, 58.50141, 5.80058));
 			Cameras res = new Cameras(cameras);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();

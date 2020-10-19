@@ -9,6 +9,19 @@ public class Camera {
 	private double lat;
 	private double lng;
 	
+	public Camera() {
+	}
+	
+	public Camera(String id, String lastUpdated, String name, String urlStillImage, String urlYr, double lat, double lng) {
+		this.id = id;
+		this.lastUpdated = lastUpdated;
+		this.name = name;
+		this.urlStillImage = urlStillImage;
+		this.urlYr = urlYr;
+		this.lat = lat;
+		this.lng = lng;
+	}
+
 	public String getId() {
 		return id;
 	}
