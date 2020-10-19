@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -191,7 +192,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -201,7 +202,7 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			List<Camera> cameras = vegvesenPaser.getCameras();
-			cameras.add(new Camera("skolten.info", null, "http://skolten.info", "http://skolten.net/bilder/siste.jpg", null, 58.50141, 5.80058));
+			cameras.add(new Camera("skolten.info", LocalDateTime.now().toString(), "http://skolten.info", "http://skolten.net:8080/axis-cgi/jpg/image.cgi?resolution=640x480", null, 58.50141, 5.80058));
 			Cameras res = new Cameras(cameras);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
