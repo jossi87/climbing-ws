@@ -6,8 +6,8 @@ public class Search {
 	private final String url;
 	private final String mediaurl;
 	private final int mediaid;
-	private final boolean lockedAdmin;
-	private final boolean lockedSuperadmin;
+	private final boolean lockedadmin;
+	private final boolean lockedsuperadmin;
 	
 	public Search(String title, String description, String url, String mediaurl, int mediaid, boolean lockedAdmin, boolean lockedSuperadmin) {
 		this.title = title;
@@ -15,8 +15,8 @@ public class Search {
 		this.url = url;
 		this.mediaurl = mediaurl;
 		this.mediaid = mediaid;
-		this.lockedAdmin = lockedAdmin;
-		this.lockedSuperadmin = lockedSuperadmin;
+		this.lockedadmin = lockedAdmin;
+		this.lockedsuperadmin = lockedSuperadmin;
 	}
 
 	public String getTitle() {
@@ -39,11 +39,11 @@ public class Search {
 		return mediaid;
 	}
 
-	public boolean isLockedAdmin() {
-		return lockedAdmin;
+	public boolean isLockedadmin() {
+		return lockedadmin;
 	}
 
-	public boolean isLockedSuperadmin() {
-		return lockedSuperadmin;
+	public boolean isLockedsuperadmin() {
+		return lockedsuperadmin;
 	}
 }
