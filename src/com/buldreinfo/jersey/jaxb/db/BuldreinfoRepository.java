@@ -1430,13 +1430,14 @@ public class BuldreinfoRepository {
 			ps.setInt(1, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					List<UserRegion> userRegions = c.getBuldreinfoRepo().getUserRegion(reqId, setup);
 					String picture = rst.getString("picture");
 					String name = rst.getString("name");
 					int numImagesCreated = rst.getInt("num_images_created");
 					int numVideosCreated = rst.getInt("num_videos_created");
 					int numImageTags = rst.getInt("num_image_tags");
 					int numVideoTags = rst.getInt("num_video_tags");
-					res = new User(readOnly, reqId, picture, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+					res = new User(readOnly, reqId, picture, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags, userRegions);
 				}
 			}
 		}
@@ -1559,7 +1560,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					res.add(new User(true, id, null, name, -1, -1, -1, -1));
+					res.add(new User(true, id, null, name, -1, -1, -1, -1, null));
 				}
 			}
 		}

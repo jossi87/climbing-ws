@@ -64,7 +64,6 @@ import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
@@ -622,21 +621,6 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/user/regions")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUserRegions(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<UserRegion> res = c.getBuldreinfoRepo().getUserRegion(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

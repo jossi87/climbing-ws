@@ -146,9 +146,10 @@ public class User implements IMetadata {
 	private final int numImageTags;
 	private final int numVideoTags;
 	private final List<Tick> ticks = new ArrayList<>();
+	private final List<UserRegion> userRegions;
 	private Metadata metadata;
 	
-	public User(boolean readOnly, int id, String picture, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags) {
+	public User(boolean readOnly, int id, String picture, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags, List<UserRegion> userRegions) {
 		this.readOnly = readOnly;
 		this.id = id;
 		this.picture = picture;
@@ -157,10 +158,15 @@ public class User implements IMetadata {
 		this.numVideosCreated = numVideosCreated;
 		this.numImageTags = numImageTags;
 		this.numVideoTags = numVideoTags;
+		this.userRegions = userRegions;
 	}
 	
 	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	}
+	
+	public List<UserRegion> getUserRegions() {
+		return userRegions;
 	}
 	
 	public int getId() {
