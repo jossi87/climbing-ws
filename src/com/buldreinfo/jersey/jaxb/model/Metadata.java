@@ -43,6 +43,9 @@ public class Metadata {
 				isAuthenticated = true;
 				isAdmin = rst.getBoolean("admin_write");
 				isSuperAdmin = rst.getBoolean("superadmin_write");
+				if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
+					isAdmin = true;
+				}
 				useBlueNotRed = rst.getBoolean("use_blue_not_red");
 			}
 			rst.close();
