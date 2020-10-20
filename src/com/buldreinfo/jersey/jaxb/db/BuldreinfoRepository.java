@@ -773,66 +773,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private void ensureSuperadminWriteRegion(int authUserId, int idRegion) throws SQLException {
-		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
-		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
-		boolean ok = false;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, idRegion);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureAdminWriteRegion(int authUserId, int idRegion) throws SQLException {
-		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
-		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
-		boolean ok = false;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, idRegion);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureAdminWriteArea(int authUserId, int areaId) throws SQLException {
-		boolean ok = false;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin)=1")) {
-			ps.setInt(1, areaId);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureAdminWriteProblem(int authUserId, int problemId) throws SQLException {
-		boolean ok = false;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1")) {
-			ps.setInt(1, problemId);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
 	public Permissions getPermissions(int authUserId, int idRegion) throws SQLException {
 		ensureSuperadminWriteRegion(authUserId, idRegion);
 		// Return users
@@ -2477,6 +2417,66 @@ public class BuldreinfoRepository {
 			logger.fatal(e.getMessage(), e);
 			return false;
 		}
+	}
+
+	private void ensureAdminWriteArea(int authUserId, int areaId) throws SQLException {
+		boolean ok = false;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin)=1")) {
+			ps.setInt(1, areaId);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureAdminWriteProblem(int authUserId, int problemId) throws SQLException {
+		boolean ok = false;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1")) {
+			ps.setInt(1, problemId);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureAdminWriteRegion(int authUserId, int idRegion) throws SQLException {
+		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
+		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
+		boolean ok = false;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, idRegion);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureSuperadminWriteRegion(int authUserId, int idRegion) throws SQLException {
+		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
+		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
+		boolean ok = false;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, idRegion);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	private void fillProblemCoordinationsHistory(int authUserId, Problem p) throws SQLException {
