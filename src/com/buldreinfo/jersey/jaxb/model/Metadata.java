@@ -35,15 +35,14 @@ public class Metadata {
 		boolean isSuperAdmin = false;
 		boolean useBlueNotRed = false;
 		if (authUserId != -1) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT auth.write, u.use_blue_not_red FROM user u LEFT JOIN permission auth ON (u.id=auth.user_id AND auth.region_id=?) WHERE u.id=?");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, u.use_blue_not_red FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?");
 			ps.setInt(1, setup.getIdRegion());
 			ps.setInt(2, authUserId);
 			ResultSet rst = ps.executeQuery();
 			while (rst.next()) {
-				int write = rst.getInt("write");
 				isAuthenticated = true;
-				isAdmin = write >= 1;
-				isSuperAdmin = write == 2;
+				isAdmin = rst.getBoolean("admin_write");
+				isSuperAdmin = rst.getBoolean("superadmin_write");
 				useBlueNotRed = rst.getBoolean("use_blue_not_red");
 			}
 			rst.close();
