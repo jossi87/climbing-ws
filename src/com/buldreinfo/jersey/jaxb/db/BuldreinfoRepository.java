@@ -1531,7 +1531,7 @@ public class BuldreinfoRepository {
 
 	public List<UserRegion> getUserRegion(int authUserId, Setup setup) throws SQLException {
 		List<UserRegion> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only, ur.region_visible FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
 			ps.setInt(1, setup.getIdRegion());
 			ps.setInt(2, authUserId);
 			ps.setInt(3, setup.getIdRegion());
@@ -1540,7 +1540,8 @@ public class BuldreinfoRepository {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
 					boolean readOnly = rst.getBoolean("read_only");
-					res.add(new UserRegion(id, name, readOnly));
+					boolean enabled = readOnly || rst.getBoolean("region_visible");
+					res.add(new UserRegion(id, name, enabled, readOnly));
 				}
 			}
 		}
