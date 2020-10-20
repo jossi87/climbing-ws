@@ -8,14 +8,16 @@ public class Todo {
 	private final int problemId;
 	private final String problemName;
 	private final String problemGrade;
-	private final int problemVisibility;
+	private final boolean problemLockedAdmin;
+	private final boolean problemLockedSuperadmin;
 	private final double lat;
 	private final double lng;
 	private final int randomMediaId;
 	private boolean isDelete;
-
+	
 	public Todo(int id, int priority, String areaName, String sectorName, int problemId, String problemName,
-			String problemGrade, int problemVisibility, double lat, double lng, int randomMediaId) {
+			String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin, double lat, double lng,
+			int randomMediaId) {
 		this.id = id;
 		this.priority = priority;
 		this.areaName = areaName;
@@ -23,30 +25,55 @@ public class Todo {
 		this.problemId = problemId;
 		this.problemName = problemName;
 		this.problemGrade = problemGrade;
-		this.problemVisibility = problemVisibility;
+		this.problemLockedAdmin = problemLockedAdmin;
+		this.problemLockedSuperadmin = problemLockedSuperadmin;
 		this.lat = lat;
 		this.lng = lng;
 		this.randomMediaId = randomMediaId;
 	}
-	
-	public String getAreaName() {
-		return areaName;
+
+	public boolean isDelete() {
+		return isDelete;
 	}
-	
+
+	public void setDelete(boolean isDelete) {
+		this.isDelete = isDelete;
+	}
+
 	public int getId() {
 		return id;
 	}
-	
+
 	public int getPriority() {
 		return priority;
+	}
+
+	public String getAreaName() {
+		return areaName;
+	}
+
+	public String getSectorName() {
+		return sectorName;
+	}
+
+	public int getProblemId() {
+		return problemId;
+	}
+
+	public String getProblemName() {
+		return problemName;
 	}
 
 	public String getProblemGrade() {
 		return problemGrade;
 	}
-	
-	public int getProblemId() {
-		return problemId;
+
+	public boolean isProblemLockedAdmin() {
+		return problemLockedAdmin;
+	}
+
+	public boolean isProblemLockedSuperadmin() {
+		return problemLockedSuperadmin;
 	}
 
 	public double getLat() {
@@ -57,27 +84,7 @@ public class Todo {
 		return lng;
 	}
 
-	public String getProblemName() {
-		return problemName;
-	}
-
-	public int getProblemVisibility() {
-		return problemVisibility;
-	}
-
 	public int getRandomMediaId() {
 		return randomMediaId;
-	}
-
-	public String getSectorName() {
-		return sectorName;
-	}
-
-	public boolean isDelete() {
-		return isDelete;
-	}
-
-	public void setDelete(boolean isDelete) {
-		this.isDelete = isDelete;
 	}
 }

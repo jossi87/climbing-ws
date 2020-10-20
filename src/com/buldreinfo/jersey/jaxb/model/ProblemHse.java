@@ -2,25 +2,33 @@ package com.buldreinfo.jersey.jaxb.model;
 
 public class ProblemHse {
 	private final int areaId;
-	private final int areaVisibility;
+	private final boolean areaLockedAdmin;
+	private final boolean areaLockedSuperadmin;
 	private final String areaName;
 	private final int sectorId;
-	private final int sectorVisibility;
+	private final boolean sectorLockedAdmin;
+	private final boolean sectorLockedSuperadmin;
 	private final String sectorName;
 	private final int problemId;
-	private final int problemVisibility;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
 	private final String problemName;
 	private final String comment;
 	
-	public ProblemHse(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, int problemId, int problemVisibility, String problemName, String comment) {
+	public ProblemHse(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId,
+			boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, int problemId,
+			boolean lockedAdmin, boolean lockedSuperadmin, String problemName, String comment) {
 		this.areaId = areaId;
-		this.areaVisibility = areaVisibility;
+		this.areaLockedAdmin = areaLockedAdmin;
+		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
 		this.sectorId = sectorId;
-		this.sectorVisibility = sectorVisibility;
+		this.sectorLockedAdmin = sectorLockedAdmin;
+		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.sectorName = sectorName;
 		this.problemId = problemId;
-		this.problemVisibility = problemVisibility;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin;
 		this.problemName = problemName;
 		this.comment = comment;
 	}
@@ -29,8 +37,12 @@ public class ProblemHse {
 		return areaId;
 	}
 
-	public int getAreaVisibility() {
-		return areaVisibility;
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
+	}
+
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
 	}
 
 	public String getAreaName() {
@@ -41,8 +53,12 @@ public class ProblemHse {
 		return sectorId;
 	}
 
-	public int getSectorVisibility() {
-		return sectorVisibility;
+	public boolean isSectorLockedAdmin() {
+		return sectorLockedAdmin;
+	}
+
+	public boolean isSectorLockedSuperadmin() {
+		return sectorLockedSuperadmin;
 	}
 
 	public String getSectorName() {
@@ -53,8 +69,12 @@ public class ProblemHse {
 		return problemId;
 	}
 
-	public int getProblemVisibility() {
-		return problemVisibility;
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
+
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
 	}
 
 	public String getProblemName() {

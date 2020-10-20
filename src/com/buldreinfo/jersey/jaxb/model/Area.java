@@ -8,12 +8,11 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Area implements IMetadata {
 	public class Sector {
-		private final int areaId;
-		private final int areaVisibility;
 		private final String areaName;
 		private final int id;
 		private final int sorting;
-		private final int visibility;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
 		private final String name;
 		private final String comment;
 		private final double lat;
@@ -23,13 +22,12 @@ public class Area implements IMetadata {
 		private final int randomMediaId;
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
-		public Sector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
-			this.areaId = -1;
+		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
 			this.areaName = null;
-			this.areaVisibility = 0;
 			this.id = id;
 			this.sorting = sorting;
-			this.visibility = visibility;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
 			this.name = name;
 			this.comment = comment;
 			this.lat = lat;
@@ -39,16 +37,8 @@ public class Area implements IMetadata {
 			this.randomMediaId = randomMediaId;
 		}
 
-		public int getAreaId() {
-			return areaId;
-		}
-		
 		public String getAreaName() {
 			return areaName;
-		}
-		
-		public int getAreaVisibility() {
-			return areaVisibility;
 		}
 		
 		public String getComment() {
@@ -95,24 +85,20 @@ public class Area implements IMetadata {
 			return typeNumTicked;
 		}
 		
-		public int getVisibility() {
-			return visibility;
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
 		}
-
-		@Override
-		public String toString() {
-			return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
-					+ ", id=" + id + ", sorting=" + sorting + ", visibility=" + visibility + ", name=" + name
-					+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords
-					+ ", polyline=" + polyline + ", numProblems=" + numProblems + ", randomMediaId=" + randomMediaId
-					+ "]";
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
 		}
 	}
 	
 	private final int regionId;
 	private final String canonical;
 	private final int id;
-	private final int visibility;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
 	private final boolean forDevelopers;
 	private final String name;
 	private final String comment;
@@ -127,11 +113,12 @@ public class Area implements IMetadata {
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, int visibility, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
-		this.visibility = visibility;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin;
 		this.forDevelopers = forDevelopers;
 		this.name = name;
 		this.comment = comment;
@@ -145,8 +132,8 @@ public class Area implements IMetadata {
 		this.hits = hits;
 	}
 
-	public void addSector(int id, int sorting, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
-		sectors.add(new Sector(id, sorting, visibility, name, comment, lat, lng, polygonCoords, polyline, randomMediaId));
+	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
+		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, lat, lng, polygonCoords, polyline, randomMediaId));
 	}
 
 	public String getCanonical() {
@@ -210,14 +197,18 @@ public class Area implements IMetadata {
 		return typeNumTicked;
 	}
 	
-	public int getVisibility() {
-		return visibility;
-	}
-
 	public boolean isForDevelopers() {
 		return forDevelopers;
 	}
 	
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
+	
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
+	}
+
 	public void orderSectors() {
 		if (sectors != null) {
 			sectors.sort(new Comparator<Sector>() {
@@ -253,13 +244,5 @@ public class Area implements IMetadata {
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;
-	}
-
-	@Override
-	public String toString() {
-		return "Area [regionId=" + regionId + ", canonical=" + canonical + ", id=" + id + ", visibility=" + visibility
-				+ ", name=" + name + ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", numSectors="
-				+ numSectors + ", numProblems=" + numProblems + ", sectors=" + sectors + ", media=" + media
-				+ ", newMedia=" + newMedia + ", metadata=" + metadata + "]";
 	}
 }

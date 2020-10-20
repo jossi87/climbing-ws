@@ -8,7 +8,8 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 public class Sector implements IMetadata {
 	public class Problem {
 		private final int id;
-		private final int visibility;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
 		private final int nr;
 		private final String name;
 		private final String comment;
@@ -26,12 +27,13 @@ public class Sector implements IMetadata {
 		private final Type t;
 		private final boolean danger;
 		
-		public Problem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa,
+		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, int gradeNumber, String grade, String fa,
 				int numPitches,
 				boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t,
 				boolean danger) {
 			this.id = id;
-			this.visibility = visibility;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
 			this.nr = nr;
 			this.name = name;
 			this.comment = comment;
@@ -110,12 +112,16 @@ public class Sector implements IMetadata {
 			return t;
 		}
 
-		public int getVisibility() {
-			return visibility;
-		}
-
 		public boolean isDanger() {
 			return danger;
+		}
+		
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
 		}
 
 		public boolean isTicked() {
@@ -125,11 +131,13 @@ public class Sector implements IMetadata {
 	
 	private final boolean orderByGrade;
 	private final int areaId;
-	private final int areaVisibility;
+	private final boolean areaLockedAdmin;
+	private final boolean areaLockedSuperadmin;
 	private final String areaName;
 	private final String canonical;
 	private final int id;
-	private final int visibility;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
 	private final String name;
 	private final String comment;
 	private final double lat;
@@ -142,14 +150,16 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, int areaVisibility, String areaName, String canonical, int id, int visibility, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
-		this.areaVisibility = areaVisibility;
+		this.areaLockedAdmin = areaLockedAdmin;
+		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
 		this.canonical = canonical;
 		this.id = id;
-		this.visibility = visibility;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin; 
 		this.name = name;
 		this.comment = comment;
 		this.lat = lat;
@@ -161,8 +171,8 @@ public class Sector implements IMetadata {
 		this.hits = hits;
 	}
 	
-	public void addProblem(int id, int visibility, int nr, String name, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, visibility, nr, name, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
+	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
+		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 	
 	public int getAreaId() {
@@ -171,10 +181,6 @@ public class Sector implements IMetadata {
 
 	public String getAreaName() {
 		return areaName;
-	}
-	
-	public int getAreaVisibility() {
-		return areaVisibility;
 	}
 	
 	public String getCanonical() {
@@ -192,11 +198,11 @@ public class Sector implements IMetadata {
 	public int getId() {
 		return id;
 	}
-
+	
 	public double getLat() {
 		return lat;
 	}
-
+	
 	public double getLng() {
 		return lng;
 	}
@@ -209,11 +215,11 @@ public class Sector implements IMetadata {
 	public Metadata getMetadata() {
 		return metadata;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-	
+
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
@@ -221,7 +227,7 @@ public class Sector implements IMetadata {
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
-
+	
 	public String getPolyline() {
 		return polyline;
 	}
@@ -230,8 +236,20 @@ public class Sector implements IMetadata {
 		return problems;
 	}
 	
-	public int getVisibility() {
-		return visibility;
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
+	}
+	
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
+	}
+
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
+	
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
 	}
 	
 	public boolean isOrderByGrade() {
@@ -241,14 +259,5 @@ public class Sector implements IMetadata {
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;
-	}
-
-	@Override
-	public String toString() {
-		return "Sector [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
-				+ ", canonical=" + canonical + ", id=" + id + ", visibility=" + visibility + ", name=" + name
-				+ ", comment=" + comment + ", lat=" + lat + ", lng=" + lng + ", polygonCoords=" + polygonCoords + ", polyline=" + polyline
-				+ ", media=" + media + ", problems=" + problems + ", newMedia=" + newMedia + ", metadata=" + metadata
-				+ "]";
 	}
 }

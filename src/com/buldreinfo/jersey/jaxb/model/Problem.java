@@ -136,10 +136,12 @@ public class Problem implements IMetadata {
 	}
 	
 	private final int areaId;
-	private final int areaVisibility;
+	private final boolean areaLockedAdmin;
+	private final boolean areaLockedSuperadmin;
 	private final String areaName;
 	private final int sectorId;
-	private final int sectorVisibility;
+	private final boolean sectorLockedAdmin;
+	private final boolean sectorLockedSuperadmin;
 	private final String sectorName;
 	private final double sectorLat;
 	private final double sectorLng;
@@ -149,7 +151,8 @@ public class Problem implements IMetadata {
 	private final int sectorIdProblemNext;
 	private final String canonical;
 	private final int id;
-	private final int visibility;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
 	private final int nr;
 	private final String name;
 	private final String comment;
@@ -174,12 +177,14 @@ public class Problem implements IMetadata {
 	private final long hits;
 	private FaAid faAid;
 	
-	public Problem(int areaId, int areaVisibility, String areaName, int sectorId, int sectorVisibility, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, int visibility, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
 		this.areaId = areaId;
-		this.areaVisibility = areaVisibility;
+		this.areaLockedAdmin = areaLockedAdmin;
+		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
 		this.sectorId = sectorId;
-		this.sectorVisibility = sectorVisibility;
+		this.sectorLockedAdmin = sectorLockedAdmin;
+		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.sectorName = sectorName;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
@@ -189,7 +194,8 @@ public class Problem implements IMetadata {
 		this.sectorIdProblemNext = sectorIdProblemNext;
 		this.canonical = canonical;
 		this.id = id;
-		this.visibility = visibility;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin;
 		this.nr = nr;
 		this.name = name;
 		this.comment = comment;
@@ -239,24 +245,16 @@ public class Problem implements IMetadata {
 		return areaName;
 	}
 	
-	public int getAreaVisibility() {
-		return areaVisibility;
-	}
-	
-	public int getSectorIdProblemNext() {
-		return sectorIdProblemNext;
-	}
-	
-	public int getSectorIdProblemPrev() {
-		return sectorIdProblemPrev;
-	}
-	
 	public String getCanonical() {
 		return canonical;
 	}
-
+	
 	public String getComment() {
 		return comment;
+	}
+	
+	public List<Comment> getComments() {
+		return comments;
 	}
 	
 	public List<FaUser> getFa() {
@@ -266,7 +264,7 @@ public class Problem implements IMetadata {
 	public FaAid getFaAid() {
 		return faAid;
 	}
-	
+
 	public String getFaDate() {
 		return faDate;
 	}
@@ -290,7 +288,7 @@ public class Problem implements IMetadata {
 	public double getLat() {
 		return lat;
 	}
-
+	
 	public double getLng() {
 		return lng;
 	}
@@ -303,11 +301,11 @@ public class Problem implements IMetadata {
 	public Metadata getMetadata() {
 		return metadata;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
@@ -319,7 +317,7 @@ public class Problem implements IMetadata {
 	public int getNumTicks() {
 		return numTicks;
 	}
-	
+
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
@@ -327,11 +325,19 @@ public class Problem implements IMetadata {
 	public List<Section> getSections() {
 		return sections;
 	}
-
+	
 	public int getSectorId() {
 		return sectorId;
 	}
 	
+	public int getSectorIdProblemNext() {
+		return sectorIdProblemNext;
+	}
+	
+	public int getSectorIdProblemPrev() {
+		return sectorIdProblemPrev;
+	}
+
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -339,21 +345,17 @@ public class Problem implements IMetadata {
 	public double getSectorLng() {
 		return sectorLng;
 	}
-
+	
 	public String getSectorName() {
 		return sectorName;
 	}
-	
+
 	public String getSectorPolygonCoords() {
 		return sectorPolygonCoords;
 	}
-
+	
 	public String getSectorPolyline() {
 		return sectorPolyline;
-	}
-
-	public int getSectorVisibility() {
-		return sectorVisibility;
 	}
 
 	public double getStars() {
@@ -363,13 +365,33 @@ public class Problem implements IMetadata {
 	public Type getT() {
 		return t;
 	}
-
+	
 	public List<Tick> getTicks() {
 		return ticks;
 	}
+
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
+	}
+
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
+	}
+
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
 	
-	public int getVisibility() {
-		return visibility;
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
+	}
+	
+	public boolean isSectorLockedAdmin() {
+		return sectorLockedAdmin;
+	}
+
+	public boolean isSectorLockedSuperadmin() {
+		return sectorLockedSuperadmin;
 	}
 
 	public boolean isTicked() {
@@ -379,29 +401,13 @@ public class Problem implements IMetadata {
 	public boolean isTodo() {
 		return todo;
 	}
-
+	
 	public void setFaAid(FaAid faAid) {
 		this.faAid = faAid;
-	}
-	
-	public List<Comment> getComments() {
-		return comments;
 	}
 	
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;
-	}
-
-	@Override
-	public String toString() {
-		return "Problem [areaId=" + areaId + ", areaVisibility=" + areaVisibility + ", areaName=" + areaName
-				+ ", sectorId=" + sectorId + ", sectorVisibility=" + sectorVisibility + ", sectorName=" + sectorName
-				+ ", sectorLat=" + sectorLat + ", sectorLng=" + sectorLng + ", canonical=" + canonical + ", id=" + id
-				+ ", visibility=" + visibility + ", nr=" + nr + ", name=" + name + ", comment=" + comment + ", grade="
-				+ grade + ", originalGrade=" + originalGrade + ", faDate=" + faDate + ", faDateHr=" + faDateHr + ", fa="
-				+ fa + ", lat=" + lat + ", lng=" + lng + ", media=" + media + ", numTicks=" + numTicks + ", stars="
-				+ stars + ", ticked=" + ticked + ", ticks=" + ticks + ", comments=" + comments + ", newMedia="
-				+ newMedia + ", t=" + t + ", sections=" + sections + ", metadata=" + metadata + "]";
 	}
 }

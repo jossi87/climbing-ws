@@ -2,55 +2,85 @@ package com.buldreinfo.jersey.jaxb.model;
 
 public class PublicAscent {
 	private final String areaName;
-	private final int areaVisibility;
+	private final boolean areaLockedAdmin;
+	private final boolean areaLockedSuperadmin;
 	private final String sectorName;
-	private final int sectorVisibility;
+	private final boolean sectorLockedAdmin;
+	private final boolean sectorLockedSuperadmin;
 	private final int problemId;
 	private final String problemGrade;
 	private final String problemName;
-	private final int problemVisibility;
+	private final boolean problemLockedAdmin;
+	private final boolean problemLockedSuperadmin;
 	private final String date;
 	private final String name;
 	
-	public PublicAscent(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int problemId, String problemGrade, String problemName, int problemVisibility, String date, String name) {
+	public PublicAscent(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
+			boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, String problemGrade,
+			String problemName, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String date, String name) {
 		this.areaName = areaName;
-		this.areaVisibility = areaVisibility;
+		this.areaLockedAdmin = areaLockedAdmin;
+		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.sectorName = sectorName;
-		this.sectorVisibility = sectorVisibility;
+		this.sectorLockedAdmin = sectorLockedAdmin;
+		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.problemId = problemId;
 		this.problemGrade = problemGrade;
 		this.problemName = problemName;
-		this.problemVisibility = problemVisibility;
+		this.problemLockedAdmin = problemLockedAdmin;
+		this.problemLockedSuperadmin = problemLockedSuperadmin;
 		this.date = date;
 		this.name = name;
 	}
+
 	public String getAreaName() {
 		return areaName;
 	}
-	public int getAreaVisibility() {
-		return areaVisibility;
+
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
 	}
+
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
+	}
+
 	public String getSectorName() {
 		return sectorName;
 	}
-	public int getSectorVisibility() {
-		return sectorVisibility;
+
+	public boolean isSectorLockedAdmin() {
+		return sectorLockedAdmin;
 	}
+
+	public boolean isSectorLockedSuperadmin() {
+		return sectorLockedSuperadmin;
+	}
+
 	public int getProblemId() {
 		return problemId;
 	}
+
 	public String getProblemGrade() {
 		return problemGrade;
 	}
+
 	public String getProblemName() {
 		return problemName;
 	}
-	public int getProblemVisibility() {
-		return problemVisibility;
+
+	public boolean isProblemLockedAdmin() {
+		return problemLockedAdmin;
 	}
+
+	public boolean isProblemLockedSuperadmin() {
+		return problemLockedSuperadmin;
+	}
+
 	public String getDate() {
 		return date;
 	}
+
 	public String getName() {
 		return name;
 	}

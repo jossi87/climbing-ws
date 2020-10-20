@@ -8,14 +8,17 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 public class User implements IMetadata {
 	public class Tick {
 		private final String areaName;
-		private final int areaVisibility;
+		private final boolean areaLockedAdmin;
+		private final boolean areaLockedSuperadmin;
 		private final String sectorName;
-		private final int sectorVisibility;
+		private final boolean sectorLockedAdmin;
+		private final boolean sectorLockedSuperadmin;
 		private int num;
 		private final int id;
 		private final String subType;
 		private final int idProblem;
-		private final int visibility;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
 		private final String name;
 		private final String comment;
 		private final String date;
@@ -24,16 +27,22 @@ public class User implements IMetadata {
 		private final boolean fa;
 		private final String grade;
 		private final int gradeNumber;
-
-		public Tick(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int id, String subType, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		
+		public Tick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
+				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType,
+				int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
+				String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 			this.areaName = areaName;
-			this.areaVisibility = areaVisibility;
+			this.areaLockedAdmin = areaLockedAdmin;
+			this.areaLockedSuperadmin = areaLockedSuperadmin;
 			this.sectorName = sectorName;
-			this.sectorVisibility = sectorVisibility;
+			this.sectorLockedAdmin = sectorLockedAdmin;
+			this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 			this.id = id;
 			this.subType = subType;
 			this.idProblem = idProblem;
-			this.visibility = visibility;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
 			this.name = name;
 			this.comment = comment;
 			this.date = date;
@@ -43,86 +52,89 @@ public class User implements IMetadata {
 			this.grade = grade;
 			this.gradeNumber = gradeNumber;
 		}
-		
-		public String getAreaName() {
-			return areaName;
-		}
-		
-		public int getAreaVisibility() {
-			return areaVisibility;
-		}
-		
-		public String getComment() {
-			return comment;
-		}
-		
-		public String getDate() {
-			return date;
-		}
-		
-		public String getDateHr() {
-			return dateHr;
-		}
-		
-		public String getGrade() {
-			return grade;
-		}
-		
-		public int getGradeNumber() {
-			return gradeNumber;
-		}
-
-		public int getId() {
-			return id;
-		}
-		
-		public int getIdProblem() {
-			return idProblem;
-		}
-		
-		public String getName() {
-			return name;
-		}
 
 		public int getNum() {
 			return num;
-		}
-		
-		public String getSectorName() {
-			return sectorName;
-		}
-
-		public int getSectorVisibility() {
-			return sectorVisibility;
-		}
-
-		public double getStars() {
-			return stars;
-		}
-
-		public String getSubType() {
-			return subType;
-		}
-
-		public int getVisibility() {
-			return visibility;
-		}
-
-		public boolean isFa() {
-			return fa;
 		}
 
 		public void setNum(int num) {
 			this.num = num;
 		}
 
-		@Override
-		public String toString() {
-			return "Tick [areaName=" + areaName + ", areaVisibility=" + areaVisibility + ", sectorName=" + sectorName
-					+ ", sectorVisibility=" + sectorVisibility + ", num=" + num + ", id=" + id + ", subType=" + subType
-					+ ", idProblem=" + idProblem + ", visibility=" + visibility + ", name=" + name + ", comment="
-					+ comment + ", date=" + date + ", dateHr=" + dateHr + ", stars=" + stars + ", fa=" + fa + ", grade="
-					+ grade + ", gradeNumber=" + gradeNumber + "]";
+		public String getAreaName() {
+			return areaName;
+		}
+
+		public boolean isAreaLockedAdmin() {
+			return areaLockedAdmin;
+		}
+
+		public boolean isAreaLockedSuperadmin() {
+			return areaLockedSuperadmin;
+		}
+
+		public String getSectorName() {
+			return sectorName;
+		}
+
+		public boolean isSectorLockedAdmin() {
+			return sectorLockedAdmin;
+		}
+
+		public boolean isSectorLockedSuperadmin() {
+			return sectorLockedSuperadmin;
+		}
+
+		public int getId() {
+			return id;
+		}
+
+		public String getSubType() {
+			return subType;
+		}
+
+		public int getIdProblem() {
+			return idProblem;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getComment() {
+			return comment;
+		}
+
+		public String getDate() {
+			return date;
+		}
+
+		public String getDateHr() {
+			return dateHr;
+		}
+
+		public double getStars() {
+			return stars;
+		}
+
+		public boolean isFa() {
+			return fa;
+		}
+
+		public String getGrade() {
+			return grade;
+		}
+
+		public int getGradeNumber() {
+			return gradeNumber;
 		}
 	}
 	private final boolean readOnly;
@@ -147,8 +159,8 @@ public class User implements IMetadata {
 		this.numVideoTags = numVideoTags;
 	}
 	
-	public void addTick(String areaName, int areaVisibility, String sectorName, int sectorVisibility, int id, String subType, int idProblem, int visibility, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(areaName, areaVisibility, sectorName, sectorVisibility, id, subType, idProblem, visibility, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 	
 	public int getId() {

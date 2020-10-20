@@ -5,20 +5,26 @@ public class PermissionUser {
 	private final String name;
 	private final String picture;
 	private final String lastLogin;
-	private final int write;
+	private final boolean adminRead;
+	private final boolean adminWrite;
+	private final boolean superadminRead;
+	private final boolean superadminWrite;
 	private final boolean readOnly;
 	
-	public PermissionUser(int userId, String name, String picture, String lastLogin, int write, boolean readOnly) {
+	public PermissionUser(int userId, String name, String picture, String lastLogin, boolean adminRead, boolean adminWrite, boolean superadminRead, boolean superadminWrite, boolean readOnly) {
 		this.userId = userId;
 		this.name = name;
 		this.picture = picture;
 		this.lastLogin = lastLogin;
-		this.write = write;
+		this.adminRead = adminRead;
+		this.adminWrite = adminWrite;
+		this.superadminRead = superadminRead;
+		this.superadminWrite = superadminWrite;
 		this.readOnly = readOnly;
 	}
-	
-	public String getLastLogin() {
-		return lastLogin;
+
+	public int getUserId() {
+		return userId;
 	}
 
 	public String getName() {
@@ -29,14 +35,26 @@ public class PermissionUser {
 		return picture;
 	}
 
-	public int getUserId() {
-		return userId;
+	public String getLastLogin() {
+		return lastLogin;
 	}
 
-	public int getWrite() {
-		return write;
+	public boolean isAdminRead() {
+		return adminRead;
 	}
 
+	public boolean isAdminWrite() {
+		return adminWrite;
+	}
+
+	public boolean isSuperadminRead() {
+		return superadminRead;
+	}
+
+	public boolean isSuperadminWrite() {
+		return superadminWrite;
+	}
+	
 	public boolean isReadOnly() {
 		return readOnly;
 	}

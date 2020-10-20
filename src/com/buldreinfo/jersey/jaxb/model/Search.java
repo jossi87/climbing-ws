@@ -6,38 +6,44 @@ public class Search {
 	private final String url;
 	private final String mediaurl;
 	private final int mediaid;
-	private final int visibility;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
 	
-	public Search(String title, String description, String url, String mediaurl, int mediaid, int visibility) {
+	public Search(String title, String description, String url, String mediaurl, int mediaid, boolean lockedAdmin, boolean lockedSuperadmin) {
 		this.title = title;
 		this.description = description;
 		this.url = url;
 		this.mediaurl = mediaurl;
 		this.mediaid = mediaid;
-		this.visibility = visibility;
-	}
-	
-	public String getDescription() {
-		return description;
-	}
-	
-	public int getMediaId() {
-		return mediaid;
-	}
-
-	public String getMediaUrl() {
-		return mediaurl;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin;
 	}
 
 	public String getTitle() {
 		return title;
 	}
-	
+
+	public String getDescription() {
+		return description;
+	}
+
 	public String getUrl() {
 		return url;
 	}
-	
-	public int getVisibility() {
-		return visibility;
+
+	public String getMediaurl() {
+		return mediaurl;
+	}
+
+	public int getMediaid() {
+		return mediaid;
+	}
+
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
+
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
 	}
 }
