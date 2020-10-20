@@ -632,7 +632,7 @@ public class V2 {
 	@GET
 	@Path("/user/regions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUserRegions(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getUserRegions(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
