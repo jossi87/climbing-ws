@@ -81,6 +81,7 @@ import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
@@ -1221,7 +1222,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = true;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
@@ -1330,7 +1331,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
 		return res;
 	}
-
+	
 	public TodoUser getTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -1393,7 +1394,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
 		return res;
 	}
-
+	
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
@@ -1524,6 +1525,24 @@ public class BuldreinfoRepository {
 			res.getTicks().get(i).setNum(i);
 		}
 		logger.debug("getUser(authUserId={}, regionId={}, reqId={}) - duration={}", authUserId, setup.getIdRegion(), reqId, stopwatch);
+		return res;
+	}
+
+	public List<UserRegion> getUserRegion(int authUserId, Setup setup) throws SQLException {
+		List<UserRegion> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
+			ps.setInt(1, setup.getIdRegion());
+			ps.setInt(2, authUserId);
+			ps.setInt(3, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String name = rst.getString("name");
+					boolean readOnly = rst.getBoolean("read_only");
+					res.add(new UserRegion(id, name, readOnly));
+				}
+			}
+		}
 		return res;
 	}
 
@@ -2075,6 +2094,23 @@ public class BuldreinfoRepository {
 			ps.setBoolean(1, useBlueNotRed);
 			ps.setInt(2, authUserId);
 			ps.execute();
+		}
+	}
+
+	public void setUserRegion(int authUserId, int regionId, boolean delete) throws SQLException {
+		if (delete) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM user_region WHERE user_id=? AND region_id=?")) {
+				ps.setInt(1, authUserId);
+				ps.setInt(2, regionId);
+				ps.execute();
+			}
+		}
+		else {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_region (user_id, region_id, region_visible) VALUES (?, ?, 1)")) {
+				ps.setInt(1, authUserId);
+				ps.setInt(2, regionId);
+				ps.execute();
+			}
 		}
 	}
 

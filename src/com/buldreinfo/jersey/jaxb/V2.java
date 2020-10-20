@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -65,8 +64,8 @@ import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
-import com.buldreinfo.jersey.jaxb.xml.Camera;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -399,7 +398,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
@@ -623,6 +622,21 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/user/regions")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getUserRegions(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<UserRegion> res = c.getBuldreinfoRepo().getUserRegion(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -864,6 +878,20 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
+	@Path("/user/regions")
+	public Response postUserRegions(@Context HttpServletRequest request, @QueryParam("regionId") int regionId, @QueryParam("delete") boolean delete) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = getUserId(request);
+			Preconditions.checkArgument(authUserId != -1);
+			c.getBuldreinfoRepo().setUserRegion(authUserId, regionId, delete);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
