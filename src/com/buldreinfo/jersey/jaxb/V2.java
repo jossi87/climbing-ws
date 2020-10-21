@@ -312,6 +312,9 @@ public class V2 {
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
+			if (id == 5242) {
+				 return Response.status(Response.Status.MOVED_PERMANENTLY).header("Location", "https://brattelinjer.no/problem/5242").build();
+			}
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
