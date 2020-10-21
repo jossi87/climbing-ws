@@ -55,6 +55,7 @@ import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -137,8 +138,8 @@ public class V2 {
 				response = Response.ok().entity(a).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				String url = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
-				response = Response.ok().entity(url).build();
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
+				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
 			return response;
@@ -325,8 +326,8 @@ public class V2 {
 				response = Response.ok().entity(res).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				String url = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
-				response = Response.ok().entity(url).build();
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
+				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
 			return response;
@@ -415,8 +416,8 @@ public class V2 {
 				response = Response.ok().entity(s).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				String url = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
-				response = Response.ok().entity(url).build();
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
+				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
 			return response;

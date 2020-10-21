@@ -69,6 +69,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
+import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -800,7 +801,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 	
-	public String getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
+	public Redirect getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
 		String sqlStr = null;
 		int id = 0;
 		if (idArea > 0) {
@@ -816,17 +817,17 @@ public class BuldreinfoRepository {
 			id = idProblem;
 		}
 		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		String url = null;
+		Redirect res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					url = rst.getString("url");
+					res = new Redirect(rst.getString("url"));
 				}
 			}
 		}
-		Preconditions.checkNotNull(url, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		return url;
+		Preconditions.checkNotNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		return res;
 	}
 
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
