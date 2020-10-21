@@ -799,6 +799,35 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
+	
+	public String getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
+		String sqlStr = null;
+		int id = 0;
+		if (idArea > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
+			id = idArea;
+		}
+		else if (idSector > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/sector/',s.id) url FROM region r, area a, sector s WHERE r.id=a.region_id AND a.id=s.area_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=?";
+			id = idSector;
+		}
+		else if (idProblem > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/problem/',p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=?";
+			id = idProblem;
+		}
+		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		String url = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					url = rst.getString("url");
+				}
+			}
+		}
+		Preconditions.checkNotNull(url, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		return url;
+	}
 
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();

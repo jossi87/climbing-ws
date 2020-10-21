@@ -29,6 +29,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
@@ -80,6 +82,7 @@ public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	private final static AuthHelper auth = new AuthHelper();
 	private final static MetaHelper metaHelper = new MetaHelper();
+	private static Logger logger = LogManager.getLogger();
 
 	public V2() {
 	}
@@ -127,10 +130,18 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
-			metaHelper.updateMetadata(c, a, setup, authUserId, requestedIdMedia);
+			Response response = null;
+			try {
+				Area a = c.getBuldreinfoRepo().getArea(authUserId, id);
+				metaHelper.updateMetadata(c, a, setup, authUserId, requestedIdMedia);
+				response = Response.ok().entity(a).build();
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+				String url = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
+				response = Response.ok().entity(url).build();
+			}
 			c.setSuccess();
-			return Response.ok().entity(a).build();
+			return response;
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -190,7 +201,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -307,14 +318,19 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			if (id == 5242) {
-				 return Response.status(Response.Status.MOVED_PERMANENTLY).header("Location", "https://brattelinjer.no/problem/5242").build();
+			Response response = null;
+			try {
+				Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+				metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
+				response = Response.ok().entity(res).build();
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+				String url = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
+				response = Response.ok().entity(url).build();
 			}
+			c.setSuccess();
+			return response;
+		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
@@ -392,15 +408,23 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-			metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
+			Response response = null;
+			try {
+				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+				metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
+				response = Response.ok().entity(s).build();
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+				String url = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
+				response = Response.ok().entity(url).build();
+			}
 			c.setSuccess();
-			return Response.ok().entity(s).build();
+			return response;
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
@@ -871,7 +895,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/user/regions")
 	public Response postUserRegions(@Context HttpServletRequest request, @QueryParam("regionId") int regionId, @QueryParam("delete") boolean delete) throws ExecutionException, IOException {
