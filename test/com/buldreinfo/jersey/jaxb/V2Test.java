@@ -101,7 +101,7 @@ public class V2Test {
 	@Test
 	public void testGetSectors() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getSectors(getRequest(), 278, 0);
+		Response r = tester.getSectors(getRequest(), 47, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Sector);
 		Sector s = (Sector)r.getEntity();
