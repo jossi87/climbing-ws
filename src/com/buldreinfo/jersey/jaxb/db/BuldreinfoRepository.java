@@ -1457,27 +1457,44 @@ public class BuldreinfoRepository {
 			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
 		}
 		User res = null;
-		String sqlStr = "SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, COUNT(DISTINCT CASE WHEN mC.is_movie=0 THEN mC.id END) num_images_created, COUNT(DISTINCT CASE WHEN mC.is_movie=1 THEN mC.id END) num_videos_created, COUNT(DISTINCT CASE WHEN mT.is_movie=0 THEN mT.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mT.is_movie=1 THEN mT.id END) num_video_tags" + " FROM ((user u LEFT JOIN media mC ON u.id=mC.photographer_user_id AND mC.deleted_user_id IS NULL) LEFT JOIN media_user mu ON u.id=mu.user_id) LEFT JOIN media mT ON mu.media_id=mT.id AND mT.deleted_user_id IS NULL WHERE u.id=? GROUP BY u.firstname, u.lastname, u.picture";
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?")) {
 			ps.setInt(1, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					List<UserRegion> userRegions = c.getBuldreinfoRepo().getUserRegion(reqId, setup);
 					String picture = rst.getString("picture");
 					String name = rst.getString("name");
-					int numImagesCreated = rst.getInt("num_images_created");
-					int numVideosCreated = rst.getInt("num_videos_created");
-					int numImageTags = rst.getInt("num_image_tags");
-					int numVideoTags = rst.getInt("num_video_tags");
-					res = new User(readOnly, reqId, picture, name, numImagesCreated, numVideosCreated, numImageTags, numVideoTags, userRegions);
+					res = new User(readOnly, reqId, picture, name, userRegions);
 				}
 			}
 		}
 		if (res == null) {
 			return res;
 		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM (((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=u.id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
+			ps.setInt(1, reqId);
+			ps.setInt(2, setup.getIdRegion());
+			ps.setInt(3, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res.setNumImagesCreated(rst.getInt("num_images_created"));
+					res.setNumVideosCreated(rst.getInt("num_videos_created"));
+				}
+			}
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM ((((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=u.id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
+			ps.setInt(1, reqId);
+			ps.setInt(2, setup.getIdRegion());
+			ps.setInt(3, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res.setNumImageTags(rst.getInt("num_image_tags"));
+					res.setNumVideoTags(rst.getInt("num_video_tags"));
+				}
+			}
+		}
 
-		sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, ty.subtype, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
+		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, ty.subtype, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
 				+ " FROM (((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
 				+ " WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
 				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade";
@@ -1594,7 +1611,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					res.add(new User(true, id, null, name, -1, -1, -1, -1, null));
+					res.add(new User(true, id, null, name, null));
 				}
 			}
 		}

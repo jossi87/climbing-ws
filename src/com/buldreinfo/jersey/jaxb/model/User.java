@@ -53,60 +53,8 @@ public class User implements IMetadata {
 			this.gradeNumber = gradeNumber;
 		}
 
-		public int getNum() {
-			return num;
-		}
-
-		public void setNum(int num) {
-			this.num = num;
-		}
-
 		public String getAreaName() {
 			return areaName;
-		}
-
-		public boolean isAreaLockedAdmin() {
-			return areaLockedAdmin;
-		}
-
-		public boolean isAreaLockedSuperadmin() {
-			return areaLockedSuperadmin;
-		}
-
-		public String getSectorName() {
-			return sectorName;
-		}
-
-		public boolean isSectorLockedAdmin() {
-			return sectorLockedAdmin;
-		}
-
-		public boolean isSectorLockedSuperadmin() {
-			return sectorLockedSuperadmin;
-		}
-
-		public int getId() {
-			return id;
-		}
-
-		public String getSubType() {
-			return subType;
-		}
-
-		public int getIdProblem() {
-			return idProblem;
-		}
-
-		public boolean isLockedAdmin() {
-			return lockedAdmin;
-		}
-
-		public boolean isLockedSuperadmin() {
-			return lockedSuperadmin;
-		}
-
-		public String getName() {
-			return name;
 		}
 
 		public String getComment() {
@@ -121,14 +69,6 @@ public class User implements IMetadata {
 			return dateHr;
 		}
 
-		public double getStars() {
-			return stars;
-		}
-
-		public boolean isFa() {
-			return fa;
-		}
-
 		public String getGrade() {
 			return grade;
 		}
@@ -136,52 +76,104 @@ public class User implements IMetadata {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
+
+		public int getId() {
+			return id;
+		}
+
+		public int getIdProblem() {
+			return idProblem;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public int getNum() {
+			return num;
+		}
+
+		public String getSectorName() {
+			return sectorName;
+		}
+
+		public double getStars() {
+			return stars;
+		}
+
+		public String getSubType() {
+			return subType;
+		}
+
+		public boolean isAreaLockedAdmin() {
+			return areaLockedAdmin;
+		}
+
+		public boolean isAreaLockedSuperadmin() {
+			return areaLockedSuperadmin;
+		}
+
+		public boolean isFa() {
+			return fa;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+
+		public boolean isSectorLockedAdmin() {
+			return sectorLockedAdmin;
+		}
+
+		public boolean isSectorLockedSuperadmin() {
+			return sectorLockedSuperadmin;
+		}
+
+		public void setNum(int num) {
+			this.num = num;
+		}
 	}
 	private final boolean readOnly;
 	private final int id;
 	private final String picture;
 	private final String name;
-	private final int numImagesCreated;
-	private final int numVideosCreated;
-	private final int numImageTags;
-	private final int numVideoTags;
+	private int numImagesCreated;
+	private int numVideosCreated;
+	private int numImageTags;
+	private int numVideoTags;
 	private final List<Tick> ticks = new ArrayList<>();
 	private final List<UserRegion> userRegions;
 	private Metadata metadata;
 	
-	public User(boolean readOnly, int id, String picture, String name, int numImagesCreated, int numVideosCreated, int numImageTags, int numVideoTags, List<UserRegion> userRegions) {
+	public User(boolean readOnly, int id, String picture, String name, List<UserRegion> userRegions) {
 		this.readOnly = readOnly;
 		this.id = id;
 		this.picture = picture;
 		this.name = name;
-		this.numImagesCreated = numImagesCreated;
-		this.numVideosCreated = numVideosCreated;
-		this.numImageTags = numImageTags;
-		this.numVideoTags = numVideoTags;
 		this.userRegions = userRegions;
 	}
 	
 	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
-	
-	public List<UserRegion> getUserRegions() {
-		return userRegions;
-	}
-	
+
 	public int getId() {
 		return id;
 	}
-	
+
 	@Override
 	public Metadata getMetadata() {
 		return metadata;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-	
+
 	public int getNumImagesCreated() {
 		return numImagesCreated;
 	}
@@ -201,18 +193,38 @@ public class User implements IMetadata {
 	public String getPicture() {
 		return picture;
 	}
-
+	
 	public List<Tick> getTicks() {
 		return ticks;
 	}
-
+	
+	public List<UserRegion> getUserRegions() {
+		return userRegions;
+	}
+	
 	public boolean isReadOnly() {
 		return readOnly;
 	}
-
+	
 	@Override
 	public void setMetadata(Metadata metadata) {
 		this.metadata = metadata;
+	}
+	
+	public void setNumImagesCreated(int numImagesCreated) {
+		this.numImagesCreated = numImagesCreated;
+	}
+
+	public void setNumImageTags(int numImageTags) {
+		this.numImageTags = numImageTags;
+	}
+
+	public void setNumVideosCreated(int numVideosCreated) {
+		this.numVideosCreated = numVideosCreated;
+	}
+
+	public void setNumVideoTags(int numVideoTags) {
+		this.numVideoTags = numVideoTags;
 	}
 
 	@Override
