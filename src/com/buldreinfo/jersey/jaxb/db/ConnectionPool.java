@@ -18,6 +18,7 @@ public class ConnectionPool {
 		this.bds = new BasicDataSource();
 		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		this.bds.setUrl(String.format("jdbc:mysql://%s/%s?user=%s&password=%s&serverTimezone=UTC", HOST, DATABASE, USER, PASSWORD));
+		this.bds.setMaxTotal(64);
 	}
 	
 	protected BasicDataSource getBasicDataSource() throws SQLException {
