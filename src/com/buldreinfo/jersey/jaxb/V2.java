@@ -397,6 +397,7 @@ public class V2 {
 				"Sitemap: " + setup.getUrl("/sitemap.txt"),
 				"User-agent: *",
 				"Disallow: /todo/*",
+				"User-agent: *",
 				"Disallow: /*pdf*");
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
