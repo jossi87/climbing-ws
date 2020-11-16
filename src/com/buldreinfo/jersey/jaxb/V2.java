@@ -396,9 +396,8 @@ public class V2 {
 		List<String> lines = Lists.newArrayList(
 				"Sitemap: " + setup.getUrl("/sitemap.txt"),
 				"User-agent: *",
-				"Disallow: /todo/*",
-				"User-agent: *",
-				"Disallow: /*pdf*");
+				"Disallow: /todo/", // todo-pages should not be indexed
+				"Disallow: /com.buldreinfo.jersey.jaxb/"); // Disallow all ws endpoints (including PDF-generators)
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
