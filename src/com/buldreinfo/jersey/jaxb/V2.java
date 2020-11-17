@@ -397,6 +397,7 @@ public class V2 {
 				"User-agent: *",
 				"Disallow: /todo/", // todo-pages should not be indexed
 				"Disallow: /com.buldreinfo.jersey.jaxb/", // Disallow all ws endpoints (including PDF-generators)
+				"Disallow: /buldreinfo_media/original/", // Disallow original files
 				"Sitemap: " + setup.getUrl("/sitemap.txt"));
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
