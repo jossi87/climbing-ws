@@ -28,8 +28,8 @@ public class GlobalFunctions {
 		return res;
 	}
 	
-	public static Path getPathMediaOriginal() throws IOException {
-		return getPathRoot().resolve("original");
+	public static Path getPathMediaOriginalJpg() throws IOException {
+		return getPathRoot().resolve("original/jpg");
 	}
 	
 	public static Path getPathMediaWebJpg() throws IOException {

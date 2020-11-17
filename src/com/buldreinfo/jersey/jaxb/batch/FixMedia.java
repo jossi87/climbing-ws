@@ -19,7 +19,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +31,6 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
@@ -114,7 +112,7 @@ public class FixMedia {
 		ps.close();
 		ps = null;
 		// IO
-		final Path dst = root.resolve("original").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + "." + suffix);
+		final Path dst = root.resolve("original/mp4").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + "." + suffix);
 		Preconditions.checkArgument(!Files.exists(dst), dst.toString() + " already exists");
 		Preconditions.checkArgument(Files.exists(dst.getParent().getParent()), dst.getParent().getParent().toString() + " does not exist");
 		Files.createDirectories(dst.getParent());
@@ -132,7 +130,8 @@ public class FixMedia {
 			final int height = rst.getInt("height");
 			final String suffix = rst.getString("suffix");
 			final boolean isMovie = rst.getBoolean("is_movie");
-			final Path original = root.resolve("original").resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
+			final String originalFolder = isMovie? "original/mp4" : "original/jpg";
+			final Path original = root.resolve(originalFolder).resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
 			final Path jpg = root.resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
 			final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
 			final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");

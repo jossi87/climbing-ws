@@ -2374,7 +2374,7 @@ public class BuldreinfoRepository {
 			Files.copy(is, original);
 			Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
 
-			final Path p = GlobalFunctions.getPathMediaOriginal().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
+			final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
 			Files.createDirectories(p.getParent());
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 
@@ -2442,7 +2442,7 @@ public class BuldreinfoRepository {
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
-		final Path original = GlobalFunctions.getPathMediaOriginal().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
+		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 		Files.createDirectories(webp.getParent());
