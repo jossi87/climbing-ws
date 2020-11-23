@@ -7,13 +7,9 @@ import java.awt.Graphics;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.file.FileSystemException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -36,7 +32,9 @@ import com.google.common.hash.Hashing;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
-	private final Path root = Paths.get("G:/gdrive/web/buldreinfo/buldreinfo_media");
+	private final Path root = Paths.get( "D:/gdrive/web/buldreinfo/buldreinfo_media");
+	private final static String LOCAL_LIB_WEBC_PATH = "D:/gdrive/web/buldreinfo/sw/libwebp-1.1.0-windows-x64/bin/cwebp.exe";
+	private final static String LOCAL_FFMPEG_PATH = "D:/gdrive/web/buldreinfo/sw/ffmpeg-2020-11-22-git-0066bf4d1a-full_build/bin/ffmpeg.exe";
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -44,7 +42,7 @@ public class FixMedia {
 			FixMedia service = new FixMedia();
 			// Add movie
 			//			final int idUploaderUserId = 1;			
-			//			Path src = Paths.get("C:/Users/joste_000/Desktop/new/.mp4");
+			//			Path src = Paths.get("C:/Users/joste/OneDrive/Skrivebord/new/.mp4");
 			//			int idPhotographerUserId = ;
 			//			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
 			//			idProblemMsMap.put(, 0l);
@@ -121,7 +119,6 @@ public class FixMedia {
 
 	private List<String> fixMovies(Connection c) throws Exception {
 		List<String> warnings = new ArrayList<>();
-		List<Path> keep = new ArrayList<>();
 		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie FROM media");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
@@ -136,13 +133,6 @@ public class FixMedia {
 			final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
 			final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");
 			final Path webp = root.resolve("web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
-			keep.add(original);
-			keep.add(jpg);
-			keep.add(webp);
-			if (isMovie) {
-				keep.add(webm);
-				keep.add(mp4);
-			}
 			if (!Files.exists(original) || Files.size(original) == 0) {
 				warnings.add(original.toString() + " does not exist (or is 0 bytes)");
 			}
@@ -152,11 +142,11 @@ public class FixMedia {
 						logger.debug("Create " + webm);
 						Files.deleteIfExists(webm);
 						Files.createDirectories(webm.getParent());
-						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+						String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
 						Process p = new ProcessBuilder().inheritIO().command(commands).start();
 						p.waitFor();
 						// Set checksum
-						HashCode crc32 = com.google.common.io.Files.hash(webm.toFile(), Hashing.crc32());
+						HashCode crc32 = com.google.common.io.Files.asByteSource(webm.toFile()).hash(Hashing.crc32());
 						PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
 						ps2.setInt(1, crc32.asInt());
 						ps2.setInt(2, id);
@@ -168,7 +158,7 @@ public class FixMedia {
 						logger.debug("Create " + mp4);
 						Files.deleteIfExists(mp4);
 						Files.createDirectories(mp4.getParent());
-						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+						String[] commands = {LOCAL_FFMPEG_PATH, "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
 						Process p = new ProcessBuilder().inheritIO().command(commands).start();
 						p.waitFor();
 					}
@@ -177,7 +167,7 @@ public class FixMedia {
 						Files.createDirectories(jpg.getParent());
 						Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
 						Files.createDirectories(tmp.getParent());
-						String[] commands = {"C:/Program Files/ffmpeg.exe", "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+						String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
 						Process p = new ProcessBuilder().inheritIO().command(commands).start();
 						p.waitFor();
 						Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
@@ -221,7 +211,7 @@ public class FixMedia {
 					logger.debug("Create " + webp);
 					Files.createDirectories(webp.getParent());
 					// Scaled WebP
-					String cmd = "cmd /c C:\\Progra~1\\libwebp-0.3.0-windows-x86\\cwebp.exe \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"";
+					String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"";
 					Process process = Runtime.getRuntime().exec(cmd);
 					process.waitFor();
 					Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
@@ -230,31 +220,6 @@ public class FixMedia {
 		}
 		rst.close();
 		ps.close();
-		logger.debug("Done fixing, now delete unused files");
-		Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				if (dir.getFileName().toString().equals("temp")) {
-					return FileVisitResult.SKIP_SUBTREE;
-				}
-				return FileVisitResult.CONTINUE;
-			}
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				if (!keep.contains(file)) {
-					if (file.toString().contains("\\web\\") && !file.toString().contains("\\users\\")) {
-						final String unixPath = file.toString().replaceAll("\\\\", "/").replace("G:/gdrive/web/buldreinfo/buldreinfo_media", "/mnt/buldreinfo/media");
-						System.out.println("rm \"" + unixPath + "\"");
-					}
-					Files.setAttribute(file, "dos:readonly", false); // Remove read only
-					try {
-						Files.deleteIfExists(file);
-					} catch (FileSystemException e) {
-						logger.warn(e.toString());
-					}
-				}
-				return FileVisitResult.CONTINUE;
-			}
-
-		});
 		return warnings;
 	}
 }
