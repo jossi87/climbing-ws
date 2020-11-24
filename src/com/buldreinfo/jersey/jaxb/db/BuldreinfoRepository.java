@@ -75,6 +75,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
@@ -1004,9 +1005,11 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public Collection<Problem> getProblemList(int authUserId, Setup setup) throws IOException, SQLException {
+	public TableOfContents getTableOfContents(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Problem> res = new ArrayList<>();
+		TableOfContents toc = new TableOfContents();
+		Map<Integer, TableOfContents.Area> areaLookup = new HashMap<>();
+		Map<Integer, TableOfContents.Sector> sectorLookup = new HashMap<>();
 		String sqlStr = "SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
@@ -1024,14 +1027,27 @@ public class BuldreinfoRepository {
 			ps.setInt(5, setup.getIdRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					// Area
 					int areaId = rst.getInt("area_id");
-					String areaName = rst.getString("area_name");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					TableOfContents.Area a = areaLookup.get(areaId);
+					if (a == null) {
+						String areaName = rst.getString("area_name");
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						a = toc.addArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						areaLookup.put(areaId, a);
+					}
+					// Sector
 					int sectorId = rst.getInt("sector_id");
-					String sectorName = rst.getString("sector_name");
-					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+					TableOfContents.Sector s = sectorLookup.get(sectorId);
+					if (s == null) {
+						String sectorName = rst.getString("sector_name");
+						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						s = a.addSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						sectorLookup.put(sectorId, s);
+					}
+					// Problem
 					int id = rst.getInt("id");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
@@ -1039,24 +1055,17 @@ public class BuldreinfoRepository {
 					String name = rst.getString("name");
 					String description = rst.getString("description");
 					int grade = rst.getInt("grade");
-					List<FaUser> fa = Lists.newArrayList();
-					String faStr = rst.getString("fa");
-					if (faStr != null) {
-						for (String faUser : faStr.split(", ")) {
-							fa.add(new FaUser(0, faUser, null));
-						}
-					}
+					String fa = rst.getString("fa");
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					Problem p = new Problem(areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, 0, 0, null, null, 0, 0, null, id, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), null, null, null, fa, 0, 0, null, numTicks, stars, ticked, null, t, false, 0);
-					res.add(p);
+					s.addProblem(id, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t);
 				}
 			}
 		}
-		logger.debug("getProblemList(authUserId={}, setup={}) - res.size()={} - duration={}", authUserId, setup, res.size(), stopwatch);
-		return res;
+		logger.debug("getProblemList(authUserId={}, setup={}) - toc={} - duration={}", authUserId, setup, toc, stopwatch);
+		return toc;
 	}
 
 	public List<ProblemHse> getProblemsHse(int authUserId, Setup setup) throws SQLException {

@@ -125,7 +125,7 @@ public class V2Test {
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof TableOfContents);
 		TableOfContents b = (TableOfContents)r.getEntity();
-		assertTrue(!b.getProblems().isEmpty());
+		assertTrue(!b.getAreas().isEmpty());
 		assertTrue(b.getMetadata() != null);
 	}
 	

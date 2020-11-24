@@ -284,8 +284,18 @@ public class MetaHelper {
 		}
 		else if (m instanceof TableOfContents) {
 			TableOfContents toc = (TableOfContents)m;
-			String description = String.format("%d %s",
-					toc.getProblems().size(),
+			int numAreas = 0;
+			int numSectors = 0;
+			int numProblems = 0;
+			for (TableOfContents.Area a : toc.getAreas()) {
+				numAreas++;
+				for (TableOfContents.Sector s : a.getSectors()) {
+					numSectors++;
+					numProblems += s.getProblems().size();
+				}
+			}
+			String description = String.format("%d areas, %d sectors, %d %s",
+					numAreas, numSectors, numProblems,
 					setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/toc", null, requestedIdMedia);
 			toc.setMetadata(new Metadata(c, setup, authUserId, "Table of contents", og).setDescription(description));

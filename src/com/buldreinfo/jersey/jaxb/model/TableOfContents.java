@@ -1,21 +1,187 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class TableOfContents implements IMetadata {
-	private final Collection<Problem> problems;
-	private Metadata metadata;
+	public class Area {
+		private final int id;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Sector> sectors = new ArrayList<>();
+		
+		public Area(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+
+		public Sector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			Sector s = new Sector(id, name, lockedAdmin, lockedSuperadmin);
+			this.sectors.add(s);
+			return s;
+		}
+		
+		public int getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public List<Sector> getSectors() {
+			return sectors;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
 	
-	public TableOfContents(Collection<Problem> problems) {
-		this.problems = problems;
+	public class Problem {
+		private final int id;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final int nr;
+		private final String name;
+		private final String description;
+		private final String grade;
+		private final String fa;
+		private final int numTicks;
+		private final double stars;
+		private final boolean ticked;
+		private final Type t;
+		
+		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
+			this.id = id;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+			this.nr = nr;
+			this.name = name;
+			this.description = description;
+			this.grade = grade;
+			this.fa = fa;
+			this.numTicks = numTicks;
+			this.stars = stars;
+			this.ticked = ticked;
+			this.t = t;
+		}
+
+		public String getDescription() {
+			return description;
+		}
+
+		public String getFa() {
+			return fa;
+		}
+
+		public String getGrade() {
+			return grade;
+		}
+
+		public int getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public int getNr() {
+			return nr;
+		}
+
+		public int getNumTicks() {
+			return numTicks;
+		}
+
+		public double getStars() {
+			return stars;
+		}
+
+		public Type getT() {
+			return t;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+
+		public boolean isTicked() {
+			return ticked;
+		}
+	}
+	
+	public class Sector {
+		private final int id;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Problem> problems = new ArrayList<>();
+		
+		public Sector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+
+		public Problem addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
+			Problem p = new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t);
+			this.problems.add(p);
+			return p;
+		}
+		
+		public int getId() {
+			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+
+		public List<Problem> getProblems() {
+			return problems;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
+	
+	private Metadata metadata;
+	private List<Area> areas = new ArrayList<>();
+	
+	public TableOfContents() {
 	}
 
-	public Collection<Problem> getProblems() {
-		return problems;
+	public Area addArea(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Area a = new Area(id, name, lockedAdmin, lockedSuperadmin);
+		this.areas.add(a);
+		return a;
 	}
-
+	
+	public List<Area> getAreas() {
+		return areas;
+	}
+	
 	@Override
 	public Metadata getMetadata() {
 		return metadata;

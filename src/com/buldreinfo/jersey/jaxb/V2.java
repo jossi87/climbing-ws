@@ -359,8 +359,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Collection<Problem> problems = c.getBuldreinfoRepo().getProblemList(authUserId, setup);
-			TableOfContents res = new TableOfContents(problems);
+			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
