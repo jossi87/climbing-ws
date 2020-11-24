@@ -5,6 +5,8 @@ import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -19,6 +21,11 @@ public class GlobalFunctions {
 	private static final String MEDIA_ROOT_PRODUCTION = "/mnt/buldreinfo/media";
 	private static final String MEDIA_ROOT_TEST = "c:/users/jostein/desktop/buldreinfo_test";
 
+	public static String getFilename(String purpose, String ext) {
+		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, ext);
+	}
+	
 	public static Path getPathLeafletPrint() throws IOException {
 		Path res = Paths.get("/var/lib/jenkins/workspace/buldreinfo-web/leaflet-puppeteer-print");
 		if (!Files.exists(res)) {

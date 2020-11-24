@@ -8,34 +8,40 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 public class TableOfContents implements IMetadata {
 	public class Area {
 		private final int id;
+		private final String url;
 		private final String name;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<Sector> sectors = new ArrayList<>();
 		
-		public Area(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public Area(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
+			this.url = url;
 			this.name = name;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
-
-		public Sector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			Sector s = new Sector(id, name, lockedAdmin, lockedSuperadmin);
+		
+		public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
 			this.sectors.add(s);
 			return s;
 		}
-		
+
 		public int getId() {
 			return id;
 		}
-
+		
 		public String getName() {
 			return name;
 		}
 
 		public List<Sector> getSectors() {
 			return sectors;
+		}
+
+		public String getUrl() {
+			return url;
 		}
 
 		public boolean isLockedAdmin() {
@@ -49,6 +55,7 @@ public class TableOfContents implements IMetadata {
 	
 	public class Problem {
 		private final int id;
+		private final String url;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final int nr;
@@ -61,8 +68,9 @@ public class TableOfContents implements IMetadata {
 		private final boolean ticked;
 		private final Type t;
 		
-		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
+		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
 			this.id = id;
+			this.url = url;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 			this.nr = nr;
@@ -75,7 +83,7 @@ public class TableOfContents implements IMetadata {
 			this.ticked = ticked;
 			this.t = t;
 		}
-
+		
 		public String getDescription() {
 			return description;
 		}
@@ -112,6 +120,10 @@ public class TableOfContents implements IMetadata {
 			return t;
 		}
 
+		public String getUrl() {
+			return url;
+		}
+
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
@@ -127,20 +139,22 @@ public class TableOfContents implements IMetadata {
 	
 	public class Sector {
 		private final int id;
+		private final String url;
 		private final String name;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<Problem> problems = new ArrayList<>();
 		
-		public Sector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public Sector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
+			this.url = url;
 			this.name = name;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
-			Problem p = new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t);
+		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
+			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t);
 			this.problems.add(p);
 			return p;
 		}
@@ -152,9 +166,13 @@ public class TableOfContents implements IMetadata {
 		public String getName() {
 			return name;
 		}
-
+		
 		public List<Problem> getProblems() {
 			return problems;
+		}
+
+		public String getUrl() {
+			return url;
 		}
 
 		public boolean isLockedAdmin() {
@@ -172,8 +190,8 @@ public class TableOfContents implements IMetadata {
 	public TableOfContents() {
 	}
 
-	public Area addArea(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Area a = new Area(id, name, lockedAdmin, lockedSuperadmin);
+	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Area a = new Area(id, url, name, lockedAdmin, lockedSuperadmin);
 		this.areas.add(a);
 		return a;
 	}

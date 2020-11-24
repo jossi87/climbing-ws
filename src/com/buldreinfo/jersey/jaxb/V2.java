@@ -5,8 +5,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -69,6 +67,9 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
+import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -353,22 +354,6 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/toc")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
 	@Path("/problems/pdf")
 	@Produces("application/pdf")
 	public Response getProblemsPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
@@ -401,7 +386,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -659,6 +644,69 @@ public class V2 {
 	}
 
 	@GET
+	@Path("/toc")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/toc/xlsx")
+	@Produces(MIME_TYPE_XLSX)
+	public Response getTocXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
+			byte[] bytes;
+			try (ExcelReport report = new ExcelReport()) {
+				try (SheetWriter writer = report.addSheet("TOC")) {
+					for (TableOfContents.Area a : res.getAreas()) {
+						for (TableOfContents.Sector s : a.getSectors()) {
+							for (TableOfContents.Problem p : s.getProblems()) {
+								writer.incrementRow();
+								writer.write("URL", SheetHyperlink.of(p.getUrl()));
+								writer.write("AREA", a.getName());
+								writer.write("SECTOR", s.getName());
+								writer.write("NR", p.getNr());
+								writer.write("NAME", p.getName());
+								writer.write("GRADE", p.getGrade());
+								String type = p.getT().getType();
+								if (p.getT().getSubType() != null) {
+									type += " (" + p.getT().getSubType() + ")";			
+								}
+								writer.write("TYPE", type);
+								writer.write("FA", p.getFa());
+								writer.write("STARS", p.getStars());
+							}
+						}
+					}
+				}
+				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+					report.writeExcel(os);
+					bytes = os.toByteArray();
+				}
+			}
+			c.setSuccess();
+			String fn = GlobalFunctions.getFilename("TableOfContents", "xlsx");
+			return Response.ok(bytes, MIME_TYPE_XLSX)
+					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
+					.build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTodo(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -713,9 +761,10 @@ public class V2 {
 			Preconditions.checkArgument(authUserId>0, "User not logged in");
 			byte[] bytes = c.getBuldreinfoRepo().getUserTicks(authUserId);
 			c.setSuccess();
-			final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+			
+			String fn = GlobalFunctions.getFilename("TICKS", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
-					.header("Content-Disposition", "attachment; filename=\"" + dateTime + ".xlsx\"" )
+					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
