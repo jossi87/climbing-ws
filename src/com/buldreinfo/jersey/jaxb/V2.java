@@ -687,6 +687,7 @@ public class V2 {
 								writer.write("TYPE", type);
 								writer.write("FA", p.getFa());
 								writer.write("STARS", p.getStars());
+								writer.write("DESCRIPTION", p.getDescription());
 							}
 						}
 					}
