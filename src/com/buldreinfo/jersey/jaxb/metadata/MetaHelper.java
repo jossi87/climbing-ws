@@ -298,7 +298,7 @@ public class MetaHelper {
 					numAreas, numSectors, numProblems,
 					setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/toc", null, requestedIdMedia);
-			toc.setMetadata(new Metadata(c, setup, authUserId, "Table of contents", og).setDescription(description));
+			toc.setMetadata(new Metadata(c, setup, authUserId, "Table of Contents", og).setDescription(description));
 		}
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;
