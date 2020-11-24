@@ -572,7 +572,7 @@ public class BuldreinfoRepository {
 		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
 		return res;
 	}
-
+	
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException, IOException {
 		int authUserId = -1;
 		String picture = null;
@@ -621,6 +621,35 @@ public class BuldreinfoRepository {
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
+	}
+
+	public Redirect getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
+		String sqlStr = null;
+		int id = 0;
+		if (idArea > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
+			id = idArea;
+		}
+		else if (idSector > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/sector/',s.id) url FROM region r, area a, sector s WHERE r.id=a.region_id AND a.id=s.area_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=?";
+			id = idSector;
+		}
+		else if (idProblem > 0) {
+			sqlStr = "SELECT CONCAT(r.url,'/problem/',p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=?";
+			id = idProblem;
+		}
+		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		Redirect res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res = new Redirect(rst.getString("url"));
+				}
+			}
+		}
+		Preconditions.checkNotNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		return res;
 	}
 
 	public List<Filter> getFilter(int authUserId, Setup setup, FilterRequest fr) throws SQLException {
@@ -803,35 +832,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 	
-	public Redirect getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
-		String sqlStr = null;
-		int id = 0;
-		if (idArea > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
-			id = idArea;
-		}
-		else if (idSector > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/sector/',s.id) url FROM region r, area a, sector s WHERE r.id=a.region_id AND a.id=s.area_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=?";
-			id = idSector;
-		}
-		else if (idProblem > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/problem/',p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=?";
-			id = idProblem;
-		}
-		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		Redirect res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res = new Redirect(rst.getString("url"));
-				}
-			}
-		}
-		Preconditions.checkNotNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		return res;
-	}
-
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
@@ -1002,6 +1002,54 @@ public class BuldreinfoRepository {
 		}
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.getIdRegion(), reqId, stopwatch, p);
 		return p;
+	}
+
+	public Collection<Problem> getProblemList(int authUserId, Setup setup) throws IOException, SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<Problem> res = new ArrayList<>();
+		String sqlStr = "SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade,"
+				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
+				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype"
+				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
+				+ " GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.grade, ty.id, ty.type, ty.subtype"
+				+ " ORDER BY a.name, s.name, p.nr";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, authUserId);
+			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(4, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areaId = rst.getInt("area_id");
+					String areaName = rst.getString("area_name");
+					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					int sectorId = rst.getInt("sector_id");
+					String sectorName = rst.getString("sector_name");
+					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+					int id = rst.getInt("id");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					int nr = rst.getInt("nr");
+					String name = rst.getString("name");
+					String description = rst.getString("description");
+					int grade = rst.getInt("grade");
+					String faStr = rst.getString("fa");
+					List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>(){}.getType());
+					int numTicks = rst.getInt("num_ticks");
+					double stars = rst.getDouble("stars");
+					boolean ticked = rst.getBoolean("ticked");
+					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					Problem p = new Problem(areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, 0, 0, null, null, 0, 0, null, id, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), null, null, null, fa, 0, 0, null, numTicks, stars, ticked, null, t, false, 0);
+					res.add(p);
+				}
+			}
+		}
+		logger.debug("getProblemList(authUserId={}, setup={}) - res.size()={} - duration={}", authUserId, setup, res.size(), stopwatch);
+		return res;
 	}
 
 	public List<ProblemHse> getProblemsHse(int authUserId, Setup setup) throws SQLException {

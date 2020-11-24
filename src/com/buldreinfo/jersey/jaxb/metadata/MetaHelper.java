@@ -26,6 +26,7 @@ import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
+import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -280,6 +281,14 @@ public class MetaHelper {
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		else if (m instanceof TableOfContents) {
+			TableOfContents toc = (TableOfContents)m;
+			String description = String.format("%d %s",
+					toc.getProblems().size(),
+					setup.isBouldering()? "boulders" : "routes");
+			OpenGraph og = getOg(setup, "/toc", null, requestedIdMedia);
+			toc.setMetadata(new Metadata(c, setup, authUserId, "Table of contents", og).setDescription(description));
 		}
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;

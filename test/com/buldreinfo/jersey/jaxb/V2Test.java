@@ -20,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -29,6 +30,13 @@ import com.google.common.net.HttpHeaders;
 import jersey.repackaged.com.google.common.collect.Lists;
 
 public class V2Test {
+	
+	@Test
+	public void testGetActivity() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getActivity(getRequest(), 0, 0, 0, true, true, true, true);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
 	
 	@Test
 	public void testGetAreas() throws Exception {
@@ -62,13 +70,6 @@ public class V2Test {
 		assertTrue(f.getNumImages()>0);
 		assertTrue(f.getRandomMedia() != null);
 		assertTrue(f.getMetadata() != null);
-	}
-	
-	@Test
-	public void testGetActivity() throws Exception {
-		V2 tester = new V2();
-		Response r = tester.getActivity(getRequest(), 0, 0, 0, true, true, true, true);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 	}
 	
 	@Test
@@ -118,18 +119,14 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetUsers() throws Exception {
+	public void testGetToc() throws Exception {
 		V2 tester = new V2();
-		// User: Jostein Ø
-		Response r = tester.getUsers(getRequest(), 1);
+		Response r = tester.getToc(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof User);
-		User u = (User)r.getEntity();
-		assertTrue(!u.getTicks().isEmpty());
-		assertTrue(u.getNumImagesCreated()>0);
-		assertTrue(u.getNumVideosCreated()>0);
-		assertTrue(u.getNumImageTags()>0);
-		assertTrue(u.getNumVideoTags()>0);
+		assertTrue(r.getEntity() instanceof TableOfContents);
+		TableOfContents b = (TableOfContents)r.getEntity();
+		assertTrue(!b.getProblems().isEmpty());
+		assertTrue(b.getMetadata() != null);
 	}
 	
 	@Test
@@ -143,6 +140,21 @@ public class V2Test {
 		assertTrue(t.getName() != null);
 		assertTrue(t.getPicture() != null);
 		assertTrue(!t.getTodo().isEmpty());
+	}
+	
+	@Test
+	public void testGetUsers() throws Exception {
+		V2 tester = new V2();
+		// User: Jostein Ø
+		Response r = tester.getUsers(getRequest(), 1);
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof User);
+		User u = (User)r.getEntity();
+		assertTrue(!u.getTicks().isEmpty());
+		assertTrue(u.getNumImagesCreated()>0);
+		assertTrue(u.getNumVideosCreated()>0);
+		assertTrue(u.getNumImageTags()>0);
+		assertTrue(u.getNumVideoTags()>0);
 	}
 	
 	@Test
