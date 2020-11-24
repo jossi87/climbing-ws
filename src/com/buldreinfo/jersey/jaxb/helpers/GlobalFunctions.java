@@ -23,7 +23,7 @@ public class GlobalFunctions {
 
 	public static String getFilename(String purpose, String ext) {
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, ext);
+		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, purpose, ext);
 	}
 	
 	public static Path getPathLeafletPrint() throws IOException {
