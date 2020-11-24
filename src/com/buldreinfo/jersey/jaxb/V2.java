@@ -763,7 +763,7 @@ public class V2 {
 			byte[] bytes = c.getBuldreinfoRepo().getUserTicks(authUserId);
 			c.setSuccess();
 			
-			String fn = GlobalFunctions.getFilename("TICKS", "xlsx");
+			String fn = GlobalFunctions.getFilename("Ticks", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
