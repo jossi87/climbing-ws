@@ -1345,6 +1345,7 @@ public class BuldreinfoRepository {
 		urls.add(setup.getUrl("/filter"));
 		urls.add(setup.getUrl("/sites/bouldering"));
 		urls.add(setup.getUrl("/sites/climbing"));
+		urls.add(setup.getUrl("/toc"));
 		// Users
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
 			ps.setInt(1, setup.getIdRegion());
