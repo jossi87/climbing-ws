@@ -544,6 +544,22 @@ public class V2 {
 	}
 	
 	@GET
+	@Path("/static/hse")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticHse(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			ProblemHse res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
 	@Path("/static/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getStaticProblem(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
@@ -611,7 +627,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/static/toc")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
