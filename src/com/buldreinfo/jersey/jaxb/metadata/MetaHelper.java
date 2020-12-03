@@ -291,7 +291,7 @@ public class MetaHelper {
 					numProblems += s.getProblems().size();
 				}
 			}
-			String description = numProblems + " marked as dangerous.";
+			String description = numProblems + (setup.isBouldering()? " problems" : " routes") + " marked as dangerous.";
 			OpenGraph og = getOg(setup, "/hse", null, requestedIdMedia);
 			hse.setMetadata(new Metadata(c, setup, authUserId, "Health and Safety Executive (HSE)", og).setDescription(description));
 		}
