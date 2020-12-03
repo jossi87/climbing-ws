@@ -345,7 +345,8 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<ProblemHse> res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
+			ProblemHse res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

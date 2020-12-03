@@ -1,87 +1,194 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class ProblemHse {
-	private final int areaId;
-	private final boolean areaLockedAdmin;
-	private final boolean areaLockedSuperadmin;
-	private final String areaName;
-	private final int sectorId;
-	private final boolean sectorLockedAdmin;
-	private final boolean sectorLockedSuperadmin;
-	private final String sectorName;
-	private final int problemId;
-	private final boolean lockedAdmin;
-	private final boolean lockedSuperadmin;
-	private final String problemName;
-	private final String comment;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class ProblemHse implements IMetadata {
+	public class Area {
+		private final int id;
+		private final String url;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Sector> sectors = new ArrayList<>();
+		
+		public Area(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.url = url;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+		
+		public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
+			this.sectors.add(s);
+			return s;
+		}
+
+		public int getId() {
+			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+
+		public List<Sector> getSectors() {
+			return sectors;
+		}
+
+		public String getUrl() {
+			return url;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
 	
-	public ProblemHse(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId,
-			boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, int problemId,
-			boolean lockedAdmin, boolean lockedSuperadmin, String problemName, String comment) {
-		this.areaId = areaId;
-		this.areaLockedAdmin = areaLockedAdmin;
-		this.areaLockedSuperadmin = areaLockedSuperadmin;
-		this.areaName = areaName;
-		this.sectorId = sectorId;
-		this.sectorLockedAdmin = sectorLockedAdmin;
-		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
-		this.sectorName = sectorName;
-		this.problemId = problemId;
-		this.lockedAdmin = lockedAdmin;
-		this.lockedSuperadmin = lockedSuperadmin;
-		this.problemName = problemName;
-		this.comment = comment;
+	public class Problem {
+		private final int id;
+		private final String url;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final int nr;
+		private final String name;
+		private final String grade;
+		private final String postBy;
+		private final String postWhen;
+		private final String postTxt;
+		
+		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
+			this.id = id;
+			this.url = url;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+			this.nr = nr;
+			this.name = name;
+			this.grade = grade;
+			this.postBy = postBy;
+			this.postWhen = postWhen;
+			this.postTxt = postTxt;
+		}
+		
+		public int getId() {
+			return id;
+		}
+		
+		public String getUrl() {
+			return url;
+		}
+		
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+		
+		public int getNr() {
+			return nr;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public String getGrade() {
+			return grade;
+		}
+		
+		public String getPostBy() {
+			return postBy;
+		}
+		
+		public String getPostWhen() {
+			return postWhen;
+		}
+
+		public String getPostTxt() {
+			return postTxt;
+		}
+	}
+	
+	public class Sector {
+		private final int id;
+		private final String url;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Problem> problems = new ArrayList<>();
+		
+		public Sector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.url = url;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+
+		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
+			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, postBy, postWhen, postTxt);
+			this.problems.add(p);
+			return p;
+		}
+		
+		public int getId() {
+			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public List<Problem> getProblems() {
+			return problems;
+		}
+
+		public String getUrl() {
+			return url;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
+	
+	private Metadata metadata;
+	private List<Area> areas = new ArrayList<>();
+	
+	public ProblemHse() {
 	}
 
-	public int getAreaId() {
-		return areaId;
+	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Area a = new Area(id, url, name, lockedAdmin, lockedSuperadmin);
+		this.areas.add(a);
+		return a;
 	}
-
-	public boolean isAreaLockedAdmin() {
-		return areaLockedAdmin;
+	
+	public List<Area> getAreas() {
+		return areas;
 	}
-
-	public boolean isAreaLockedSuperadmin() {
-		return areaLockedSuperadmin;
+	
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
-
-	public String getAreaName() {
-		return areaName;
-	}
-
-	public int getSectorId() {
-		return sectorId;
-	}
-
-	public boolean isSectorLockedAdmin() {
-		return sectorLockedAdmin;
-	}
-
-	public boolean isSectorLockedSuperadmin() {
-		return sectorLockedSuperadmin;
-	}
-
-	public String getSectorName() {
-		return sectorName;
-	}
-
-	public int getProblemId() {
-		return problemId;
-	}
-
-	public boolean isLockedAdmin() {
-		return lockedAdmin;
-	}
-
-	public boolean isLockedSuperadmin() {
-		return lockedSuperadmin;
-	}
-
-	public String getProblemName() {
-		return problemName;
-	}
-
-	public String getComment() {
-		return comment;
+	
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 }

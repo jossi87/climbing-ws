@@ -24,6 +24,7 @@ import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
@@ -281,6 +282,18 @@ public class MetaHelper {
 					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
+		}
+		else if (m instanceof ProblemHse) {
+			ProblemHse hse = (ProblemHse)m;
+			int numProblems = 0;
+			for (ProblemHse.Area a : hse.getAreas()) {
+				for (ProblemHse.Sector s : a.getSectors()) {
+					numProblems += s.getProblems().size();
+				}
+			}
+			String description = numProblems + " marked as dangerous.";
+			OpenGraph og = getOg(setup, "/hse", null, requestedIdMedia);
+			hse.setMetadata(new Metadata(c, setup, authUserId, "Health and Safety Executive (HSE)", og).setDescription(description));
 		}
 		else if (m instanceof TableOfContents) {
 			TableOfContents toc = (TableOfContents)m;
