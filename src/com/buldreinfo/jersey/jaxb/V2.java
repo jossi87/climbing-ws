@@ -64,7 +64,6 @@ import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
-import com.buldreinfo.jersey.jaxb.model.TodoUser;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
@@ -747,7 +746,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			TodoUser res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
+			Todo res = c.getBuldreinfoRepo().getTodo(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -973,10 +972,10 @@ public class V2 {
 	@POST
 	@Path("/todo")
 	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postTodo(@Context HttpServletRequest request, Todo todo) throws ExecutionException, IOException {
+	public Response postTodo(@Context HttpServletRequest request, @QueryParam("idProblem") int idProblem) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().upsertTodo(authUserId, todo);
+			c.getBuldreinfoRepo().toggleTodo(authUserId, idProblem);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

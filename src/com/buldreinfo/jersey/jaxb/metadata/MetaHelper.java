@@ -29,7 +29,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
-import com.buldreinfo.jersey.jaxb.model.TodoUser;
+import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -330,8 +330,8 @@ public class MetaHelper {
 			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null, requestedIdMedia);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
 		}
-		else if (m instanceof TodoUser) {
-			TodoUser u = (TodoUser)m;
+		else if (m instanceof Todo) {
+			Todo u = (Todo)m;
 			String title = String.format("%s (To-do list)", u.getName());
 			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null, requestedIdMedia);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og)

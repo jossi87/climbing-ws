@@ -22,7 +22,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
-import com.buldreinfo.jersey.jaxb.model.TodoUser;
+import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
@@ -135,11 +135,11 @@ public class V2Test {
 		// User: Jostein Ø
 		Response r = tester.getTodo(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof TodoUser);
-		TodoUser t = (TodoUser)r.getEntity();
+		assertTrue(r.getEntity() instanceof Todo);
+		Todo t = (Todo)r.getEntity();
 		assertTrue(t.getName() != null);
 		assertTrue(t.getPicture() != null);
-		assertTrue(!t.getTodo().isEmpty());
+		assertTrue(!t.getAreas().isEmpty());
 	}
 	
 	@Test

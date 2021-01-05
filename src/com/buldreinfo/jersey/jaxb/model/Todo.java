@@ -3,112 +3,243 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Todo {
-	private final int id;
-	private final String areaName;
-	private final String areaUrl;
-	private final String sectorName;
-	private final String sectorUrl;
-	private final int problemId;
-	private final int problemNr;
-	private final String problemName;
-	private final String problemUrl;
-	private final String problemGrade;
-	private final boolean problemLockedAdmin;
-	private final boolean problemLockedSuperadmin;
-	private final double lat;
-	private final double lng;
-	private boolean isDelete;
-	private List<TodoPartner> partners = new ArrayList<>();
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class Todo implements IMetadata {
+	public class Area {
+		private final int id;
+		private final String url;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Sector> sectors = new ArrayList<>();
+		
+		public Area(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.url = url;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+		
+		public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
+			this.sectors.add(s);
+			return s;
+		}
+
+		public int getId() {
+			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+
+		public List<Sector> getSectors() {
+			return sectors;
+		}
+
+		public String getUrl() {
+			return url;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
 	
-	public Todo(int id, String areaName, String areaUrl, String sectorName, String sectorUrl, int problemId, int problemNr, String problemName,
-			String problemUrl, String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin,
-			double lat, double lng) {
+	public class Partner {
+		private final int id;
+		private final String name;
+		
+		public Partner(int id, String name) {
+			this.id = id;
+			this.name = name;
+		}
+
+		public int getId() {
+			return id;
+		}
+
+		public String getName() {
+			return name;
+		}
+	}
+	
+	public class Problem {
+		private final int todoId;
+		private final int id;
+		private final String url;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final int nr;
+		private final String name;
+		private final String grade;
+		private final double lat;
+		private final double lng;
+		private List<Partner> partners = new ArrayList<>();
+		
+		public Problem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
+			this.todoId = todoId;
+			this.id = id;
+			this.url = url;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+			this.nr = nr;
+			this.name = name;
+			this.grade = grade;
+			this.lat = lat;
+			this.lng = lng;
+		}
+		
+		public Partner addPartner(int id, String name) {
+			Partner res = new Partner(id, name);
+			this.partners.add(res);
+			return res;
+		}
+		
+		public String getGrade() {
+			return grade;
+		}
+		
+		public int getId() {
+			return id;
+		}
+		
+		public double getLat() {
+			return lat;
+		}
+		
+		public double getLng() {
+			return lng;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public int getNr() {
+			return nr;
+		}
+		
+		public List<Partner> getPartners() {
+			return partners;
+		}
+		
+		public int getTodoId() {
+			return todoId;
+		}
+		
+		public String getUrl() {
+			return url;
+		}
+		
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+		
+		public void setPartners(List<Partner> partners) {
+			this.partners = partners;
+		}
+	}
+	
+	public class Sector {
+		private final int id;
+		private final String url;
+		private final String name;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final List<Problem> problems = new ArrayList<>();
+		
+		public Sector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			this.id = id;
+			this.url = url;
+			this.name = name;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+		}
+
+		public Problem addProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
+			Problem p = new Problem(todoId, id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, lat, lng);
+			this.problems.add(p);
+			return p;
+		}
+		
+		public int getId() {
+			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public List<Problem> getProblems() {
+			return problems;
+		}
+
+		public String getUrl() {
+			return url;
+		}
+
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
+		}
+	}
+	
+	private Metadata metadata;
+	private final List<Area> areas = new ArrayList<>();
+	private final int id;
+	private final String name;
+	private final String picture;
+	
+	public Todo(int id, String name, String picture) {
 		this.id = id;
-		this.areaName = areaName;
-		this.areaUrl = areaUrl;
-		this.sectorName = sectorName;
-		this.sectorUrl = sectorUrl;
-		this.problemId = problemId;
-		this.problemNr = problemNr;
-		this.problemName = problemName;
-		this.problemUrl = problemUrl;
-		this.problemGrade = problemGrade;
-		this.problemLockedAdmin = problemLockedAdmin;
-		this.problemLockedSuperadmin = problemLockedSuperadmin;
-		this.lat = lat;
-		this.lng = lng;
+		this.name = name;
+		this.picture = picture;
+	}
+	
+	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Area a = new Area(id, url, name, lockedAdmin, lockedSuperadmin);
+		this.areas.add(a);
+		return a;
 	}
 
-	public String getAreaName() {
-		return areaName;
-	}
-
-	public String getAreaUrl() {
-		return areaUrl;
+	public List<Area> getAreas() {
+		return areas;
 	}
 
 	public int getId() {
 		return id;
 	}
 
-	public double getLat() {
-		return lat;
-	}
-
-	public double getLng() {
-		return lng;
-	}
-
-	public List<TodoPartner> getPartners() {
-		return partners;
+	@Override
+	public Metadata getMetadata() {
+		return metadata;
 	}
 	
-	public String getProblemGrade() {
-		return problemGrade;
-	}
-
-	public int getProblemId() {
-		return problemId;
-	}
-
-	public String getProblemName() {
-		return problemName;
-	}
-
-	public int getProblemNr() {
-		return problemNr;
-	}
-
-	public String getProblemUrl() {
-		return problemUrl;
-	}
-
-	public String getSectorName() {
-		return sectorName;
-	}
-
-	public String getSectorUrl() {
-		return sectorUrl;
-	}
-
-	public boolean isDelete() {
-		return isDelete;
-	}
-
-	public boolean isProblemLockedAdmin() {
-		return problemLockedAdmin;
-	}
-
-	public boolean isProblemLockedSuperadmin() {
-		return problemLockedSuperadmin;
-	}
-
-	public void setDelete(boolean isDelete) {
-		this.isDelete = isDelete;
+	public String getName() {
+		return name;
 	}
 	
-	public void setPartners(List<TodoPartner> partners) {
-		this.partners = partners;
+	public String getPicture() {
+		return picture;
+	}
+	
+	@Override
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 }
