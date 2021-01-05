@@ -331,10 +331,24 @@ public class MetaHelper {
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
 		}
 		else if (m instanceof Todo) {
-			Todo u = (Todo)m;
-			String title = String.format("%s (To-do list)", u.getName());
-			OpenGraph og = getOg(setup, "/todo/" + u.getId(), null, requestedIdMedia);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og)
+			Todo t = (Todo)m;
+			String title = String.format("%s (To-do list)", t.getName());			
+			int numAreas = 0;
+			int numSectors = 0;
+			int numProblems = 0;
+			for (Todo.Area a : t.getAreas()) {
+				numAreas++;
+				for (Todo.Sector s : a.getSectors()) {
+					numSectors++;
+					numProblems += s.getProblems().size();
+				}
+			}
+			String description = String.format("%d areas, %d sectors, %d %s",
+					numAreas, numSectors, numProblems,
+					setup.isBouldering()? "boulders" : "routes");
+			OpenGraph og = getOg(setup, "/todo/" + t.getId(), null, requestedIdMedia);
+			t.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setDescription(description)
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
