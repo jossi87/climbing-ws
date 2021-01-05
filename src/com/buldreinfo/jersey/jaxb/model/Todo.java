@@ -5,6 +5,7 @@ import java.util.List;
 
 public class Todo {
 	private final int id;
+	private final int nr;
 	private final String areaName;
 	private final String sectorName;
 	private final int problemId;
@@ -14,12 +15,12 @@ public class Todo {
 	private final boolean problemLockedSuperadmin;
 	private final double lat;
 	private final double lng;
-	private final int randomMediaId;
 	private boolean isDelete;
 	private List<TodoPartner> partners = new ArrayList<>();
 	
-	public Todo(int id, String areaName, String sectorName, int problemId, String problemName, String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin, double lat, double lng, int randomMediaId) {
+	public Todo(int id, int nr, String areaName, String sectorName, int problemId, String problemName, String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin, double lat, double lng) {
 		this.id = id;
+		this.nr = nr;
 		this.areaName = areaName;
 		this.sectorName = sectorName;
 		this.problemId = problemId;
@@ -29,7 +30,6 @@ public class Todo {
 		this.problemLockedSuperadmin = problemLockedSuperadmin;
 		this.lat = lat;
 		this.lng = lng;
-		this.randomMediaId = randomMediaId;
 	}
 
 	public String getAreaName() {
@@ -48,6 +48,10 @@ public class Todo {
 		return lng;
 	}
 	
+	public int getNr() {
+		return nr;
+	}
+
 	public List<TodoPartner> getPartners() {
 		return partners;
 	}
@@ -64,14 +68,10 @@ public class Todo {
 		return problemName;
 	}
 
-	public int getRandomMediaId() {
-		return randomMediaId;
-	}
-
 	public String getSectorName() {
 		return sectorName;
 	}
-
+	
 	public boolean isDelete() {
 		return isDelete;
 	}
