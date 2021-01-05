@@ -573,7 +573,7 @@ public class BuldreinfoRepository {
 		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
 		return res;
 	}
-	
+
 	public int getAuthUserId(Auth0Profile profile) throws SQLException, NoSuchAlgorithmException, IOException {
 		int authUserId = -1;
 		String picture = null;
@@ -832,7 +832,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
@@ -840,10 +840,13 @@ public class BuldreinfoRepository {
 			ps.execute();
 		}
 		List<Integer> todoIdProblems = new ArrayList<>();
-		for (Todo.Area ta : getTodo(authUserId, s, authUserId).getAreas()) {
-			for (Todo.Sector ts : ta.getSectors()) {
-				for (Todo.Problem tp : ts.getProblems()) {
-					todoIdProblems.add(tp.getId());
+		Todo todo = getTodo(authUserId, s, authUserId);
+		if (todo != null) {
+			for (Todo.Area ta : todo.getAreas()) {
+				for (Todo.Sector ts : ta.getSectors()) {
+					for (Todo.Problem tp : ts.getProblems()) {
+						todoIdProblems.add(tp.getId());
+					}
 				}
 			}
 		}
@@ -1288,7 +1291,7 @@ public class BuldreinfoRepository {
 		final boolean updateHits = true;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
-	
+
 	public Sector getSectorDontUpdateHits(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = false;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
@@ -1463,7 +1466,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
 		return res;
 	}
-	
+
 	public Todo getTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -1480,8 +1483,10 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(res != null, "No user found on id=" + userId);
-		
+		if (res == null) {
+			return null;
+		}
+
 		// Build lists
 		Map<Integer, Todo.Area> areaLookup = new HashMap<>();
 		Map<Integer, Todo.Sector> sectorLookup = new HashMap<>();
@@ -1569,7 +1574,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
 		return res;
 	}
-	
+
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
