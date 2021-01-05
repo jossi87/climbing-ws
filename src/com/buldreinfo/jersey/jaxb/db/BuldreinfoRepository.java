@@ -1465,7 +1465,7 @@ public class BuldreinfoRepository {
 		final int userId = reqId > 0? reqId : authUserId;
 		Map<Integer, Todo> todoLookup = new HashMap<>();
 		List<Todo> todo = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.priority, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.latitude problem_latitude, p.longitude problem_longitude, s.polygon_coords, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude, MAX(CASE WHEN m.is_movie=0 THEN m.id END) problem_random_media_id FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1 GROUP BY t.id, t.priority, a.name, s.name, p.id, p.name, p.grade, p.locked_admin, p.locked_superadmin, p.latitude, p.longitude, s.polygon_coords, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude ORDER BY t.priority")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, a.name area_name, s.name sector_name, p.id problem_id, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.latitude problem_latitude, p.longitude problem_longitude, s.polygon_coords, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude, MAX(CASE WHEN m.is_movie=0 THEN m.id END) problem_random_media_id FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1 GROUP BY t.id, a.name, s.name, p.id, p.name, p.grade, p.locked_admin, p.locked_superadmin, p.latitude, p.longitude, s.polygon_coords, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude ORDER BY a.name, s.name, p.name")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1473,7 +1473,6 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
-					int priority = rst.getInt("priority");
 					String areaName = rst.getString("area_name");
 					String sectorName = rst.getString("sector_name");
 					int problemId = rst.getInt("problem_id");
@@ -1502,7 +1501,7 @@ public class BuldreinfoRepository {
 						}
 					}
 					int randomMediaId = rst.getInt("problem_random_media_id");
-					Todo t = new Todo(id, priority, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup, problemGrade), problemLockedAdmin, problemLockedSuperadmin, l.getLat(), l.getLng(), randomMediaId);
+					Todo t = new Todo(id, areaName, sectorName, problemId, problemName, GradeHelper.intToString(setup, problemGrade), problemLockedAdmin, problemLockedSuperadmin, l.getLat(), l.getLng(), randomMediaId);
 					todo.add(t);
 					todoLookup.put(problemId, t);
 				}
@@ -1531,9 +1530,8 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String picture = rst.getString("picture");
-					boolean readOnly = authUserId != userId;
 					String name = rst.getString("name");
-					res = new TodoUser(id, name, picture, readOnly, todo);
+					res = new TodoUser(id, name, picture, todo);
 				}
 			}
 		}
@@ -2383,25 +2381,9 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 		} else if (todo.getId() <= 0) {
-			int priority = 1;
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT MAX(priority) FROM todo WHERE user_id=?")) {
-				ps.setInt(1, authUserId);
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						priority = rst.getInt(1);
-					}
-				}
-			}
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id, priority) VALUES (?, ?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id) VALUES (?, ?)")) {
 				ps.setInt(1, authUserId);
 				ps.setInt(2, todo.getProblemId());
-				ps.setInt(3, ++priority);
-				ps.execute();
-			}
-		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE todo SET priority=? WHERE id=?")) {
-				ps.setInt(1, todo.getPriority());
-				ps.setInt(2, todo.getId());
 				ps.execute();
 			}
 		}

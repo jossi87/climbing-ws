@@ -8,15 +8,13 @@ public class TodoUser implements IMetadata {
 	private final int id;
 	private final String name;
 	private final String picture;
-	private final boolean readOnly;
 	private final List<Todo> todo;
 	private Metadata metadata;
 	
-	public TodoUser(int id, String name, String picture, boolean readOnly, List<Todo> todo) {
+	public TodoUser(int id, String name, String picture, List<Todo> todo) {
 		this.id = id;
 		this.name = name;
 		this.picture = picture;
-		this.readOnly = readOnly;
 		this.todo = todo;
 	}
 	
@@ -39,10 +37,6 @@ public class TodoUser implements IMetadata {
 
 	public List<Todo> getTodo() {
 		return todo;
-	}
-	
-	public boolean isReadOnly() {
-		return readOnly;
 	}
 	
 	@Override
