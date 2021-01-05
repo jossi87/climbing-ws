@@ -5,11 +5,14 @@ import java.util.List;
 
 public class Todo {
 	private final int id;
-	private final int nr;
 	private final String areaName;
+	private final String areaUrl;
 	private final String sectorName;
+	private final String sectorUrl;
 	private final int problemId;
+	private final int problemNr;
 	private final String problemName;
+	private final String problemUrl;
 	private final String problemGrade;
 	private final boolean problemLockedAdmin;
 	private final boolean problemLockedSuperadmin;
@@ -18,13 +21,18 @@ public class Todo {
 	private boolean isDelete;
 	private List<TodoPartner> partners = new ArrayList<>();
 	
-	public Todo(int id, int nr, String areaName, String sectorName, int problemId, String problemName, String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin, double lat, double lng) {
+	public Todo(int id, String areaName, String areaUrl, String sectorName, String sectorUrl, int problemId, int problemNr, String problemName,
+			String problemUrl, String problemGrade, boolean problemLockedAdmin, boolean problemLockedSuperadmin,
+			double lat, double lng) {
 		this.id = id;
-		this.nr = nr;
 		this.areaName = areaName;
+		this.areaUrl = areaUrl;
 		this.sectorName = sectorName;
+		this.sectorUrl = sectorUrl;
 		this.problemId = problemId;
+		this.problemNr = problemNr;
 		this.problemName = problemName;
+		this.problemUrl = problemUrl;
 		this.problemGrade = problemGrade;
 		this.problemLockedAdmin = problemLockedAdmin;
 		this.problemLockedSuperadmin = problemLockedSuperadmin;
@@ -34,6 +42,10 @@ public class Todo {
 
 	public String getAreaName() {
 		return areaName;
+	}
+
+	public String getAreaUrl() {
+		return areaUrl;
 	}
 
 	public int getId() {
@@ -47,15 +59,11 @@ public class Todo {
 	public double getLng() {
 		return lng;
 	}
-	
-	public int getNr() {
-		return nr;
-	}
 
 	public List<TodoPartner> getPartners() {
 		return partners;
 	}
-
+	
 	public String getProblemGrade() {
 		return problemGrade;
 	}
@@ -68,10 +76,22 @@ public class Todo {
 		return problemName;
 	}
 
+	public int getProblemNr() {
+		return problemNr;
+	}
+
+	public String getProblemUrl() {
+		return problemUrl;
+	}
+
 	public String getSectorName() {
 		return sectorName;
 	}
-	
+
+	public String getSectorUrl() {
+		return sectorUrl;
+	}
+
 	public boolean isDelete() {
 		return isDelete;
 	}
@@ -86,5 +106,9 @@ public class Todo {
 
 	public void setDelete(boolean isDelete) {
 		this.isDelete = isDelete;
+	}
+	
+	public void setPartners(List<TodoPartner> partners) {
+		this.partners = partners;
 	}
 }
