@@ -40,104 +40,86 @@ public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();
 
 	public MetaHelper() {
-		setups.add(new Setup("buldreinfo.com")
+		setups.add(new Setup("buldreinfo.com", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(1)
-				.setBouldering(true)
 				.setTitle("Buldreinfo")
 				.setDescription("Bouldering in Rogaland (Stavanger, Western Norway)")
 				.setLatLng(58.72, 6.62).setDefaultZoom(8));
-		setups.add(new Setup("buldring.bergen-klatreklubb.no")
+		setups.add(new Setup("buldring.bergen-klatreklubb.no", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(2)
-				.setBouldering(true)
 				.setTitle("Buldring i Hordaland")
 				.setDescription("Bouldering in Hordaland (Bergen, Western Norway)")
 				.setLatLng(60.89, 5.84).setDefaultZoom(8));
-		setups.add(new Setup("buldre.forer.no")
+		setups.add(new Setup("buldre.forer.no", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(3)
-				.setBouldering(true)
 				.setTitle("Buldring i Fredrikstad")
 				.setDescription("Bouldering in Fredrikstad (Eastern Norway)")
 				.setLatLng(59.15, 10.92).setDefaultZoom(11));
-		setups.add(new Setup("brattelinjer.no")
+		setups.add(new Setup("brattelinjer.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(4)
-				.setBouldering(false)
 				.setTitle("Bratte Linjer")
 				.setDescription("Climbing in Rogaland (Stavanger, Western Norway)")
 				.setLatLng(58.72, 6.62).setDefaultZoom(8));
-		setups.add(new Setup("buldring.jotunheimenfjellsport.com")
+		setups.add(new Setup("buldring.jotunheimenfjellsport.com", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(5)
-				.setBouldering(true)
 				.setTitle("Buldring i Jotunheimen")
 				.setDescription("Bouldering in Jotunheimen (Norway)")
 				.setLatLng(61.875, 9.086).setDefaultZoom(9));
-		setups.add(new Setup("klatring.jotunheimenfjellsport.com")
+		setups.add(new Setup("klatring.jotunheimenfjellsport.com", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(6)
-				.setBouldering(false)
 				.setTitle("Klatring i Jotunheimen")
 				.setDescription("Climbing in Jotunheimen (Norway)")
 				.setLatLng(61.875, 9.086).setDefaultZoom(9));
-		setups.add(new Setup("buldreforer.tromsoklatring.no")
+		setups.add(new Setup("buldreforer.tromsoklatring.no", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(7)
-				.setBouldering(true)
 				.setTitle("Buldring i Tromsø")
 				.setDescription("Bouldering in Tromsø (Norway)")
 				.setLatLng(69.73, 18.49).setDefaultZoom(11));
-		setups.add(new Setup("klatreforer.tromsoklatring.no")
+		setups.add(new Setup("klatreforer.tromsoklatring.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(8)
-				.setBouldering(false)
 				.setTitle("Klatring i Tromsø")
 				.setDescription("Climbing in Tromsø (Norway)")
 				.setLatLng(69.77, 18.78).setDefaultZoom(9));
-		setups.add(new Setup("klatreforer.narvikklatreklubb.no")
+		setups.add(new Setup("klatreforer.narvikklatreklubb.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(9)
-				.setBouldering(false)
 				.setTitle("Klatring i Narvik")
 				.setDescription("Climbing in Narvik (Norway)")
 				.setLatLng(68.41312, 17.54277).setDefaultZoom(9));
-		setups.add(new Setup("tau.forer.no")
+		setups.add(new Setup("tau.forer.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(10)
-				.setBouldering(false)
 				.setTitle("Klatring i Fredrikstad")
 				.setDescription("Climbing in Fredrikstad (Eastern Norway)")
 				.setLatLng(59.15, 10.92).setDefaultZoom(11));
-		setups.add(new Setup("hkl.brattelinjer.no")
+		setups.add(new Setup("hkl.brattelinjer.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(11)
-				.setBouldering(false)
 				.setTitle("Klatring på Haugalandet")
 				.setDescription("Climbing in Haugaland (Western Norway)")
 				.setLatLng(59.51196, 5.76736).setDefaultZoom(9));
-		setups.add(new Setup("hkl.buldreinfo.com")
+		setups.add(new Setup("hkl.buldreinfo.com", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(12)
-				.setBouldering(true)
 				.setTitle("Buldring på Haugalandet")
 				.setDescription("Bouldering in Haugaland (Western Norway)")
 				.setLatLng(59.67, 5.38).setDefaultZoom(8));
-		setups.add(new Setup("buldring.flatangeradventure.no")
+		setups.add(new Setup("buldring.flatangeradventure.no", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(13)
-				.setBouldering(true)
 				.setTitle("Buldring i Trøndelag")
 				.setDescription("Bouldering in Trøndelag (Norway)")
 				.setLatLng(64.06897, 10.50973).setDefaultZoom(8));
-		setups.add(new Setup("klatring.flatangeradventure.no")
+		setups.add(new Setup("klatring.flatangeradventure.no", Setup.GRADE_SYSTEM.CLIMBING)
 				.setIdRegion(14)
-				.setBouldering(false)
 				.setTitle("Klatring i Trøndelag")
 				.setDescription("Climbing in Trøndelag (Norway)")
 				.setLatLng(64.06897, 10.50973).setDefaultZoom(8));
-		setups.add(new Setup("buldring.narvikklatreklubb.no")
+		setups.add(new Setup("buldring.narvikklatreklubb.no", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(15)
-				.setBouldering(true)
 				.setTitle("Buldring i Narvik")
 				.setDescription("Bouldering in Narvik (Norway)")
 				.setLatLng(68.41312, 17.54277).setDefaultZoom(9));
-		// DEV
-		setups.add(new Setup("dev.jossi.org")
-				.setIdRegion(4)
-				.setBouldering(false)
-				.setTitle("DEV")
-				.setDescription("DEV")
-				.setLatLng(58.78119, 5.86361).setDefaultZoom(10)
-				.setSetRobotsDenyAll());
+		setups.add(new Setup("is.brattelinjer.no", Setup.GRADE_SYSTEM.ICE)
+				.setIdRegion(16)
+				.setTitle("Bratte Linjer (isklatring)")
+				.setDescription("Ice climbing in Rogaland (Stavanger, Western Norway)")
+				.setLatLng(58.72, 6.62).setDefaultZoom(8));
 	}
 
 	public Setup getSetup(HttpServletRequest request) {

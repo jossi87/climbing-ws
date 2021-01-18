@@ -14,7 +14,32 @@ import com.google.common.collect.Sets;
 public class GradeHelper {
 	public static ImmutableBiMap<Integer, String> getGrades(Setup setup) {
 		Map<Integer, String> map = new LinkedHashMap<>();
-		if (!setup.isBouldering()) {
+		if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.BOULDER)) {
+			map.put(27, "8C");
+			map.put(26, "8B+");
+			map.put(25, "8B");
+			map.put(24, "8A+");
+			map.put(23, "8A");
+			map.put(22, "7C+");
+			map.put(21, "7C");
+			map.put(20, "7B+");
+			map.put(19, "7B");
+			map.put(18, "7A+");
+			map.put(17, "7A");
+			map.put(16, "6C+");
+			map.put(15, "6C");
+			map.put(14, "6B+");
+			map.put(13, "6B");
+			map.put(12, "6A+");
+			map.put(11, "6A");
+			map.put(10, "5+");
+			map.put(9, "5");
+			map.put(8, "4+");
+			map.put(7, "4");
+			map.put(6, "3");
+			map.put(0, "n/a");
+		}
+		else if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING)) {
 			map.put(64, "9c");
 			//			map.put(63, "9b+/9c");
 			map.put(62, "9b+");
@@ -81,30 +106,20 @@ public class GradeHelper {
 			//			map.put(1, "1-");
 			map.put(0, "n/a");
 		}
+		else if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.ICE)) {
+			map.put(109, "WI6+");
+			map.put(108, "WI6");
+			map.put(107, "WI5+");
+			map.put(106, "WI5");
+			map.put(105, "WI4+");
+			map.put(104, "WI4");
+			map.put(103, "WI3+");
+			map.put(102, "WI3");
+			map.put(101, "WI2+");
+			map.put(100, "WI2");
+		}
 		else {
-			map.put(27, "8C");
-			map.put(26, "8B+");
-			map.put(25, "8B");
-			map.put(24, "8A+");
-			map.put(23, "8A");
-			map.put(22, "7C+");
-			map.put(21, "7C");
-			map.put(20, "7B+");
-			map.put(19, "7B");
-			map.put(18, "7A+");
-			map.put(17, "7A");
-			map.put(16, "6C+");
-			map.put(15, "6C");
-			map.put(14, "6B+");
-			map.put(13, "6B");
-			map.put(12, "6A+");
-			map.put(11, "6A");
-			map.put(10, "5+");
-			map.put(9, "5");
-			map.put(8, "4+");
-			map.put(7, "4");
-			map.put(6, "3");
-			map.put(0, "n/a");
+			throw new RuntimeException("Invalid gradeSystem: " + setup.getGradeSystem());
 		}
 		return ImmutableBiMap.copyOf(map);
 	}

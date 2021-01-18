@@ -4,17 +4,20 @@ import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;
 
 public class Setup {
+	public static enum GRADE_SYSTEM {CLIMBING, BOULDER, ICE};
+	
 	private final String domain;
 	private int idRegion;
-	private boolean isBouldering;
+	private GRADE_SYSTEM gradeSystem;
 	private String title;
 	private String description;
 	private LatLng defaultCenter;
 	private int defaultZoom;
 	private boolean setRobotsDenyAll = false;
 	
-	public Setup(String domain) {
+	public Setup(String domain, GRADE_SYSTEM gradeSystem) {
 		this.domain = domain;
+		this.gradeSystem = gradeSystem;
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -31,6 +34,10 @@ public class Setup {
 
 	public String getDomain() {
 		return domain;
+	}
+
+	public GRADE_SYSTEM getGradeSystem() {
+		return gradeSystem;
 	}
 
 	public int getIdRegion() {
@@ -54,25 +61,16 @@ public class Setup {
 		}
 		return "https://" + domain + suffix;
 	}
-
-	public boolean isBouldering() {
-		return isBouldering;
-	}
-
+	
 	public boolean isSetRobotsDenyAll() {
 		return setRobotsDenyAll;
-	}
-	
-	public Setup setBouldering(boolean isBouldering) {
-		this.isBouldering = isBouldering;
-		return this;
 	}
 	
 	public Setup setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
 	}
-
+	
 	public Setup setDescription(String description) {
 		this.description = description;
 		return this;
@@ -97,10 +95,14 @@ public class Setup {
 		this.title = title;
 		return this;
 	}
+	
+	public boolean isBouldering() {
+		return gradeSystem.equals(Setup.GRADE_SYSTEM.BOULDER);
+	}
 
 	@Override
 	public String toString() {
-		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", isBouldering=" + isBouldering + ", title="
+		return "Setup [domain=" + domain + ", idRegion=" + idRegion + ", gradeSystem=" + gradeSystem + ", title="
 				+ title + ", description=" + description + ", defaultCenter=" + defaultCenter + ", defaultZoom="
 				+ defaultZoom + ", setRobotsDenyAll=" + setRobotsDenyAll + "]";
 	}
