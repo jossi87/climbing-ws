@@ -12,8 +12,9 @@ public class Media {
 	private final int svgProblemId;
 	private final List<Svg> svgs;
 	private final MediaMetadata mediaMetadata;
+	private final String embedUrl;
 
-	public Media(int id, int pitch, int width, int height, int idType, String t, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata) {
+	public Media(int id, int pitch, int width, int height, int idType, String t, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
 		this.id = id;
 		this.pitch = pitch;
 		this.width = width;
@@ -23,6 +24,7 @@ public class Media {
 		this.svgProblemId = svgProblemId;
 		this.svgs = svgs;
 		this.mediaMetadata = mediaMetadata;
+		this.embedUrl = embedUrl;
 	}
 	
 	public int getHeight() {
@@ -59,5 +61,9 @@ public class Media {
 	
 	public int getWidth() {
 		return width;
+	}
+	
+	public String getEmbedUrl() {
+		return embedUrl;
 	}
 }

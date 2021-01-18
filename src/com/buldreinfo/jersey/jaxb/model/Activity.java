@@ -8,10 +8,12 @@ public class Activity {
 	public class Media {
 		private final int id;
 		private final boolean isMovie;
-		public Media(int id, boolean isMovie) {
+		private final String embedUrl;
+		public Media(int id, boolean isMovie, String embedUrl) {
 			super();
 			this.id = id;
 			this.isMovie = isMovie;
+			this.embedUrl = embedUrl;
 		}
 		public int getId() {
 			return id;
@@ -19,9 +21,12 @@ public class Activity {
 		public boolean isMovie() {
 			return isMovie;
 		}
+		public String getEmbedUrl() {
+			return embedUrl;
+		}
 		@Override
 		public String toString() {
-			return "Media [id=" + id + ", isMovie=" + isMovie + "]";
+			return "Media [id=" + id + ", isMovie=" + isMovie + ", embedUrl=" + embedUrl + "]";
 		}
 	}
 	public class User {
@@ -81,11 +86,11 @@ public class Activity {
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
 	}
-	public void addMedia(int id, boolean isMovie) {
+	public void addMedia(int id, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
-		this.media.add(new Media(id, isMovie));
+		this.media.add(new Media(id, isMovie, embedUrl));
 		if (!isMovie) {
 			this.problemRandomMediaId = id;
 		}

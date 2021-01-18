@@ -119,7 +119,7 @@ public class FixMedia {
 
 	private List<String> fixMovies(Connection c) throws Exception {
 		List<String> warnings = new ArrayList<>();
-		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie FROM media");
+		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie FROM media WHERE embed_url IS NULL");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			final int id = rst.getInt("id");
