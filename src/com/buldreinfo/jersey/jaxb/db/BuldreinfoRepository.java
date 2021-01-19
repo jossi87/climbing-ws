@@ -2454,7 +2454,7 @@ public class BuldreinfoRepository {
 			// Embed video url
 			Preconditions.checkNotNull(m.getEmbedThumbnailUrl(), "embedThumbnailUrl required");
 			Preconditions.checkNotNull(m.getEmbedVideoUrl(), "embedVideoUrl required");
-			// First check if video already exists in system, add to media_problem and return if this is the case
+			// First check if video already exists in system, don't duplicate videos!
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
 				ps.setString(1, m.getEmbedVideoUrl());
 				try (ResultSet rst = ps.executeQuery()) {
