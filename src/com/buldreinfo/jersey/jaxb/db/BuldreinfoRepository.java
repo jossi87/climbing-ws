@@ -2896,7 +2896,7 @@ public class BuldreinfoRepository {
 								embedUrl += "?start=" + seconds;
 							}
 							else {
-								embedUrl += "?t=" + seconds;
+								embedUrl += "#t=" + seconds + "s";
 							}
 						}
 					}
