@@ -2466,7 +2466,7 @@ public class BuldreinfoRepository {
 		 * DB
 		 */
 		int idMedia = -1;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embedUrl) VALUES (?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 			ps.setBoolean(1, isMovie);
 			ps.setString(2, suffix);
 			ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
