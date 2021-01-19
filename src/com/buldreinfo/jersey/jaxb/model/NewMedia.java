@@ -8,8 +8,9 @@ public class NewMedia {
 	private final String description;
 	private final String embedVideoUrl;
 	private final String embedThumbnailUrl;
+	private final long embedMilliseconds;
 	
-	public NewMedia(String name, String photographer, String inPhoto, int pitch, String description, String embedVideoUrl, String embedThumbnailUrl) {
+	public NewMedia(String name, String photographer, String inPhoto, int pitch, String description, String embedVideoUrl, String embedThumbnailUrl, long embedMilliseconds) {
 		this.name = name;
 		this.photographer = photographer;
 		this.inPhoto = inPhoto;
@@ -17,10 +18,15 @@ public class NewMedia {
 		this.description = description;
 		this.embedVideoUrl = embedVideoUrl;
 		this.embedThumbnailUrl = embedThumbnailUrl;
+		this.embedMilliseconds = embedMilliseconds;
 	}
 	
 	public String getDescription() {
 		return description;
+	}
+	
+	public long getEmbedMilliseconds() {
+		return embedMilliseconds;
 	}
 	
 	public String getEmbedThumbnailUrl() {
@@ -34,15 +40,15 @@ public class NewMedia {
 	public String getInPhoto() {
 		return inPhoto;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-
+	
 	public String getPhotographer() {
 		return photographer;
 	}
-	
+
 	public int getPitch() {
 		return pitch;
 	}
@@ -50,7 +56,7 @@ public class NewMedia {
 	@Override
 	public String toString() {
 		return "NewMedia [name=" + name + ", photographer=" + photographer + ", inPhoto=" + inPhoto + ", pitch=" + pitch
-				+ ", description=" + description + ", embedVideoUrl=" + embedVideoUrl + ", embedThumbnailUrl=" + embedThumbnailUrl
-				+ "]";
+				+ ", description=" + description + ", embedVideoUrl=" + embedVideoUrl + ", embedThumbnailUrl="
+				+ embedThumbnailUrl + ", embedMilliseconds=" + embedMilliseconds + "]";
 	}
 }
