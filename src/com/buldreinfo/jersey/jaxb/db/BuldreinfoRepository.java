@@ -1,7 +1,11 @@
 package com.buldreinfo.jersey.jaxb.db;
 
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.Point;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -2440,65 +2444,113 @@ public class BuldreinfoRepository {
 	private int addNewMedia(int idUser, int idProblem, int pitch, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, pitch, idSector, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
-		try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
-			/**
-			 * DB
-			 */
-			int idMedia = -1;
-			final String suffix = "jpg";
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description) VALUES (?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, false);
-				ps.setString(2, suffix);
-				ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
-				ps.setInt(4, idUser);
-				ps.setTimestamp(5, now);
-				ps.setString(6, m.getDescription());
-				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-			Preconditions.checkArgument(idMedia > 0);
-			if (idProblem > 0) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch) VALUES (?, ?, ?)")) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, idProblem);
-					if (pitch > 0) {
-						ps.setInt(3, pitch);
-					}
-					else { 
-						ps.setNull(3, Types.NUMERIC);
-					}
-					ps.execute();
-				}
-			} else if (idSector > 0) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_sector (media_id, sector_id) VALUES (?, ?)")) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, idSector);
-					ps.execute();
-				}
-			} else if (idArea > 0) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_area (media_id, area_id) VALUES (?, ?)")) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, idArea);
-					ps.execute();
-				}
-			}
-			if (!Strings.isNullOrEmpty(m.getInPhoto())) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, getExistingOrInsertUser(m.getInPhoto()));
-					ps.execute();
-				}
-			}
 
-			/**
-			 * IO
-			 */
-			long ms = System.currentTimeMillis();
+		boolean isMovie = false;
+		String suffix = null;
+		boolean setDateTakenWHAndChecksum = true;
+		if (Strings.isNullOrEmpty(m.getName())) {
+			// Embed video url
+			Preconditions.checkNotNull(m.getEmbedThumbnailUrl(), "embedThumbnailUrl required");
+			Preconditions.checkNotNull(m.getEmbedUrl(), "embedUrl required");
+			suffix = null;
+			isMovie = true;
+			setDateTakenWHAndChecksum = false;
+		}
+		else {
+			suffix = "jpg";
+			isMovie = false;
+			setDateTakenWHAndChecksum = true;
+		}
 
+		/**
+		 * DB
+		 */
+		int idMedia = -1;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embedUrl) VALUES (?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			ps.setBoolean(1, isMovie);
+			ps.setString(2, suffix);
+			ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
+			ps.setInt(4, idUser);
+			ps.setTimestamp(5, now);
+			ps.setString(6, m.getDescription());
+			ps.setString(7, m.getEmbedUrl());
+			ps.executeUpdate();
+			try (ResultSet rst = ps.getGeneratedKeys()) {
+				if (rst != null && rst.next()) {
+					idMedia = rst.getInt(1);
+				}
+			}
+		}
+		Preconditions.checkArgument(idMedia > 0);
+		if (idProblem > 0) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch) VALUES (?, ?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idProblem);
+				if (pitch > 0) {
+					ps.setInt(3, pitch);
+				}
+				else { 
+					ps.setNull(3, Types.NUMERIC);
+				}
+				ps.execute();
+			}
+		} else if (idSector > 0) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_sector (media_id, sector_id) VALUES (?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idSector);
+				ps.execute();
+			}
+		} else if (idArea > 0) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_area (media_id, area_id) VALUES (?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idArea);
+				ps.execute();
+			}
+		}
+		if (!Strings.isNullOrEmpty(m.getInPhoto())) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, getExistingOrInsertUser(m.getInPhoto()));
+				ps.execute();
+			}
+		}
+
+		/**
+		 * IO
+		 */
+		final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
+		Files.createDirectories(p.getParent());
+		Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
+		
+		Path original = GlobalFunctions.getPathTemp();
+		Files.createDirectories(original);
+		original = original.resolve(System.currentTimeMillis() + "_" + m.getName());
+		Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
+		Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
+		if (isMovie) {
+			try (InputStream in = new URL(m.getEmbedThumbnailUrl()).openStream()){
+			    Files.copy(in, original);
+			}
+			BufferedImage b = ImageIO.read(original.toFile());
+			Graphics g = b.getGraphics();
+			g.setFont(new Font("Arial", Font.BOLD, 40));
+			final String str = "VIDEO";
+			final int x = (b.getWidth()/2)-70;
+			final int y = (b.getHeight()/2)-20;
+			FontMetrics fm = g.getFontMetrics();
+			Rectangle2D rect = fm.getStringBounds(str, g);
+			g.setColor(Color.WHITE);
+			g.fillRect(x,
+					y - fm.getAscent(),
+					(int) rect.getWidth(),
+					(int) rect.getHeight());
+			g.setColor(Color.BLUE);
+			g.drawString(str, x, y);
+			g.dispose();
+			ImageIO.write(b, "jpg", p.toFile());
+			b.flush();
+		}
+		else {
 			/**
 			 * To fix:
 			 * 2020.05.15 13:59:48,610 [http-nio-8080-exec-258] FATAL com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions:20 - /mnt/buldreinfo/media/temp/1589543988604_a.jpg: Read-only file system
@@ -2510,20 +2562,12 @@ public class BuldreinfoRepository {
 			 * service tomcat9 restart
 			 */
 			// Save received file
-			Path original = GlobalFunctions.getPathTemp();
-			Files.createDirectories(original);
-			original = original.resolve(ms + "_" + m.getName());
-			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
-			Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
-			Files.copy(is, original);
+			try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
+				Files.copy(is, original);
+			}
 			Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
-
-			final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + "." + suffix);
-			Files.createDirectories(p.getParent());
-			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
-
+	
 			// If not JPG/JPEG --> convert to JPG, else --> copy to destination
-			// (ALWAYS JPG)
 			final String inputExtension = com.google.common.io.Files.getFileExtension(original.getFileName().toString());
 			if (!inputExtension.equalsIgnoreCase("jpg") && !inputExtension.equalsIgnoreCase("jpeg")) {
 				BufferedImage src = ImageIO.read(original.toFile());
@@ -2536,22 +2580,21 @@ public class BuldreinfoRepository {
 				Files.copy(original, p);
 			}
 			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-
+	
 			// Rotate (if EXIF-rotated)
 			try (ThumbnailCreation creation = ThumbnailCreation.image(p.toFile())) {
 				ExifOrientation orientation = creation.getExifRotation();
-
 				if (orientation != null && orientation != ExifOrientation.HORIZONTAL_NORMAL) {
 					logger.info("Rotating " + p.toString() + " using " + orientation);
 					creation.rotate(orientation).preserveExif().saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
 				}
 			}
-			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-			// Create scaled jpg and webp + update crc32 and dimentions in db
-			createScaledImages(c, getDateTaken(p), idMedia, suffix);
-
-			return idMedia;
 		}
+		Preconditions.checkArgument(Files.exists(p) && Files.size(p)>0, p.toString() + " does not exist (or is 0 byte)");
+		// Create scaled jpg and webp + update crc32 and dimentions in db
+		createScaledImages(c, getDateTaken(p), idMedia, "jpg", setDateTakenWHAndChecksum);
+
+		return idMedia;
 	}
 
 	private int addUser(String email, String firstname, String lastname, String picture, boolean autoCommit) throws SQLException, IOException {
@@ -2585,7 +2628,7 @@ public class BuldreinfoRepository {
 		return id;
 	}
 
-	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix) throws IOException, InterruptedException, SQLException {
+	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix, boolean setDateTakenWHAndChecksum) throws IOException, InterruptedException, SQLException {
 		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
@@ -2611,18 +2654,20 @@ public class BuldreinfoRepository {
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
-		final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
-
-		/**
-		 * Final DB
-		 */
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?")) {
-			ps.setString(1, dateTaken);
-			ps.setInt(2, crc32);
-			ps.setInt(3, width);
-			ps.setInt(4, height);
-			ps.setInt(5, id);
-			ps.execute();
+		if (setDateTakenWHAndChecksum) {
+			final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
+	
+			/**
+			 * Final DB
+			 */
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?")) {
+				ps.setString(1, dateTaken);
+				ps.setInt(2, crc32);
+				ps.setInt(3, width);
+				ps.setInt(4, height);
+				ps.setInt(5, id);
+				ps.execute();
+			}
 		}
 	}
 
