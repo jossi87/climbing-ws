@@ -136,8 +136,9 @@ public class FixMedia {
 			final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");
 			final Path webp = root.resolve("web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
 			if (embedUrl != null) {
+				Preconditions.checkNotNull(suffix, "suffix cannot be null");
 				// Only download original if embedded video
-				if (!Files.exists(original) && suffix != null && suffix.equals("mp4")) {
+				if (!Files.exists(original)) {
 					Files.createDirectories(original.getParent());
 					String[] commands = {LOCAL_YOUTUBE_DL_PATH, embedUrl, "-o", original.toString()};
 					Process p = new ProcessBuilder().inheritIO().command(commands).start();
