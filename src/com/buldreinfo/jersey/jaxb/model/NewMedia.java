@@ -6,16 +6,16 @@ public class NewMedia {
 	private final String inPhoto;
 	private final int pitch;
 	private final String description;
-	private final String embedUrl;
+	private final String embedVideoUrl;
 	private final String embedThumbnailUrl;
 	
-	public NewMedia(String name, String photographer, String inPhoto, int pitch, String description, String embedUrl, String embedThumbnailUrl) {
+	public NewMedia(String name, String photographer, String inPhoto, int pitch, String description, String embedVideoUrl, String embedThumbnailUrl) {
 		this.name = name;
 		this.photographer = photographer;
 		this.inPhoto = inPhoto;
 		this.pitch = pitch;
 		this.description = description;
-		this.embedUrl = embedUrl;
+		this.embedVideoUrl = embedVideoUrl;
 		this.embedThumbnailUrl = embedThumbnailUrl;
 	}
 	
@@ -27,8 +27,8 @@ public class NewMedia {
 		return embedThumbnailUrl;
 	}
 	
-	public String getEmbedUrl() {
-		return embedUrl;
+	public String getEmbedVideoUrl() {
+		return embedVideoUrl;
 	}
 	
 	public String getInPhoto() {
@@ -50,7 +50,7 @@ public class NewMedia {
 	@Override
 	public String toString() {
 		return "NewMedia [name=" + name + ", photographer=" + photographer + ", inPhoto=" + inPhoto + ", pitch=" + pitch
-				+ ", description=" + description + ", embedUrl=" + embedUrl + ", embedThumbnailUrl=" + embedThumbnailUrl
+				+ ", description=" + description + ", embedVideoUrl=" + embedVideoUrl + ", embedThumbnailUrl=" + embedThumbnailUrl
 				+ "]";
 	}
 }

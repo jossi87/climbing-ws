@@ -2451,7 +2451,7 @@ public class BuldreinfoRepository {
 		if (Strings.isNullOrEmpty(m.getName())) {
 			// Embed video url
 			Preconditions.checkNotNull(m.getEmbedThumbnailUrl(), "embedThumbnailUrl required");
-			Preconditions.checkNotNull(m.getEmbedUrl(), "embedUrl required");
+			Preconditions.checkNotNull(m.getEmbedVideoUrl(), "embedVideoUrl required");
 			suffix = null;
 			isMovie = true;
 			setDateTakenWHAndChecksum = false;
@@ -2473,7 +2473,7 @@ public class BuldreinfoRepository {
 			ps.setInt(4, idUser);
 			ps.setTimestamp(5, now);
 			ps.setString(6, m.getDescription());
-			ps.setString(7, m.getEmbedUrl());
+			ps.setString(7, m.getEmbedVideoUrl());
 			ps.executeUpdate();
 			try (ResultSet rst = ps.getGeneratedKeys()) {
 				if (rst != null && rst.next()) {
