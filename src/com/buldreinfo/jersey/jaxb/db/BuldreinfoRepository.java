@@ -2464,7 +2464,7 @@ public class BuldreinfoRepository {
 					}
 				}
 			}
-			suffix = null;
+			suffix = "mp4";
 			isMovie = true;
 			setDateTakenWHAndChecksum = false;
 		}
