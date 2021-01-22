@@ -33,6 +33,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -663,6 +664,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		for (Sector s : sectors) {
+			final boolean showType = s.getMetadata().getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING);
 			document.newPage();
 			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
 			document.add(new Paragraph(s.getName(), FONT_H2));
@@ -671,13 +673,13 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			writeMapSector(s);
 			// Table
-			float[] relativeWidths = s.getMetadata().isBouldering()? new float[]{1, 3, 1, 3, 8} : new float[]{1, 4, 2, 2, 4, 7};
+			float[] relativeWidths = showType? new float[]{1, 4, 2, 2, 4, 7} : new float[]{1, 3, 1, 3, 8};
 			PdfPTable table = new PdfPTable(relativeWidths);
 			table.setWidthPercentage(100);
 			addTableCell(table, FONT_BOLD, "#");
 			addTableCell(table, FONT_BOLD, "Name");
 			addTableCell(table, FONT_BOLD, "Grade");
-			if (!s.getMetadata().isBouldering()) {
+			if (showType) {
 				addTableCell(table, FONT_BOLD, "Type");
 			}
 			addTableCell(table, FONT_BOLD, "FA");
@@ -689,7 +691,7 @@ public class PdfGenerator implements AutoCloseable {
 				url += "/problem/" + p.getId();
 				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
 				addTableCell(table, FONT_REGULAR, p.getGrade());
-				if (!s.getMetadata().isBouldering()) {
+				if (showType) {
 					addTableCell(table, FONT_REGULAR, p.getT().getSubType());
 				}
 				addTableCell(table, FONT_REGULAR, p.getFa());
