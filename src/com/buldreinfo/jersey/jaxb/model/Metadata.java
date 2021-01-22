@@ -24,7 +24,9 @@ public class Metadata {
 	private JsonLd jsonLd;
 	private int defaultZoom;
 	private LatLng defaultCenter;
-	private final boolean isBouldering;
+	@Deprecated
+	private final boolean isBouldering; // TODO Remove
+	private final Setup.GRADE_SYSTEM gradeSystem;
 	private List<Type> types;
 	private String canonical;
 
@@ -63,6 +65,7 @@ public class Metadata {
 		}
 		this.grades = grades;
 		this.isBouldering = setup.isBouldering();
+		this.gradeSystem = setup.getGradeSystem();
 	}
 	
 	public String getCanonical() {
@@ -83,6 +86,10 @@ public class Metadata {
 	
 	public List<Grade> getGrades() {
 		return grades;
+	}
+	
+	public Setup.GRADE_SYSTEM getGradeSystem() {
+		return gradeSystem;
 	}
 	
 	public JsonLd getJsonLd() {
