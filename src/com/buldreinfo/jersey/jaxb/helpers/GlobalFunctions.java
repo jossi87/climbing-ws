@@ -27,7 +27,7 @@ public class GlobalFunctions {
 	}
 	
 	public static Path getPathLeafletPrint() throws IOException {
-		Path res = Paths.get("/var/lib/jenkins/workspace/buldreinfo-web/leaflet-puppeteer-print");
+		Path res = Paths.get("/var/lib/jenkins/workspace/buldreinfo-web/leaflet-puppeteer-print/index.js");
 		if (!Files.exists(res)) {
 			res = Paths.get("C:/git/buldreinfo-web/leaflet-puppeteer-print/index.js");
 			Preconditions.checkArgument(Files.exists(res), res.toString() + " does not exist");
