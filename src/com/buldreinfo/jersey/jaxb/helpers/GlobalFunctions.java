@@ -19,7 +19,7 @@ import com.google.common.base.Preconditions;
 public class GlobalFunctions {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String MEDIA_ROOT_PRODUCTION = "/mnt/buldreinfo/media";
-	private static final String MEDIA_ROOT_TEST = "c:/users/jostein/desktop/buldreinfo_test";
+	private static final String MEDIA_ROOT_TEST = "c:/users/jostein.verico/desktop/buldreinfo_test";
 
 	public static String getFilename(String purpose, String ext) {
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));

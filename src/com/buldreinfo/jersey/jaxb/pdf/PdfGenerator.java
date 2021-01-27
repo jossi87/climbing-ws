@@ -103,7 +103,8 @@ public class PdfGenerator implements AutoCloseable {
 		int areaId = 250;
 		int problemId = 1013;
 		String urlBase = "https://buldreinfo.com";
-		Path dst = Paths.get("c:/users/jostein/desktop/test.pdf");
+		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
+		Files.createDirectories(dst.getParent());
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
 			Gson gson = new Gson();
 			List<Sector> sectors = new ArrayList<>();
@@ -126,8 +127,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				//generator.writeArea(area, gradeDistribution, sectors);
-				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				generator.writeArea(area, gradeDistribution, sectors);
+				//generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}

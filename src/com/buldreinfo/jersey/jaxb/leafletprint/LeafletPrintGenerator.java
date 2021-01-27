@@ -46,6 +46,7 @@ public class LeafletPrintGenerator {
 			Thread.sleep(1000);
 			res = takeSnapshotWorker(leaflet);
 		}
+		logger.debug("takeSnapshot(leaflet={}) - res={}", leaflet, res);
 		return res;
 	}
 	
