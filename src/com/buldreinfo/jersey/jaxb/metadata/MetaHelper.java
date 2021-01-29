@@ -299,19 +299,22 @@ public class MetaHelper {
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;
 			int total = s.getRegions().stream().mapToInt(r -> r.getNumProblems()).sum();
-			String title = "Map of " + (s.getType().equals(GRADE_SYSTEM.BOULDER)? "bouldering" : "climbing") + " in Norway";
-			String description = title + " (" + total + (s.getType().equals(GRADE_SYSTEM.BOULDER)? " boulders)" : " routes)");
-			String suffix = null;
+			String title = null;
+			String url = null;
 			if (s.getType().equals(GRADE_SYSTEM.BOULDER)) {
-				suffix = "boulder";
+				title = "Map of bouldering in Norway";
+				url = "/sites/boulder";
 			} else if (s.getType().equals(GRADE_SYSTEM.CLIMBING)) {
-				suffix = "climbing";
+				title = "Map of route climbing in Norway";
+				url = "/sites/climbing";
 			} else if (s.getType().equals(GRADE_SYSTEM.ICE)) {
-				suffix = "ice";
+				title = "Map of ice climbing in Norway";
+				url = "/sites/ice";
 			} else {
 				throw new RuntimeException("Invalid type:" + s.getType());
 			}
-			OpenGraph og = getOg(setup, "/sites/" + suffix, null, requestedIdMedia);
+			String description = title + " (" + total + (s.getType().equals(GRADE_SYSTEM.BOULDER)? " boulders)" : " routes)");
+			OpenGraph og = getOg(setup, url, null, requestedIdMedia);
 			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setDefaultCenter(new LatLng(65.27462, 18.55251))

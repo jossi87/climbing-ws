@@ -1349,7 +1349,7 @@ public class BuldreinfoRepository {
 			else if (system.equals(GRADE_SYSTEM.CLIMBING)) {
 				type = 2;
 			}
-			else if (system.equals(GRADE_SYSTEM.CLIMBING)) {
+			else if (system.equals(GRADE_SYSTEM.ICE)) {
 				type = 10;
 			}
 			else {
