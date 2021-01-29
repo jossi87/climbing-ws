@@ -56,6 +56,7 @@ import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
@@ -1338,10 +1339,23 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<SitesRegion> getSites(boolean isBouldering) throws SQLException {
+	public List<SitesRegion> getSites(GRADE_SYSTEM system) throws SQLException {
 		List<SitesRegion> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.name, r.url, r.polygon_coords")) {
-			ps.setInt(1, isBouldering? 1 : 2);
+			int type = 1;
+			if (system.equals(GRADE_SYSTEM.BOULDER)) {
+				type = 1;
+			}
+			else if (system.equals(GRADE_SYSTEM.CLIMBING)) {
+				type = 2;
+			}
+			else if (system.equals(GRADE_SYSTEM.CLIMBING)) {
+				type = 10;
+			}
+			else {
+				throw new RuntimeException("Invalid system: " + system);
+			}
+			ps.setInt(1, type);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String name = rst.getString("name");

@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletRequest;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
@@ -298,9 +299,19 @@ public class MetaHelper {
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;
 			int total = s.getRegions().stream().mapToInt(r -> r.getNumProblems()).sum();
-			String title = "Map of " + (s.isBouldering()? "bouldering" : "climbing") + " in Norway";
-			String description = title + " (" + total + (s.isBouldering()? " boulders)" : " routes)");
-			OpenGraph og = getOg(setup, "/sites" + (s.isBouldering()? "/bouldering" : "/climbing"), null, requestedIdMedia);
+			String title = "Map of " + (s.getType().equals(GRADE_SYSTEM.BOULDER)? "bouldering" : "climbing") + " in Norway";
+			String description = title + " (" + total + (s.getType().equals(GRADE_SYSTEM.BOULDER)? " boulders)" : " routes)");
+			String suffix = null;
+			if (s.getType().equals(GRADE_SYSTEM.BOULDER)) {
+				suffix = "boulder";
+			} else if (s.getType().equals(GRADE_SYSTEM.CLIMBING)) {
+				suffix = "climbing";
+			} else if (s.getType().equals(GRADE_SYSTEM.ICE)) {
+				suffix = "ice";
+			} else {
+				throw new RuntimeException("Invalid type:" + s.getType());
+			}
+			OpenGraph og = getOg(setup, "/sites/" + suffix, null, requestedIdMedia);
 			s.setMetadata(new Metadata(c, setup, authUserId, title, og)
 					.setDescription(description)
 					.setDefaultCenter(new LatLng(65.27462, 18.55251))

@@ -39,6 +39,7 @@ import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
@@ -479,12 +480,19 @@ public class V2 {
 	@GET
 	@Path("/sites")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSites(@Context HttpServletRequest request, @QueryParam("isBouldering") boolean isBouldering) throws ExecutionException, IOException {
+	public Response getSites(@Context HttpServletRequest request, @QueryParam("type") String type) throws ExecutionException, IOException {
+		GRADE_SYSTEM system = null;
+		switch (Strings.nullToEmpty(type).toUpperCase()) {
+		case "BOULDER": system = GRADE_SYSTEM.BOULDER; break;
+		case "CLIMBING": system = GRADE_SYSTEM.CLIMBING; break;
+		case "ICE": system = GRADE_SYSTEM.ICE; break;
+		default: throw new RuntimeException("Invalid type=" + type);
+		}
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
-			Sites res = new Sites(regions, isBouldering);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -592,15 +600,15 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static/sites/bouldering")
+	@Path("/static/sites/boulder")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSitesBouldering(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getStaticSitesBoulder(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final boolean isBouldering = true;
+			final GRADE_SYSTEM system = GRADE_SYSTEM.BOULDER;
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
-			Sites res = new Sites(regions, isBouldering);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
@@ -614,11 +622,29 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
 	public Response getStaticSitesClimbing(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final boolean isBouldering = false;
+			final GRADE_SYSTEM system = GRADE_SYSTEM.CLIMBING;
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(isBouldering);
-			Sites res = new Sites(regions, isBouldering);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/static/sites/ice")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getStaticSitesIce(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final GRADE_SYSTEM system = GRADE_SYSTEM.ICE;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();

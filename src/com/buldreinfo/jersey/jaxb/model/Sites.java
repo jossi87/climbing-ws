@@ -3,15 +3,16 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 
 public class Sites implements IMetadata {
 	private final List<SitesRegion> regions;
 	private Metadata metadata;
-	private final boolean isBouldering;
+	private final GRADE_SYSTEM type;
 	
-	public Sites(List<SitesRegion> regions, boolean isBouldering) {
+	public Sites(List<SitesRegion> regions, GRADE_SYSTEM type) {
 		this.regions = regions;
-		this.isBouldering = isBouldering;
+		this.type = type;
 	}
 
 	@Override
@@ -23,8 +24,8 @@ public class Sites implements IMetadata {
 		return regions;
 	}
 	
-	public boolean isBouldering() {
-		return isBouldering;
+	public GRADE_SYSTEM getType() {
+		return type;
 	}
 	
 	@Override
