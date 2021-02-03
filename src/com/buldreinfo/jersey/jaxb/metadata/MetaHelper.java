@@ -250,7 +250,7 @@ public class MetaHelper {
 		else if (m instanceof UserMedia) {
 			UserMedia u = (UserMedia)m;
 			String title = String.format("%s", u.getName());
-			String description = String.format("%d images and videos", u.getMedia().size());
+			String description = String.format("%d media file(s)", u.getMedia().size());
 			OpenGraph og = getOg(setup, "/user/media/" + u.getId(), null, requestedIdMedia);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
 		}
