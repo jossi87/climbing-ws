@@ -2375,8 +2375,8 @@ public class BuldreinfoRepository {
 			ps.setInt(2, authUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					String name = rst.getString("name");
 					if (res == null) {
-						String name = rst.getString("name");
 						res = new UserMedia(reqId, name);
 					}
 					int itId = rst.getInt("id");
@@ -2389,7 +2389,7 @@ public class BuldreinfoRepository {
 					String dateCreated = rst.getString("date_created");
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
+					String tagged = name;
 					int problemId = rst.getInt("problem_id");
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					MediaProblem m = new MediaProblem(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata, embedUrl, problemId);
