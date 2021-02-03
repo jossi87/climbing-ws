@@ -32,6 +32,7 @@ import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.model.UserMedia;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -244,6 +245,13 @@ public class MetaHelper {
 			String title = String.format("%s", u.getName());
 			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
 			OpenGraph og = getOg(setup, "/user/" + u.getId(), null, requestedIdMedia);
+			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
+		}
+		else if (m instanceof UserMedia) {
+			UserMedia u = (UserMedia)m;
+			String title = String.format("%s", u.getName());
+			String description = String.format("%d images and videos", u.getMedia().size());
+			OpenGraph og = getOg(setup, "/user/media/" + u.getId(), null, requestedIdMedia);
 			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
 		}
 		else if (m instanceof Meta) {

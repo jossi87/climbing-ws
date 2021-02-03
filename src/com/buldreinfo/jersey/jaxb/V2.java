@@ -66,6 +66,7 @@ import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.User;
+import com.buldreinfo.jersey.jaxb.model.UserMedia;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
@@ -789,6 +790,22 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			User res = c.getBuldreinfoRepo().getUser(authUserId, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/users/media")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getUsersMedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			UserMedia res = c.getBuldreinfoRepo().getUserMedia(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
