@@ -17,11 +17,17 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Strings;
 
+/**
+ * Done with:
+ * - user_id=397 (Stian Engelsvoll) until idMedia=25225 (2021-05-02)
+ * - user_id=1056 (Jarle Risa) until idMedia=25254 (2021-05-02)
+ * - user_id=25137 (Tore Årthun) until id_media=25137 (2021-05-02)
+ */
 public class FixImageWithouitInPhoto {
 	private static Logger logger = LogManager.getLogger();
 	private static final int END_SIGNAL = 0;
-	private static final int CREATOR_USER_ID = 397;
-	private static final int MIN_MEDIA_ID = 21015;
+	private static final int CREATOR_USER_ID = -1; // TODO
+	private static final int MIN_MEDIA_ID = 0; // TODO
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -77,6 +83,9 @@ public class FixImageWithouitInPhoto {
 					}
 				}
 			}
+		}
+		if (!Strings.isNullOrEmpty(name) && res == -1) {
+			logger.warn("Could not find: " + name);
 		}
 		return res;
 	}
