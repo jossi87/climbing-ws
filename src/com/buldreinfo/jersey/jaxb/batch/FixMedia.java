@@ -32,7 +32,7 @@ import com.google.common.hash.Hashing;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
-	private final Path root = Paths.get( "D:/gdrive/web/buldreinfo/buldreinfo_media");
+	public final static Path root = Paths.get( "D:/gdrive/web/buldreinfo/buldreinfo_media");
 	private final static String LOCAL_LIB_WEBC_PATH = "D:/gdrive/web/buldreinfo/sw/libwebp-1.1.0-windows-x64/bin/cwebp.exe";
 	private final static String LOCAL_FFMPEG_PATH = "D:/gdrive/web/buldreinfo/sw/ffmpeg-2020-11-22-git-0066bf4d1a-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YOUTUBE_DL_PATH = "D:/gdrive/web/buldreinfo/sw/youtube-dl-2021.01.16/youtube-dl.exe";
