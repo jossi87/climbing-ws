@@ -17,23 +17,15 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Strings;
 
-/**
- * Done with:
- * - user_id=397 (Stian Engelsvoll) until idMedia=25225 (2021-05-02)
- * - user_id=1056 (Jarle Risa) until idMedia=25254 (2021-05-02)
- * - user_id=25137 (Tore Årthun) until id_media=25137 (2021-05-02)
- */
 public class FixImageWithouitInPhoto {
 	private static Logger logger = LogManager.getLogger();
 	private static final int END_SIGNAL = 0;
-	private static final int CREATOR_USER_ID = -1; // TODO
-	private static final int MIN_MEDIA_ID = 0; // TODO
+	private static final int MIN_MEDIA_ID = 25254; // TODO
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM media WHERE deleted_user_id IS NULL AND uploader_user_id=? AND id NOT IN (SELECT media_id FROM media_user) AND id>=? ORDER BY id")) {
-				ps.setInt(1, CREATOR_USER_ID);
-				ps.setInt(2, MIN_MEDIA_ID);
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) AND m.id NOT IN (SELECT media_id FROM media_user) AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id")) {
+				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();
 						Scanner scanner = new Scanner(System.in)) {
 					List<String> updates = new ArrayList<>();
