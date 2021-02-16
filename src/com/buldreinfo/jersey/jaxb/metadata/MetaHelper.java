@@ -122,6 +122,11 @@ public class MetaHelper {
 				.setTitle("Bratte Linjer (isklatring)")
 				.setDescription("Ice climbing in Rogaland (Stavanger, Western Norway)")
 				.setLatLng(58.72, 6.62).setDefaultZoom(8));
+		setups.add(new Setup("is.forer.no", Setup.GRADE_SYSTEM.ICE)
+				.setIdRegion(17)
+				.setTitle("Is-klatring i Fredrikstad")
+				.setDescription("Ice climbing in Fredrikstad (Eastern Norway)")
+				.setLatLng(59.15, 10.92).setDefaultZoom(11));
 	}
 
 	public Setup getSetup(HttpServletRequest request) {
