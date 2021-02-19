@@ -260,7 +260,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			final String acceptHeader = request.getHeader("Accept");
-			final boolean webP = dimention != null && acceptHeader != null && acceptHeader.contains("image/webp");
+			final boolean webP = dimention == null && acceptHeader != null && acceptHeader.contains("image/webp");
 			final String mimeType = webP? "image/webp" : "image/jpeg";
 			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
