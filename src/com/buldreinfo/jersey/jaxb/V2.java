@@ -256,12 +256,13 @@ public class V2 {
 
 	@GET
 	@Path("/images")
-	@Produces("image/jpeg")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			boolean webP = false;
-			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
+			String acceptHeader = request.getHeader("Accept");
+			boolean webP = acceptHeader != null && acceptHeader.contains("image/webp") && dimention == null;
+			String mimeType = webP? "image/webp" : "image/jpeg";
+			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
@@ -277,7 +278,7 @@ public class V2 {
 					return Response.ok(imageData).cacheControl(cc).build();
 				}
 			}
-			return Response.ok(p.toFile()).cacheControl(cc).build();
+			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
