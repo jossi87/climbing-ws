@@ -258,12 +258,11 @@ public class V2 {
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			String acceptHeader = request.getHeader("Accept");
-			boolean webP = acceptHeader != null && acceptHeader.contains("image/webp");
-			final String mimeType = webP? "image/webp" : "image/jpeg";
-			final String ext = webP? "webp" : "jpg";
-			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
+			final String acceptHeader = request.getHeader("Accept");
+			final boolean webP = dimention != null && acceptHeader != null && acceptHeader.contains("image/webp");
+			final String mimeType = webP? "image/webp" : "image/jpeg";
+			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
 			c.setSuccess();
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
@@ -274,7 +273,7 @@ public class V2 {
 				BufferedImage scaled = Scalr.resize(b, mode, minDimention);
 				b.flush();
 				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-					ImageIO.write(scaled, ext, baos);
+					ImageIO.write(scaled, "jpg", baos);
 					byte[] imageData = baos.toByteArray();
 					return Response.ok(imageData, mimeType).cacheControl(cc).build();
 				}
