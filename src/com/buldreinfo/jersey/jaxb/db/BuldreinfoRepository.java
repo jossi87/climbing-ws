@@ -3103,7 +3103,7 @@ public class BuldreinfoRepository {
 					boolean hasAnchor = rst.getBoolean("has_anchor");
 					String texts = rst.getString("texts");
 					String anchors = rst.getString("anchors");
-					boolean primary = rst.getBoolean("primary");
+					boolean primary = rst.getBoolean("prim");
 					boolean isTicked = rst.getBoolean("is_ticked");
 					res.add(new Svg(false, id, problemId, nr, path, hasAnchor, texts, anchors, primary, isTicked));
 				}
