@@ -9,9 +9,10 @@ public class Svg {
 	private final boolean hasAnchor;
 	private final String texts;
 	private final String anchors;
+	private final boolean primary;
 	private final boolean isTicked;
 	
-	public Svg(boolean delete, int id, int problemId, int nr, String path, boolean hasAnchor, String texts, String anchors, boolean isTicked) {
+	public Svg(boolean delete, int id, int problemId, int nr, String path, boolean hasAnchor, String texts, String anchors, boolean primary, boolean isTicked) {
 		this.delete = delete;
 		this.id = id;
 		this.problemId = problemId;
@@ -20,6 +21,7 @@ public class Svg {
 		this.hasAnchor = hasAnchor;
 		this.texts = texts;
 		this.anchors = anchors;
+		this.primary = primary;
 		this.isTicked = isTicked;
 	}
 	
@@ -49,6 +51,10 @@ public class Svg {
 	
 	public boolean isDelete() {
 		return delete;
+	}
+	
+	public boolean isPrimary() {
+		return primary;
 	}
 
 	public boolean isHasAnchor() {

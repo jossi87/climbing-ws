@@ -3088,7 +3088,7 @@ public class BuldreinfoRepository {
 
 	private List<Svg> getSvgs(int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked FROM (svg s INNER JOIN problem p ON s.problem_id=p.id) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=? WHERE s.media_id=?")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked FROM (svg s INNER JOIN problem p ON s.problem_id=p.id) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=? WHERE s.media_id=?")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, idMedia);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -3103,8 +3103,9 @@ public class BuldreinfoRepository {
 					boolean hasAnchor = rst.getBoolean("has_anchor");
 					String texts = rst.getString("texts");
 					String anchors = rst.getString("anchors");
+					boolean primary = rst.getBoolean("primary");
 					boolean isTicked = rst.getBoolean("is_ticked");
-					res.add(new Svg(false, id, problemId, nr, path, hasAnchor, texts, anchors, isTicked));
+					res.add(new Svg(false, id, problemId, nr, path, hasAnchor, texts, anchors, primary, isTicked));
 				}
 			}
 		}
