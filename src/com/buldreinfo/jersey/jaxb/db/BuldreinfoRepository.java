@@ -2345,14 +2345,6 @@ public class BuldreinfoRepository {
 		fillActivity(t.getIdProblem());
 	}
 
-	public void setUser(int authUserId, boolean useBlueNotRed) throws SQLException {
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET use_blue_not_red=? WHERE id=?")) {
-			ps.setBoolean(1, useBlueNotRed);
-			ps.setInt(2, authUserId);
-			ps.execute();
-		}
-	}
-
 	public void setUserRegion(int authUserId, int regionId, boolean delete) throws SQLException {
 		if (delete) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM user_region WHERE user_id=? AND region_id=?")) {

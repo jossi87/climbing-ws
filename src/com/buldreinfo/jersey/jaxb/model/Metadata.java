@@ -17,7 +17,6 @@ public class Metadata {
 	private final boolean isAuthenticated;
 	private final boolean isAdmin;
 	private final boolean isSuperAdmin;
-	private final boolean useBlueNotRed;
 	private final OpenGraph og;
 	private final List<Grade> grades;
 	private String description;
@@ -33,9 +32,8 @@ public class Metadata {
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
-		boolean useBlueNotRed = false;
 		if (authUserId != -1) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, u.use_blue_not_red FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?");
 			ps.setInt(1, setup.getIdRegion());
 			ps.setInt(2, authUserId);
 			ResultSet rst = ps.executeQuery();
@@ -46,7 +44,6 @@ public class Metadata {
 				if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
 					isAdmin = true;
 				}
-				useBlueNotRed = rst.getBoolean("use_blue_not_red");
 			}
 			rst.close();
 			ps.close();
@@ -54,7 +51,6 @@ public class Metadata {
 		this.isAuthenticated = isAuthenticated;
 		this.isAdmin = isAdmin;
 		this.isSuperAdmin = isSuperAdmin;
-		this.useBlueNotRed = useBlueNotRed;
 		this.og = og;
 		List<Grade> grades = new ArrayList<>();
 		Map<Integer, String> lookup = GradeHelper.getGrades(setup);
@@ -117,10 +113,6 @@ public class Metadata {
 		return isSuperAdmin;
 	}
 	
-	public boolean isUseBlueNotRed() {
-		return useBlueNotRed;
-	}
-
 	public Metadata setCanonical(String canonical) {
 		this.canonical = canonical;
 		return this;

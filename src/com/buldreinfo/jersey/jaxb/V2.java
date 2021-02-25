@@ -1028,20 +1028,6 @@ public class V2 {
 	}
 
 	@POST
-	@Path("/user")
-	public Response postUser(@Context HttpServletRequest request, @QueryParam("useBlueNotRed") boolean useBlueNotRed) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(authUserId != -1);
-			c.getBuldreinfoRepo().setUser(authUserId, useBlueNotRed);
-			c.setSuccess();
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@POST
 	@Path("/user/regions")
 	public Response postUserRegions(@Context HttpServletRequest request, @QueryParam("regionId") int regionId, @QueryParam("delete") boolean delete) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
