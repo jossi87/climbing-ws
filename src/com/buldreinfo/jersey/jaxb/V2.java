@@ -136,7 +136,7 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			Response response = null;
 			try {
-				Area a = c.getBuldreinfoRepo().getArea(authUserId, setup.getIdRegion(), id);
+				Area a = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 				metaHelper.updateMetadata(c, a, setup, authUserId, requestedIdMedia);
 				response = Response.ok().entity(a).build();
 			} catch (Exception e) {
@@ -159,7 +159,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
-			final Area area = c.getBuldreinfoRepo().getArea(authUserId, setup.getIdRegion(), id);
+			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
@@ -366,7 +366,7 @@ public class V2 {
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
 			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
-			final Area area = c.getBuldreinfoRepo().getArea(authUserId, setup.getIdRegion(), problem.getAreaId());
+			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
 			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
@@ -443,7 +443,7 @@ public class V2 {
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
 			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
-			final Area area = c.getBuldreinfoRepo().getArea(authUserId, setup.getIdRegion(), sector.getAreaId());
+			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			StreamingOutput stream = new StreamingOutput() {
@@ -526,7 +526,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Area res = c.getBuldreinfoRepo().getArea(authUserId, setup.getIdRegion(), id);
+			Area res = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
@@ -858,7 +858,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			a = c.getBuldreinfoRepo().setArea(authUserId, setup.getIdRegion(), a, multiPart);
+			a = c.getBuldreinfoRepo().setArea(setup, authUserId, a, multiPart);
 			c.setSuccess();
 			return Response.ok().entity(a).build();
 		} catch (Exception e) {
