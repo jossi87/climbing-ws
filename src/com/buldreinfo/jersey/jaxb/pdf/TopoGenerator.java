@@ -46,12 +46,12 @@ public class TopoGenerator {
 			try (OutputStream os = new FileOutputStream(dst.toString())) {
 				TranscoderOutput to = new TranscoderOutput(os);
 				JPEGTranscoder t = new JPEGTranscoder();
-				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, new Float(1));
-				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, new Float(width));
-				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, new Float(height));
+				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 1f);
+				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, (float)width);
+				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, (float)height);
 				t.addTranscodingHint(JPEGTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "*");
-				t.addTranscodingHint(JPEGTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, new Boolean(true));
-				t.addTranscodingHint(JPEGTranscoder.KEY_EXECUTE_ONLOAD, new Boolean(true));
+				t.addTranscodingHint(JPEGTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, true);
+				t.addTranscodingHint(JPEGTranscoder.KEY_EXECUTE_ONLOAD, true);
 				t.transcode(ti, to);
 			}
 		}
@@ -59,15 +59,17 @@ public class TopoGenerator {
 	}
 
 	private static String generateDocument(int mediaId, int width, int height, List<Svg> svgs) throws TransformerException {
+		final String xmlns = "http://www.w3.org/2000/svg";
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 		Document doc = impl.createDocument(svgNS, "svg", null);
 		Element svgRoot = doc.getDocumentElement();
+		svgRoot.setAttributeNS(null, "overflow", "visible");
 		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
 		svgRoot.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
 
 		// Image
-		Element image = doc.createElementNS(null, "image");
+		Element image = doc.createElementNS(xmlns, "image");
 		String url = GlobalFunctions.getUrlJpgToImage(mediaId);
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
@@ -89,35 +91,75 @@ public class TopoGenerator {
 			float yMin = firstIsLowest? y0 : y1;
 			float xMax = firstIsLowest? x1 : x0;
 			float yMax = firstIsLowest? y1 : y0;
+			// Init colors
+			String groupColor = null;
+			switch (svg.getProblemGradeGroup()) {
+			case 0: groupColor = "#FFFFFF"; break;
+			case 1: groupColor = "#00FF00"; break;
+			case 2: groupColor = "#0000FF"; break;
+			case 3: groupColor = "#FFFF00"; break;
+			case 4: groupColor = "#FF0000"; break;
+			case 5: groupColor = "#FF00FF"; break;
+			default: groupColor = "#000000"; break;
+			}
+			String textColor = "#FFFFFF";
+			if (svg.isTicked()) {
+				textColor = "#21ba45";
+			}
+			else if (svg.isTodo()) {
+				textColor = "#659DBD";
+			}
+			else if (svg.isDangerous()) {
+				textColor = "#FF0000";
+			}
 			// Path
-			Element path = doc.createElementNS(null, "path");
-			path.setAttributeNS(null, "style", "fill: none; stroke: #E2011A;");
+			Element path = doc.createElementNS(xmlns, "path");
+			path.setAttributeNS(null, "style", "fill: none; stroke: #000000;");
 			path.setAttributeNS(null, "d", svg.getPath());
 			path.setAttributeNS(null, "stroke-width", String.valueOf(0.003 * imgMax)); 
 			path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
+			path.setAttributeNS(null, "stroke-linecap", "round");
+			svgRoot.appendChild(path);
+			path = doc.createElementNS(xmlns, "path");
+			path.setAttributeNS(null, "style", "fill: none; stroke: " + groupColor + ";");
+			path.setAttributeNS(null, "d", svg.getPath());
+			path.setAttributeNS(null, "stroke-width", String.valueOf(0.0015 * imgMax)); 
+			path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
+			path.setAttributeNS(null, "stroke-linecap", "round");
 			svgRoot.appendChild(path);
 			// Anchor-circle
 			if (svg.isHasAnchor()) {
-				Element circle = doc.createElementNS(null, "circle");
-				circle.setAttributeNS(null, "style", "fill: #E2011A;");
+				Element circle = doc.createElementNS(xmlns, "circle");
+				circle.setAttributeNS(null, "fill", "#000000");
 				circle.setAttributeNS(null, "cx", String.valueOf(xMax));
 				circle.setAttributeNS(null, "cy", String.valueOf(yMax)); 
-				circle.setAttributeNS(null, "r", String.valueOf(0.008 * imgMax));
+				circle.setAttributeNS(null, "r", String.valueOf(0.005 * imgMax));
+				svgRoot.appendChild(circle);
+				circle = doc.createElementNS(xmlns, "circle");
+				circle.setAttributeNS(null, "fill", groupColor);
+				circle.setAttributeNS(null, "cx", String.valueOf(xMax));
+				circle.setAttributeNS(null, "cy", String.valueOf(yMax)); 
+				circle.setAttributeNS(null, "r", String.valueOf(0.004 * imgMax));
 				svgRoot.appendChild(circle);
 			}
 			// Nr
-			Element circle = doc.createElementNS(null, "circle");
-			circle.setAttributeNS(null, "style", "fill: #E2011A;");
-			circle.setAttributeNS(null, "cx", String.valueOf(xMin));
-			circle.setAttributeNS(null, "cy", String.valueOf(yMin)); 
-			circle.setAttributeNS(null, "r", String.valueOf(0.008 * imgMax));
-			svgRoot.appendChild(circle);
-			Element text = doc.createElementNS(null, "text");
-			text.setAttributeNS(null, "style", "fill: #FFFFFF; text-anchor: middle; line-height: 1;");
+			final double r = 0.01*imgMax;
+			Element rect = doc.createElementNS(xmlns, "rect");
+			rect.setAttributeNS(null, "fill", "#000000");
+			rect.setAttributeNS(null, "x", String.valueOf(xMin-r));
+			rect.setAttributeNS(null, "y", String.valueOf(yMin-r));
+			rect.setAttributeNS(null, "width", String.valueOf(r*2));
+			rect.setAttributeNS(null, "height", String.valueOf(r*1.7));
+			rect.setAttributeNS(null, "rx", String.valueOf(r/3));
+			svgRoot.appendChild(rect);
+			Element text = doc.createElementNS(xmlns, "text");
+			text.setAttributeNS(null, "text-anchor", "middle");
+			text.setAttributeNS(null, "font-size", String.valueOf(0.017 * imgMax));
+			text.setAttributeNS(null, "font-weight", "bolder");
+			text.setAttributeNS(null, "fill", textColor);
 			text.setAttributeNS(null, "x", String.valueOf(xMin));
 			text.setAttributeNS(null, "y", String.valueOf(yMin));
-			text.setAttributeNS(null, "dy", ".3em");
-			text.setAttributeNS(null, "font-size", String.valueOf(0.013 * imgMax));
+			text.setAttributeNS(null, "dy", String.valueOf(r/3));
 			text.appendChild(doc.createTextNode(String.valueOf(svg.getNr())));
 			texts.add(text);
 			
@@ -126,7 +168,7 @@ public class TopoGenerator {
 			if (!Strings.isNullOrEmpty(svg.getTexts())) {
 				List<SvgText> svgTexts = gson.fromJson(svg.getTexts(), new TypeToken<ArrayList<SvgText>>(){}.getType());
 				for (SvgText svgText : svgTexts) {
-					text = doc.createElementNS(null, "text");
+					text = doc.createElementNS(xmlns, "text");
 					text.setAttributeNS(null, "style", "fill: #FF0000;");
 					text.setAttributeNS(null, "x", String.valueOf(svgText.getX()));
 					text.setAttributeNS(null, "y", String.valueOf(svgText.getY()));
@@ -140,11 +182,11 @@ public class TopoGenerator {
 			if (!Strings.isNullOrEmpty(svg.getAnchors())) {
 				List<SvgAnchor> svgAnchors = gson.fromJson(svg.getAnchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
 				for (SvgAnchor svgAnchor : svgAnchors) {
-					circle = doc.createElementNS(null, "circle");
-					circle.setAttributeNS(null, "style", "fill: #E2011A;");
+					Element circle = doc.createElementNS(xmlns, "circle");
+					circle.setAttributeNS(null, "fill", groupColor);
 					circle.setAttributeNS(null, "cx", String.valueOf(svgAnchor.getX()));
 					circle.setAttributeNS(null, "cy", String.valueOf(svgAnchor.getY())); 
-					circle.setAttributeNS(null, "r", String.valueOf(0.008 * imgMax));
+					circle.setAttributeNS(null, "r", String.valueOf(0.006 * imgMax));
 					svgRoot.appendChild(circle);
 				}
 			}

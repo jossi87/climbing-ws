@@ -183,7 +183,8 @@ public class V2 {
 					}	            	 
 				}
 			};
-			return Response.ok(stream).build();
+			String fn = GlobalFunctions.getFilename(area.getName(), "pdf");
+			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -384,7 +385,8 @@ public class V2 {
 					}	            	 
 				}
 			};
-			return Response.ok(stream).build();
+			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
+			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -459,7 +461,8 @@ public class V2 {
 					}	            	 
 				}
 			};
-			return Response.ok(stream).build();
+			String fn = GlobalFunctions.getFilename(sector.getName(), "pdf");
+			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

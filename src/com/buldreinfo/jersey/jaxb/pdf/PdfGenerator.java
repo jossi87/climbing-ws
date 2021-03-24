@@ -12,7 +12,6 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -100,9 +99,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 250;
-		int problemId = 1013;
-		String urlBase = "https://buldreinfo.com";
+		int areaId = 2733;
+		int problemId = 3832;
+		String urlBase = "https://brattelinjer.no";
 		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
 		Files.createDirectories(dst.getParent());
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {

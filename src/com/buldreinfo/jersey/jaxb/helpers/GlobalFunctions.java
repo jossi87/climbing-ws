@@ -22,6 +22,7 @@ public class GlobalFunctions {
 	private static final String MEDIA_ROOT_TEST = "c:/users/jostein.verico/desktop/buldreinfo_test";
 
 	public static String getFilename(String purpose, String ext) {
+		purpose = removeIllegalCharacters(purpose);
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
 		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, purpose, ext);
 	}
@@ -62,12 +63,12 @@ public class GlobalFunctions {
 	public static String getUrlJpgToImage(int id) {
 		return "https://brattelinjer.no/buldreinfo_media/jpg/" + String.valueOf(id / 100 * 100) + "/" + id + ".jpg";
 	}
-
+	
 	public static WebApplicationException getWebApplicationExceptionBadRequest(Exception e) {
 		logger.warn(e.getMessage(), e);
 		return new WebApplicationException(Response.status(HttpURLConnection.HTTP_BAD_REQUEST).entity(e.getMessage()).build());
 	}
-	
+
 	public static WebApplicationException getWebApplicationExceptionInternalError(Exception e) {
 		logger.fatal(e.getMessage(), e);
 		return new WebApplicationException(Response.status(HttpURLConnection.HTTP_INTERNAL_ERROR).entity(e.getMessage()).build());
@@ -81,5 +82,9 @@ public class GlobalFunctions {
 		// Test
 		res = Paths.get(MEDIA_ROOT_TEST);
 		return res;
+	}
+	
+	private static String removeIllegalCharacters(String str) {
+		return str.replaceAll("[\\\\/:*?\"<>|]", "").trim();
 	}
 }
