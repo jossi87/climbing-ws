@@ -125,8 +125,10 @@ public class TopoGenerator {
 			path = doc.createElementNS(xmlns, "path");
 			path.setAttributeNS(null, "style", "fill: none; stroke: " + groupColor + ";");
 			path.setAttributeNS(null, "d", svg.getPath());
-			path.setAttributeNS(null, "stroke-width", String.valueOf(0.0015 * imgMax)); 
-			path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
+			path.setAttributeNS(null, "stroke-width", String.valueOf(0.0015 * imgMax));
+			if (svg.isPrimary()) {
+				path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
+			}
 			path.setAttributeNS(null, "stroke-linecap", "round");
 			svgRoot.appendChild(path);
 			// Anchor-circle
