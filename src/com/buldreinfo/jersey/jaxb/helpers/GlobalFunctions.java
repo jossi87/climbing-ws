@@ -85,6 +85,6 @@ public class GlobalFunctions {
 	}
 	
 	private static String removeIllegalCharacters(String str) {
-		return str.replaceAll("[\\\\/:*?\"<>|]", "").trim().replaceAll(" ", "_");
+		return str.trim().replaceAll("[\\\\/:*?\"<>|] ", "_");
 	}
 }
