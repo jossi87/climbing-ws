@@ -310,7 +310,7 @@ public class PdfGenerator implements AutoCloseable {
 				addTableCell(table, FONT_REGULAR, comment.getDate());
 				addTableCell(table, FONT_REGULAR, comment.getName());
 				String url = isValidUrl(comment.getMessage())? comment.getMessage() : null;
-				addTableCell(table, url != null? FONT_REGULAR_LINK : FONT_REGULAR, comment.getMessage(), url);
+				addTableCell(table, url != null? FONT_REGULAR_LINK : FONT_REGULAR, comment.getMessage(), url, false);
 			}
 			document.add(table);
 		}
@@ -359,13 +359,16 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void addTableCell(PdfPTable table, Font font, String str) {
-		addTableCell(table, font, str, null);
+		addTableCell(table, font, str, null, false);
 	}
 
-	private void addTableCell(PdfPTable table, Font font, String str, String url) {
+	private void addTableCell(PdfPTable table, Font font, String str, String url, boolean greenBackground) {
 		PdfPCell cell = new PdfPCell(new Phrase(str, font));
 		if (url != null) {
 			cell.setCellEvent(new LinkInCell(url));
+		}
+		if (greenBackground) {
+			cell.setBackgroundColor(BaseColor.GREEN);
 		}
 		table.addCell(cell);
 	} 
@@ -685,16 +688,16 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "FA");
 			addTableCell(table, FONT_BOLD, "Note");
 			for (Sector.Problem p : s.getProblems()) {
-				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()));
+				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()), null, p.isTicked());
 				String url = s.getMetadata().getCanonical();
 				url = url.substring(0, url.indexOf("/sector"));
 				url += "/problem/" + p.getId();
-				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url);
-				addTableCell(table, FONT_REGULAR, p.getGrade());
+				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url, p.isTicked());
+				addTableCell(table, FONT_REGULAR, p.getGrade(), null, p.isTicked());
 				if (showType) {
-					addTableCell(table, FONT_REGULAR, p.getT().getSubType());
+					addTableCell(table, FONT_REGULAR, p.getT().getSubType(), null, p.isTicked());
 				}
-				addTableCell(table, FONT_REGULAR, p.getFa());
+				addTableCell(table, FONT_REGULAR, p.getFa(), null, p.isTicked());
 				Phrase note = new Phrase();
 				if (p.getNumTicks() > 0) {
 					appendStarIcons(note, p.getStars());
@@ -703,7 +706,11 @@ public class PdfGenerator implements AutoCloseable {
 				if (!Strings.isNullOrEmpty(p.getComment())) {
 					note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
 				}
-				table.addCell(new PdfPCell(note));
+				PdfPCell cell = new PdfPCell(note);
+				if (p.isTicked()) {
+					cell.setBackgroundColor(BaseColor.GREEN);
+				}
+				table.addCell(cell);
 			}
 			if (s.getMedia() != null) {
 				for (Media m : s.getMedia()) {
