@@ -72,7 +72,7 @@ private static Logger logger = LogManager.getLogger();
 				5259 // Øysteinshedlar/Øysteinshedlar/Millenium
 				);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.url region, a.name area_name, s.name sector_name, p.id problem_id, p.nr problem_nr, p.type_id, svg.id, svg.media_id, svg.path, svg.has_anchor, m.width, m.height FROM svg, media m, problem p, sector s, area a, region r WHERE svg.media_id=m.id AND svg.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id=r.id AND r.id IN (1,4) ORDER BY r.id, svg.media_id, p.nr");
+			PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.url region, a.name area_name, s.name sector_name, p.id problem_id, p.nr problem_nr, p.type_id, svg.id, svg.media_id, svg.path, svg.has_anchor, m.width, m.height FROM svg, media m, problem p, sector s, area a, region r WHERE svg.media_id=m.id AND svg.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id=r.id ORDER BY r.id, svg.media_id, p.nr");
 			ResultSet rst = ps.executeQuery();
 			int lastMediaId = 0;
 			List<Topo> topos = new ArrayList<>();
