@@ -2,7 +2,8 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
@@ -56,7 +57,7 @@ private static Logger logger = LogManager.getLogger();
 		}
 		
 		public String getNewPath(double x, double y) {
-			return pathStart + " " + (int)x + " " + (int)y;
+			return pathStart + " " + x + " " + y;
 		}
 	}
 	
@@ -74,7 +75,7 @@ private static Logger logger = LogManager.getLogger();
 			PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.url region, a.name area_name, s.name sector_name, p.id problem_id, p.nr problem_nr, p.type_id, svg.id, svg.media_id, svg.path, svg.has_anchor, m.width, m.height FROM svg, media m, problem p, sector s, area a, region r WHERE svg.media_id=m.id AND svg.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id=r.id AND r.id IN (1,4) ORDER BY r.id, svg.media_id, p.nr");
 			ResultSet rst = ps.executeQuery();
 			int lastMediaId = 0;
-			Set<Topo> topos = new LinkedHashSet<>();
+			List<Topo> topos = new ArrayList<>();
 			boolean first = true;
 			while (rst.next()) {
 				String region = rst.getString("region");
@@ -100,7 +101,7 @@ private static Logger logger = LogManager.getLogger();
 					first = true;
 				}
 				if (!topos.isEmpty()) {
-					final double maxDiff = size/150;
+					final double maxDiff = size/100;
 					for (Topo t : topos) {
 						double distance = calculateDistanceBetweenPoints(t.getX(), t.getY(), topo.getX(), topo.getY());
 						if (distance > 0.0 && distance < maxDiff) {
