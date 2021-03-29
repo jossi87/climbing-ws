@@ -187,10 +187,16 @@ public class TopoGenerator {
 				List<SvgAnchor> svgAnchors = gson.fromJson(svg.getAnchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
 				for (SvgAnchor svgAnchor : svgAnchors) {
 					Element circle = doc.createElementNS(xmlns, "circle");
+					circle.setAttributeNS(null, "fill", "#000000");
+					circle.setAttributeNS(null, "cx", String.valueOf(svgAnchor.getX()));
+					circle.setAttributeNS(null, "cy", String.valueOf(svgAnchor.getY())); 
+					circle.setAttributeNS(null, "r", String.valueOf(0.005 * imgMax));
+					svgRoot.appendChild(circle);
+					circle = doc.createElementNS(xmlns, "circle");
 					circle.setAttributeNS(null, "fill", groupColor);
 					circle.setAttributeNS(null, "cx", String.valueOf(svgAnchor.getX()));
 					circle.setAttributeNS(null, "cy", String.valueOf(svgAnchor.getY())); 
-					circle.setAttributeNS(null, "r", String.valueOf(0.006 * imgMax));
+					circle.setAttributeNS(null, "r", String.valueOf(0.004 * imgMax));
 					svgRoot.appendChild(circle);
 				}
 			}
