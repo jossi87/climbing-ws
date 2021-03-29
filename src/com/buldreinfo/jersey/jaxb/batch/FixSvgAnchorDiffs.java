@@ -18,22 +18,37 @@ public class FixSvgAnchorDiffs {
 private static Logger logger = LogManager.getLogger();
 
 	public class Topo {
+		private final static String placeholder = "PLACEHOLDER";
 		private final int nr;
 		private final int id;
 		private final String path;
-		private final String pathStart;
 		private final double x;
 		private final double y;
+		private final String pathWithPlaceholder;
 		
 		public Topo(int nr, int id, String path) {
 			this.nr = nr;
 			this.id = id;
 			this.path = path;
-			int ixY = path.lastIndexOf(" ");
-			this.y = Double.parseDouble(path.substring(ixY).trim());
-			int ixX = path.lastIndexOf(" ", ixY-1);
-			this.x = Double.parseDouble(path.substring(ixX, ixY).trim());
-			this.pathStart = path.substring(0, ixX).trim();
+			
+			String[] tmp = path.trim().split(" "); // M, x1, y2, ..., x2, y2
+			double y1 = Double.parseDouble(tmp[2]);
+			double y2 = Double.parseDouble(tmp[tmp.length-1]);
+			int xIx = 0;
+			int yIx = 0;
+			if (y2 < y1) { // Anchor last in path
+				xIx = tmp.length-2;
+				yIx = tmp.length-1;
+			}
+			else {
+				xIx = 1;
+				yIx = 2;
+			}
+			String xStr = tmp[xIx];
+			String yStr = tmp[yIx];
+			this.x = Double.parseDouble(xStr);
+			this.y = Double.parseDouble(yStr);
+			this.pathWithPlaceholder = path.replace(xStr + " " + yStr, placeholder);
 		}
 		
 		public int getNr() {
@@ -57,7 +72,7 @@ private static Logger logger = LogManager.getLogger();
 		}
 		
 		public String getNewPath(double x, double y) {
-			return pathStart + " " + x + " " + y;
+			return pathWithPlaceholder.replace(placeholder, x + " " + y);
 		}
 	}
 	
