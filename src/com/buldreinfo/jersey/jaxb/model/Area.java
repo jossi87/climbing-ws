@@ -108,12 +108,13 @@ public class Area implements IMetadata {
 	private final int numProblems;
 	private final List<Sector> sectors;
 	private final List<Media> media;
+	private final int randomMediaId;
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, int randomMediaId, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -128,6 +129,7 @@ public class Area implements IMetadata {
 		this.numProblems = numProblems;
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
+		this.randomMediaId = randomMediaId;
 		this.newMedia = newMedia;
 		this.hits = hits;
 	}
@@ -135,11 +137,11 @@ public class Area implements IMetadata {
 	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
 		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, lat, lng, polygonCoords, polyline, randomMediaId));
 	}
-
+	
 	public String getCanonical() {
 		return canonical;
 	}
-	
+
 	public String getComment() {
 		return comment;
 	}
@@ -168,11 +170,11 @@ public class Area implements IMetadata {
 	public Metadata getMetadata() {
 		return metadata;
 	}
-
+	
 	public String getName() {
 		return name;
 	}
-	
+
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
@@ -183,6 +185,10 @@ public class Area implements IMetadata {
 	
 	public int getNumSectors() {
 		return numSectors;
+	}
+	
+	public int getRandomMediaId() {
+		return randomMediaId;
 	}
 	
 	public int getRegionId() {
