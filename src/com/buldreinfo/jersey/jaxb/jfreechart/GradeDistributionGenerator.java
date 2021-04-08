@@ -29,10 +29,10 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 public class GradeDistributionGenerator {
 	public static void main(String[] args) throws Exception {
 		List<GradeDistribution> gradeDistribution = new ArrayList<>();
-		gradeDistribution.add(new GradeDistribution("6b", 2));
-		gradeDistribution.add(new GradeDistribution("6c", 2));
-		gradeDistribution.add(new GradeDistribution("7a", 4));
-		gradeDistribution.add(new GradeDistribution("7b", 4));
+		gradeDistribution.add(new GradeDistribution("6", 2, 2, 0));
+		gradeDistribution.add(new GradeDistribution("7", 2, 2, 0));
+		gradeDistribution.add(new GradeDistribution("8", 4, 4, 0));
+		gradeDistribution.add(new GradeDistribution("9", 4, 2, 2));
 		Path dst = Paths.get("c:/users/jostein/desktop/test.png");
 		write(dst, gradeDistribution);
 	}

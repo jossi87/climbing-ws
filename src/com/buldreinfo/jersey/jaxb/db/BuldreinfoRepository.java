@@ -754,39 +754,30 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Collection<GradeDistribution> getGradeDistribution(int authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
-		Map<String, GradeDistribution> lookup = GradeHelper.getGradeDistributionBase(setup);
-		String sqlStr = "SELECT ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, COUNT(DISTINCT p.id) num"
-				+ " FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id"
-				+ " WHERE p.grade!=0"
-				+ (optionalAreaId!=0? " AND a.id=?" : " AND p.sector_id=?")
-				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
-				+ " GROUP BY p.grade"
-				+ " ORDER BY p.grade";
-		String lastGrade = null;
+	public List<GradeDistribution> getGradeDistribution(int authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
+		List<GradeDistribution> res = new ArrayList<>();
+		String sqlStr = " WITH x AS ("
+				+ "   SELECT ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, COUNT(DISTINCT p.id) num"
+				+ "   FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id"
+				+ (optionalAreaId!=0? " WHERE a.id=?" : " WHERE p.sector_id=?")
+				+ "     AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
+				+ "   GROUP BY p.grade, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END)"
+				+ " SELECT g.base_no grade, SUM(CASE WHEN prim=1 THEN num ELSE 0 END) prim, SUM(CASE WHEN prim=0 THEN num ELSE 0 END) sec"
+				+ " FROM (SELECT g.grade_id, g.base_no FROM grade g WHERE g.t=?) g LEFT JOIN x ON g.grade_id=x.grade_id"
+				+ " GROUP BY g.base_no"
+				+ " ORDER BY MIN(g.grade_id)";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, optionalAreaId!=0? optionalAreaId : optionalSectorId);
+			ps.setString(3, setup.getGradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int gradeNumber = rst.getInt("grade");
-					final String grade = GradeHelper.intToStringBase(setup, gradeNumber);
-					int num = rst.getInt("num");
-					lookup.get(grade).incrementNum(num);
-					lastGrade = grade;
+					String grade = rst.getString("grade");
+					int prim = rst.getInt("prim");
+					int sec = rst.getInt("sec");
+					int num = prim + sec;
+					res.add(new GradeDistribution(grade, num, prim, sec));
 				}
-			}
-		}
-		if (lastGrade == null) {
-			return lookup.values();
-		}
-		List<GradeDistribution> res = new ArrayList<>();
-		for (GradeDistribution x : lookup.values()) {
-			if (x.getNum() > 0 || !res.isEmpty()) {
-				res.add(x);
-			}
-			if (lastGrade.equals(x.getGrade())) {
-				break;
 			}
 		}
 		return res;
@@ -3086,8 +3077,8 @@ public class BuldreinfoRepository {
 
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.is_bouldering=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {
-			ps.setBoolean(1, s.isBouldering());
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {
+			ps.setString(1, s.getGradeSystem().toString());
 			ps.setInt(2, authUserId);
 			ps.setInt(3, authUserId);
 			ps.setInt(4, idMedia);
