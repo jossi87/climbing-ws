@@ -7,6 +7,7 @@ public class Svg {
 	private final String problemName;
 	private final String problemGrade;
 	private final int problemGradeGroup;
+	private final String problemSubtype;
 	private final int nr;
 	private final String path;
 	private final boolean hasAnchor;
@@ -17,7 +18,7 @@ public class Svg {
 	private final boolean isTodo;
 	private final boolean isDangerous;
 	
-	public Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, int problemGradeGroup,
+	public Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, int problemGradeGroup, String problemSubtype,
 			int nr, String path, boolean hasAnchor, String texts, String anchors, boolean primary, boolean isTicked,
 			boolean isTodo, boolean isDangerous) {
 		this.delete = delete;
@@ -26,6 +27,7 @@ public class Svg {
 		this.problemName = problemName;
 		this.problemGrade = problemGrade;
 		this.problemGradeGroup = problemGradeGroup;
+		this.problemSubtype = problemSubtype;
 		this.nr = nr;
 		this.path = path;
 		this.hasAnchor = hasAnchor;
@@ -37,30 +39,14 @@ public class Svg {
 		this.isDangerous = isDangerous;
 	}
 
-	public boolean isDelete() {
-		return delete;
+	public String getAnchors() {
+		return anchors;
 	}
 
 	public int getId() {
 		return id;
 	}
-
-	public int getProblemId() {
-		return problemId;
-	}
-
-	public String getProblemName() {
-		return problemName;
-	}
-
-	public String getProblemGrade() {
-		return problemGrade;
-	}
 	
-	public int getProblemGradeGroup() {
-		return problemGradeGroup;
-	}
-
 	public int getNr() {
 		return nr;
 	}
@@ -69,16 +55,40 @@ public class Svg {
 		return path;
 	}
 
-	public boolean isHasAnchor() {
-		return hasAnchor;
+	public String getProblemGrade() {
+		return problemGrade;
+	}
+
+	public int getProblemGradeGroup() {
+		return problemGradeGroup;
+	}
+	
+	public int getProblemId() {
+		return problemId;
+	}
+
+	public String getProblemName() {
+		return problemName;
+	}
+
+	public String getProblemSubtype() {
+		return problemSubtype;
 	}
 
 	public String getTexts() {
 		return texts;
 	}
 
-	public String getAnchors() {
-		return anchors;
+	public boolean isDangerous() {
+		return isDangerous;
+	}
+
+	public boolean isDelete() {
+		return delete;
+	}
+
+	public boolean isHasAnchor() {
+		return hasAnchor;
 	}
 
 	public boolean isPrimary() {
@@ -91,9 +101,5 @@ public class Svg {
 
 	public boolean isTodo() {
 		return isTodo;
-	}
-
-	public boolean isDangerous() {
-		return isDangerous;
 	}
 }

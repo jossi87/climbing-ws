@@ -3077,7 +3077,7 @@ public class BuldreinfoRepository {
 
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, pt.subtype problem_subtype, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {
 			ps.setString(1, s.getGradeSystem().toString());
 			ps.setInt(2, authUserId);
 			ps.setInt(3, authUserId);
@@ -3092,6 +3092,7 @@ public class BuldreinfoRepository {
 					String problemName = rst.getString("problem_name");
 					String problemGrade = rst.getString("problem_grade");
 					int problemGradeGroup = rst.getInt("problem_grade_group");
+					String problemSubtype = rst.getString("problem_subtype");
 					int nr = rst.getInt("nr");
 					String path = rst.getString("path");
 					boolean hasAnchor = rst.getBoolean("has_anchor");
@@ -3101,7 +3102,7 @@ public class BuldreinfoRepository {
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}
