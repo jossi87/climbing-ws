@@ -212,7 +212,7 @@ public class BuldreinfoRepository {
 			columnId = problemId;
 		}
 		List<Integer> idMediaList = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -ms.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -x.sorting DESC, m.id")) {
 			ps.setInt(1, columnId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
