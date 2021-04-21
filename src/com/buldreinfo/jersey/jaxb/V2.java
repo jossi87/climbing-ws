@@ -16,6 +16,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -98,6 +99,20 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(id > 0);
 			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@PUT
+	@Path("/media")
+	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = getUserId(request);
+			Preconditions.checkArgument(id > 0);
+			c.getBuldreinfoRepo().moveMedia(authUserId, id, left);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

@@ -173,6 +173,85 @@ public class BuldreinfoRepository {
 			fillActivity(idProblem);
 		}
 	}
+	
+	public void moveMedia(int authUserId, int id, boolean left) throws SQLException {
+		boolean ok = false;
+		int areaId = 0;
+		int sectorId = 0;
+		int problemId = 0;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)) LEFT JOIN media_area ma ON (a.id=ma.area_id AND ma.media_id=?) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id")) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, id);
+			ps.setInt(3, id);
+			ps.setInt(4, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+					areaId = rst.getInt("area_id");
+					sectorId = rst.getInt("sector_id");
+					problemId = rst.getInt("problem_id");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+		
+		String table = null;
+		String column = null;
+		int columnId = 0;
+		if (areaId > 0) {
+			table = "media_area";
+			column = "area_id";
+			columnId = areaId;
+		} else if (sectorId > 0) {
+			table = "media_sector";
+			column = "sector_id";
+			columnId = sectorId;
+		} else {
+			table = "media_problem";
+			column = "problem_id";
+			columnId = problemId;
+		}
+		List<Integer> idMediaList = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND ms.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -ms.sorting DESC, m.id")) {
+			ps.setInt(1, columnId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					idMediaList.add(idMedia);
+				}
+			}
+		}
+		final int ixToMove = idMediaList.indexOf(id);
+		idMediaList.remove(ixToMove);
+		Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
+		if (left) {
+			if (ixToMove == 0) {
+				idMediaList.add(id); // Move from start to end
+			} else {
+				idMediaList.add(ixToMove-1, id);
+			}
+		} else {
+			if (ixToMove == idMediaList.size()) {
+				idMediaList.add(0, id); // Move from end to start
+			} else {
+				idMediaList.add(ixToMove+1, id);
+			}
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
+			int sorting = 0;
+			for (int idMedia : idMediaList) {
+				ps.setInt(1, ++sorting);
+				ps.setInt(2, columnId);
+				ps.setInt(3, idMedia);
+				ps.addBatch();
+			}
+			ps.executeBatch();
+		}
+
+		if (problemId > 0) {
+			fillActivity(problemId);
+		}
+	}
 
 	public void fillActivity(int idProblem) throws SQLException {
 		/**
