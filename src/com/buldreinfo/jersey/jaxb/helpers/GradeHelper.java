@@ -74,22 +74,14 @@ public class GradeHelper {
 			map.put(31, "6- (6a)");
 			map.put(30, "5+/6- (5c)");
 			map.put(29, "5+ (5c)");
-			//			map.put(28, "5/5+");
-			map.put(27, "5 (5b)");
-			//			map.put(26, "5-/5");
-			map.put(25, "5- (5a)");
-			//			map.put(24, "4+/5-");
-			map.put(23, "4+ (4c)");
-			//			map.put(22, "4/4+");
-			map.put(21, "4 (4b)");
-			//			map.put(20, "4-/4");
-			map.put(19, "4- (4a)");
-			//			map.put(18, "3+/4-");
-			map.put(17, "3+");
-			//			map.put(16, "3/3+");
-			map.put(15, "3");
-			//			map.put(14, "3-/3");
-			map.put(13, "3-");
+			map.put(28, "5 (5b)");
+			map.put(27, "5- (5a)");
+			map.put(26, "4+ (4c)");
+			map.put(25, "4 (4b)");
+			map.put(24, "4- (4a)");
+			map.put(23, "3+");
+			map.put(22, "3");
+			map.put(21, "3-");
 			map.put(0, "n/a");
 		}
 		else if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.ICE)) {
