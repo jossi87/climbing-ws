@@ -96,31 +96,31 @@ public class GradeDistribution {
 			break;
 		case "Bolt":
 			this.prim += num;
-			row.setNumBoulder(num);
+			row.setNumSport(num);
 			break;
 		case "Trad":
 			this.sec += num;
-			row.setNumBoulder(num);
+			row.setNumTrad(num);
 			break;
 		case "Mixed":
 			this.sec += num;
-			row.setNumBoulder(num);
+			row.setNumMixed(num);
 			break;
 		case "Top rope":
 			this.sec += num;
-			row.setNumBoulder(num);
+			row.setNumTopRope(num);
 			break;
 		case "Aid":
 			this.sec += num;
-			row.setNumBoulder(num);
+			row.setNumAid(num);
 			break;
 		case "Aid/Trad":
 			this.sec += num;
-			row.setNumBoulder(num);
+			row.setNumAidTrad(num);
 			break;
 		case "Ice":
 			this.prim += num;
-			row.setNumBoulder(num);
+			row.setNumIce(num);
 			break;
 		default: throw new RuntimeException("Invalid type: " + type);
 		}
