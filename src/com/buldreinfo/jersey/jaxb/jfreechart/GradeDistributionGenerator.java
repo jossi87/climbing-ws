@@ -6,10 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
@@ -27,16 +24,6 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 
 public class GradeDistributionGenerator {
-	public static void main(String[] args) throws Exception {
-		List<GradeDistribution> gradeDistribution = new ArrayList<>();
-		gradeDistribution.add(new GradeDistribution("6", 2, 2, 0, null));
-		gradeDistribution.add(new GradeDistribution("7", 2, 2, 0, null));
-		gradeDistribution.add(new GradeDistribution("8", 4, 4, 0, null));
-		gradeDistribution.add(new GradeDistribution("9", 4, 2, 2, null));
-		Path dst = Paths.get("c:/users/jostein/desktop/test.png");
-		write(dst, gradeDistribution);
-	}
-
 	public static void write(Path dst, Collection<GradeDistribution> gradeDistribution) throws IOException {
 		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 		for (GradeDistribution x : gradeDistribution) {
