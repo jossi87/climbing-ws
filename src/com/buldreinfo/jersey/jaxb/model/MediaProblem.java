@@ -7,7 +7,7 @@ public class MediaProblem extends Media {
 
 	public MediaProblem(int id, int pitch, int width, int height, int idType, String t, int svgProblemId,
 			List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, int problemId) {
-		super(id, pitch, width, height, idType, t, svgProblemId, svgs, mediaMetadata, embedUrl);
+		super(id, pitch, width, height, idType, t, svgProblemId, svgs, mediaMetadata, embedUrl, false);
 		this.problemId = problemId;
 	}
 

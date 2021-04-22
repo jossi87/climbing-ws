@@ -13,8 +13,9 @@ public class Media {
 	private final List<Svg> svgs;
 	private final MediaMetadata mediaMetadata;
 	private final String embedUrl;
+	private final boolean inherited;
 
-	public Media(int id, int pitch, int width, int height, int idType, String t, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
+	public Media(int id, int pitch, int width, int height, int idType, String t, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited) {
 		this.id = id;
 		this.pitch = pitch;
 		this.width = width;
@@ -25,6 +26,11 @@ public class Media {
 		this.svgs = svgs;
 		this.mediaMetadata = mediaMetadata;
 		this.embedUrl = embedUrl;
+		this.inherited = inherited;
+	}
+	
+	public String getEmbedUrl() {
+		return embedUrl;
 	}
 	
 	public int getHeight() {
@@ -63,7 +69,7 @@ public class Media {
 		return width;
 	}
 	
-	public String getEmbedUrl() {
-		return embedUrl;
+	public boolean isInherited() {
+		return inherited;
 	}
 }
