@@ -833,22 +833,21 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<GradeDistribution> getGradeDistribution(int authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
-		List<GradeDistribution> res = new ArrayList<>();
+	public Collection<GradeDistribution> getGradeDistribution(int authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = "WITH x AS ("
-				+ " SELECT x.sorting, x.sector, g.base_no grade_base_no, COUNT(DISTINCT CASE WHEN x.prim=1 THEN x.id_problem END) prim, COUNT(DISTINCT CASE WHEN x.prim=0 THEN x.id_problem END) sec"
-				+ " FROM (SELECT s.name sector, s.sorting, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, p.id id_problem"
-				+ " FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.grade>0"
+				+ "  SELECT g.base_no grade_base_no, x.sorting, x.sector, x.t, COUNT(id_problem) num"
+				+ "  FROM (SELECT s.name sector, s.sorting, ty.subtype t, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, p.id id_problem"
+				+ "    FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.grade>0"
 				+ (optionalAreaId!=0? " WHERE a.id=?" : " WHERE p.sector_id=?")
-				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
-				+ " GROUP BY s.name, p.type_id, p.id) x, grade g"
-				+ " WHERE x.grade_id=g.grade_id AND g.t=?"
-				+ " GROUP BY x.sorting, x.sector, g.base_no"
-				+ " )"
-				+ " SELECT g.base_no grade, SUM(x.prim) prim, SUM(x.sec) sec, group_concat(concat(x.sector,': ',(x.prim+x.sec)) order by x.sorting, x.sector separator ', ') tooltip"
+				+ "      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
+				+ "    GROUP BY s.name, ty.subtype, p.id) x, grade g"
+				+ "  WHERE x.grade_id=g.grade_id AND g.t=?"
+				+ "  GROUP BY x.sorting, x.sector, g.base_no, x.t"
+				+ ")"
+				+ " SELECT g.base_no grade, x.sector, COALESCE(x.t,'Boulder') t, num"
 				+ " FROM (SELECT g.base_no, MIN(g.grade_id) sort FROM grade g WHERE g.t=? GROUP BY g.base_no) g LEFT JOIN x ON g.base_no=x.grade_base_no"
-				+ " GROUP BY g.base_no, g.sort"
-				+ " ORDER BY g.sort";
+				+ " ORDER BY g.sort, x.sorting, x.sector, x.t";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, optionalAreaId!=0? optionalAreaId : optionalSectorId);
@@ -857,15 +856,21 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String grade = rst.getString("grade");
-					int prim = rst.getInt("prim");
-					int sec = rst.getInt("sec");
-					String tooltip = optionalAreaId > 0? rst.getString("tooltip") : null;
-					int num = prim + sec;
-					res.add(new GradeDistribution(grade, num, prim, sec, tooltip));
+					GradeDistribution g = res.get(grade);
+					if (g == null) {
+						g = new GradeDistribution(grade);
+						res.put(grade, g);
+					}
+					String sector = rst.getString("sector");
+					if (sector != null) {
+						String t = rst.getString("t");
+						int num = rst.getInt("num");
+						g.addSector(sector, t, num);
+					}
 				}
 			}
 		}
-		return res;
+		return res.values();
 	}
 
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
