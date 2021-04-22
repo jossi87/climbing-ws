@@ -39,13 +39,13 @@ public class GradeHelper {
 		}
 		else if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING)) {
 			map.put(64, "9c");
-			//			map.put(63, "9b+/9c");
+			map.put(63, "9b+/9c");
 			map.put(62, "9b+");
 			map.put(61, "9b/9b+");
 			map.put(60, "9b");
-			//			map.put(59, "9a+/9b");
+			map.put(59, "9a+/9b");
 			map.put(58, "9a+");
-			//			map.put(57, "9a/9a+");
+			map.put(57, "9a/9a+");
 			map.put(56, "10 (9a)");
 			map.put(55, "10-/10 (8c+/9a)");
 			map.put(54, "10- (8c+)");
@@ -90,18 +90,6 @@ public class GradeHelper {
 			map.put(15, "3");
 			//			map.put(14, "3-/3");
 			map.put(13, "3-");
-			//			map.put(12, "2+/3-");
-			//			map.put(11, "2+");
-			//			map.put(10, "2/2+");
-			//			map.put(9, "2");
-			//			map.put(8, "2-/2");
-			//			map.put(7, "2-");
-			//			map.put(6, "1+/2-");
-			//			map.put(5, "1+");
-			//			map.put(4, "1/1+");
-			//			map.put(3, "1");
-			//			map.put(2, "1-/1");
-			//			map.put(1, "1-");
 			map.put(0, "n/a");
 		}
 		else if (setup.getGradeSystem().equals(Setup.GRADE_SYSTEM.ICE)) {
