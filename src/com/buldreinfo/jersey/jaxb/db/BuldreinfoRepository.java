@@ -3039,7 +3039,8 @@ public class BuldreinfoRepository {
 	}
 
 	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited, boolean showHiddenMedia) throws SQLException {
-		List<Media> media = new ArrayList<>();
+		List<Media> allMedia = new ArrayList<>();
+		List<Media> topoMedia = new ArrayList<>();
 		String sqlStr = "SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
 				+ " FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id"
 				+ (optionalIdProblem>0? " WHERE m.id NOT IN (SELECT media_id FROM media_problem_exclude WHERE problem_id=" + optionalIdProblem + ")" : "")
@@ -3065,16 +3066,16 @@ public class BuldreinfoRepository {
 					Media m = new Media(idMedia, pitch, width, height, tyId, null, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited);
 					if (!showHiddenMedia && optionalIdProblem != 0 && svgs != null
 							&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
-						media.clear();
-						media.add(m);
-						break;
-					} else {
-						media.add(m);
+						topoMedia.add(m);
 					}
+					allMedia.add(m);
 				}
 			}
 		}
-		return media;
+		if (!topoMedia.isEmpty()) {
+			return topoMedia;
+		}
+		return allMedia;
 	}
 
 	private Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {
