@@ -580,7 +580,7 @@ public class BuldreinfoRepository {
 					int randomMediaId = rst.getInt("media_id");
 					if (randomMediaId == 0) {
 						boolean inherited = false;
-						List<Media> x = getMediaSector(s, authUserId, id, 0, inherited);
+						List<Media> x = getMediaSector(s, authUserId, id, 0, inherited, false);
 						if (!x.isEmpty()) {
 							randomMediaId = x.get(0).getId();
 						}
@@ -925,7 +925,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Problem getProblem(int authUserId, Setup s, int reqId) throws IOException, SQLException {
+	public Problem getProblem(int authUserId, Setup s, int reqId, boolean showHiddenMedia) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
 			ps.setInt(1, reqId);
@@ -996,7 +996,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
 					boolean inherited = false;
-					List<Media> media = getMediaProblem(s, authUserId, sectorId, id, inherited);
+					List<Media> media = getMediaProblem(s, authUserId, sectorId, id, inherited, showHiddenMedia);
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int hits = rst.getInt("hits");
 
@@ -2280,7 +2280,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		fillActivity(idProblem);
-		return getProblem(authUserId, s, idProblem);
+		return getProblem(authUserId, s, idProblem, false);
 	}
 
 	public Sector setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -2997,8 +2997,8 @@ public class BuldreinfoRepository {
 		return media;
 	}
 
-	private List<Media> getMediaProblem(Setup s, int authUserId, int sectorId, int problemId, boolean inherited) throws SQLException {
-		List<Media> media = getMediaSector(s, authUserId, sectorId, problemId, true);
+	private List<Media> getMediaProblem(Setup s, int authUserId, int sectorId, int problemId, boolean inherited, boolean showHiddenMedia) throws SQLException {
+		List<Media> media = getMediaSector(s, authUserId, sectorId, problemId, true, showHiddenMedia);
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
 			ps.setInt(1, problemId);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -3038,7 +3038,7 @@ public class BuldreinfoRepository {
 		return media;
 	}
 
-	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited) throws SQLException {
+	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited, boolean showHiddenMedia) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		String sqlStr = "SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
 				+ " FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id"
@@ -3063,7 +3063,7 @@ public class BuldreinfoRepository {
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					Media m = new Media(idMedia, pitch, width, height, tyId, null, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited);
-					if (optionalIdProblem != 0 && svgs != null
+					if (!showHiddenMedia && optionalIdProblem != 0 && svgs != null
 							&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 						media.clear();
 						media.add(m);
@@ -3110,7 +3110,7 @@ public class BuldreinfoRepository {
 					String polygonCoords = rst.getString("polygon_coords");
 					String polyline = rst.getString("polyline");
 					int hits = rst.getInt("hits");
-					List<Media> media = getMediaSector(setup, authUserId, reqId, 0, false);
+					List<Media> media = getMediaSector(setup, authUserId, reqId, 0, false, false);
 					media.addAll(getMediaArea(areaId, true));
 					if (media.isEmpty()) {
 						media = null;

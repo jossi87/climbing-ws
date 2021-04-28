@@ -335,13 +335,13 @@ public class V2 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia, @QueryParam("showHiddenMedia") boolean showHiddenMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Response response = null;
 			try {
-				Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+				Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, showHiddenMedia);
 				metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 				response = Response.ok().entity(res).build();
 			} catch (Exception e) {
@@ -380,7 +380,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
-			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
 			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
 			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
@@ -593,7 +593,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id);
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
 			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();

@@ -85,7 +85,7 @@ public class V2Test {
 	@Test
 	public void testGetProblems() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblems(getRequest(), 1193, 0);
+		Response r = tester.getProblems(getRequest(), 1193, 0, false);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Problem);
 		Problem p = (Problem)r.getEntity();
