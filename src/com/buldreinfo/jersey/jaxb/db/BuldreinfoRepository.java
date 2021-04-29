@@ -1047,6 +1047,7 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time")) {
 			ps.setInt(1, p.getId());
 			try (ResultSet rst = ps.executeQuery()) {
+				Problem.Comment lastComment = null;
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
@@ -1056,7 +1057,11 @@ public class BuldreinfoRepository {
 					String message = rst.getString("message");
 					boolean danger = rst.getBoolean("danger");
 					boolean resolved = rst.getBoolean("resolved");
-					p.addComment(id, date, idUser, picture, name, message, danger, resolved);
+					lastComment = p.addComment(id, date, idUser, picture, name, message, danger, resolved);
+				}
+				// Enable editing on last comment in thread if it is written by authenticated user
+				if (lastComment != null && lastComment.getIdUser() == authUserId) {
+					lastComment.setEditable(true);
 				}
 			}
 		}
