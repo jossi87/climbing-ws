@@ -2479,14 +2479,28 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void upsertComment(int authUserId, Comment co) throws SQLException {
+	public void upsertComment(int authUserId, Setup s, Comment co) throws SQLException, IOException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET danger=?, resolved=? WHERE id=?")) {
-				ps.setBoolean(1, co.isDanger());
-				ps.setBoolean(2, co.isResolved());
-				ps.setInt(3, co.getId());
-				ps.execute();
+			if (co.isDelete()) {
+				List<Problem.Comment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
+				Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.getIdProblem());
+				Problem.Comment lastComment = comments.get(comments.size()-1);
+				Preconditions.checkArgument(co.getId() == lastComment.getId(), "Comment not in end of thread");
+				Preconditions.checkArgument(lastComment.isEditable(), "Comment not editable by " + authUserId);
+				try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM guestbook WHERE id=?")) {
+					ps.setInt(1, co.getId());
+					ps.execute();
+				}
+			}
+			else {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
+					ps.setString(1, co.getComment());
+					ps.setBoolean(2, co.isDanger());
+					ps.setBoolean(3, co.isResolved());
+					ps.setInt(4, co.getId());
+					ps.execute();
+				}
 			}
 		} else {
 			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));

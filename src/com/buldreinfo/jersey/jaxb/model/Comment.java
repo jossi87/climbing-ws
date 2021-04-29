@@ -6,13 +6,19 @@ public class Comment {
 	private final String comment;
 	private final boolean danger;
 	private final boolean resolved;
+	private final boolean delete;
 	
-	public Comment(int id, int idProblem, String comment, boolean danger, boolean resolved) {
+	public Comment(int id, int idProblem, String comment, boolean danger, boolean resolved, boolean delete) {
 		this.id = id;
 		this.idProblem = idProblem;
 		this.comment = comment;
 		this.danger = danger;
 		this.resolved = resolved;
+		this.delete = delete;
+	}
+	
+	public boolean isDelete() {
+		return delete;
 	}
 	
 	public int getId() {

@@ -889,7 +889,8 @@ public class V2 {
 	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().upsertComment(authUserId, co);
+			final Setup setup = metaHelper.getSetup(request);
+			c.getBuldreinfoRepo().upsertComment(authUserId, setup, co);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
