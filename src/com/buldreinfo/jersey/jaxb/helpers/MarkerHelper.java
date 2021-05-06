@@ -51,7 +51,7 @@ public class MarkerHelper {
 		}
 	}
 
-	private static final double COORDINATE_OFFSET = 0.00001;
+	private static final double COORDINATE_OFFSET = 0.00002;
 	private final Set<LatLng> markers = new HashSet<>();
 
 	public MarkerHelper() {
