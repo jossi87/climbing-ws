@@ -30,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -3153,7 +3154,7 @@ public class BuldreinfoRepository {
 				+ " WHERE p.sector_id=?"
 				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
 				+ " GROUP BY p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.grade, p.latitude, p.longitude, ty.id, ty.type, ty.subtype, danger.danger"
-				+ (orderByGrade? " ORDER BY ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) DESC, p.name" : " ORDER BY p.nr");
+				+ " ORDER BY p.nr";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, authUserId);
@@ -3185,6 +3186,9 @@ public class BuldreinfoRepository {
 					s.addProblem(id, lockedAdmin, lockedSuperadmin, nr, name, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, l.getLat(), l.getLng(), numTicks, stars, ticked, t, danger);
 				}
 			}
+		}
+		if (!s.getProblems().isEmpty() && orderByGrade) {
+			Collections.sort(s.getProblems(), Comparator.comparing(Sector.Problem::getGradeNumber).reversed());
 		}
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
