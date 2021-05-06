@@ -56,6 +56,10 @@ public class MarkerHelper {
 
 	public MarkerHelper() {
 	}
+	
+	public LatLng getLatLngWithoutShifting(double latitude, double longitude) {
+		return new LatLng(latitude, longitude);
+	}
 
 	public LatLng getLatLng(double latitude, double longitude) {
 		LatLng res = new LatLng(latitude, longitude);
