@@ -51,7 +51,7 @@ public class MarkerHelper {
 		}
 	}
 
-	private static final double COORDINATE_OFFSET = 0.000005;
+	private static final double COORDINATE_OFFSET = 0.00001;
 	private final Set<LatLng> markers = new HashSet<>();
 
 	public MarkerHelper() {
@@ -69,14 +69,14 @@ public class MarkerHelper {
 		
 		int i = 0;
 		while (i < 10000) {
-			res = new LatLng(latitude, (longitude + i * COORDINATE_OFFSET));
+			res = new LatLng((latitude + i * COORDINATE_OFFSET), longitude);
 			if (markers.contains(res)) {
 				// If i = 0 then below if condition is same as upper one. Hence, no need to execute below if condition.
 				if (i == 0) {
 					i++;
 					continue;
 				}
-				res = new LatLng(latitude, (longitude - i * COORDINATE_OFFSET));
+				res = new LatLng((latitude - i * COORDINATE_OFFSET), longitude);
 				if (markers.contains(res)) {
 					i++;
 					continue;
