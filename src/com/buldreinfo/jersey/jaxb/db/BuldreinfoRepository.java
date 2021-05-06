@@ -552,7 +552,7 @@ public class BuldreinfoRepository {
 					boolean forDevelopers = rst.getBoolean("for_developers");
 					String name = rst.getString("name");
 					String comment = rst.getString("description");
-					LatLng l = markerHelper.getLatLngWithoutShifting(rst.getDouble("latitude"), rst.getDouble("longitude"));
+					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 					int hits = rst.getInt("hits");
 					boolean inherited = false;
 					List<Media> media = getMediaArea(reqId, inherited);
