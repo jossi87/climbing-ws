@@ -3173,7 +3173,7 @@ public class BuldreinfoRepository {
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
 						fa = "FA: " + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
 					}
-					LatLng l = markerHelper.getLagLngWithoutUniqueCoords(rst.getDouble("latitude"), rst.getDouble("longitude"));
+					LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
 					int numPitches = rst.getInt("num_pitches");
 					boolean hasImages = rst.getInt("num_images")>0;
 					boolean hasMovies = rst.getInt("num_movies")>0;
