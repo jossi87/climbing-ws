@@ -56,10 +56,6 @@ public class MarkerHelper {
 
 	public MarkerHelper() {
 	}
-	
-	public LatLng getLagLngWithoutUniqueCoords(double latitude, double longitude) {
-		return new LatLng(latitude, longitude);
-	}
 
 	public LatLng getLatLng(double latitude, double longitude) {
 		LatLng res = new LatLng(latitude, longitude);
@@ -75,20 +71,7 @@ public class MarkerHelper {
 		while (i < 10000) {
 			res = new LatLng((latitude + i * COORDINATE_OFFSET), longitude);
 			if (markers.contains(res)) {
-				// If i = 0 then below if condition is same as upper one. Hence, no need to execute below if condition.
-				if (i == 0) {
-					i++;
-					continue;
-				}
-				res = new LatLng((latitude - i * COORDINATE_OFFSET), longitude);
-				if (markers.contains(res)) {
-					i++;
-					continue;
-				}
-				else {
-					markers.add(res);
-					return res;
-				}
+				i++;
 			}
 			else {
 				markers.add(res);
