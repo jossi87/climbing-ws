@@ -69,7 +69,7 @@ public class MarkerHelper {
 		
 		int i = 0;
 		while (i < 10000) {
-			res = new LatLng((latitude + i * COORDINATE_OFFSET), longitude);
+			res = new LatLng((latitude - i * COORDINATE_OFFSET), longitude);
 			if (markers.contains(res)) {
 				i++;
 			}
