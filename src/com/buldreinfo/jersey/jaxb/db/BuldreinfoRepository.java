@@ -488,7 +488,7 @@ public class BuldreinfoRepository {
 							ps2.setInt(1, id);
 							try (ResultSet rst2 = ps2.executeQuery()) {
 								while (rst.next()) {
-									int mediaId = rst.getInt("media_id");
+									int mediaId = rst2.getInt("media_id");
 									boolean isMovie = false;
 									String embedUrl = null;
 									a.addMedia(mediaId, isMovie, embedUrl);
