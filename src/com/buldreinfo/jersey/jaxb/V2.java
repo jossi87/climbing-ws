@@ -887,6 +887,7 @@ public class V2 {
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
