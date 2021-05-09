@@ -471,8 +471,8 @@ public class BuldreinfoRepository {
 		}
 
 		if (!guestbookActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message" + 
-					" FROM activity a, guestbook g, user u" + 
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message, mg.media_id" + 
+					" FROM (((activity a INNER JOIN guestbook g ON a.guestbook_id=g.id) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(guestbookActivitityIds) + ")" + 
 					"   AND a.guestbook_id=g.id AND g.user_id=u.id")) {
 				try (ResultSet rst = ps.executeQuery()) {
@@ -484,16 +484,12 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						String message = rst.getString("message");
 						a.setGuestbook(userId, name, picture, message);
-						try (PreparedStatement ps2 = c.getConnection().prepareStatement("SELECT mg.media_id FROM media_guestbook mg WHERE mg.guestbook_id=?")) {
-							ps2.setInt(1, id);
-							try (ResultSet rst2 = ps2.executeQuery()) {
-								while (rst.next()) {
-									int mediaId = rst2.getInt("media_id");
-									boolean isMovie = false;
-									String embedUrl = null;
-									a.addMedia(mediaId, isMovie, embedUrl);
-								}
-							}
+						
+						int mediaId = rst.getInt("media_id");
+						if (mediaId > 0) {
+							boolean isMovie = false;
+							String embedUrl = null;
+							a.addMedia(mediaId, isMovie, embedUrl);
 						}
 					}
 				}
