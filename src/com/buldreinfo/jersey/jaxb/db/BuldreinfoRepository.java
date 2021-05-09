@@ -135,7 +135,8 @@ public class BuldreinfoRepository {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
-			addNewMedia(authUserId, p.getId(), m.getPitch(), idSector, idArea, m, multiPart, now);
+			final int idGuestbook = 0;
+			addNewMedia(authUserId, p.getId(), m.getPitch(), idSector, idArea, idGuestbook, m, multiPart, now);
 		}
 		fillActivity(p.getId());
 	}
@@ -1065,7 +1066,8 @@ public class BuldreinfoRepository {
 					String message = rst.getString("message");
 					boolean danger = rst.getBoolean("danger");
 					boolean resolved = rst.getBoolean("resolved");
-					lastComment = p.addComment(id, date, idUser, picture, name, message, danger, resolved);
+					List<Media> media = getMediaGuestbook(id);
+					lastComment = p.addComment(id, date, idUser, picture, name, message, danger, resolved, media);
 				}
 				// Enable editing on last comment in thread if it is written by authenticated user
 				if (lastComment != null && lastComment.getIdUser() == authUserId) {
@@ -2098,7 +2100,8 @@ public class BuldreinfoRepository {
 				final int idProblem = 0;
 				final int pitch = 0;
 				final int idSector = 0;
-				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, m, multiPart, now);
+				final int idGuestbook = 0;
+				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, idGuestbook, m, multiPart, now);
 			}
 		}
 		return getArea(s, authUserId, idArea);
@@ -2197,7 +2200,8 @@ public class BuldreinfoRepository {
 			for (NewMedia m : p.getNewMedia()) {
 				final int idSector = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, m.getPitch(), idSector, idArea, m, multiPart, now);
+				final int idGuestbook = 0;
+				addNewMedia(authUserId, idProblem, m.getPitch(), idSector, idArea, idGuestbook, m, multiPart, now);
 			}
 		}
 		// FA
@@ -2394,7 +2398,8 @@ public class BuldreinfoRepository {
 				final int pitch = 0;
 				final int idProblem = 0;
 				final int idArea = 0;
-				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, m, multiPart, now);
+				final int idGuestbook = 0;
+				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, idGuestbook, m, multiPart, now);
 			}
 		}
 		return getSector(authUserId, orderByGrade, setup, idSector);
@@ -2497,7 +2502,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void upsertComment(int authUserId, Setup s, Comment co) throws SQLException, IOException {
+	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
 			if (co.isDelete()) {
@@ -2518,6 +2523,16 @@ public class BuldreinfoRepository {
 					ps.setBoolean(3, co.isResolved());
 					ps.setInt(4, co.getId());
 					ps.execute();
+					if (co.getNewMedia() != null) {
+						// New media
+						Timestamp now = new Timestamp(System.currentTimeMillis());
+						for (NewMedia m : co.getNewMedia()) {
+							final int idProblem = 0;
+							final int idSector = 0;
+							final int idArea = 0;
+							addNewMedia(authUserId, idProblem, 0, idSector, idArea, co.getId(), m, multiPart, now);
+						}
+					}
 				}
 			}
 		} else {
@@ -2532,7 +2547,7 @@ public class BuldreinfoRepository {
 				}
 			}
 
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setString(1, co.getComment());
 				ps.setInt(2, co.getIdProblem());
 				ps.setInt(3, authUserId);
@@ -2543,7 +2558,22 @@ public class BuldreinfoRepository {
 				}
 				ps.setBoolean(5, co.isDanger());
 				ps.setBoolean(6, co.isResolved());
-				ps.execute();
+				ps.executeUpdate();
+				try (ResultSet rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						int idGuestbook = rst.getInt(1);
+						if (co.getNewMedia() != null) {
+							// New media
+							Timestamp now = new Timestamp(System.currentTimeMillis());
+							for (NewMedia m : co.getNewMedia()) {
+								final int idProblem = 0;
+								final int idSector = 0;
+								final int idArea = 0;
+								addNewMedia(authUserId, idProblem, 0, idSector, idArea, idGuestbook, m, multiPart, now);
+							}
+						}
+					}
+				}
 			}
 		}
 		fillActivity(co.getIdProblem());
@@ -2604,10 +2634,13 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int pitch, int idSector, int idArea, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+	private int addNewMedia(int idUser, int idProblem, int pitch, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		int idMedia = -1;
 		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, pitch, idSector, m);
-		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0) || (idProblem == 0 && idSector > 0 && idArea == 0) || (idProblem == 0 && idSector == 0 && idArea > 0));
+		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0));
 
 		boolean alreadyExistsInDb = false;
 		boolean isMovie = false;
@@ -2683,6 +2716,14 @@ public class BuldreinfoRepository {
 				ps.setInt(2, idArea);
 				ps.execute();
 			}
+		} else if (idGuestbook > 0) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idGuestbook);
+				ps.execute();
+			}
+		} else {
+			throw new RuntimeException("Server error");
 		}
 		if (!alreadyExistsInDb) {
 			if (!Strings.isNullOrEmpty(m.getInPhoto())) {
@@ -3013,6 +3054,32 @@ public class BuldreinfoRepository {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
 			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int itId = rst.getInt("id");
+					String description = rst.getString("description");
+					int pitch = 0;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					media.add(new Media(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata, embedUrl, inherited));
+				}
+			}
+		}
+		return media;
+	}
+	
+	private List<Media> getMediaGuestbook(int id) throws SQLException {
+		List<Media> media = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
+			ps.setInt(1, id);
+			final boolean inherited = false;
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int itId = rst.getInt("id");

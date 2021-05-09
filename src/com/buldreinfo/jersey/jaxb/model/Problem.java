@@ -15,8 +15,9 @@ public class Problem implements IMetadata {
 		private final String message;
 		private final boolean danger;
 		private final boolean resolved;
+		private final List<Media> media;
 		private boolean editable = false;
-		public Comment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
+		public Comment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 			this.id = id;
 			this.date = date;
 			this.idUser = idUser;
@@ -25,6 +26,7 @@ public class Problem implements IMetadata {
 			this.message = message;
 			this.danger = danger;
 			this.resolved = resolved;
+			this.media = media;
 		}
 		public String getDate() {
 			return date;
@@ -52,6 +54,9 @@ public class Problem implements IMetadata {
 		}
 		public boolean isResolved() {
 			return resolved;
+		}
+		public List<Media> getMedia() {
+			return media;
 		}
 		public void setEditable(boolean editable) {
 			this.editable = editable;
@@ -234,11 +239,11 @@ public class Problem implements IMetadata {
 		this.descent = descent;
 	}
 	
-	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
+	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
-		Comment comment = new Comment(id, date, idUser, picture, name, message, danger, resolved);
+		Comment comment = new Comment(id, date, idUser, picture, name, message, danger, resolved, media);
 		comments.add(comment);
 		return comment;
 	}

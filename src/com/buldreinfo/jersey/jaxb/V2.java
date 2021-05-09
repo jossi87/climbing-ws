@@ -886,11 +886,13 @@ public class V2 {
 
 	@POST
 	@Path("/comments")
-	public Response postComments(@Context HttpServletRequest request, Comment co) throws ExecutionException, IOException {
+	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
+	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			final Setup setup = metaHelper.getSetup(request);
-			c.getBuldreinfoRepo().upsertComment(authUserId, setup, co);
+			c.getBuldreinfoRepo().upsertComment(authUserId, setup, co, multiPart);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
