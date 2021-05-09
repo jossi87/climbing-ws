@@ -484,6 +484,17 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						String message = rst.getString("message");
 						a.setGuestbook(userId, name, picture, message);
+						try (PreparedStatement ps2 = c.getConnection().prepareStatement("SELECT mg.media_id FROM media_guestbook WHERE guestbook_id=?")) {
+							ps2.setInt(1, id);
+							try (ResultSet rst2 = ps2.executeQuery()) {
+								while (rst.next()) {
+									int mediaId = rst.getInt("media_id");
+									boolean isMovie = false;
+									String embedUrl = null;
+									a.addMedia(mediaId, isMovie, embedUrl);
+								}
+							}
+						}
 					}
 				}
 			}
