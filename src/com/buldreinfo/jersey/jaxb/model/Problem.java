@@ -47,11 +47,11 @@ public class Problem implements IMetadata {
 		public boolean isDanger() {
 			return danger;
 		}
-		public boolean isResolved() {
-			return resolved;
-		}
 		public boolean isEditable() {
 			return editable;
+		}
+		public boolean isResolved() {
+			return resolved;
 		}
 		public void setEditable(boolean editable) {
 			this.editable = editable;
@@ -183,8 +183,14 @@ public class Problem implements IMetadata {
 	private final boolean todo;
 	private final long hits;
 	private FaAid faAid;
+	private final String trivia;
+	private final String startingAltitude;
+	private final String aspect;
+	private final String routeLength;
+	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits) {
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			String trivia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
@@ -221,6 +227,11 @@ public class Problem implements IMetadata {
 		this.t = t;
 		this.todo = todo;
 		this.hits = hits;
+		this.trivia = trivia;
+		this.startingAltitude = startingAltitude;
+		this.aspect = aspect;
+		this.routeLength = routeLength;
+		this.descent = descent;
 	}
 	
 	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved) {
@@ -254,6 +265,10 @@ public class Problem implements IMetadata {
 		return areaName;
 	}
 	
+	public String getAspect() {
+		return aspect;
+	}
+	
 	public String getCanonical() {
 		return canonical;
 	}
@@ -266,6 +281,10 @@ public class Problem implements IMetadata {
 		return comments;
 	}
 	
+	public String getDescent() {
+		return descent;
+	}
+
 	public List<FaUser> getFa() {
 		return fa;
 	}
@@ -273,7 +292,7 @@ public class Problem implements IMetadata {
 	public FaAid getFaAid() {
 		return faAid;
 	}
-
+	
 	public String getFaDate() {
 		return faDate;
 	}
@@ -301,7 +320,7 @@ public class Problem implements IMetadata {
 	public double getLng() {
 		return lng;
 	}
-	
+
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -310,7 +329,7 @@ public class Problem implements IMetadata {
 	public Metadata getMetadata() {
 		return metadata;
 	}
-
+	
 	public String getName() {
 		return name;
 	}
@@ -318,7 +337,7 @@ public class Problem implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public int getNr() {
 		return nr;
 	}
@@ -326,15 +345,19 @@ public class Problem implements IMetadata {
 	public int getNumTicks() {
 		return numTicks;
 	}
-
+	
 	public String getOriginalGrade() {
 		return originalGrade;
+	}
+	
+	public String getRouteLength() {
+		return routeLength;
 	}
 	
 	public List<Section> getSections() {
 		return sections;
 	}
-	
+
 	public int getSectorId() {
 		return sectorId;
 	}
@@ -350,11 +373,11 @@ public class Problem implements IMetadata {
 	public double getSectorLat() {
 		return sectorLat;
 	}
-	
+
 	public double getSectorLng() {
 		return sectorLng;
 	}
-	
+
 	public String getSectorName() {
 		return sectorName;
 	}
@@ -362,7 +385,7 @@ public class Problem implements IMetadata {
 	public String getSectorPolygonCoords() {
 		return sectorPolygonCoords;
 	}
-	
+
 	public String getSectorPolyline() {
 		return sectorPolyline;
 	}
@@ -370,13 +393,21 @@ public class Problem implements IMetadata {
 	public double getStars() {
 		return stars;
 	}
+	
+	public String getStartingAltitude() {
+		return startingAltitude;
+	}
 
 	public Type getT() {
 		return t;
 	}
-	
+
 	public List<Tick> getTicks() {
 		return ticks;
+	}
+	
+	public String getTrivia() {
+		return trivia;
 	}
 
 	public boolean isAreaLockedAdmin() {

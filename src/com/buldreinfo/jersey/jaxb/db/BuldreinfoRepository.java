@@ -949,13 +949,14 @@ public class BuldreinfoRepository {
 				+ " ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade, p.grade original_grade, p.latitude, p.longitude,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END, '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(t.stars)*2)/2,1) stars,"
-				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
+				+ " p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent"
 				+ " FROM ((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON t.problem_id=p.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?"
 				+ " WHERE (?=0 OR rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?))"
 				+ "   AND p.id=?"
 				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1"
 				+ "   AND (?=0 OR r.id=? OR ur.user_id IS NOT NULL)"
-				+ " GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.hits, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.hits, p.grade, p.latitude, p.longitude, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent"
 				+ " ORDER BY p.name";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
@@ -1000,6 +1001,11 @@ public class BuldreinfoRepository {
 					List<Media> media = getMediaProblem(s, authUserId, sectorId, id, inherited, showHiddenMedia);
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int hits = rst.getInt("hits");
+					String trivia = rst.getString("trivia");
+					String startingAltitude = rst.getString("starting_altitude");
+					String aspect = rst.getString("aspect");
+					String routeLength = rst.getString("route_length");
+					String descent = rst.getString("descent");
 
 					int sectorIdProblemPrev = 0;
 					int sectorIdProblemNext = 0;
@@ -1020,7 +1026,8 @@ public class BuldreinfoRepository {
 							canonical, id, lockedAdmin, lockedSuperadmin, nr, name, comment,
 							GradeHelper.intToString(s, grade),
 							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, l.getLat(),
-							l.getLng(), media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits);
+							l.getLng(), media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
+							trivia, startingAltitude, aspect, routeLength, descent);
 				}
 			}
 		}
@@ -2105,7 +2112,7 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
 		if (p.getId() > 0) {
 			fillProblemCoordinationsHistory(authUserId, p);
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId);
 				ps.setString(2, p.getName());
 				ps.setString(3, Strings.emptyToNull(p.getComment()));
@@ -2125,7 +2132,12 @@ public class BuldreinfoRepository {
 				ps.setBoolean(9, p.isLockedSuperadmin());
 				ps.setInt(10, p.getNr());
 				ps.setInt(11, p.getT().getId());
-				ps.setInt(12, p.getId());
+				ps.setString(12, p.getTrivia());
+				ps.setString(13, p.getStartingAltitude());
+				ps.setString(14, p.getAspect());
+				ps.setString(15, p.getRouteLength());
+				ps.setString(16, p.getDescent());
+				ps.setInt(17, p.getId());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
@@ -2133,7 +2145,7 @@ public class BuldreinfoRepository {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, description, grade, fa_date, latitude, longitude, locked_admin, locked_superadmin, nr, type_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, description, grade, fa_date, latitude, longitude, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, p.getName());
@@ -2154,6 +2166,11 @@ public class BuldreinfoRepository {
 				ps.setBoolean(10, p.isLockedSuperadmin());
 				ps.setInt(11, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
 				ps.setInt(12, p.getT().getId());
+				ps.setString(13, p.getTrivia());
+				ps.setString(14, p.getStartingAltitude());
+				ps.setString(15, p.getAspect());
+				ps.setString(16, p.getRouteLength());
+				ps.setString(17, p.getDescent());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {

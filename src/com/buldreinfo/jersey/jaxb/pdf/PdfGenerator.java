@@ -666,6 +666,7 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+		// TODO Include trivia + ice-fields? trivia, starting_altitude, aspect, route_length, descent
 		for (Sector s : sectors) {
 			final boolean showType = s.getMetadata().getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING);
 			document.newPage();
