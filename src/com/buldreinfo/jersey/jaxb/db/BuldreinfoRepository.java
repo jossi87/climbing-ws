@@ -1252,7 +1252,7 @@ public class BuldreinfoRepository {
 						String comment = rst.getString("description");
 						int grade = rst.getInt("grade");
 						String fa = rst.getString("fa");
-						LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
+						LatLng l = markerHelper.getLatLngWithoutShifting(rst.getDouble("latitude"), rst.getDouble("longitude"));
 						com.buldreinfo.jersey.jaxb.model.app.Problem p = new com.buldreinfo.jersey.jaxb.model.app.Problem(
 								sectorId, id, nr, name, comment, grade, fa, l.getLat(), l.getLng());
 						s.getProblems().add(p);
