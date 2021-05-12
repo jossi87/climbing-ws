@@ -70,6 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
+import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
@@ -1867,7 +1868,7 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						res = new UserMedia(reqId, name, picture);
 					}
-					int itId = rst.getInt("id");
+					int idMedia = rst.getInt("id");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -1879,8 +1880,9 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = name;
 					int problemId = rst.getInt("problem_id");
+					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					MediaProblem m = new MediaProblem(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata, embedUrl, problemId);
+					MediaProblem m = new MediaProblem(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
 					res.getMedia().add(m);
 				}
 			}
@@ -3062,7 +3064,7 @@ public class BuldreinfoRepository {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int itId = rst.getInt("id");
+					int idMedia = rst.getInt("id");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -3073,8 +3075,9 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
+					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata, embedUrl, inherited));
+					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited));
 				}
 			}
 		}
@@ -3088,7 +3091,7 @@ public class BuldreinfoRepository {
 			final boolean inherited = false;
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int itId = rst.getInt("id");
+					int idMedia = rst.getInt("id");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -3099,8 +3102,9 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
+					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(itId, pitch, width, height, tyId, null, 0, null, mediaMetadata, embedUrl, inherited));
+					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited));
 				}
 			}
 		}
@@ -3136,9 +3140,10 @@ public class BuldreinfoRepository {
 							}
 						}
 					}
+					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(idMedia, pitch, width, height, tyId, t, problemId, svgs, mediaMetadata, embedUrl, inherited));
+					media.add(new Media(idMedia, pitch, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, inherited));
 				}
 			}
 		}
@@ -3171,9 +3176,10 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
+					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					Media m = new Media(idMedia, pitch, width, height, tyId, null, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited);
+					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited);
 					if (!showHiddenMedia && optionalIdProblem != 0 && svgs != null
 							&& svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 						topoMedia.add(m);
@@ -3313,6 +3319,24 @@ public class BuldreinfoRepository {
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
 					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
+				}
+			}
+		}
+		return res;
+	}
+	
+	private List<MediaSvg> getMediaSvgs(int idMedia) throws SQLException {
+		List<MediaSvg> res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
+			ps.setInt(1, idMedia);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					if (res == null) {
+						res = new ArrayList<>();
+					}
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					res.add(new MediaSvg(id, idMedia, path));
 				}
 			}
 		}
