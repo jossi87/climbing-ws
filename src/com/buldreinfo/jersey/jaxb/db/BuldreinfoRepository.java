@@ -70,6 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
+import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
@@ -829,18 +830,27 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
-		List<MediaSvgElement> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
-			ps.setInt(1, idMedia);
+	public MediaSvg getMediaSvg(int id) throws SQLException {
+		MediaSvg res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
+			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					if (res == null) {
-						res = new ArrayList<>();
-					}
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					res.add(new MediaSvgElement(id, path));
+					int idMedia = rst.getInt("id");
+					String description = rst.getString("description");
+					int pitch = 0;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false);
+					res = new MediaSvg(m);
 				}
 			}
 		}
@@ -3101,7 +3111,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-
+	
 	private List<Media> getMediaGuestbook(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
@@ -3210,6 +3220,24 @@ public class BuldreinfoRepository {
 			return topoMedia;
 		}
 		return allMedia;
+	}
+
+	private List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
+		List<MediaSvgElement> res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
+			ps.setInt(1, idMedia);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					if (res == null) {
+						res = new ArrayList<>();
+					}
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					res.add(new MediaSvgElement(id, path));
+				}
+			}
+		}
+		return res;
 	}
 
 	private Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {

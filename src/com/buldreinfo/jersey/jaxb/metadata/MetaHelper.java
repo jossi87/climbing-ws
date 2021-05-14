@@ -368,9 +368,9 @@ public class MetaHelper {
 			p.setMetadata(new Metadata(c, setup, authUserId, "Permissions", og));
 		}
 		else if (m instanceof MediaSvg) {
-			Permissions p = (Permissions)m;
+			MediaSvg x = (MediaSvg)m;
 			OpenGraph og = getOg(setup, "/", null, requestedIdMedia);
-			p.setMetadata(new Metadata(c, setup, authUserId, "Media SVG", og));
+			x.setMetadata(new Metadata(c, setup, authUserId, "Media SVG", og));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);

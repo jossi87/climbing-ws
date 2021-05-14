@@ -5,13 +5,11 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class MediaSvg implements IMetadata {
-	private final int mediaId;
-	private final List<MediaSvgElement> elements;
+	private final Media m;
 	private Metadata metadata;
 	
-	public MediaSvg(int mediaId, List<MediaSvgElement> elements) {
-		this.mediaId = mediaId;
-		this.elements = elements;
+	public MediaSvg(Media m) {
+		this.m = m;
 	}
 
 	public Metadata getMetadata() {
@@ -22,11 +20,7 @@ public class MediaSvg implements IMetadata {
 		this.metadata = metadata;
 	}
 
-	public int getMediaId() {
-		return mediaId;
-	}
-
-	public List<MediaSvgElement> getElements() {
-		return elements;
+	public Media getM() {
+		return m;
 	}
 }
