@@ -50,6 +50,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
@@ -106,20 +107,6 @@ public class V2 {
 		}
 	}
 	
-	@PUT
-	@Path("/media")
-	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().moveMedia(authUserId, id, left);
-			c.setSuccess();
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@GET
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -221,7 +208,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -238,7 +225,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -295,6 +282,19 @@ public class V2 {
 				}
 			}
 			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/media/svg")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getMediaSvg(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			List<MediaSvg> res = c.getBuldreinfoRepo().getMediaSvgs(id);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -406,7 +406,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -423,7 +423,7 @@ public class V2 {
 				"Sitemap: " + setup.getUrl("/sitemap.txt"));
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
-
+	
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -569,7 +569,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/static/hse")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -585,7 +585,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/static/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -654,7 +654,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/static/sites/ice")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -688,7 +688,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/static/user/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -816,7 +816,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -832,7 +832,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -861,6 +861,20 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@PUT
+	@Path("/media")
+	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = getUserId(request);
+			Preconditions.checkArgument(id > 0);
+			c.getBuldreinfoRepo().moveMedia(authUserId, id, left);
+			c.setSuccess();
+			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

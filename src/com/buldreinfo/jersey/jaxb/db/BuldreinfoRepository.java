@@ -177,85 +177,6 @@ public class BuldreinfoRepository {
 		}
 	}
 	
-	public void moveMedia(int authUserId, int id, boolean left) throws SQLException {
-		boolean ok = false;
-		int areaId = 0;
-		int sectorId = 0;
-		int problemId = 0;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)) LEFT JOIN media_area ma ON (a.id=ma.area_id AND ma.media_id=?) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id")) {
-			ps.setInt(1, authUserId);
-			ps.setInt(2, id);
-			ps.setInt(3, id);
-			ps.setInt(4, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-					areaId = rst.getInt("area_id");
-					sectorId = rst.getInt("sector_id");
-					problemId = rst.getInt("problem_id");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-		
-		String table = null;
-		String column = null;
-		int columnId = 0;
-		if (areaId > 0) {
-			table = "media_area";
-			column = "area_id";
-			columnId = areaId;
-		} else if (sectorId > 0) {
-			table = "media_sector";
-			column = "sector_id";
-			columnId = sectorId;
-		} else {
-			table = "media_problem";
-			column = "problem_id";
-			columnId = problemId;
-		}
-		List<Integer> idMediaList = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -x.sorting DESC, m.id")) {
-			ps.setInt(1, columnId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					idMediaList.add(idMedia);
-				}
-			}
-		}
-		final int ixToMove = idMediaList.indexOf(id);
-		idMediaList.remove(ixToMove);
-		Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
-		if (left) {
-			if (ixToMove == 0) {
-				idMediaList.add(id); // Move from start to end
-			} else {
-				idMediaList.add(ixToMove-1, id);
-			}
-		} else {
-			if (ixToMove == idMediaList.size()) {
-				idMediaList.add(0, id); // Move from end to start
-			} else {
-				idMediaList.add(ixToMove+1, id);
-			}
-		}
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
-			int sorting = 0;
-			for (int idMedia : idMediaList) {
-				ps.setInt(1, ++sorting);
-				ps.setInt(2, columnId);
-				ps.setInt(3, idMedia);
-				ps.addBatch();
-			}
-			ps.executeBatch();
-		}
-
-		if (problemId > 0) {
-			fillActivity(problemId);
-		}
-	}
-
 	public void fillActivity(int idProblem) throws SQLException {
 		/**
 		 * Delete existing activities on problem
@@ -902,6 +823,24 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					res = new Point(rst.getInt("width"), rst.getInt("height"));
+				}
+			}
+		}
+		return res;
+	}
+
+	public List<MediaSvg> getMediaSvgs(int idMedia) throws SQLException {
+		List<MediaSvg> res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
+			ps.setInt(1, idMedia);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					if (res == null) {
+						res = new ArrayList<>();
+					}
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					res.add(new MediaSvg(id, idMedia, path));
 				}
 			}
 		}
@@ -2021,6 +1960,85 @@ public class BuldreinfoRepository {
 		return bytes;
 	}
 
+	public void moveMedia(int authUserId, int id, boolean left) throws SQLException {
+		boolean ok = false;
+		int areaId = 0;
+		int sectorId = 0;
+		int problemId = 0;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)) LEFT JOIN media_area ma ON (a.id=ma.area_id AND ma.media_id=?) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id")) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, id);
+			ps.setInt(3, id);
+			ps.setInt(4, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+					areaId = rst.getInt("area_id");
+					sectorId = rst.getInt("sector_id");
+					problemId = rst.getInt("problem_id");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+		
+		String table = null;
+		String column = null;
+		int columnId = 0;
+		if (areaId > 0) {
+			table = "media_area";
+			column = "area_id";
+			columnId = areaId;
+		} else if (sectorId > 0) {
+			table = "media_sector";
+			column = "sector_id";
+			columnId = sectorId;
+		} else {
+			table = "media_problem";
+			column = "problem_id";
+			columnId = problemId;
+		}
+		List<Integer> idMediaList = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -x.sorting DESC, m.id")) {
+			ps.setInt(1, columnId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					idMediaList.add(idMedia);
+				}
+			}
+		}
+		final int ixToMove = idMediaList.indexOf(id);
+		idMediaList.remove(ixToMove);
+		Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
+		if (left) {
+			if (ixToMove == 0) {
+				idMediaList.add(id); // Move from start to end
+			} else {
+				idMediaList.add(ixToMove-1, id);
+			}
+		} else {
+			if (ixToMove == idMediaList.size()) {
+				idMediaList.add(0, id); // Move from end to start
+			} else {
+				idMediaList.add(ixToMove+1, id);
+			}
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
+			int sorting = 0;
+			for (int idMedia : idMediaList) {
+				ps.setInt(1, ++sorting);
+				ps.setInt(2, columnId);
+				ps.setInt(3, idMedia);
+				ps.addBatch();
+			}
+			ps.executeBatch();
+		}
+
+		if (problemId > 0) {
+			fillActivity(problemId);
+		}
+	}
+
 	public Area setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(s.getIdRegion() > 0, "Insufficient credentials");
@@ -3042,7 +3060,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(usId > 0);
 		return usId;
 	}
-
+	
 	private Map<Integer, String> getFaAidNamesOnSector(int sectorId) throws SQLException {
 		Map<Integer, String> res = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
@@ -3083,7 +3101,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-	
+
 	private List<Media> getMediaGuestbook(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
@@ -3289,7 +3307,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
 	}
-
+	
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, pt.subtype problem_subtype, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL OR fa.user_id THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {
@@ -3319,24 +3337,6 @@ public class BuldreinfoRepository {
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
 					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
-				}
-			}
-		}
-		return res;
-	}
-	
-	private List<MediaSvg> getMediaSvgs(int idMedia) throws SQLException {
-		List<MediaSvg> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
-			ps.setInt(1, idMedia);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					if (res == null) {
-						res = new ArrayList<>();
-					}
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					res.add(new MediaSvg(id, idMedia, path));
 				}
 			}
 		}
