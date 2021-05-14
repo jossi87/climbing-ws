@@ -70,7 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
-import com.buldreinfo.jersey.jaxb.model.MediaSvg;
+import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
@@ -829,8 +829,8 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<MediaSvg> getMediaSvgs(int idMedia) throws SQLException {
-		List<MediaSvg> res = null;
+	public List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
+		List<MediaSvgElement> res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
 			ps.setInt(1, idMedia);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -840,7 +840,7 @@ public class BuldreinfoRepository {
 					}
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
-					res.add(new MediaSvg(id, idMedia, path));
+					res.add(new MediaSvgElement(id, path));
 				}
 			}
 		}
@@ -1819,7 +1819,7 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = name;
 					int problemId = rst.getInt("problem_id");
-					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					MediaProblem m = new MediaProblem(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
 					res.getMedia().add(m);
@@ -3093,7 +3093,7 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited));
 				}
@@ -3120,7 +3120,7 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited));
 				}
@@ -3158,7 +3158,7 @@ public class BuldreinfoRepository {
 							}
 						}
 					}
-					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					media.add(new Media(idMedia, pitch, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, inherited));
@@ -3194,7 +3194,7 @@ public class BuldreinfoRepository {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					List<MediaSvg> mediaSvgs = getMediaSvgs(idMedia);
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited);

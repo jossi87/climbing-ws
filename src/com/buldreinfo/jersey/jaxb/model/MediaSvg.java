@@ -1,25 +1,32 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class MediaSvg {
-	private final int id;
+import java.util.List;
+
+import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
+
+public class MediaSvg implements IMetadata {
 	private final int mediaId;
-	private final String path;
+	private final List<MediaSvgElement> elements;
+	private Metadata metadata;
 	
-	public MediaSvg(int id, int mediaId, String path) {
-		this.id = id;
+	public MediaSvg(int mediaId, List<MediaSvgElement> elements) {
 		this.mediaId = mediaId;
-		this.path = path;
+		this.elements = elements;
 	}
 
-	public int getId() {
-		return id;
+	public Metadata getMetadata() {
+		return metadata;
+	}
+
+	public void setMetadata(Metadata metadata) {
+		this.metadata = metadata;
 	}
 
 	public int getMediaId() {
 		return mediaId;
 	}
 
-	public String getPath() {
-		return path;
+	public List<MediaSvgElement> getElements() {
+		return elements;
 	}
 }

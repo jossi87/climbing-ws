@@ -20,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Media;
+import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
@@ -365,6 +366,11 @@ public class MetaHelper {
 			Permissions p = (Permissions)m;
 			OpenGraph og = getOg(setup, "/permissions", null, requestedIdMedia);
 			p.setMetadata(new Metadata(c, setup, authUserId, "Permissions", og));
+		}
+		else if (m instanceof MediaSvg) {
+			Permissions p = (Permissions)m;
+			OpenGraph og = getOg(setup, "/", null, requestedIdMedia);
+			p.setMetadata(new Metadata(c, setup, authUserId, "Media SVG", og));
 		}
 		else {
 			throw new RuntimeException("Invalid m=" + m);
