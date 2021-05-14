@@ -900,7 +900,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -928,6 +928,20 @@ public class V2 {
 			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup, fr);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@POST
+	@Path("/media/svg")
+	public Response postMediaSvg(@Context HttpServletRequest request, MediaSvg ms) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			c.getBuldreinfoRepo().upsertMediaSvg(authUserId, setup, ms);
+			c.setSuccess();
+			return Response.ok().build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

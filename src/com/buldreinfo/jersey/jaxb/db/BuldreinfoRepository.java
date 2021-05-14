@@ -2615,6 +2615,23 @@ public class BuldreinfoRepository {
 		fillActivity(co.getIdProblem());
 	}
 
+	public void upsertMediaSvg(int authUserId, Setup setup, MediaSvg ms) throws SQLException {
+		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
+		// Clear existing
+		try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM media_svg WHERE media_id=?")) {
+			ps.setInt(1, ms.getM().getId());
+			ps.execute();
+		}
+		// Insert
+		for (MediaSvgElement element : ms.getM().getMediaSvgs()) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, path) VALUES (?, ?)")) {
+				ps.setInt(1, ms.getM().getId());
+				ps.setString(2, element.getPath());
+				ps.execute();
+			}
+		}
+	}
+
 	public void upsertPermissionUser(int regionId, int authUserId, PermissionUser u) throws SQLException {
 		ensureSuperadminWriteRegion(authUserId, regionId);
 		// Upsert
@@ -3049,7 +3066,7 @@ public class BuldreinfoRepository {
 		}
 		return null;
 	}
-
+	
 	private int getExistingOrInsertUser(String name) throws SQLException, NoSuchAlgorithmException, IOException {
 		if (Strings.isNullOrEmpty(name)) {
 			return 1049; // Unknown
@@ -3111,7 +3128,7 @@ public class BuldreinfoRepository {
 		}
 		return media;
 	}
-	
+
 	private List<Media> getMediaGuestbook(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
@@ -3239,7 +3256,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	private Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		if (updateHits) {
@@ -3335,7 +3352,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
 	}
-	
+
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, pt.subtype problem_subtype, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL OR fa.user_id THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? ORDER BY p.nr DESC")) {

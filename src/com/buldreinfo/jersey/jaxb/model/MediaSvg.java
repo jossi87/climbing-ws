@@ -1,7 +1,5 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-import java.util.List;
-
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class MediaSvg implements IMetadata {
