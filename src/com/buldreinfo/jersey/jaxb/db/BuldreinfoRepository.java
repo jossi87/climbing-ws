@@ -43,6 +43,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.management.RuntimeErrorException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -2624,10 +2625,23 @@ public class BuldreinfoRepository {
 		}
 		// Insert
 		for (MediaSvgElement element : ms.getM().getMediaSvgs()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, path) VALUES (?, ?)")) {
-				ps.setInt(1, ms.getM().getId());
-				ps.setString(2, element.getPath());
-				ps.execute();
+			if (element.getT().equals(MediaSvgElement.TYPE.PATH)) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, path) VALUES (?, ?)")) {
+					ps.setInt(1, ms.getM().getId());
+					ps.setString(2, element.getPath());
+					ps.execute();
+				}
+			}
+			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL)) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y) VALUES (?, ?, ?)")) {
+					ps.setInt(1, ms.getM().getId());
+					ps.setInt(2, element.getRappelX());
+					ps.setInt(3, element.getRappelY());
+					ps.execute();
+				}
+			}
+			else {
+				throw new RuntimeException("Invalid type: " + element.getT());
 			}
 		}
 	}
@@ -3241,7 +3255,7 @@ public class BuldreinfoRepository {
 
 	private List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
 		List<MediaSvgElement> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path FROM media_svg ms WHERE ms.media_id=?")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y FROM media_svg ms WHERE ms.media_id=?")) {
 			ps.setInt(1, idMedia);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -3250,7 +3264,14 @@ public class BuldreinfoRepository {
 					}
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
-					res.add(new MediaSvgElement(id, path));
+					int rappelX = rst.getInt("rappel_x");
+					int rappelY = rst.getInt("rappel_y");
+					if (path != null) {
+						res.add(new MediaSvgElement(id, path));
+					}
+					else {
+						res.add(new MediaSvgElement(id, rappelX, rappelY));
+					}
 				}
 			}
 		}
