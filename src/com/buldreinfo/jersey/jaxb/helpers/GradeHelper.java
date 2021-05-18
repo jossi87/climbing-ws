@@ -155,7 +155,7 @@ public class GradeHelper {
 					return grades.get(key);
 				}
 			}
-			throw e;
+			throw new RuntimeException("Could not find grade: " + grade + " on idRegion=" + setup.getIdRegion());
 		}
 	}
 }
