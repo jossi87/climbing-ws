@@ -95,6 +95,7 @@ public class GradeHelper {
 			map.put(102, "WI3");
 			map.put(101, "WI2+");
 			map.put(100, "WI2");
+			map.put(0, "n/a");
 		}
 		else {
 			throw new RuntimeException("Invalid gradeSystem: " + setup.getGradeSystem());
