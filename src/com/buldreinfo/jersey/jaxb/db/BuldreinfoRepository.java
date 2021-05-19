@@ -43,7 +43,6 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-import javax.management.RuntimeErrorException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -2633,10 +2632,11 @@ public class BuldreinfoRepository {
 				}
 			}
 			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL)) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y) VALUES (?, ?, ?)")) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y, rappel_bolted) VALUES (?, ?, ?, ?)")) {
 					ps.setInt(1, ms.getM().getId());
 					ps.setInt(2, element.getRappelX());
 					ps.setInt(3, element.getRappelY());
+					ps.setBoolean(4, element.isRappelBolted());
 					ps.execute();
 				}
 			}
@@ -3255,7 +3255,7 @@ public class BuldreinfoRepository {
 
 	private List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
 		List<MediaSvgElement> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y FROM media_svg ms WHERE ms.media_id=?")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id=?")) {
 			ps.setInt(1, idMedia);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -3264,13 +3264,14 @@ public class BuldreinfoRepository {
 					}
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
-					int rappelX = rst.getInt("rappel_x");
-					int rappelY = rst.getInt("rappel_y");
 					if (path != null) {
 						res.add(new MediaSvgElement(id, path));
 					}
 					else {
-						res.add(new MediaSvgElement(id, rappelX, rappelY));
+						int rappelX = rst.getInt("rappel_x");
+						int rappelY = rst.getInt("rappel_y");
+						boolean rappelBolted = rst.getBoolean("rappel_bolted");
+						res.add(new MediaSvgElement(id, rappelX, rappelY, rappelBolted));
 					}
 				}
 			}

@@ -7,6 +7,7 @@ public class MediaSvgElement {
 	private final String path;
 	private final int rappelX;
 	private final int rappelY;
+	private final boolean rappelBolted;
 	
 	public MediaSvgElement(int id, String path) {
 		this.t = TYPE.PATH;
@@ -14,14 +15,16 @@ public class MediaSvgElement {
 		this.path = path;
 		this.rappelX = 0;
 		this.rappelY = 0;
+		this.rappelBolted = false;
 	}
 	
-	public MediaSvgElement(int id, int rappelX, int rappelY) {
+	public MediaSvgElement(int id, int rappelX, int rappelY, boolean rappelBolted) {
 		this.t = TYPE.RAPPEL;
 		this.id = id;
 		this.path = null;
 		this.rappelX = rappelX;
 		this.rappelY = rappelY;
+		this.rappelBolted = rappelBolted;
 	}
 	
 	public TYPE getT() {
@@ -42,5 +45,9 @@ public class MediaSvgElement {
 	
 	public int getRappelY() {
 		return rappelY;
+	}
+	
+	public boolean isRappelBolted() {
+		return rappelBolted;
 	}
 }
