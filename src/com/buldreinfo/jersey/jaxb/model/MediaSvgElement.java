@@ -1,13 +1,12 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 public class MediaSvgElement {
-	public enum TYPE { PATH, RAPPEL };
+	public enum TYPE { PATH, RAPPEL_BOLTED, RAPPEL_NOT_BOLTED };
 	private final TYPE t;
 	private final int id;
 	private final String path;
 	private final int rappelX;
 	private final int rappelY;
-	private final boolean rappelBolted;
 	
 	public MediaSvgElement(int id, String path) {
 		this.t = TYPE.PATH;
@@ -15,16 +14,14 @@ public class MediaSvgElement {
 		this.path = path;
 		this.rappelX = 0;
 		this.rappelY = 0;
-		this.rappelBolted = false;
 	}
 	
 	public MediaSvgElement(int id, int rappelX, int rappelY, boolean rappelBolted) {
-		this.t = TYPE.RAPPEL;
+		this.t = rappelBolted? TYPE.RAPPEL_BOLTED : TYPE.RAPPEL_NOT_BOLTED;
 		this.id = id;
 		this.path = null;
 		this.rappelX = rappelX;
 		this.rappelY = rappelY;
-		this.rappelBolted = rappelBolted;
 	}
 	
 	public TYPE getT() {
@@ -45,9 +42,5 @@ public class MediaSvgElement {
 	
 	public int getRappelY() {
 		return rappelY;
-	}
-	
-	public boolean isRappelBolted() {
-		return rappelBolted;
 	}
 }

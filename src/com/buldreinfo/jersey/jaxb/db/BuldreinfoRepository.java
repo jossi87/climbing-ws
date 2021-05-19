@@ -2631,12 +2631,12 @@ public class BuldreinfoRepository {
 					ps.execute();
 				}
 			}
-			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL)) {
+			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED) || element.getT().equals(MediaSvgElement.TYPE.RAPPEL_NOT_BOLTED)) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y, rappel_bolted) VALUES (?, ?, ?, ?)")) {
 					ps.setInt(1, ms.getM().getId());
 					ps.setInt(2, element.getRappelX());
 					ps.setInt(3, element.getRappelY());
-					ps.setBoolean(4, element.isRappelBolted());
+					ps.setBoolean(4, element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED));
 					ps.execute();
 				}
 			}
