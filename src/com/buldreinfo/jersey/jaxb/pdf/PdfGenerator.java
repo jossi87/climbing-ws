@@ -39,6 +39,7 @@ import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
+import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
@@ -99,8 +100,8 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2733;
-		int problemId = 3832;
+		int areaId = 2999;
+		int problemId = 9831;
 		String urlBase = "https://brattelinjer.no";
 		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
 		Files.createDirectories(dst.getParent());
@@ -182,7 +183,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 				for (Media m : area.getMedia()) {
-					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
 				}
 			}
 			document.add(table);
@@ -344,7 +345,7 @@ public class PdfGenerator implements AutoCloseable {
 						txt = m.getMediaMetadata().getDescription();
 					}
 				}
-				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), txt, svgs);
+				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), txt, m.getMediaSvgs(), svgs);
 			}
 			document.add(table);
 		}
@@ -641,16 +642,16 @@ public class PdfGenerator implements AutoCloseable {
 		return name;
 	}
 
-	private void writeMediaCell(PdfPTable table, int mediaId, int width, int height, String txt, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+	private void writeMediaCell(PdfPTable table, int mediaId, int width, int height, String txt, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
 		Image img = null;
-		if (svgs == null || svgs.isEmpty()) {
+		if ((mediaSvgs == null || mediaSvgs.isEmpty()) && (svgs == null || svgs.isEmpty())) {
 			if (mediaIdProcessed.add(mediaId)) {
 				URL url = new URL(GlobalFunctions.getUrlJpgToImage(mediaId));
 				img = Image.getInstance(url);
 			}
 		}
 		else {
-			Path topo = TopoGenerator.generateTopo(mediaId, width, height, svgs);
+			Path topo = TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs);
 			img = Image.getInstance(topo.toString());
 		}
 		if (img != null) {
@@ -715,7 +716,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (s.getMedia() != null) {
 				for (Media m : s.getMedia()) {
-					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getSvgs());
+					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
 				}
 			}
 			document.add(new Paragraph(" "));
