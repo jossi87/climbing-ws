@@ -12,6 +12,7 @@ public class Sector implements IMetadata {
 		private final boolean lockedSuperadmin;
 		private final int nr;
 		private final String name;
+		private final String rock;
 		private final String comment;
 		private final int gradeNumber;
 		private final String grade;
@@ -28,7 +29,7 @@ public class Sector implements IMetadata {
 		private final Type t;
 		private final boolean danger;
 		
-		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, int gradeNumber, String grade, String fa,
+		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
 				int numPitches,
 				boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t,
 				boolean danger) {
@@ -37,6 +38,7 @@ public class Sector implements IMetadata {
 			this.lockedSuperadmin = lockedSuperadmin;
 			this.nr = nr;
 			this.name = name;
+			this.rock = rock;
 			this.comment = comment;
 			this.gradeNumber = gradeNumber;
 			this.grade = grade;
@@ -56,6 +58,10 @@ public class Sector implements IMetadata {
 
 		public String getComment() {
 			return comment;
+		}
+		
+		public String getRock() {
+			return rock;
 		}
 
 		public String getFa() {
@@ -177,8 +183,8 @@ public class Sector implements IMetadata {
 		this.hits = hits;
 	}
 	
-	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
+	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
+		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 	
 	public int getAreaId() {
