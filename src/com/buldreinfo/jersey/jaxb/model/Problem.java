@@ -167,6 +167,7 @@ public class Problem implements IMetadata {
 	private final boolean lockedSuperadmin;
 	private final int nr;
 	private final String name;
+	private final String rock;
 	private final String comment;
 	private final String grade;
 	private final String originalGrade;
@@ -194,7 +195,7 @@ public class Problem implements IMetadata {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -216,6 +217,7 @@ public class Problem implements IMetadata {
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.nr = nr;
 		this.name = name;
+		this.rock = rock;
 		this.comment = comment;
 		this.grade = grade;
 		this.originalGrade = originalGrade;
@@ -260,6 +262,10 @@ public class Problem implements IMetadata {
 			ticks = new ArrayList<>();
 		}
 		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
+	}
+	
+	public String getRock() {
+		return rock;
 	}
 	
 	public int getAreaId() {
