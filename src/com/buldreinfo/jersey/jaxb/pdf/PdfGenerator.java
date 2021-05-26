@@ -690,6 +690,15 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "FA");
 			addTableCell(table, FONT_BOLD, "Note");
 			for (Sector.Problem p : s.getProblems()) {
+				String description = Strings.emptyToNull(p.getComment());
+				if (!Strings.isNullOrEmpty(p.getRock())) {
+					if (description == null) {
+						description = "Rock: " + p.getRock();
+					}
+					else {
+						description = "Rock: " + p.getRock() + ". " + description;
+					}
+				}
 				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()), null, p.isTicked());
 				String url = s.getMetadata().getCanonical();
 				url = url.substring(0, url.indexOf("/sector"));
@@ -705,8 +714,8 @@ public class PdfGenerator implements AutoCloseable {
 					appendStarIcons(note, p.getStars());
 					note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
 				}
-				if (!Strings.isNullOrEmpty(p.getComment())) {
-					note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + p.getComment(), FONT_ITALIC));
+				if (description != null) {
+					note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + description, FONT_ITALIC));
 				}
 				PdfPCell cell = new PdfPCell(note);
 				if (p.isTicked()) {
