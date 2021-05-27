@@ -1,15 +1,16 @@
 package com.buldreinfo.jersey.jaxb.leafletprint.beans;
 
 public class Marker {
+	public static enum ICON_TYPE { DEFAULT, PARKING, ROCK };
 	private final double lat;
 	private final double lng;
-	private final boolean isParking;
+	private final ICON_TYPE iconType;
 	private final String label;
 	
-	public Marker(double lat, double lng, boolean isParking, String label) {
+	public Marker(double lat, double lng, ICON_TYPE iconType, String label) {
 		this.lat = lat;
 		this.lng = lng;
-		this.isParking = isParking;
+		this.iconType = iconType;
 		this.label = label;
 	}
 
@@ -21,8 +22,8 @@ public class Marker {
 		return lng;
 	}
 
-	public boolean isParking() {
-		return isParking;
+	public ICON_TYPE getIconType() {
+		return iconType;
 	}
 
 	public String getLabel() {

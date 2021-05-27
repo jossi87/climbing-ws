@@ -49,7 +49,9 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -100,9 +102,9 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2999;
-		int problemId = 9831;
-		String urlBase = "https://brattelinjer.no";
+		int areaId = 2440;
+		int problemId = 2442;
+		String urlBase = "https://buldreinfo.com";
 		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
 		Files.createDirectories(dst.getParent());
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
@@ -470,7 +472,7 @@ public class PdfGenerator implements AutoCloseable {
 			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
-					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -524,14 +526,31 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
+			
+			String WITHOUT_ROCK = "<Without rock>";
+			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			for (Sector.Problem p : sector.getProblems()) {
 				if (p.getLat() > 0 && p.getLng() > 0) {
-					markers.add(new Marker(p.getLat(), p.getLng(), false, String.valueOf(p.getNr())));
+					problemsWithCoordinatesGroupedByRock.put(p.getRock() == null? WITHOUT_ROCK : p.getRock(), p);
+				}
+			}
+			if (!problemsWithCoordinatesGroupedByRock.isEmpty()) {
+				if (problemsWithCoordinatesGroupedByRock.keySet().size() == 1) {
+					for (Sector.Problem p : problemsWithCoordinatesGroupedByRock.values()) {
+						markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
+					}
+				}
+				else {
+					for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
+						Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
+						LatLng latLng = LeafletPrintGenerator.getCenter(problems);
+						markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
+					}
 				}
 			}
 			if (markers.size() >= 1 && markers.size() <= 8) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
-					markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -584,11 +603,11 @@ public class PdfGenerator implements AutoCloseable {
 			int defaultZoom = 15;
 
 			if (sector.getLat() > 0 && sector.getLng() > 0) {
-				markers.add(new Marker(sector.getLat(), sector.getLng(), true, null));
+				markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
 			}
 			if (problem.getLat() > 0 && problem.getLng() > 0) {
 				String name = removeIllegalChars(problem.getName());
-				markers.add(new Marker(problem.getLat(), problem.getLng(), false, name));
+				markers.add(new Marker(problem.getLat(), problem.getLng(), Marker.ICON_TYPE.DEFAULT, name));
 			}
 			String distance = null;
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -612,7 +631,7 @@ public class PdfGenerator implements AutoCloseable {
 					table.addCell(cell);
 					
 					// Also append photo map
-					markers = markers.stream().filter(m -> !m.isParking()).collect(Collectors.toList());
+					markers = markers.stream().filter(m -> !m.getIconType().equals(Marker.ICON_TYPE.PARKING)).collect(Collectors.toList());
 					if (!markers.isEmpty()) {
 						outlines.clear();
 						polylines.clear();

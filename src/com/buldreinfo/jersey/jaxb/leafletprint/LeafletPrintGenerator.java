@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -14,6 +15,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
+import com.buldreinfo.jersey.jaxb.model.LatLng;
+import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
@@ -38,6 +41,37 @@ public class LeafletPrintGenerator {
 			return meter/1000 + " km";
 		}
 		return meter + " meter";
+	}
+	public static LatLng getCenter(Collection<Sector.Problem> problems) {
+		double x = 0.0;
+	    double y = 0.0;
+	    double z = 0.0;
+
+	    for (Sector.Problem p : problems) {
+	        double lat = p.getLat() * Math.PI / 180;
+	        double lon = p.getLng() * Math.PI / 180;
+
+	        double a = Math.cos(lat) * Math.cos(lon);
+	        double b = Math.cos(lat) * Math.sin(lon);
+	        double c = Math.sin(lat);
+
+	        x += a;
+	        y += b;
+	        z += c;
+	    }
+
+	    x /= problems.size();
+	    y /= problems.size();
+	    z /= problems.size();
+
+	    double lon = Math.atan2(y, x);
+	    double hyp = Math.sqrt(x * x + y * y);
+	    double lat = Math.atan2(z, hyp);
+
+	    double newX = (lat * 180 / Math.PI);
+	    double newY = (lon * 180 / Math.PI);
+
+	    return new LatLng(newX, newY);
 	}
 	
 	public static Path takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
