@@ -527,26 +527,25 @@ public class PdfGenerator implements AutoCloseable {
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
 			
-			String WITHOUT_ROCK = "<Without rock>";
 			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
+			List<Sector.Problem> problemsWithoutRock = new ArrayList<>();
 			for (Sector.Problem p : sector.getProblems()) {
 				if (p.getLat() > 0 && p.getLng() > 0) {
-					problemsWithCoordinatesGroupedByRock.put(p.getRock() == null? WITHOUT_ROCK : p.getRock(), p);
+					if (p.getRock() != null) {
+						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
+					}
+					else {
+						problemsWithoutRock.add(p);
+					}
 				}
 			}
-			if (!problemsWithCoordinatesGroupedByRock.isEmpty()) {
-				if (problemsWithCoordinatesGroupedByRock.keySet().size() == 1) {
-					for (Sector.Problem p : problemsWithCoordinatesGroupedByRock.values()) {
-						markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
-					}
-				}
-				else {
-					for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
-						Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
-						LatLng latLng = LeafletPrintGenerator.getCenter(problems);
-						markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
-					}
-				}
+			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
+				Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
+				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
+				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
+			}
+			for (Sector.Problem p : problemsWithoutRock) {
+				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 8) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
