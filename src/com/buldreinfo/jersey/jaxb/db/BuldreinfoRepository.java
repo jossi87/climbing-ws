@@ -1290,7 +1290,7 @@ public class BuldreinfoRepository {
 		}
 		// Problems
 		List<Search> problems = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1 GROUP BY a.name, s.name, p.id, p.name, p.grade, p.locked_admin, p.locked_superadmin ORDER BY p.name, p.grade LIMIT 8")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin ORDER BY p.name, p.grade LIMIT 8")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1302,36 +1302,12 @@ public class BuldreinfoRepository {
 					String sectorName = rst.getString("sector_name");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
+					String rock = rst.getString("rock");
 					int grade = rst.getInt("grade");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
-					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName, "/problem/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
-				}
-			}
-		}
-		// Rocks
-		List<Search> rocks = new ArrayList<>();
-		if (setup.isBouldering()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND p.rock IS NOT NULL AND (p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin ORDER BY p.name, p.grade LIMIT 8")) {
-				ps.setInt(1, authUserId);
-				ps.setInt(2, setup.getIdRegion());
-				ps.setInt(3, setup.getIdRegion());
-				ps.setString(4, sr.getValue() + "%");
-				ps.setString(5, "% " + sr.getValue() + "%");
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						String areaName = rst.getString("area_name");
-						String sectorName = rst.getString("sector_name");
-						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						String rock = rst.getString("rock");
-						int grade = rst.getInt("grade");
-						boolean lockedAdmin = rst.getBoolean("locked_admin");
-						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-						int mediaId = rst.getInt("media_id");
-						rocks.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + " (rock: " + rock + ")", "/problem/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
-					}
+					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -1351,15 +1327,13 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Truncate result to max 8
-		while (areas.size() + sectors.size() + problems.size() + rocks.size() + users.size() > 8) {
+		while (areas.size() + sectors.size() + problems.size() + users.size() > 8) {
 			if (problems.size() > 5) {
 				problems.remove(problems.size() - 1);
 			} else if (areas.size() > 1) {
 				areas.remove(areas.size() - 1);
 			} else if (sectors.size() > 1) {
 				sectors.remove(sectors.size() - 1);
-			} else if (rocks.size() > 1) {
-				rocks.remove(rocks.size() - 1);
 			} else if (users.size() > 1) {
 				users.remove(users.size() - 1);
 			}
@@ -1372,9 +1346,6 @@ public class BuldreinfoRepository {
 		}
 		if (!problems.isEmpty()) {
 			res.addAll(problems);
-		}
-		if (!rocks.isEmpty()) {
-			res.addAll(rocks);
 		}
 		if (!users.isEmpty()) {
 			res.addAll(users);
