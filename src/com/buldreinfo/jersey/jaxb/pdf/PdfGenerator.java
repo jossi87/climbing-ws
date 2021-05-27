@@ -296,7 +296,7 @@ public class PdfGenerator implements AutoCloseable {
 			for (Tick tick : problem.getTicks()) {
 				addTableCell(table, FONT_REGULAR, tick.getDate());
 				Phrase grade = new Phrase(tick.getSuggestedGrade(), FONT_REGULAR);
-				appendStarIcons(grade, tick.getStars());
+				appendStarIcons(grade, tick.getStars(), true);
 				table.addCell(new PdfPCell(grade));
 				addTableCell(table, FONT_REGULAR, tick.getName());
 				addTableCell(table, FONT_REGULAR, tick.getComment());
@@ -379,8 +379,11 @@ public class PdfGenerator implements AutoCloseable {
 		table.addCell(cell);
 	} 
 
-	private void appendStarIcons(Phrase phrase, double stars) throws BadElementException, MalformedURLException, IOException {
-		if (stars == 0) {
+	private void appendStarIcons(Phrase phrase, double stars, boolean includeNoRating) throws BadElementException, MalformedURLException, IOException {
+		if (includeNoRating && stars == -1) {
+			phrase.add("No rating");
+		}
+		else if (stars == 0) {
 			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
 			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
 			phrase.add(new Chunk(getImageStarEmpty(), 0, 0));
@@ -732,7 +735,7 @@ public class PdfGenerator implements AutoCloseable {
 				addTableCell(table, FONT_REGULAR, p.getFa(), null, p.isTicked());
 				Phrase note = new Phrase();
 				if (p.getNumTicks() > 0) {
-					appendStarIcons(note, p.getStars());
+					appendStarIcons(note, p.getStars(), false);
 					note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
 				}
 				if (description != null) {
