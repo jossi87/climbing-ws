@@ -2189,32 +2189,33 @@ public class BuldreinfoRepository {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, description, grade, fa_date, latitude, longitude, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, latitude, longitude, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, p.getName());
-				ps.setString(4, Strings.emptyToNull(p.getComment()));
-				ps.setInt(5, GradeHelper.stringToInt(s, p.getOriginalGrade()));
-				ps.setDate(6, dt);
+				ps.setString(4, p.getRock());
+				ps.setString(5, Strings.emptyToNull(p.getComment()));
+				ps.setInt(6, GradeHelper.stringToInt(s, p.getOriginalGrade()));
+				ps.setDate(7, dt);
 				if (p.getLat() > 0) {
-					ps.setDouble(7, p.getLat());
-				} else {
-					ps.setNull(7, Types.DOUBLE);
-				}
-				if (p.getLng() > 0) {
-					ps.setDouble(8, p.getLng());
+					ps.setDouble(8, p.getLat());
 				} else {
 					ps.setNull(8, Types.DOUBLE);
 				}
-				ps.setBoolean(9, isLockedAdmin);
-				ps.setBoolean(10, p.isLockedSuperadmin());
-				ps.setInt(11, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(12, p.getT().getId());
-				ps.setString(13, p.getTrivia());
-				ps.setString(14, p.getStartingAltitude());
-				ps.setString(15, p.getAspect());
-				ps.setString(16, p.getRouteLength());
-				ps.setString(17, p.getDescent());
+				if (p.getLng() > 0) {
+					ps.setDouble(9, p.getLng());
+				} else {
+					ps.setNull(9, Types.DOUBLE);
+				}
+				ps.setBoolean(10, isLockedAdmin);
+				ps.setBoolean(11, p.isLockedSuperadmin());
+				ps.setInt(12, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(13, p.getT().getId());
+				ps.setString(14, p.getTrivia());
+				ps.setString(15, p.getStartingAltitude());
+				ps.setString(16, p.getAspect());
+				ps.setString(17, p.getRouteLength());
+				ps.setString(18, p.getDescent());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
