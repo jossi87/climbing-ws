@@ -102,9 +102,10 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
-		int areaId = 2440;
-		int problemId = 2442;
-		String urlBase = "https://buldreinfo.com";
+		int areaId = 2859;
+		int sectorId = 3112;
+		int problemId = 7085;
+		String urlBase = "https://buldreforer.tromsoklatring.no/";
 		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
 		Files.createDirectories(dst.getParent());
 		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
@@ -115,10 +116,12 @@ public class PdfGenerator implements AutoCloseable {
 			con.setRequestMethod("GET");
 			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
 			for (Area.Sector s : area.getSectors()) {
-				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
-				con = (HttpURLConnection)obj.openConnection();
-				con.setRequestMethod("GET");
-				sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
+				if (s.getId() == sectorId) {
+					obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
+					con = (HttpURLConnection)obj.openConnection();
+					con.setRequestMethod("GET");
+					sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
+				}
 			}
 			obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
 			con = (HttpURLConnection)obj.openConnection();
