@@ -1296,6 +1296,8 @@ public class BuldreinfoRepository {
 			ps.setInt(3, setup.getIdRegion());
 			ps.setString(4, sr.getValue() + "%");
 			ps.setString(5, "% " + sr.getValue() + "%");
+			ps.setString(6, sr.getValue() + "%");
+			ps.setString(7, "% " + sr.getValue() + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String areaName = rst.getString("area_name");
