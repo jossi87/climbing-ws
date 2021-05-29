@@ -143,7 +143,7 @@ public class V2 {
 				response = Response.ok().entity(a).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0, 0);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
@@ -349,7 +349,7 @@ public class V2 {
 				response = Response.ok().entity(res).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, 0, id);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
@@ -442,7 +442,7 @@ public class V2 {
 				response = Response.ok().entity(s).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id, 0);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
@@ -893,9 +893,9 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			a = c.getBuldreinfoRepo().setArea(setup, authUserId, a, multiPart);
+			Redirect res = c.getBuldreinfoRepo().setArea(setup, authUserId, a, multiPart);
 			c.setSuccess();
-			return Response.ok().entity(a).build();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -973,9 +973,9 @@ public class V2 {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			p = c.getBuldreinfoRepo().setProblem(authUserId, setup, p, multiPart);
+			Redirect res = c.getBuldreinfoRepo().setProblem(authUserId, setup, p, multiPart);
 			c.setSuccess();
-			return Response.ok().entity(p).build();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -1042,9 +1042,9 @@ public class V2 {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
-			s = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup, s, multiPart);
+			Redirect res = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup, s, multiPart);
 			c.setSuccess();
-			return Response.ok().entity(s).build();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

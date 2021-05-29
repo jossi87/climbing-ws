@@ -645,9 +645,13 @@ public class BuldreinfoRepository {
 		return authUserId;
 	}
 
-	public Redirect getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
+	public Redirect getCanonicalUrl(int idRegion, int idArea, int idSector, int idProblem) throws SQLException {
 		String sqlStr = null;
 		int id = 0;
+		if (idRegion > 0) {
+			sqlStr = "SELECT r.url FROM region r WHERE r.id=?";
+			id = idArea;
+		}
 		if (idArea > 0) {
 			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
 			id = idArea;
@@ -2053,7 +2057,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public Area setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Redirect setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(s.getIdRegion() > 0, "Insufficient credentials");
 		ensureAdminWriteRegion(authUserId, s.getIdRegion());
@@ -2147,12 +2151,12 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (a.isTrash()) {
-			return null;
+			return c.getBuldreinfoRepo().getCanonicalUrl(s.getIdRegion(), 0, 0, 0);
 		}
-		return getArea(s, authUserId, idArea);
+		return c.getBuldreinfoRepo().getCanonicalUrl(0, idArea, 0, 0);
 	}
 
-	public Problem setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
+	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
@@ -2357,12 +2361,12 @@ public class BuldreinfoRepository {
 		}
 		fillActivity(idProblem);
 		if (p.isTrash()) {
-			return null;
+			return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, p.getSectorId(), 0);
 		}
-		return getProblem(authUserId, s, idProblem, false);
+		return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, 0, idProblem);
 	}
 
-	public Sector setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		if (s.getId() > 0) {
@@ -2457,9 +2461,9 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (s.isTrash()) {
-			return null;
+			return c.getBuldreinfoRepo().getCanonicalUrl(0, s.getAreaId(), 0, 0);
 		}
-		return getSector(authUserId, orderByGrade, setup, idSector);
+		return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, idSector, 0);
 	}
 
 	public void setTick(int authUserId, Setup setup, Tick t) throws SQLException, ParseException {
