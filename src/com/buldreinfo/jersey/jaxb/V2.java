@@ -143,7 +143,7 @@ public class V2 {
 				response = Response.ok().entity(a).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0, 0);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
@@ -349,7 +349,7 @@ public class V2 {
 				response = Response.ok().entity(res).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, 0, id);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();
@@ -442,7 +442,7 @@ public class V2 {
 				response = Response.ok().entity(s).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id, 0);
+				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
 				response = Response.ok().entity(res).build();
 			}
 			c.setSuccess();

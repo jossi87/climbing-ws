@@ -645,13 +645,9 @@ public class BuldreinfoRepository {
 		return authUserId;
 	}
 
-	public Redirect getCanonicalUrl(int idRegion, int idArea, int idSector, int idProblem) throws SQLException {
+	public Redirect getCanonicalUrl(int idArea, int idSector, int idProblem) throws SQLException {
 		String sqlStr = null;
 		int id = 0;
-		if (idRegion > 0) {
-			sqlStr = "SELECT r.url FROM region r WHERE r.id=?";
-			id = idArea;
-		}
 		if (idArea > 0) {
 			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
 			id = idArea;
@@ -670,7 +666,7 @@ public class BuldreinfoRepository {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res = new Redirect(rst.getString("url"));
+					res = new Redirect(rst.getString("url"), 0, 0, 0);
 				}
 			}
 		}
@@ -2151,9 +2147,9 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (a.isTrash()) {
-			return c.getBuldreinfoRepo().getCanonicalUrl(s.getIdRegion(), 0, 0, 0);
+			return new Redirect(null, 0, 0, 0);
 		}
-		return c.getBuldreinfoRepo().getCanonicalUrl(0, idArea, 0, 0);
+		return new Redirect(null, idArea, 0, 0);
 	}
 
 	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
@@ -2361,9 +2357,9 @@ public class BuldreinfoRepository {
 		}
 		fillActivity(idProblem);
 		if (p.isTrash()) {
-			return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, p.getSectorId(), 0);
+			return new Redirect(null, 0, p.getSectorId(), 0);
 		}
-		return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, 0, idProblem);
+		return new Redirect(null, 0, 0, idProblem);
 	}
 
 	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -2461,9 +2457,9 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (s.isTrash()) {
-			return c.getBuldreinfoRepo().getCanonicalUrl(0, s.getAreaId(), 0, 0);
+			return new Redirect(null, s.getAreaId(), 0, 0);
 		}
-		return c.getBuldreinfoRepo().getCanonicalUrl(0, 0, idSector, 0);
+		return new Redirect(null, 0, idSector, 0);
 	}
 
 	public void setTick(int authUserId, Setup setup, Tick t) throws SQLException, ParseException {
