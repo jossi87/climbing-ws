@@ -2146,6 +2146,9 @@ public class BuldreinfoRepository {
 				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, idGuestbook, m, multiPart, now);
 			}
 		}
+		if (a.isTrash()) {
+			return null;
+		}
 		return getArea(s, authUserId, idArea);
 	}
 
@@ -2353,6 +2356,9 @@ public class BuldreinfoRepository {
 			}
 		}
 		fillActivity(idProblem);
+		if (p.isTrash()) {
+			return null;
+		}
 		return getProblem(authUserId, s, idProblem, false);
 	}
 
@@ -2449,6 +2455,9 @@ public class BuldreinfoRepository {
 				final int idGuestbook = 0;
 				addNewMedia(authUserId, idProblem, pitch, idSector, idArea, idGuestbook, m, multiPart, now);
 			}
+		}
+		if (s.isTrash()) {
+			return null;
 		}
 		return getSector(authUserId, orderByGrade, setup, idSector);
 	}
