@@ -489,7 +489,7 @@ public class BuldreinfoRepository {
 					if (media.isEmpty()) {
 						media = null;
 					}
-					a = new Area(regionId, canonical, reqId, lockedAdmin, lockedSuperadmin, forDevelopers, name, comment, l.getLat(), l.getLng(), -1, -1, media, null, hits);
+					a = new Area(regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, name, comment, l.getLat(), l.getLng(), -1, -1, media, null, hits);
 				}
 			}
 		}
@@ -587,7 +587,7 @@ public class BuldreinfoRepository {
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					int hits = rst.getInt("hits");
-					res.add(new Area(idRegion, canonical, id, lockedAdmin, lockedSuperadmin, forDevelopers, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, hits));
+					res.add(new Area(idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, hits));
 				}
 			}
 		}
@@ -981,7 +981,7 @@ public class BuldreinfoRepository {
 					p = new Problem(areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName,
 							sectorL.getLat(), sectorL.getLng(), sectorPolygonCoords, sectorPolyline,
 							sectorIdProblemPrev, sectorIdProblemNext,
-							canonical, id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
+							canonical, id, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							GradeHelper.intToString(s, grade),
 							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, l.getLat(),
 							l.getLng(), media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
@@ -2061,7 +2061,7 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = a.isLockedSuperadmin()? false : a.isLockedAdmin();
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(authUserId, a.getId());
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=? WHERE id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=?, trash=?, trash_by=? WHERE id=?")) {
 				ps.setString(1, a.getName());
 				ps.setString(2, Strings.emptyToNull(a.getComment()));
 				if (a.getLat() > 0) {
@@ -2077,7 +2077,9 @@ public class BuldreinfoRepository {
 				ps.setBoolean(5, isLockedAdmin);
 				ps.setBoolean(6, a.isLockedSuperadmin());
 				ps.setBoolean(7, a.isForDevelopers());
-				ps.setInt(8, a.getId());
+				ps.setTimestamp(8, a.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setInt(9, a.isTrash()? authUserId : 0);
+				ps.setInt(10, a.getId());
 				ps.execute();
 			}
 			idArea = a.getId();
@@ -2155,7 +2157,7 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
 		if (p.getId() > 0) {
 			fillProblemCoordinationsHistory(authUserId, p);
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, trash=?, trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId);
 				ps.setString(2, p.getName());
 				ps.setString(3, p.getRock());
@@ -2181,7 +2183,9 @@ public class BuldreinfoRepository {
 				ps.setString(15, p.getAspect());
 				ps.setString(16, p.getRouteLength());
 				ps.setString(17, p.getDescent());
-				ps.setInt(18, p.getId());
+				ps.setTimestamp(18, p.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setInt(19, p.isTrash()? authUserId : 0);
+				ps.setInt(20, p.getId());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
@@ -2356,7 +2360,7 @@ public class BuldreinfoRepository {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		if (s.getId() > 0) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=?, s.trash=?, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
 				ps.setString(1, s.getName());
 				ps.setString(2, Strings.emptyToNull(s.getComment()));
 				if (s.getLat() > 0) {
@@ -2373,8 +2377,10 @@ public class BuldreinfoRepository {
 				ps.setBoolean(6, s.isLockedSuperadmin());
 				ps.setString(7, Strings.emptyToNull(s.getPolygonCoords()));
 				ps.setString(8, Strings.emptyToNull(s.getPolyline()));
-				ps.setInt(9, s.getId());
-				ps.setInt(10, authUserId);
+				ps.setTimestamp(9, s.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setInt(10, s.isTrash()? authUserId : 0);
+				ps.setInt(11, s.getId());
+				ps.setInt(12, authUserId);
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
@@ -3323,7 +3329,7 @@ public class BuldreinfoRepository {
 					if (media.isEmpty()) {
 						media = null;
 					}
-					s = new Sector(orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, canonical, reqId, lockedAdmin, lockedSuperadmin, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, media, null, hits);
+					s = new Sector(orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, media, null, hits);
 				}
 			}
 		}

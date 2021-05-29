@@ -163,6 +163,7 @@ public class Problem implements IMetadata {
 	private final int sectorIdProblemNext;
 	private final String canonical;
 	private final int id;
+	private final boolean trash;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final int nr;
@@ -195,7 +196,7 @@ public class Problem implements IMetadata {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -213,6 +214,7 @@ public class Problem implements IMetadata {
 		this.sectorIdProblemNext = sectorIdProblemNext;
 		this.canonical = canonical;
 		this.id = id;
+		this.trash = trash;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.nr = nr;
@@ -239,6 +241,10 @@ public class Problem implements IMetadata {
 		this.aspect = aspect;
 		this.routeLength = routeLength;
 		this.descent = descent;
+	}
+	
+	public boolean isTrash() {
+		return trash;
 	}
 	
 	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {

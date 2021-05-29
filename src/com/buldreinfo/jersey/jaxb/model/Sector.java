@@ -148,6 +148,7 @@ public class Sector implements IMetadata {
 	private final String areaName;
 	private final String canonical;
 	private final int id;
+	private final boolean trash;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final String name;
@@ -162,7 +163,7 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -170,6 +171,7 @@ public class Sector implements IMetadata {
 		this.areaName = areaName;
 		this.canonical = canonical;
 		this.id = id;
+		this.trash = trash;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin; 
 		this.name = name;
@@ -185,6 +187,10 @@ public class Sector implements IMetadata {
 	
 	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
 		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
+	}
+	
+	public boolean isTrash() {
+		return trash;
 	}
 	
 	public int getAreaId() {

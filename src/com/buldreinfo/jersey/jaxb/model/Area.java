@@ -97,6 +97,7 @@ public class Area implements IMetadata {
 	private final int regionId;
 	private final String canonical;
 	private final int id;
+	private final boolean trash;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final boolean forDevelopers;
@@ -113,10 +114,11 @@ public class Area implements IMetadata {
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
+		this.trash = trash;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.forDevelopers = forDevelopers;
@@ -146,6 +148,10 @@ public class Area implements IMetadata {
 	
 	public long getHits() {
 		return hits;
+	}
+	
+	public boolean isTrash() {
+		return trash;
 	}
 	
 	public int getId() {
