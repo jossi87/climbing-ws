@@ -1656,7 +1656,7 @@ public class BuldreinfoRepository {
 	}
 
 	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
-		ensureSuperadminWriteRegion(authUserId, setup.getIdRegion());
+		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		Trash res = new Trash();
 		String sqlStr = "SELECT a.id area_id, null sector_id, null problem_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
 				+ " FROM (((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN user u ON a.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
