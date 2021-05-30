@@ -1687,7 +1687,7 @@ public class BuldreinfoRepository {
 					int problemId = rst.getInt("problem_id");
 					String name = rst.getString("name");
 					String when = rst.getString("trash");
-					String by = rst.getString("by");
+					String by = rst.getString("trash_by");
 					res.addTrashItem(areaId, sectorId, problemId, name, when, by);
 				}
 			}
