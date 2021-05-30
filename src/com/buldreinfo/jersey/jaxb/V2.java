@@ -871,11 +871,16 @@ public class V2 {
 
 	@PUT
 	@Path("/media")
-	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left) throws ExecutionException, IOException {
+	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left, @QueryParam("toIdSector") int toIdSector, @QueryParam("toIdProblem") int toIdProblem) throws ExecutionException, IOException {
+		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector > 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem > 0),
+				"Invalid arguments");
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().moveMedia(authUserId, id, left);
+			c.getBuldreinfoRepo().moveMedia(authUserId, id, left, toIdSector, toIdProblem);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

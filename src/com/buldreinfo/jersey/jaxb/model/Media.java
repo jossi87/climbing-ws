@@ -15,8 +15,27 @@ public class Media {
 	private final MediaMetadata mediaMetadata;
 	private final String embedUrl;
 	private final boolean inherited;
+	private final int enableMoveToIdSector;
+	private final int enableMoveToIdProblem;
+	
+	public Media(int id, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
+		this.id = id;
+		this.pitch = pitch;
+		this.width = width;
+		this.height = height;
+		this.idType = idType;
+		this.t = t;
+		this.mediaSvgs = mediaSvgs;
+		this.svgProblemId = svgProblemId;
+		this.svgs = svgs;
+		this.mediaMetadata = mediaMetadata;
+		this.embedUrl = embedUrl;
+		this.inherited = false;
+		this.enableMoveToIdSector = 0;
+		this.enableMoveToIdProblem = 0;
+	}
 
-	public Media(int id, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited) {
+	public Media(int id, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) {
 		this.id = id;
 		this.pitch = pitch;
 		this.width = width;
@@ -29,6 +48,8 @@ public class Media {
 		this.mediaMetadata = mediaMetadata;
 		this.embedUrl = embedUrl;
 		this.inherited = inherited;
+		this.enableMoveToIdSector = enableMoveToIdSector;
+		this.enableMoveToIdProblem = enableMoveToIdProblem;
 	}
 	
 	public String getEmbedUrl() {
@@ -77,5 +98,13 @@ public class Media {
 	
 	public boolean isInherited() {
 		return inherited;
+	}
+	
+	public int getEnableMoveToIdProblem() {
+		return enableMoveToIdProblem;
+	}
+	
+	public int getEnableMoveToIdSector() {
+		return enableMoveToIdSector;
 	}
 }
