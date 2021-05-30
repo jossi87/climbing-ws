@@ -89,6 +89,7 @@ import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -1498,7 +1499,7 @@ public class BuldreinfoRepository {
 		logger.debug("getProblemList(authUserId={}, setup={}) - toc={} - duration={}", authUserId, setup, toc, stopwatch);
 		return toc;
 	}
-
+	
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {
 		final int take = 200;
 		int numTicks = 0;
@@ -1651,6 +1652,46 @@ public class BuldreinfoRepository {
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		res.getAreas().sort(Comparator.comparing(Todo.Area::getName));
 		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
+		return res;
+	}
+
+	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
+		ensureSuperadminWriteRegion(authUserId, setup.getIdRegion());
+		Trash res = new Trash();
+		String sqlStr = "SELECT a.id area_id, null sector_id, null problem_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				+ " FROM (((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN user u ON a.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+				+ " WHERE a.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, null)=1"
+				+ " UNION ALL"
+				+ " SELECT null area_id, s.id sector_id, null problem_id, CONCAT(s.name,' (',a.name,')') name, DATE_FORMAT(s.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				+ " FROM ((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user u ON s.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+				+ " WHERE s.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, null)=1"
+				+ " UNION ALL"
+				+ " SELECT null area_id, null sector_id, p.id problem_id, CONCAT(p.name,' (',a.name,'/',s.name,')') name, DATE_FORMAT(p.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				+ " FROM (((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN user u ON p.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+				+ " WHERE p.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, null)=1"
+				+ " ORDER BY trash DESC";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, setup.getIdRegion());
+			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(4, authUserId);
+			ps.setInt(5, setup.getIdRegion());
+			ps.setInt(6, setup.getIdRegion());
+			ps.setInt(7, authUserId);
+			ps.setInt(8, setup.getIdRegion());
+			ps.setInt(9, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areaId = rst.getInt("area_id");
+					int sectorId = rst.getInt("sector_id");
+					int problemId = rst.getInt("problem_id");
+					String name = rst.getString("name");
+					String when = rst.getString("trash");
+					String by = rst.getString("by");
+					res.addTrashItem(areaId, sectorId, problemId, name, when, by);
+				}
+			}
+		}
 		return res;
 	}
 
@@ -1971,7 +2012,7 @@ public class BuldreinfoRepository {
 		}
 		return bytes;
 	}
-
+	
 	public void moveMedia(int authUserId, int id, boolean left, int toIdSector, int toIdProblem) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
@@ -2585,6 +2626,28 @@ public class BuldreinfoRepository {
 		}
 	}
 
+	public void trashRecover(Setup setup, int authUserId, int idArea, int idSector, int idProblem) throws SQLException {
+		ensureSuperadminWriteRegion(authUserId, setup.getIdRegion());
+		String sqlStr = null;
+		int id = 0;
+		if (idArea > 0) {
+			sqlStr = "UPDATE area SET trash=NULL, trash_by=NULL WHERE id=?";
+			id = idArea;
+		}
+		else if (idSector > 0) {
+			sqlStr = "UPDATE sector SET trash=NULL, trash_by=NULL WHERE id=?";
+			id = idSector;
+		}
+		else if (idProblem > 0) {
+			sqlStr = "UPDATE problem SET trash=NULL, trash_by=NULL WHERE id=?";
+			id = idProblem;
+		}
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, id);
+			ps.execute();
+		}
+	}
+
 	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
@@ -3113,7 +3176,7 @@ public class BuldreinfoRepository {
 			}
 		}
 	}
-
+	
 	private String getDateTaken(Path p) {
 		if (Files.exists(p) && p.getFileName().toString().toLowerCase().endsWith(".jpg")) {
 			try {
@@ -3163,7 +3226,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	private List<Media> getMediaArea(int id, boolean inherited) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
@@ -3298,7 +3361,7 @@ public class BuldreinfoRepository {
 		}
 		return allMedia;
 	}
-
+	
 	private List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
 		List<MediaSvgElement> res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id=?")) {
@@ -3324,7 +3387,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	private Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		if (updateHits) {

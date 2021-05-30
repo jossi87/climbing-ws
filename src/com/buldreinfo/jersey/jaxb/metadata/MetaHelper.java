@@ -32,6 +32,7 @@ import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserMedia;
 import com.google.common.base.Preconditions;
@@ -309,6 +310,12 @@ public class MetaHelper {
 					setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/toc", null, requestedIdMedia);
 			toc.setMetadata(new Metadata(c, setup, authUserId, "Table of Contents", og).setDescription(description));
+		}
+		else if (m instanceof Trash) {
+			Trash t = (Trash)m;
+			String description = t.getTrash().size() + " items in trash";
+			OpenGraph og = getOg(setup, "/trash", null, requestedIdMedia);
+			t.setMetadata(new Metadata(c, setup, authUserId, "Trash", og).setDescription(description));
 		}
 		else if (m instanceof Sites) {
 			Sites s = (Sites)m;
