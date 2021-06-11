@@ -3020,6 +3020,7 @@ public class BuldreinfoRepository {
 	}
 
 	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix, boolean setDateTakenWHAndChecksum) throws IOException, InterruptedException, SQLException {
+		logger.debug("createScaledImages(id={}) - initialized", id);
 		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
@@ -3033,19 +3034,19 @@ public class BuldreinfoRepository {
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
 		BufferedImage bScaled = Scalr.resize(bOriginal, 1920, Scalr.OP_ANTIALIAS);
-		logger.debug("createScaledImages(original={}) - jpg={}, bOriginal={}, bScaled={}", original, jpg, bOriginal, bScaled);
 		ImageIO.write(bScaled, "jpg", jpg.toFile());
 		bOriginal.flush();
 		bOriginal = null;
 		bScaled.flush();
 		bScaled = null;
 		Preconditions.checkArgument(Files.exists(jpg));
+		logger.debug("createScaledImages(id={}) - scaled jpg saved", id);
 		// Scaled WebP
 		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"" };
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
-		logger.debug("createScaledImages(id={}) - IO done", id);
+		logger.debug("createScaledImages(id={}) - scaled webp saved", id);
 		if (setDateTakenWHAndChecksum) {
 			final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
 
