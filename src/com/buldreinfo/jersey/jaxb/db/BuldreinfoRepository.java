@@ -3042,7 +3042,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(Files.exists(jpg));
 		logger.debug("createScaledImages(id={}) - scaled jpg saved", id);
 		// Scaled WebP
-		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"" };
+		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"" };
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
