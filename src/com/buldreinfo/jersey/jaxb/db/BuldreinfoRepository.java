@@ -109,7 +109,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -3033,7 +3032,7 @@ public class BuldreinfoRepository {
 		BufferedImage bOriginal = ImageIO.read(original.toFile());
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
-		BufferedImage bScaled = Scalr.resize(bOriginal, 1920, Scalr.OP_ANTIALIAS);
+		BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
 		ImageIO.write(bScaled, "jpg", jpg.toFile());
 		bOriginal.flush();
 		bOriginal = null;
@@ -3048,14 +3047,12 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
 		logger.debug("createScaledImages(id={}) - scaled webp saved", id);
 		if (setDateTakenWHAndChecksum) {
-			final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
-
 			/**
 			 * Final DB
 			 */
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?")) {
 				ps.setString(1, dateTaken);
-				ps.setInt(2, crc32);
+				ps.setInt(2, GlobalFunctions.getCrc32(webp));
 				ps.setInt(3, width);
 				ps.setInt(4, height);
 				ps.setInt(5, id);

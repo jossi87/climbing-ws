@@ -15,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.base.Preconditions;
+import com.google.common.hash.Hashing;
 
 public class GlobalFunctions {
 	private static final Logger logger = LogManager.getLogger();
@@ -54,6 +55,10 @@ public class GlobalFunctions {
 	
 	public static Path getPathTemp() throws IOException {
 		return getPathRoot().resolve("temp");
+	}
+	
+	public static int getCrc32(Path p) throws IOException {
+		return com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt();
 	}
 	
 	public static Path getPathWebUsers() throws IOException {

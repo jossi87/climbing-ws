@@ -22,13 +22,12 @@ import javax.imageio.ImageIO;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
@@ -163,9 +162,8 @@ public class FixMedia {
 							Process p = new ProcessBuilder().inheritIO().command(commands).start();
 							p.waitFor();
 							// Set checksum
-							HashCode crc32 = com.google.common.io.Files.asByteSource(webm.toFile()).hash(Hashing.crc32());
 							PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
-							ps2.setInt(1, crc32.asInt());
+							ps2.setInt(1, GlobalFunctions.getCrc32(webm));
 							ps2.setInt(2, id);
 							ps2.execute();
 							ps2.close();
@@ -209,29 +207,40 @@ public class FixMedia {
 							Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
 						}
 					}
-					else {
-						if (width == 0 || height == 0) {
-							BufferedImage b = ImageIO.read(original.toFile());
-							ps = c.prepareStatement("UPDATE media SET width=?, height=? WHERE id=?");
-							ps.setInt(1, b.getWidth());
-							ps.setInt(2, b.getHeight());
-							ps.setInt(3, id);
-							ps.execute();
-							ps.close();
-							b.flush();
-						}
-					}
-					if (!Files.exists(jpg) || Files.size(jpg) == 0) {
-						warnings.add(jpg.toString() + " does not exist (or is 0 bytes)");
-					}
-					else if (!Files.exists(webp) || Files.size(webp) == 0) {
-						logger.debug("Create " + webp);
+					else if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
+						Files.deleteIfExists(jpg);
+						Files.deleteIfExists(webp);
+						Files.createDirectories(jpg.getParent());
 						Files.createDirectories(webp.getParent());
-						// Scaled WebP
-						String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -af -m 6 -o \"" + webp.toString() + "\"";
+						
+						// IO JPG
+						BufferedImage bOriginal = ImageIO.read(original.toFile());
+						final int newWidth = bOriginal.getWidth();
+						final int newHeight = bOriginal.getHeight();
+						BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
+						ImageIO.write(bScaled, "jpg", jpg.toFile());
+						bOriginal.flush();
+						bOriginal = null;
+						bScaled.flush();
+						bScaled = null;
+						Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0);
+						logger.debug(jpg.toString() + " saved");
+						
+						// IO WEBP
+						String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
 						Process process = Runtime.getRuntime().exec(cmd);
 						process.waitFor();
 						Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+						logger.debug(webp.toString() + " saved");
+						
+						// DB
+						try (PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=?, width=?, height=? WHERE id=?")) {
+							ps2.setInt(1, GlobalFunctions.getCrc32(webp));
+							ps2.setInt(2, newWidth);
+							ps2.setInt(3, newHeight);
+							ps2.setInt(4, id);
+							ps2.execute();
+						}
 					}
 				}
 			}
