@@ -134,115 +134,119 @@ public class FixMedia {
 			final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
 			final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");
 			final Path webp = root.resolve("web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
-			if (embedUrl != null) {
-				Preconditions.checkNotNull(suffix, "suffix cannot be null");
-				// Only download original if embedded video
-				if (!Files.exists(original)) {
-					Files.createDirectories(original.getParent());
-					String[] commands = {LOCAL_YOUTUBE_DL_PATH, embedUrl, "-o", original.toString()};
-					Process p = new ProcessBuilder().inheritIO().command(commands).start();
-					p.waitFor();
-					logger.debug("Embedded video " + embedUrl + " downloaded to " + original.toString());
-				}
-				if (!Files.exists(original) || Files.size(original) == 0) {
-					warnings.add(original.toString() + " does not exist (or is 0 bytes)");
-				}
-			}
-			else {
-				if (!Files.exists(original) || Files.size(original) == 0) {
-					warnings.add(original.toString() + " does not exist (or is 0 bytes)");
+			try {
+				if (embedUrl != null) {
+					Preconditions.checkNotNull(suffix, "suffix cannot be null");
+					// Only download original if embedded video
+					if (!Files.exists(original)) {
+						Files.createDirectories(original.getParent());
+						String[] commands = {LOCAL_YOUTUBE_DL_PATH, embedUrl, "-o", original.toString()};
+						Process p = new ProcessBuilder().inheritIO().command(commands).start();
+						p.waitFor();
+						logger.debug("Embedded video " + embedUrl + " downloaded to " + original.toString());
+					}
+					if (!Files.exists(original) || Files.size(original) == 0) {
+						warnings.add(original.toString() + " does not exist (or is 0 bytes)");
+					}
 				}
 				else {
-					if (isMovie) {
-						if (!Files.exists(webm) || Files.size(webm) == 0) {
-							logger.debug("Create " + webm);
-							Files.deleteIfExists(webm);
-							Files.createDirectories(webm.getParent());
-							String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
-							Process p = new ProcessBuilder().inheritIO().command(commands).start();
-							p.waitFor();
-							// Set checksum
-							PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
-							ps2.setInt(1, GlobalFunctions.getCrc32(webm));
-							ps2.setInt(2, id);
-							ps2.execute();
-							ps2.close();
-						}
-						if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-							Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
-							logger.debug("Create " + mp4);
-							Files.deleteIfExists(mp4);
-							Files.createDirectories(mp4.getParent());
-							String[] commands = {LOCAL_FFMPEG_PATH, "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-							Process p = new ProcessBuilder().inheritIO().command(commands).start();
-							p.waitFor();
-						}
-						if (!Files.exists(jpg) || Files.size(jpg) == 0) {
-							logger.debug("Create " + jpg);
-							Files.createDirectories(jpg.getParent());
-							Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
-							Files.createDirectories(tmp.getParent());
-							String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-							Process p = new ProcessBuilder().inheritIO().command(commands).start();
-							p.waitFor();
-							Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
-
-							BufferedImage b = ImageIO.read(tmp.toFile());
-							Graphics g = b.getGraphics();
-							g.setFont(new Font("Arial", Font.BOLD, 40));
-							final String str = "VIDEO";
-							final int x = (b.getWidth()/2)-70;
-							final int y = (b.getHeight()/2)-20;
-							FontMetrics fm = g.getFontMetrics();
-							Rectangle2D rect = fm.getStringBounds(str, g);
-							g.setColor(Color.WHITE);
-							g.fillRect(x,
-									y - fm.getAscent(),
-									(int) rect.getWidth(),
-									(int) rect.getHeight());
-							g.setColor(Color.BLUE);
-							g.drawString(str, x, y);
-							g.dispose();
-							ImageIO.write(b, "jpg", jpg.toFile());
-							Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
-						}
+					if (!Files.exists(original) || Files.size(original) == 0) {
+						warnings.add(original.toString() + " does not exist (or is 0 bytes)");
 					}
-					else if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
-						Files.deleteIfExists(jpg);
-						Files.deleteIfExists(webp);
-						Files.createDirectories(jpg.getParent());
-						Files.createDirectories(webp.getParent());
-						
-						// IO JPG
-						BufferedImage bOriginal = ImageIO.read(original.toFile());
-						final int newWidth = bOriginal.getWidth();
-						final int newHeight = bOriginal.getHeight();
-						BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
-						ImageIO.write(bScaled, "jpg", jpg.toFile());
-						bOriginal.flush();
-						bOriginal = null;
-						bScaled.flush();
-						bScaled = null;
-						Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0);
-						logger.debug(jpg.toString() + " saved");
-						
-						// IO WEBP
-						String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
-						Process process = Runtime.getRuntime().exec(cmd);
-						process.waitFor();
-						Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
-						logger.debug(webp.toString() + " saved");
-						
-						// DB
-						try (PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=?, width=?, height=? WHERE id=?")) {
-							ps2.setInt(1, GlobalFunctions.getCrc32(webp));
-							ps2.setInt(2, newWidth);
-							ps2.setInt(3, newHeight);
-							ps2.setInt(4, id);
-							ps2.execute();
+					else {
+						if (isMovie) {
+							if (!Files.exists(webm) || Files.size(webm) == 0) {
+								logger.debug("Create " + webm);
+								Files.deleteIfExists(webm);
+								Files.createDirectories(webm.getParent());
+								String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+								Process p = new ProcessBuilder().inheritIO().command(commands).start();
+								p.waitFor();
+								// Set checksum
+								PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=? WHERE id=?");
+								ps2.setInt(1, GlobalFunctions.getCrc32(webm));
+								ps2.setInt(2, id);
+								ps2.execute();
+								ps2.close();
+							}
+							if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+								Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
+								logger.debug("Create " + mp4);
+								Files.deleteIfExists(mp4);
+								Files.createDirectories(mp4.getParent());
+								String[] commands = {LOCAL_FFMPEG_PATH, "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+								Process p = new ProcessBuilder().inheritIO().command(commands).start();
+								p.waitFor();
+							}
+							if (!Files.exists(jpg) || Files.size(jpg) == 0) {
+								logger.debug("Create " + jpg);
+								Files.createDirectories(jpg.getParent());
+								Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
+								Files.createDirectories(tmp.getParent());
+								String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+								Process p = new ProcessBuilder().inheritIO().command(commands).start();
+								p.waitFor();
+								Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
+
+								BufferedImage b = ImageIO.read(tmp.toFile());
+								Graphics g = b.getGraphics();
+								g.setFont(new Font("Arial", Font.BOLD, 40));
+								final String str = "VIDEO";
+								final int x = (b.getWidth()/2)-70;
+								final int y = (b.getHeight()/2)-20;
+								FontMetrics fm = g.getFontMetrics();
+								Rectangle2D rect = fm.getStringBounds(str, g);
+								g.setColor(Color.WHITE);
+								g.fillRect(x,
+										y - fm.getAscent(),
+										(int) rect.getWidth(),
+										(int) rect.getHeight());
+								g.setColor(Color.BLUE);
+								g.drawString(str, x, y);
+								g.dispose();
+								ImageIO.write(b, "jpg", jpg.toFile());
+								Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
+							}
+						}
+						else if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
+							Files.deleteIfExists(jpg);
+							Files.deleteIfExists(webp);
+							Files.createDirectories(jpg.getParent());
+							Files.createDirectories(webp.getParent());
+
+							// IO JPG
+							BufferedImage bOriginal = ImageIO.read(original.toFile());
+							final int newWidth = bOriginal.getWidth();
+							final int newHeight = bOriginal.getHeight();
+							BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
+							ImageIO.write(bScaled, "jpg", jpg.toFile());
+							bOriginal.flush();
+							bOriginal = null;
+							bScaled.flush();
+							bScaled = null;
+							Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0);
+							logger.debug(jpg.toString() + " saved");
+
+							// IO WEBP
+							String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
+							Process process = Runtime.getRuntime().exec(cmd);
+							process.waitFor();
+							Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+							logger.debug(webp.toString() + " saved");
+
+							// DB
+							try (PreparedStatement ps2 = c.prepareStatement("UPDATE media SET checksum=?, width=?, height=? WHERE id=?")) {
+								ps2.setInt(1, GlobalFunctions.getCrc32(webp));
+								ps2.setInt(2, newWidth);
+								ps2.setInt(3, newHeight);
+								ps2.setInt(4, id);
+								ps2.execute();
+							}
 						}
 					}
 				}
+			} catch (Exception e) {
+				warnings.add("id=" + id + ", path=" + original.toString() + ": " + e.getMessage());
 			}
 		}
 		rst.close();
