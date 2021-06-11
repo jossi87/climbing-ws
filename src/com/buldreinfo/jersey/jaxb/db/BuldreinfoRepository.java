@@ -2920,34 +2920,27 @@ public class BuldreinfoRepository {
 			final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
 			Files.createDirectories(p.getParent());
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
-
-			Path original = GlobalFunctions.getPathTemp();
-			Files.createDirectories(original);
-			original = original.resolve(System.currentTimeMillis() + "_" + m.getName());
-			Preconditions.checkArgument(Files.exists(original.getParent()), original.getParent().toString() + " does not exist");
-			Preconditions.checkArgument(!Files.exists(original), original.toString() + " does already exist");
 			if (isMovie) {
-				try (InputStream in = new URL(m.getEmbedThumbnailUrl()).openStream()){
-					Files.copy(in, original);
+				try (InputStream is = new URL(m.getEmbedThumbnailUrl()).openStream()){
+					BufferedImage b = ImageIO.read(is);
+					Graphics g = b.getGraphics();
+					g.setFont(new Font("Arial", Font.BOLD, 40));
+					final String str = "VIDEO";
+					final int x = (b.getWidth()/2)-70;
+					final int y = (b.getHeight()/2)-20;
+					FontMetrics fm = g.getFontMetrics();
+					Rectangle2D rect = fm.getStringBounds(str, g);
+					g.setColor(Color.WHITE);
+					g.fillRect(x,
+							y - fm.getAscent(),
+							(int) rect.getWidth(),
+							(int) rect.getHeight());
+					g.setColor(Color.BLUE);
+					g.drawString(str, x, y);
+					g.dispose();
+					ImageIO.write(b, "jpg", p.toFile());
+					b.flush();
 				}
-				BufferedImage b = ImageIO.read(original.toFile());
-				Graphics g = b.getGraphics();
-				g.setFont(new Font("Arial", Font.BOLD, 40));
-				final String str = "VIDEO";
-				final int x = (b.getWidth()/2)-70;
-				final int y = (b.getHeight()/2)-20;
-				FontMetrics fm = g.getFontMetrics();
-				Rectangle2D rect = fm.getStringBounds(str, g);
-				g.setColor(Color.WHITE);
-				g.fillRect(x,
-						y - fm.getAscent(),
-						(int) rect.getWidth(),
-						(int) rect.getHeight());
-				g.setColor(Color.BLUE);
-				g.drawString(str, x, y);
-				g.dispose();
-				ImageIO.write(b, "jpg", p.toFile());
-				b.flush();
 			}
 			else {
 				/**
@@ -2960,26 +2953,24 @@ public class BuldreinfoRepository {
 				 * systemctl daemon-reload
 				 * service tomcat9 restart
 				 */
-				// Save received file
+				// Save as JPG
+				logger.debug("addNewMedia(name={}) - IO started", m.getName());
 				try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
-					Files.copy(is, original);
-				}
-				Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
-
-				// If not JPG/JPEG --> convert to JPG, else --> copy to destination
-				final String inputExtension = com.google.common.io.Files.getFileExtension(original.getFileName().toString());
-				if (!inputExtension.equalsIgnoreCase("jpg") && !inputExtension.equalsIgnoreCase("jpeg")) {
-					BufferedImage src = ImageIO.read(original.toFile());
-					BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
-					dst.createGraphics().drawImage(src, 0, 0, Color.WHITE, null);
-					ImageIO.write(dst, "jpg", p.toFile());
-					src.flush();
-					dst.flush();
-				} else {
-					Files.copy(original, p);
+					if (m.getName().toLowerCase().endsWith("jpg")) {
+						Files.copy(is, p);
+					}
+					else {
+						BufferedImage src = ImageIO.read(is);
+						BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
+						dst.createGraphics().drawImage(src, 0, 0, Color.WHITE, null);
+						ImageIO.write(dst, "jpg", p.toFile());
+						src.flush();
+						dst.flush();
+					}
 				}
 				Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-
+				logger.debug("addNewMedia(name={}) - {} saved", m.getName(), p.toString());
+				
 				// Rotate (if EXIF-rotated)
 				try (ThumbnailCreation creation = ThumbnailCreation.image(p.toFile())) {
 					ExifOrientation orientation = creation.getExifRotation();
@@ -2988,6 +2979,7 @@ public class BuldreinfoRepository {
 						creation.rotate(orientation).preserveExif().saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
 					}
 				}
+				logger.debug("addNewMedia(name={}) - Rotation done", m.getName());
 			}
 			Preconditions.checkArgument(Files.exists(p) && Files.size(p)>0, p.toString() + " does not exist (or is 0 byte)");
 			// Create scaled jpg and webp + update crc32 and dimentions in db
@@ -3053,6 +3045,7 @@ public class BuldreinfoRepository {
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
+		logger.debug("createScaledImages(id={}) - IO done", id);
 		if (setDateTakenWHAndChecksum) {
 			final int crc32 = com.google.common.io.Files.asByteSource(webp.toFile()).hash(Hashing.crc32()).asInt();
 
@@ -3067,6 +3060,7 @@ public class BuldreinfoRepository {
 				ps.setInt(5, id);
 				ps.execute();
 			}
+			logger.debug("createScaledImages(id={}) - DB done", id);
 		}
 	}
 
