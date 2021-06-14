@@ -350,7 +350,7 @@ public class BuldreinfoRepository {
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String problemName = rst.getString("problem_name");
-					String problemSubType = rst.getString("problem_sub_type");
+					String problemSubtype = rst.getString("problem_subtype");
 					String grade = GradeHelper.intToString(setup, rst.getInt("grade"));
 					Set<Integer> activityIds = new HashSet<>();
 					for (String activity : rst.getString("activities").split(",")) {
@@ -368,7 +368,7 @@ public class BuldreinfoRepository {
 					}
 
 					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDateTime().toLocalDate());
-					res.add(new Activity(activityIds, timeAgo, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubType, grade));
+					res.add(new Activity(activityIds, timeAgo, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubtype, grade));
 				}
 			}
 		}
