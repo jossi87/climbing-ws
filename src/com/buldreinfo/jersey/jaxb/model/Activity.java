@@ -15,14 +15,14 @@ public class Activity {
 			this.isMovie = isMovie;
 			this.embedUrl = embedUrl;
 		}
+		public String getEmbedUrl() {
+			return embedUrl;
+		}
 		public int getId() {
 			return id;
 		}
 		public boolean isMovie() {
 			return isMovie;
-		}
-		public String getEmbedUrl() {
-			return embedUrl;
 		}
 		@Override
 		public String toString() {
@@ -59,6 +59,7 @@ public class Activity {
 	private final boolean problemLockedAdmin;
 	private final boolean problemLockedSuperadmin;
 	private final String problemName;
+	private final String problemSubType;
 	private String grade;
 	private int problemRandomMediaId;
 	private List<Media> media;
@@ -69,13 +70,14 @@ public class Activity {
 	private String description;
 	private String message;
 	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String grade) {
+	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubType, String grade) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
 		this.problemId = problemId;
 		this.problemLockedAdmin = problemLockedAdmin;
 		this.problemLockedSuperadmin = problemLockedSuperadmin;
 		this.problemName = problemName;
+		this.problemSubType = problemSubType;
 		this.grade = grade;
 	}
 	public void addFa(String name, int userId, String picture, String description, int problemRandomMediaId) {
@@ -124,6 +126,9 @@ public class Activity {
 	}
 	public int getProblemRandomMediaId() {
 		return problemRandomMediaId;
+	}
+	public String getProblemSubType() {
+		return problemSubType;
 	}
 	public int getStars() {
 		return stars;
