@@ -3355,6 +3355,10 @@ public class BuldreinfoRepository {
 		if (!topoMedia.isEmpty()) {
 			return topoMedia;
 		}
+		// Dont show too much...
+		if (!showHiddenMedia && allMedia.size() > 3) {
+			return new ArrayList<>();
+		}
 		return allMedia;
 	}
 	
