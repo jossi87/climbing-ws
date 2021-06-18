@@ -511,7 +511,8 @@ public class BuldreinfoRepository {
 					int randomMediaId = rst.getInt("media_id");
 					if (randomMediaId == 0) {
 						boolean inherited = false;
-						List<Media> x = getMediaSector(s, authUserId, id, 0, inherited, 0, 0, false);
+						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
+						List<Media> x = getMediaSector(s, authUserId, id, 0, inherited, 0, 0, showHiddenMedia);
 						if (!x.isEmpty()) {
 							randomMediaId = x.get(0).getId();
 						}
