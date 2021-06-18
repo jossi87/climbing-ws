@@ -67,8 +67,8 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.Help;
-import com.buldreinfo.jersey.jaxb.model.HelpAdministrator;
+import com.buldreinfo.jersey.jaxb.model.About;
+import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
@@ -316,6 +316,26 @@ public class BuldreinfoRepository {
 			 */
 			psAddActivity.executeBatch();
 		}
+	}
+
+	public About getAbout(int idRegion) throws SQLException {
+		// Return users
+		About res = new About();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
+			ps.setInt(1, idRegion);
+			try (ResultSet rst = ps.executeQuery()) {
+				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+				while (rst.next()) {
+					int userId = rst.getInt("id");
+					String name = rst.getString("name");
+					String picture = rst.getString("picture");
+					String lastLogin = rst.getString("last_login");
+					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
+					res.getAdministrators().add(new AboutAdministrator(userId, name, picture, timeAgo));
+				}
+			}
+		}
+		return res;
 	}
 
 	public List<Activity> getActivity(int authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
@@ -807,26 +827,6 @@ public class BuldreinfoRepository {
 			}
 		}
 		return res.values();
-	}
-
-	public Help getHelp(int idRegion) throws SQLException {
-		// Return users
-		Help res = new Help();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
-			ps.setInt(1, idRegion);
-			try (ResultSet rst = ps.executeQuery()) {
-				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-				while (rst.next()) {
-					int userId = rst.getInt("id");
-					String name = rst.getString("name");
-					String picture = rst.getString("picture");
-					String lastLogin = rst.getString("last_login");
-					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.getAdministrators().add(new HelpAdministrator(userId, name, picture, timeAgo));
-				}
-			}
-		}
-		return res;
 	}
 
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
@@ -1394,7 +1394,7 @@ public class BuldreinfoRepository {
 		urls.add(setup.getUrl("/gpl-3.0.txt"));
 		urls.add(setup.getUrl("/browse"));
 		urls.add(setup.getUrl("/filter"));
-		urls.add(setup.getUrl("/help"));
+		urls.add(setup.getUrl("/about"));
 		urls.add(setup.getUrl("/sites/bouldering"));
 		urls.add(setup.getUrl("/sites/climbing"));
 		urls.add(setup.getUrl("/sites/ice"));

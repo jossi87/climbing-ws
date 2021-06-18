@@ -5,11 +5,11 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
-public class Help implements IMetadata {
+public class About implements IMetadata {
 	private Metadata metadata;
-	private final List<HelpAdministrator> administrators = new ArrayList<>();
+	private final List<AboutAdministrator> administrators = new ArrayList<>();
 	
-	public Help() {
+	public About() {
 	}
 
 	@Override
@@ -17,7 +17,7 @@ public class Help implements IMetadata {
 		return metadata;
 	}
 	
-	public List<HelpAdministrator> getAdministrators() {
+	public List<AboutAdministrator> getAdministrators() {
 		return administrators;
 	}
 

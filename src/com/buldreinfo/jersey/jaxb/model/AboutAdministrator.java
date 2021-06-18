@@ -1,12 +1,12 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class HelpAdministrator {
+public class AboutAdministrator {
 	private final int userId;
 	private final String name;
 	private final String picture;
 	private final String lastLogin;
 	
-	public HelpAdministrator(int userId, String name, String picture, String lastLogin) {
+	public AboutAdministrator(int userId, String name, String picture, String lastLogin) {
 		this.userId = userId;
 		this.name = name;
 		this.picture = picture;

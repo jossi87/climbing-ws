@@ -50,7 +50,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.Help;
+import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
@@ -260,13 +260,13 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/help")
+	@Path("/about")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getHelp(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getAbout(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Help res = c.getBuldreinfoRepo().getHelp(setup.getIdRegion());
+			About res = c.getBuldreinfoRepo().getAbout(setup.getIdRegion());
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
