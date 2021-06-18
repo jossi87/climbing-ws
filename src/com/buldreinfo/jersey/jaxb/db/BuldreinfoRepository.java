@@ -3319,12 +3319,12 @@ public class BuldreinfoRepository {
 	}
 
 	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
-		List<Media> media = new ArrayList<>();
+		List<Media> allMedia = new ArrayList<>();
+		List<Media> mediaWithRequestedTopoLine = new ArrayList<>();
 		String sqlStr = "SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
 				+ " FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id"
 				+ " GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname"
 				+ " ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
-		boolean hasMediaWithRequestedTopoLine = false;
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, idSector);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -3344,29 +3344,19 @@ public class BuldreinfoRepository {
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem);
-					if (!hasMediaWithRequestedTopoLine && optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
-						hasMediaWithRequestedTopoLine = true;
+					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
+						mediaWithRequestedTopoLine.add(m);
 					}
-					media.add(m);
+					allMedia.add(m);
 				}
 			}
 		}
 		// Figure out what to actually return
-		if (!showHiddenMedia) {
-			if (hasMediaWithRequestedTopoLine) {
-				// Only images without topo lines or images with topo lines for this problem
-				return media.stream()
-						.filter(x -> x.getSvgs() == null || x.getSvgs().isEmpty() || x.getSvgs().stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent())
-						.collect(Collectors.toList());
-			}
-			else if (s.isBouldering()) {
-				// Only images without topo line(s)
-				return media.stream()
-						.filter(x -> x.getSvgs() == null || x.getSvgs().isEmpty())
-						.collect(Collectors.toList());
-			}
+		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
+			// Only images without topo lines or images with topo lines for this problem
+			return mediaWithRequestedTopoLine;
 		}
-		return media;
+		return allMedia;
 	}
 
 	private List<MediaSvgElement> getMediaSvgElements(int idMedia) throws SQLException {
