@@ -3379,6 +3379,10 @@ public class BuldreinfoRepository {
 			// Only images without topo lines or images with topo lines for this problem
 			return mediaWithRequestedTopoLine;
 		}
+		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
+			// In bouldering we don't want to show all rocks with lines if this one does not have a line
+			return allMedia.stream().filter(m -> m.getSvgs() == null || m.getSvgs().isEmpty()).collect(Collectors.toList());
+		}
 		return allMedia;
 	}
 
