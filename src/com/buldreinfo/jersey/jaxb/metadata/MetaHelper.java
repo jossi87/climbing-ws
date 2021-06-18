@@ -378,7 +378,7 @@ public class MetaHelper {
 		else if (m instanceof Help) {
 			Help h = (Help)m;
 			OpenGraph og = getOg(setup, "/help", null, requestedIdMedia);
-			h.setMetadata(new Metadata(c, setup, authUserId, "Acknowledgment, ethics and privacy policy", og));
+			h.setMetadata(new Metadata(c, setup, authUserId, "Help", og));
 		}
 		else if (m instanceof MediaSvg) {
 			MediaSvg x = (MediaSvg)m;
