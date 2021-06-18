@@ -67,6 +67,8 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.Help;
+import com.buldreinfo.jersey.jaxb.model.HelpAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
@@ -807,6 +809,26 @@ public class BuldreinfoRepository {
 		return res.values();
 	}
 
+	public Help getHelp(int idRegion) throws SQLException {
+		// Return users
+		Help res = new Help();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, MAX(l.when) last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
+			ps.setInt(1, idRegion);
+			try (ResultSet rst = ps.executeQuery()) {
+				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+				while (rst.next()) {
+					int userId = rst.getInt("id");
+					String name = rst.getString("name");
+					String picture = rst.getString("picture");
+					String lastLogin = rst.getString("last_login");
+					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
+					res.getAdministrators().add(new HelpAdministrator(userId, name, picture, timeAgo));
+				}
+			}
+		}
+		return res;
+	}
+
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
@@ -830,7 +852,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public MediaSvg getMediaSvg(int id) throws SQLException {
 		MediaSvg res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -1369,12 +1391,13 @@ public class BuldreinfoRepository {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
 		urls.add(setup.getUrl(null));
-		urls.add(setup.getUrl("/ethics"));
 		urls.add(setup.getUrl("/gpl-3.0.txt"));
 		urls.add(setup.getUrl("/browse"));
 		urls.add(setup.getUrl("/filter"));
+		urls.add(setup.getUrl("/help"));
 		urls.add(setup.getUrl("/sites/bouldering"));
 		urls.add(setup.getUrl("/sites/climbing"));
+		urls.add(setup.getUrl("/sites/ice"));
 		urls.add(setup.getUrl("/toc"));
 		// Users
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {

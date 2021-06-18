@@ -50,6 +50,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.Help;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
@@ -259,6 +260,22 @@ public class V2 {
 	}
 
 	@GET
+	@Path("/help")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getHelp(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Help res = c.getBuldreinfoRepo().getHelp(setup.getIdRegion());
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -287,7 +304,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/media/svg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -319,7 +336,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")

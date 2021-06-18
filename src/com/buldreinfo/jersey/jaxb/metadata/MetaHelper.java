@@ -17,8 +17,9 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
+import com.buldreinfo.jersey.jaxb.model.Help;
+import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
@@ -373,6 +374,11 @@ public class MetaHelper {
 			Permissions p = (Permissions)m;
 			OpenGraph og = getOg(setup, "/permissions", null, requestedIdMedia);
 			p.setMetadata(new Metadata(c, setup, authUserId, "Permissions", og));
+		}
+		else if (m instanceof Help) {
+			Help h = (Help)m;
+			OpenGraph og = getOg(setup, "/help", null, requestedIdMedia);
+			h.setMetadata(new Metadata(c, setup, authUserId, "Acknowledgment, ethics and privacy policy", og));
 		}
 		else if (m instanceof MediaSvg) {
 			MediaSvg x = (MediaSvg)m;
