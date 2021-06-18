@@ -3343,7 +3343,7 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
 		List<Media> allMedia = new ArrayList<>();
-		List<Media> mediaWithRequestedTopoLine = new ArrayList<>();
+		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
 		String sqlStr = "SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
 				+ " FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id"
 				+ " GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname"
@@ -3377,7 +3377,7 @@ public class BuldreinfoRepository {
 		// Figure out what to actually return
 		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
 			// Only images without topo lines or images with topo lines for this problem
-			return mediaWithRequestedTopoLine;
+			return allMedia.stream().filter(m -> m.getSvgs() == null || m.getSvgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
 		}
 		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
 			// In bouldering we don't want to show all rocks with lines if this one does not have a line
