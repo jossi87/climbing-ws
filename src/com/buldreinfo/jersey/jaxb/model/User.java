@@ -16,6 +16,7 @@ public class User implements IMetadata {
 		private int num;
 		private final int id;
 		private final String subType;
+		private final int numPitches;
 		private final int idProblem;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
@@ -29,7 +30,7 @@ public class User implements IMetadata {
 		private final int gradeNumber;
 		
 		public Tick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
-				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType,
+				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int numPitches,
 				int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 				String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 			this.areaName = areaName;
@@ -40,6 +41,7 @@ public class User implements IMetadata {
 			this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 			this.id = id;
 			this.subType = subType;
+			this.numPitches = numPitches;
 			this.idProblem = idProblem;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
@@ -52,7 +54,7 @@ public class User implements IMetadata {
 			this.grade = grade;
 			this.gradeNumber = gradeNumber;
 		}
-
+		
 		public String getAreaName() {
 			return areaName;
 		}
@@ -91,6 +93,10 @@ public class User implements IMetadata {
 
 		public int getNum() {
 			return num;
+		}
+
+		public int getNumPitches() {
+			return numPitches;
 		}
 
 		public String getSectorName() {
@@ -157,8 +163,8 @@ public class User implements IMetadata {
 		this.userRegions = userRegions;
 	}
 	
-	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 
 	public int getId() {
