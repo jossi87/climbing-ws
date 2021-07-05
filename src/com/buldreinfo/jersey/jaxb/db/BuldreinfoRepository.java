@@ -1660,7 +1660,7 @@ public class BuldreinfoRepository {
 		}
 		if (!problemLookup.isEmpty()) {
 			String problemIds = Joiner.on(",").join(problemLookup.keySet());
-			sqlStr = String.format("SELECT t.problem_id, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM todo t, user u WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s)", problemIds);
+			sqlStr = String.format("SELECT t.problem_id, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM todo t, user u WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s) ORDER BY t.problem_id, u.firstname, u.lastname", problemIds);
 			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 				ps.setInt(1, userId);
 				try (ResultSet rst = ps.executeQuery()) {
