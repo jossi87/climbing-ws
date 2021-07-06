@@ -93,12 +93,10 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
-import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
-import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.UserMedia;
+import com.buldreinfo.jersey.jaxb.model.UserSearch;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
@@ -916,11 +914,11 @@ public class BuldreinfoRepository {
 			ps.execute();
 		}
 		List<Integer> todoIdProblems = new ArrayList<>();
-		Todo todo = getTodo(authUserId, s, authUserId);
+		ProfileTodo todo = getProfileTodo(authUserId, s, authUserId);
 		if (todo != null) {
-			for (Todo.Area ta : todo.getAreas()) {
-				for (Todo.Sector ts : ta.getSectors()) {
-					for (Todo.Problem tp : ts.getProblems()) {
+			for (ProfileTodo.Area ta : todo.getAreas()) {
+				for (ProfileTodo.Sector ts : ta.getSectors()) {
+					for (ProfileTodo.Problem tp : ts.getProblems()) {
 						todoIdProblems.add(tp.getId());
 					}
 				}
@@ -1828,114 +1826,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Todo getTodo(int authUserId, Setup setup, int reqId) throws SQLException {
-		MarkerHelper markerHelper = new MarkerHelper();
-		final int userId = reqId > 0? reqId : authUserId;
-		Todo res = null;
-		String sqlStr = "SELECT u.id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?";
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			ps.setInt(1, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String picture = rst.getString("picture");
-					String name = rst.getString("name");
-					res = new Todo(id, name, picture);
-				}
-			}
-		}
-		if (res == null) {
-			return null;
-		}
-
-		// Build lists
-		Map<Integer, Todo.Area> areaLookup = new HashMap<>();
-		Map<Integer, Todo.Sector> sectorLookup = new HashMap<>();
-		Map<Integer, Todo.Problem> problemLookup = new HashMap<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.latitude problem_latitude, p.longitude problem_longitude, s.polygon_coords, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY r.url, t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin, p.latitude, p.longitude, s.polygon_coords, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude ORDER BY a.name, s.name, p.nr")) {
-			ps.setInt(1, authUserId);
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
-			ps.setInt(4, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					// Area
-					int areaId = rst.getInt("area_id");
-					Todo.Area a = areaLookup.get(areaId);
-					if (a == null) {
-						String areaUrl = rst.getString("area_url");
-						String areaName = rst.getString("area_name");
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = res.addArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
-						areaLookup.put(areaId, a);
-					}
-					// Sector
-					int sectorId = rst.getInt("sector_id");
-					Todo.Sector s = sectorLookup.get(sectorId);
-					if (s == null) {
-						String sectorUrl = rst.getString("sector_url");
-						String sectorName = rst.getString("sector_name");
-						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
-						sectorLookup.put(sectorId, s);
-					}
-					// Problem
-					int todoId = rst.getInt("todo_id");
-					int problemId = rst.getInt("problem_id");
-					String problemUrl = rst.getString("problem_url");
-					int problemNr = rst.getInt("problem_nr");
-					String problemName = rst.getString("problem_name");
-					int problemGrade = rst.getInt("problem_grade");
-					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
-					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					double problemLatitude = rst.getDouble("problem_latitude");
-					double problemLongitude = rst.getDouble("problem_longitude");
-					String polygonCoords = rst.getString("polygon_coords");
-					double sectorLatitude = rst.getDouble("sector_latitude");
-					double sectorLongitude = rst.getDouble("sector_longitude");
-					double areaLatitude = rst.getDouble("area_latitude");
-					double areaLongitude = rst.getDouble("area_longitude");
-					LatLng l = markerHelper.getLatLng(problemLatitude, problemLongitude);
-					if (problemLatitude == 0 || problemLongitude == 0) {
-						if (!Strings.isNullOrEmpty(polygonCoords)) {
-							String[] latLng = polygonCoords.split(";")[0].split(",");
-							l = markerHelper.getLatLng(Double.parseDouble(latLng[0]), Double.parseDouble(latLng[1]));
-						}
-						else if (sectorLatitude > 0 && sectorLongitude > 0) {
-							l = markerHelper.getLatLng(sectorLatitude, sectorLongitude);
-						}
-						else if (areaLatitude > 0 && areaLongitude > 0) {
-							l = markerHelper.getLatLng(areaLatitude, areaLongitude);
-						}
-					}
-					Todo.Problem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade), l.getLat(), l.getLng());
-					problemLookup.put(problemId, p);
-				}
-			}
-		}
-		if (!problemLookup.isEmpty()) {
-			String problemIds = Joiner.on(",").join(problemLookup.keySet());
-			sqlStr = String.format("SELECT t.problem_id, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM todo t, user u WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s) ORDER BY t.problem_id, u.firstname, u.lastname", problemIds);
-			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-				ps.setInt(1, userId);
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int problemId = rst.getInt("problem_id");
-						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						problemLookup.get(problemId).addPartner(id, name);
-					}
-				}
-			}
-		}
-		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		res.getAreas().sort(Comparator.comparing(Todo.Area::getName));
-		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
-		return res;
-	}
-
 	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		Trash res = new Trash();
@@ -1995,179 +1885,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public User getUser(int authUserId, Setup setup, int reqId) throws SQLException {
-		Preconditions.checkArgument(reqId > 0 || authUserId != -1, "Invalid parameters - reqId=" + reqId + ", authUserId=" + authUserId);
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		boolean readOnly = true;
-		if (authUserId != -1) {
-			if (reqId == authUserId || reqId <= 0) {
-				readOnly = false;
-				reqId = authUserId;
-			}
-		}
-		if (reqId <= 0) {
-			throw new SQLException("reqId=" + reqId + ", authUserId=" + authUserId);
-		}
-		User res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?")) {
-			ps.setInt(1, reqId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					List<UserRegion> userRegions = c.getBuldreinfoRepo().getUserRegion(reqId, setup);
-					String picture = rst.getString("picture");
-					String name = rst.getString("name");
-					res = new User(readOnly, reqId, picture, name, userRegions);
-				}
-			}
-		}
-		if (res == null) {
-			return res;
-		}
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM (((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId);
-			ps.setInt(3, setup.getIdRegion());
-			ps.setInt(4, setup.getIdRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.setNumImagesCreated(rst.getInt("num_images_created"));
-					res.setNumVideosCreated(rst.getInt("num_videos_created"));
-				}
-			}
-		}
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM ((((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId);
-			ps.setInt(3, setup.getIdRegion());
-			ps.setInt(4, setup.getIdRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.setNumImageTags(rst.getInt("num_image_tags"));
-					res.setNumVideoTags(rst.getInt("num_video_tags"));
-				}
-			}
-		}
-
-		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
-				+ " FROM ((((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
-				+ " WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade";
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId);
-			ps.setInt(2, reqId);
-			ps.setInt(3, reqId);
-			ps.setInt(4, setup.getIdRegion());
-			ps.setInt(5, setup.getIdRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String areaName = rst.getString("area_name");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					String sectorName = rst.getString("sector_name");
-					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-					int id = rst.getInt("id_tick");
-					String subType = rst.getString("subtype");
-					int numPitches = rst.getInt("num_pitches");
-					int idProblem = rst.getInt("id_problem");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					String name = rst.getString("name");
-					String comment = rst.getString("comment");
-					String date = rst.getString("date");
-					String dateHr = rst.getString("date_hr");
-					double stars = rst.getDouble("stars");
-					boolean fa = rst.getBoolean("fa");
-					int grade = rst.getInt("grade");
-					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
-				}
-			}
-		}
-		// First aid ascent
-		if (!setup.isBouldering()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr" + 
-					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
-					" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
-					" GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date")) {
-				ps.setInt(1, reqId);
-				ps.setInt(2, authUserId);
-				ps.setInt(3, setup.getIdRegion());
-				ps.setInt(4, setup.getIdRegion());
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						String areaName = rst.getString("area_name");
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						String sectorName = rst.getString("sector_name");
-						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						int numPitches = rst.getInt("num_pitches");
-						int idProblem = rst.getInt("id_problem");
-						boolean lockedAdmin = rst.getBoolean("locked_admin");
-						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-						String name = rst.getString("name");
-						String comment = rst.getString("description");
-						if (!Strings.isNullOrEmpty(comment)) {
-							comment = "First ascent (AID): " + comment;
-						}
-						else {
-							comment = "First ascent (AID)";
-						}
-						String date = rst.getString("date");
-						String dateHr = rst.getString("date_hr");
-						int grade = 0;
-						res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, GradeHelper.intToString(setup, grade), grade);
-					}
-				}
-			}
-		}
-		// Order ticks
-		res.getTicks().sort((t1, t2) -> -ComparisonChain
-				.start()
-				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
-				.compare(t1.getIdProblem(), t2.getIdProblem())
-				.result());
-		for (int i = 0; i < res.getTicks().size(); i++) {
-			res.getTicks().get(i).setNum(i);
-		}
-		logger.debug("getUser(authUserId={}, regionId={}, reqId={}) - duration={}", authUserId, setup.getIdRegion(), reqId, stopwatch);
-		return res;
-	}
-	
-	public UserMedia getUserMedia(int authUserId, Setup setup, int reqId) throws SQLException {
-		UserMedia res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC")) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String name = rst.getString("name");
-					if (res == null) {
-						String picture = rst.getString("picture");
-						res = new UserMedia(reqId, name, picture);
-					}
-					int idMedia = rst.getInt("id");
-					String description = rst.getString("description");
-					int pitch = 0;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = name;
-					int problemId = rst.getInt("problem_id");
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					MediaProblem m = new MediaProblem(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
-					res.getMedia().add(m);
-				}
-			}
-		}
-		return res;
-	}
-
 	public List<UserRegion> getUserRegion(int authUserId, Setup setup) throws SQLException {
 		List<UserRegion> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only, ur.region_visible, CASE WHEN ur.superadmin_write=1 THEN 'Superadmin' WHEN ur.superadmin_read=1 THEN 'Superadmin (read)' WHEN ur.admin_read=1 THEN 'Admin (read)' WHEN ur.admin_write=1 THEN 'Admin' END role FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
@@ -2188,11 +1905,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<User> getUserSearch(int authUserId, String value) throws SQLException {
+	public List<UserSearch> getUserSearch(int authUserId, String value) throws SQLException {
 		if (authUserId == -1) {
 			throw new SQLException("User not logged in...");
 		}
-		List<User> res = new ArrayList<>();
+		List<UserSearch> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, CONCAT(firstname, ' ', COALESCE(lastname,'')) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY firstname, lastname")) {
 			ps.setString(1, value + "%");
 			ps.setString(2, value + "%");
@@ -2201,7 +1918,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					res.add(new User(true, id, null, name, null));
+					res.add(new UserSearch(id, name));
 				}
 			}
 		}

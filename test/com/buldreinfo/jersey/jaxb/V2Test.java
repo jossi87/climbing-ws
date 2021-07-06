@@ -17,13 +17,13 @@ import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Profile;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
-import com.buldreinfo.jersey.jaxb.model.Todo;
-import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 
@@ -133,28 +133,22 @@ public class V2Test {
 	public void testGetTodo() throws Exception {
 		V2 tester = new V2();
 		// User: Jostein Ø
-		Response r = tester.getTodo(getRequest(), 1);
+		Response r = tester.getProfileTodo(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Todo);
-		Todo t = (Todo)r.getEntity();
-		assertTrue(t.getName() != null);
-		assertTrue(t.getPicture() != null);
+		assertTrue(r.getEntity() instanceof ProfileTodo);
+		ProfileTodo t = (ProfileTodo)r.getEntity();
 		assertTrue(!t.getAreas().isEmpty());
 	}
 	
 	@Test
-	public void testGetUsers() throws Exception {
+	public void testGetProfile() throws Exception {
 		V2 tester = new V2();
 		// User: Jostein Ø
-		Response r = tester.getUsers(getRequest(), 1);
+		Response r = tester.getProfile(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof User);
-		User u = (User)r.getEntity();
-		assertTrue(!u.getTicks().isEmpty());
-		assertTrue(u.getNumImagesCreated()>0);
-		assertTrue(u.getNumVideosCreated()>0);
-		assertTrue(u.getNumImageTags()>0);
-		assertTrue(u.getNumVideoTags()>0);
+		assertTrue(r.getEntity() instanceof Profile);
+		Profile u = (Profile)r.getEntity();
+		assertTrue(u.getFirstname() != null);
 	}
 	
 	@Test

@@ -33,10 +33,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
-import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Trash;
-import com.buldreinfo.jersey.jaxb.model.User;
-import com.buldreinfo.jersey.jaxb.model.UserMedia;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -249,20 +246,6 @@ public class MetaHelper {
 					.setDefaultZoom(setup.getDefaultZoom())
 					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
-		else if (m instanceof User) {
-			User u = (User)m;
-			String title = String.format("%s", u.getName());
-			String description = String.format("%d ascents, %d pictures taken, %d appearance in pictures, %d videos created, %d appearance in videos", u.getTicks().size(), u.getNumImagesCreated(), u.getNumImageTags(), u.getNumVideosCreated(), u.getNumVideoTags());
-			OpenGraph og = getOg(setup, "/user/" + u.getId(), null, requestedIdMedia);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
-		}
-		else if (m instanceof UserMedia) {
-			UserMedia u = (UserMedia)m;
-			String title = String.format("%s", u.getName());
-			String description = String.format("%d media file(s)", u.getMedia().size());
-			OpenGraph og = getOg(setup, "/user/media/" + u.getId(), null, requestedIdMedia);
-			u.setMetadata(new Metadata(c, setup, authUserId, title, og).setDescription(description));
-		}
 		else if (m instanceof Meta) {
 			Meta x = (Meta)m;
 			x.setMetadata(new Metadata(c, setup, authUserId, null, null)
@@ -354,28 +337,6 @@ public class MetaHelper {
 			String description = String.format("Page %d/%d", t.getCurrPage(), t.getNumPages());
 			OpenGraph og = getOg(setup, "/ticks/" + t.getCurrPage(), null, requestedIdMedia);
 			t.setMetadata(new Metadata(c, setup, authUserId, "Public ascents", og).setDescription(description));
-		}
-		else if (m instanceof Todo) {
-			Todo t = (Todo)m;
-			String title = String.format("%s (To-do list)", t.getName());			
-			int numAreas = 0;
-			int numSectors = 0;
-			int numProblems = 0;
-			for (Todo.Area a : t.getAreas()) {
-				numAreas++;
-				for (Todo.Sector s : a.getSectors()) {
-					numSectors++;
-					numProblems += s.getProblems().size();
-				}
-			}
-			String description = String.format("%d areas, %d sectors, %d %s",
-					numAreas, numSectors, numProblems,
-					setup.isBouldering()? "boulders" : "routes");
-			OpenGraph og = getOg(setup, "/todo/" + t.getId(), null, requestedIdMedia);
-			t.setMetadata(new Metadata(c, setup, authUserId, title, og)
-					.setDescription(description)
-					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof Permissions) {
 			Permissions p = (Permissions)m;
