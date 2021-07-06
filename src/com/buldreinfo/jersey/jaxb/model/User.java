@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
+@Deprecated
 public class User implements IMetadata {
 	public class Tick {
 		private final String areaName;

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
+@Deprecated
 public class Todo implements IMetadata {
 	public class Area {
 		private final int id;

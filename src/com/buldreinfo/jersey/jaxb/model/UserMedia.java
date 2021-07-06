@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
+@Deprecated
 public class UserMedia implements IMetadata {
 	private final int id;
 	private final String name;
