@@ -447,6 +447,21 @@ public class V2 {
 	}
 	
 	@GET
+	@Path("/profile/media")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getProfilemedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<MediaProblem> res = c.getBuldreinfoRepo().getProfileMedia(authUserId, setup, id);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfileStatistics(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
@@ -469,21 +484,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			ProfileTodo res = c.getBuldreinfoRepo().getProfileTodo(authUserId, setup, id);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/profile/media")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfilemedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<MediaProblem> res = c.getBuldreinfoRepo().getProfileMedia(authUserId, setup, id);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -606,190 +606,6 @@ public class V2 {
 	}
 
 	@GET
-	@Path("/static")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStatic(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/area/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticArea(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Area res = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/browse")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/hse")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticHse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			ProblemHse res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/static/problem/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticProblem(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/sector/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSector(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			final boolean orderByGrade = setup.isBouldering();
-			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/sites/boulder")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSitesBoulder(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.BOULDER;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/sites/climbing")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSitesClimbing(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.CLIMBING;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/static/sites/ice")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticSitesIce(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.ICE;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/static/toc")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@GET
-	@Path("/static/user/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getStaticUser(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Profile res = c.getBuldreinfoRepo().getProfile(authUserId, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
 	@Path("/ticks")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTicks(@Context HttpServletRequest request, @QueryParam("page") int page) throws ExecutionException, IOException {
@@ -820,7 +636,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/toc/xlsx")
 	@Produces(MIME_TYPE_XLSX)
@@ -884,7 +700,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -913,6 +729,190 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJs(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/area/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Area res = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/browse")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+			Browse res = new Browse(areas);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/without-js/hse")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsHse(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			ProblemHse res = c.getBuldreinfoRepo().getProblemsHse(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/without-js/problem/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/sector/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			final boolean orderByGrade = setup.isBouldering();
+			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/sites/boulder")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsSitesBoulder(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final GRADE_SYSTEM system = GRADE_SYSTEM.BOULDER;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@GET
+	@Path("/without-js/sites/climbing")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsSitesClimbing(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final GRADE_SYSTEM system = GRADE_SYSTEM.CLIMBING;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/sites/ice")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsSitesIce(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final GRADE_SYSTEM system = GRADE_SYSTEM.ICE;
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
+			Sites res = new Sites(regions, system);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/toc")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/without-js/user/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsUser(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Profile res = c.getBuldreinfoRepo().getProfile(authUserId, setup, id);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
