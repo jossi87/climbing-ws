@@ -1158,14 +1158,15 @@ public class BuldreinfoRepository {
 		int userId = reqUserId > 0? reqUserId : authUserId;
 		Preconditions.checkArgument(userId > 0);
 		Profile res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, u.firstname, u.lastname FROM user u WHERE u.id=?")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String picture = rst.getString("picture");
-					String name = rst.getString("name");
+					String firstname = rst.getString("firstname");
+					String lastname = rst.getString("lastname");
 					List<UserRegion> userRegions = userId == authUserId? c.getBuldreinfoRepo().getUserRegion(authUserId, setup) : null;
-					res = new Profile(userId, picture, name, userRegions);
+					res = new Profile(userId, picture, firstname, lastname, userRegions);
 				}
 			}
 		}

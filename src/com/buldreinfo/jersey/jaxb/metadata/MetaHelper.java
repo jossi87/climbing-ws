@@ -297,7 +297,7 @@ public class MetaHelper {
 		}
 		else if (m instanceof Profile) {
 			Profile p = (Profile)m;
-			String title = String.format("%s", p.getName());
+			String title = !Strings.isNullOrEmpty(p.getLastname())? p.getFirstname() + " " + p.getLastname() : p.getFirstname();
 			OpenGraph og = getOg(setup, "/profile/" + p.getId(), null, requestedIdMedia);
 			p.setMetadata(new Metadata(c, setup, authUserId, title, og));
 		}
