@@ -432,13 +432,11 @@ public class V2 {
 	@GET
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfile(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProfile(@Context HttpServletRequest request, @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			final int reqId = id > 0? id : authUserId;
-			Preconditions.checkArgument(reqId > 0);
-			Profile res = c.getBuldreinfoRepo().getProfile(reqId);
+			Profile res = c.getBuldreinfoRepo().getProfile(setup, authUserId, reqUserId);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
