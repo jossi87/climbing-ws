@@ -27,7 +27,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
 		final String origin = creq.getHeaderString("origin");
 		if (origin == null) {
-			logger.warn("origin: " + origin, ", creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
+			logger.warn("origin: " + origin + ", creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
 			if (LEGAL_ORIGINS.isEmpty()) {
