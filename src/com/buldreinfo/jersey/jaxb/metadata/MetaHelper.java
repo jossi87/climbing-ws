@@ -13,12 +13,12 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
+import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
 import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
-import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
@@ -28,6 +28,7 @@ import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
@@ -293,6 +294,12 @@ public class MetaHelper {
 			String description = numProblems + (setup.isBouldering()? " problems" : " routes") + " marked as dangerous.";
 			OpenGraph og = getOg(setup, "/hse", null, requestedIdMedia);
 			hse.setMetadata(new Metadata(c, setup, authUserId, "Health and Safety Executive (HSE)", og).setDescription(description));
+		}
+		else if (m instanceof Profile) {
+			Profile p = (Profile)m;
+			String title = String.format("%s", p.getName());
+			OpenGraph og = getOg(setup, "/profile/" + p.getId(), null, requestedIdMedia);
+			p.setMetadata(new Metadata(c, setup, authUserId, title, og));
 		}
 		else if (m instanceof TableOfContents) {
 			TableOfContents toc = (TableOfContents)m;

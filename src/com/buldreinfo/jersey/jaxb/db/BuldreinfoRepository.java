@@ -58,6 +58,8 @@ import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
+import com.buldreinfo.jersey.jaxb.model.About;
+import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
@@ -67,8 +69,6 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.About;
-import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaProblem;
@@ -80,6 +80,7 @@ import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -1145,6 +1146,21 @@ public class BuldreinfoRepository {
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
 					s.addProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, GradeHelper.intToString(setup, grade), postBy, postWhen, postTxt);
+				}
+			}
+		}
+		return res;
+	}
+
+	public Profile getProfile(int reqId) throws SQLException {
+		Profile res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM user u WHERE u.id=?")) {
+			ps.setInt(1, reqId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String picture = rst.getString("picture");
+					String name = rst.getString("name");
+					res = new Profile(reqId, picture, name);
 				}
 			}
 		}

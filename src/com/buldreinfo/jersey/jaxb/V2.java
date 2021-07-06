@@ -57,6 +57,7 @@ import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
@@ -109,6 +110,22 @@ public class V2 {
 		}
 	}
 	
+	@GET
+	@Path("/about")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getAbout(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			About res = c.getBuldreinfoRepo().getAbout(setup.getIdRegion());
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
 	@GET
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -210,7 +227,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -227,7 +244,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -252,22 +269,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, idArea, idSector);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@GET
-	@Path("/about")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAbout(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			About res = c.getBuldreinfoRepo().getAbout(setup.getIdRegion());
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -304,7 +305,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/media/svg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -336,7 +337,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -352,7 +353,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -423,6 +424,24 @@ public class V2 {
 			};
 			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@GET
+	@Path("/profile")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getProfile(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			final int reqId = id > 0? id : authUserId;
+			Preconditions.checkArgument(reqId > 0);
+			Profile res = c.getBuldreinfoRepo().getProfile(reqId);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
