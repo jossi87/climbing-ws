@@ -27,7 +27,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
 		final String origin = creq.getHeaderString("origin");
 		if (origin == null) {
-			logger.warn("origin: " + origin + ", creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
+			logger.warn("origin is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
 			if (LEGAL_ORIGINS.isEmpty()) {
@@ -48,7 +48,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				cres.getHeaders().add("Access-Control-Max-Age", "1209600");
 			}
 			else {
-				logger.fatal("Invalid origin: " + origin + ", creq.getHeaders()=" + creq.getHeaders());
+				logger.fatal("Invalid origin: " + origin + ", creq.getHeaders()=" + creq.getHeaders() + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
 			}
 		}
 	}
