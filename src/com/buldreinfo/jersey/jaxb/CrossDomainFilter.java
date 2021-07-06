@@ -39,7 +39,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				}
 			}
 			if (LEGAL_ORIGINS.contains(origin)) {
-				cres.getHeaders().add("Access-Control-Allow-Origin", origin);
+				cres.getHeaders().add("Access-Control-Allow-Origin", "https://" + origin);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
 				cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
