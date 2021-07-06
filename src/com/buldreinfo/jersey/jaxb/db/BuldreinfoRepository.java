@@ -81,6 +81,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.ProblemHse;
 import com.buldreinfo.jersey.jaxb.model.Profile;
+import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -1152,7 +1153,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Profile getProfile(Setup setup, int authUserId, int reqUserId) throws SQLException {
+	public Profile getProfile(int authUserId, Setup setup, int reqUserId) throws SQLException {
 		int userId = reqUserId > 0? reqUserId : authUserId;
 		Preconditions.checkArgument(userId > 0);
 		Profile res = null;
@@ -1167,8 +1168,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		return res;
+	}
+
+	public ProfileStatistics getProfileStatistics(int authUserId, Setup setup, int reqId) throws SQLException {
+		ProfileStatistics res = new ProfileStatistics();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM (((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, userId);
+			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
 			ps.setInt(3, setup.getIdRegion());
 			ps.setInt(4, setup.getIdRegion());
@@ -1180,7 +1186,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM ((((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, userId);
+			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
 			ps.setInt(3, setup.getIdRegion());
 			ps.setInt(4, setup.getIdRegion());
@@ -1190,6 +1196,89 @@ public class BuldreinfoRepository {
 					res.setNumVideoTags(rst.getInt("num_video_tags"));
 				}
 			}
+		}
+
+		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade"
+				+ " FROM ((((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
+				+ " WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
+				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, reqId);
+			ps.setInt(3, reqId);
+			ps.setInt(4, setup.getIdRegion());
+			ps.setInt(5, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String areaName = rst.getString("area_name");
+					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					String sectorName = rst.getString("sector_name");
+					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+					int id = rst.getInt("id_tick");
+					String subType = rst.getString("subtype");
+					int numPitches = rst.getInt("num_pitches");
+					int idProblem = rst.getInt("id_problem");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					String name = rst.getString("name");
+					String comment = rst.getString("comment");
+					String date = rst.getString("date");
+					String dateHr = rst.getString("date_hr");
+					double stars = rst.getDouble("stars");
+					boolean fa = rst.getBoolean("fa");
+					int grade = rst.getInt("grade");
+					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
+				}
+			}
+		}
+		// First aid ascent
+		if (!setup.isBouldering()) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr" + 
+					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
+					" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
+					" GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date")) {
+				ps.setInt(1, reqId);
+				ps.setInt(2, authUserId);
+				ps.setInt(3, setup.getIdRegion());
+				ps.setInt(4, setup.getIdRegion());
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						String areaName = rst.getString("area_name");
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						String sectorName = rst.getString("sector_name");
+						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						int numPitches = rst.getInt("num_pitches");
+						int idProblem = rst.getInt("id_problem");
+						boolean lockedAdmin = rst.getBoolean("locked_admin");
+						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+						String name = rst.getString("name");
+						String comment = rst.getString("description");
+						if (!Strings.isNullOrEmpty(comment)) {
+							comment = "First ascent (AID): " + comment;
+						}
+						else {
+							comment = "First ascent (AID)";
+						}
+						String date = rst.getString("date");
+						String dateHr = rst.getString("date_hr");
+						int grade = 0;
+						res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, GradeHelper.intToString(setup, grade), grade);
+					}
+				}
+			}
+		}
+		// Order ticks
+		res.getTicks().sort((t1, t2) -> -ComparisonChain
+				.start()
+				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
+				.compare(t1.getIdProblem(), t2.getIdProblem())
+				.result());
+		for (int i = 0; i < res.getTicks().size(); i++) {
+			res.getTicks().get(i).setNum(i);
 		}
 		return res;
 	}
@@ -1780,7 +1869,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public User getUser(int authUserId, Setup setup, int reqId) throws SQLException {
 		Preconditions.checkArgument(reqId > 0 || authUserId != -1, "Invalid parameters - reqId=" + reqId + ", authUserId=" + authUserId);
 		Stopwatch stopwatch = Stopwatch.createStarted();
