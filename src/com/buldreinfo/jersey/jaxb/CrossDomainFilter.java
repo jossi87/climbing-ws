@@ -35,9 +35,8 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {
-					LEGAL_ORIGINS.add("https://" + domain);
+					LEGAL_ORIGINS.add(domain);
 				}
-				LEGAL_ORIGINS.add("http://localhost:3000");
 			}
 			if (LEGAL_ORIGINS.contains(origin)) {
 				cres.getHeaders().add("Access-Control-Allow-Origin", origin);
@@ -48,7 +47,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				cres.getHeaders().add("Access-Control-Max-Age", "1209600");
 			}
 			else {
-				logger.fatal("Invalid origin: " + origin + ", creq.getHeaders()=" + creq.getHeaders() + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
+				logger.fatal("Invalid origin: " + origin + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
 			}
 		}
 	}
