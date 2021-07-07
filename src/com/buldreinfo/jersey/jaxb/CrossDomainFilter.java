@@ -33,18 +33,24 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			logger.warn("from is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
-			from = from.replace("https://", "").replace("http://localhost:3000","localhost:3000");
+			if (from.equals("localhost:3000")) {
+				from = "http://localhost:3000";
+			}
+			else if (!from.startsWith("https")) {
+				from = "https://" + from;
+			}
+			
 			if (LEGAL_ORIGINS.isEmpty()) {
 				for (String domain : new MetaHelper().getSetups()
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {
-					LEGAL_ORIGINS.add(domain);
+					LEGAL_ORIGINS.add("https://" + domain);
 				}
-				LEGAL_ORIGINS.add("localhost:3000");
+				LEGAL_ORIGINS.add("http://localhost:3000");
 			}
 			if (LEGAL_ORIGINS.contains(from)) {
-				cres.getHeaders().add("Access-Control-Allow-Origin", "https://" + from);
+				cres.getHeaders().add("Access-Control-Allow-Origin", from);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
 				cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
