@@ -21,26 +21,30 @@ import com.google.common.collect.Sets;
 @Priority(Priorities.HEADER_DECORATOR)
 public class CrossDomainFilter implements ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
-	private static Set<String> LEGAL_HOSTS = Sets.newHashSet();
+	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
-		final String host = creq.getHeaderString("host");
-		if (host == null) {
-			logger.warn("host is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
+		String from = creq.getHeaderString("origin");
+		if (from == null) {
+			from = creq.getHeaderString("host");
+		}
+		if (from == null) {
+			logger.warn("from is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
-			if (LEGAL_HOSTS.isEmpty()) {
+			from = from.replace("https://", "").replace("http://localhost:3000","localhost:3000");
+			if (LEGAL_ORIGINS.isEmpty()) {
 				for (String domain : new MetaHelper().getSetups()
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {
-					LEGAL_HOSTS.add(domain);
+					LEGAL_ORIGINS.add(domain);
 				}
-				LEGAL_HOSTS.add("localhost:3000");
+				LEGAL_ORIGINS.add("localhost:3000");
 			}
-			if (LEGAL_HOSTS.contains(host)) {
-				cres.getHeaders().add("Access-Control-Allow-Origin", "https://" + host);
+			if (LEGAL_ORIGINS.contains(from)) {
+				cres.getHeaders().add("Access-Control-Allow-Origin", "https://" + from);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
 				cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
@@ -48,7 +52,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				cres.getHeaders().add("Access-Control-Max-Age", "1209600");
 			}
 			else {
-				logger.fatal("Invalid host: " + host + ", LEGAL_ORIGINS=" + LEGAL_HOSTS);
+				logger.fatal("Invalid from: " + from + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
 			}
 		}
 	}
