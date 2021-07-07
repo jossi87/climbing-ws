@@ -61,6 +61,13 @@ public class V2Test {
 	}
 	
 	@Test
+	public void testGetDangerous() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getDangerous(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
+	
+	@Test
 	public void testGetFrontpage() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.getFrontpage(getRequest());
@@ -93,10 +100,14 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetProblemsHse() throws Exception {
+	public void testGetProfile() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblemsHse(getRequest());
+		// User: Jostein Ø
+		Response r = tester.getProfile(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof Profile);
+		Profile u = (Profile)r.getEntity();
+		assertTrue(u.getFirstname() != null);
 	}
 	
 	@Test
@@ -138,17 +149,6 @@ public class V2Test {
 		assertTrue(r.getEntity() instanceof ProfileTodo);
 		ProfileTodo t = (ProfileTodo)r.getEntity();
 		assertTrue(!t.getAreas().isEmpty());
-	}
-	
-	@Test
-	public void testGetProfile() throws Exception {
-		V2 tester = new V2();
-		// User: Jostein Ø
-		Response r = tester.getProfile(getRequest(), 1);
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Profile);
-		Profile u = (Profile)r.getEntity();
-		assertTrue(u.getFirstname() != null);
 	}
 	
 	@Test

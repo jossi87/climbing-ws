@@ -27,7 +27,7 @@ import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemHse;
+import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
@@ -266,11 +266,11 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		else if (m instanceof ProblemHse) {
-			ProblemHse hse = (ProblemHse)m;
+		else if (m instanceof Dangerous) {
+			Dangerous hse = (Dangerous)m;
 			int numProblems = 0;
-			for (ProblemHse.Area a : hse.getAreas()) {
-				for (ProblemHse.Sector s : a.getSectors()) {
+			for (Dangerous.Area a : hse.getAreas()) {
+				for (Dangerous.Sector s : a.getSectors()) {
 					numProblems += s.getProblems().size();
 				}
 			}
