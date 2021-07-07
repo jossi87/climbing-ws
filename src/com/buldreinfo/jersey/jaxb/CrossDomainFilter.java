@@ -36,7 +36,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			if (from.equals("localhost:3000")) {
 				from = "http://localhost:3000";
 			}
-			else if (!from.startsWith("https")) {
+			if (!from.startsWith("http")) {
 				from = "https://" + from;
 			}
 			
