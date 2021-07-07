@@ -21,7 +21,7 @@ import com.google.common.collect.Sets;
 @Priority(Priorities.HEADER_DECORATOR)
 public class CrossDomainFilter implements ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
-	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
+	private static Set<String> LEGAL_HOSTS = Sets.newHashSet();
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
@@ -30,15 +30,16 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			logger.warn("host is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
-			if (LEGAL_ORIGINS.isEmpty()) {
+			if (LEGAL_HOSTS.isEmpty()) {
 				for (String domain : new MetaHelper().getSetups()
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {
-					LEGAL_ORIGINS.add(domain);
+					LEGAL_HOSTS.add(domain);
 				}
+				LEGAL_HOSTS.add("localhost:3000");
 			}
-			if (LEGAL_ORIGINS.contains(host)) {
+			if (LEGAL_HOSTS.contains(host)) {
 				cres.getHeaders().add("Access-Control-Allow-Origin", "https://" + host);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
@@ -47,7 +48,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				cres.getHeaders().add("Access-Control-Max-Age", "1209600");
 			}
 			else {
-				logger.fatal("Invalid host: " + host + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
+				logger.fatal("Invalid host: " + host + ", LEGAL_ORIGINS=" + LEGAL_HOSTS);
 			}
 		}
 	}
