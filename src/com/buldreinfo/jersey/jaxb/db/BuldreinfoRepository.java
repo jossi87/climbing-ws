@@ -2557,15 +2557,23 @@ public class BuldreinfoRepository {
 				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
 				+ ") y, x"
 				+ " GROUP BY y.user_id, y.name, y.picture, x.points"
-				+ " ORDER BY percentage DESC";
+				+ " ORDER BY percentage DESC, name";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			try (ResultSet rst = ps.executeQuery()) {
+				double prevPercentage = 0;
+				int prevRank = 0;
 				while (rst.next()) {
 					int userId = rst.getInt("user_id");
 					String name = rst.getString("name");
 					String picture = rst.getString("picture");
-					int percentage = rst.getInt("percentage");
-					res.add(new Top(userId, name, picture, percentage));
+					double percentage = rst.getDouble("percentage");
+					int rank = res.size()+1;
+					if (prevPercentage == percentage) {
+						rank = prevRank;
+					}
+					prevPercentage = percentage;
+					prevRank = rank;
+					res.add(new Top(rank, userId, name, picture, percentage));
 				}
 			}
 		}
