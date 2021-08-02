@@ -2557,7 +2557,7 @@ public class BuldreinfoRepository {
 				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
 				+ ") y, x"
 				+ " GROUP BY y.user_id, y.name, y.picture, x.points"
-				+ "ORDER BY percentage DESC";
+				+ " ORDER BY percentage DESC";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
