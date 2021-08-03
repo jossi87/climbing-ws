@@ -714,16 +714,6 @@ public class V2 {
 		}
 	}
 	
-	private int getUserId(HttpServletRequest request) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request, metaHelper);
-			c.setSuccess();
-			return authUserId;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -788,7 +778,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/without-js/browse")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -821,7 +811,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -854,7 +844,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/without-js/sites/boulder")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -872,7 +862,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@GET
 	@Path("/without-js/sites/climbing")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -940,7 +930,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@PUT
 	@Path("/media")
 	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left, @QueryParam("toIdSector") int toIdSector, @QueryParam("toIdProblem") int toIdProblem) throws ExecutionException, IOException {
@@ -959,7 +949,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -977,7 +967,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -994,7 +984,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/filter")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -1009,7 +999,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, MediaSvg ms) throws ExecutionException, IOException {
@@ -1023,7 +1013,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
@@ -1037,7 +1027,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1172,6 +1162,20 @@ public class V2 {
 	}
 
 	@PUT
+	@Path("/media/jpeg/rotate")
+	public Response putMediaJpegRotate(@Context HttpServletRequest request, @QueryParam("idMedia") int idMedia, @QueryParam("degrees") int degrees) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			c.getBuldreinfoRepo().rotateMedia(setup.getIdRegion(), authUserId, idMedia, degrees);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@PUT
 	@Path("/trash")
 	public Response putTrash(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector, @QueryParam("idProblem") int idProblem) throws ExecutionException, IOException {
 		Preconditions.checkArgument((idArea > 0 && idSector == 0 && idProblem == 0) ||
@@ -1184,6 +1188,16 @@ public class V2 {
 			c.getBuldreinfoRepo().trashRecover(setup, authUserId, idArea, idSector, idProblem);
 			c.setSuccess();
 			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	private int getUserId(HttpServletRequest request) {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = auth.getUserId(c, request, metaHelper);
+			c.setSuccess();
+			return authUserId;
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
