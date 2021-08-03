@@ -420,7 +420,7 @@ public class BuldreinfoRepository {
 		}
 
 		if (!guestbookActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message, mg.media_id" + 
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, g.message, mg.media_id, m.checksum" + 
 					" FROM (((activity a INNER JOIN guestbook g ON a.guestbook_id=g.id) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id) LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(guestbookActivitityIds) + ")")) {
 				try (ResultSet rst = ps.executeQuery()) {
@@ -434,10 +434,11 @@ public class BuldreinfoRepository {
 						a.setGuestbook(userId, name, picture, message);
 
 						int mediaId = rst.getInt("media_id");
+						int crc32 = rst.getInt("checksum");
 						if (mediaId > 0) {
 							boolean isMovie = false;
 							String embedUrl = null;
-							a.addMedia(mediaId, isMovie, embedUrl);
+							a.addMedia(mediaId, crc32, isMovie, embedUrl);
 						}
 					}
 				}
@@ -445,7 +446,7 @@ public class BuldreinfoRepository {
 		}
 
 		if (!faActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, p.description, MAX(m.id) random_media_id" + 
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, p.description, MAX(m.id) random_media_id, MAX(m.checksum) random_media_crc32" + 
 					" FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(faActivitityIds) + ")" + 
 					" GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description" +
@@ -459,14 +460,15 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						String description = rst.getString("description");
 						int problemRandomMediaId = rst.getInt("random_media_id");
-						a.addFa(name, userId, picture, description, problemRandomMediaId);
+						int problemRandomMediaCrc32 = rst.getInt("random_media_crc32");
+						a.addFa(name, userId, picture, description, problemRandomMediaId, problemRandomMediaCrc32);
 					}
 				}
 			}
 		}
 
 		if (!mediaActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, m.id media_id, m.is_movie, m.embed_url" + 
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, m.id media_id, m.checksum media_crc32, m.is_movie, m.embed_url" + 
 					" FROM activity a, media m, media_problem mp" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(mediaActivitityIds) + ")" + 
 					"   AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id" +
@@ -476,9 +478,10 @@ public class BuldreinfoRepository {
 						int id = rst.getInt("id");
 						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
 						int mediaId = rst.getInt("media_id");
+						int mediaCrc32 = rst.getInt("media_crc32");
 						boolean isMovie = rst.getBoolean("is_movie");
 						String embedUrl = rst.getString("embed_url");
-						a.addMedia(mediaId, isMovie, embedUrl);
+						a.addMedia(mediaId, mediaCrc32, isMovie, embedUrl);
 					}
 				}
 			}
@@ -519,7 +522,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, MAX(m.id) media_id FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline ORDER BY s.name")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -534,6 +537,7 @@ public class BuldreinfoRepository {
 					String polygonCoords = rst.getString("polygon_coords");
 					String polyline = rst.getString("polyline");
 					int randomMediaId = rst.getInt("media_id");
+					int randomMediaCrc32 = rst.getInt("media_crc32");
 					if (randomMediaId == 0) {
 						boolean inherited = false;
 						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
@@ -542,7 +546,7 @@ public class BuldreinfoRepository {
 							randomMediaId = x.get(0).getId();
 						}
 					}
-					a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId);
+					a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
 				}
 			}
 		}
@@ -752,7 +756,7 @@ public class BuldreinfoRepository {
 
 	public List<Filter> getFilter(int authUserId, Setup setup, FilterRequest fr) throws SQLException {
 		List<Filter> res = new ArrayList<>();
-		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, coalesce(p.latitude,coalesce(s.parking_latitude,a.latitude)) latitude, coalesce(p.longitude,coalesce(s.parking_longitude,a.longitude)) longitude, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars, p.grade, MAX(m.id) media_id, MAX(CASE WHEN t.user_id=? THEN 1 ELSE 0 END) ticked"
+		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, coalesce(p.latitude,coalesce(s.parking_latitude,a.latitude)) latitude, coalesce(p.longitude,coalesce(s.parking_longitude,a.longitude)) longitude, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars, p.grade, MAX(m.id) media_id, MAX(m.checksum) media_crc32, MAX(CASE WHEN t.user_id=? THEN 1 ELSE 0 END) ticked"
 				+ " FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "   AND (r.id=? OR ur.user_id IS NOT NULL)"
@@ -785,8 +789,9 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					int grade = rst.getInt("grade");
 					int mediaId = rst.getInt("media_id");
+					int mediaCrc32 = rst.getInt("media_crc32");
 					boolean ticked = rst.getBoolean("ticked");
-					res.add(new Filter(areaLockedAdmin, areaLockedSuperadmin, areaName, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, latitude, longitude, stars, GradeHelper.intToString(setup, grade), ticked, mediaId));
+					res.add(new Filter(areaLockedAdmin, areaLockedSuperadmin, areaName, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, latitude, longitude, stars, GradeHelper.intToString(setup, grade), ticked, mediaId, mediaCrc32));
 				}
 			}
 		}
@@ -908,11 +913,12 @@ public class BuldreinfoRepository {
 
 	public MediaSvg getMediaSvg(int id) throws SQLException {
 		MediaSvg res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -925,7 +931,7 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl);
+					Media m = new Media(idMedia, crc32, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl);
 					res = new MediaSvg(m);
 				}
 			}
@@ -1175,13 +1181,14 @@ public class BuldreinfoRepository {
 
 	public List<MediaProblem> getProfileMedia(int authUserId, Setup setup, int reqId) throws SQLException {
 		List<MediaProblem> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC")) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String name = rst.getString("name");
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -1195,7 +1202,7 @@ public class BuldreinfoRepository {
 					int problemId = rst.getInt("problem_id");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					MediaProblem m = new MediaProblem(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
+					MediaProblem m = new MediaProblem(idMedia, crc32, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
 					res.add(m);
 				}
 			}
@@ -1530,7 +1537,7 @@ public class BuldreinfoRepository {
 		List<Search> res = new ArrayList<>();
 		// Areas
 		List<Search> areas = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin ORDER BY a.name LIMIT 8")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin ORDER BY a.name LIMIT 8")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1543,13 +1550,14 @@ public class BuldreinfoRepository {
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
-					areas.add(new Search(name, null, "/area/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
+					int mediaCrc32 = rst.getInt("media_crc32");
+					areas.add(new Search(name, null, "/area/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
 		// Sectors
 		List<Search> sectors = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin ORDER BY a.name, s.name LIMIT 8")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin ORDER BY a.name, s.name LIMIT 8")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1563,13 +1571,14 @@ public class BuldreinfoRepository {
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
+					int mediaCrc32 = rst.getInt("media_crc32");
+					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
 		// Problems
 		List<Search> problems = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin ORDER BY p.name, p.grade LIMIT 8")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin ORDER BY p.name, p.grade LIMIT 8")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1588,7 +1597,8 @@ public class BuldreinfoRepository {
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
-					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, mediaId, lockedAdmin, lockedSuperadmin));
+					int mediaCrc32 = rst.getInt("media_crc32");
+					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -1603,7 +1613,7 @@ public class BuldreinfoRepository {
 					String picture = rst.getString("picture");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					users.add(new Search(name, null, "/user/" + id, picture, 0, false, false));
+					users.add(new Search(name, null, "/user/" + id, picture, 0, 0, false, false));
 				}
 			}
 		}
@@ -3307,11 +3317,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaArea(int id, boolean inherited) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -3324,7 +3335,7 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, 0, 0));
+					media.add(new Media(idMedia, crc32, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, 0, 0));
 				}
 			}
 		}
@@ -3333,11 +3344,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaGuestbook(int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_guestbook mg ON m.id=mg.media_id AND m.deleted_user_id IS NULL AND mg.guestbook_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -3350,7 +3362,7 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl));
+					media.add(new Media(idMedia, crc32, pitch, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl));
 				}
 			}
 		}
@@ -3359,11 +3371,12 @@ public class BuldreinfoRepository {
 
 	private List<Media> getMediaProblem(Setup s, int authUserId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		List<Media> media = getMediaSector(s, authUserId, sectorId, problemId, true, 0, problemId, showHiddenMedia);
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND mp.problem_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
 			ps.setInt(1, problemId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = rst.getInt("pitch");
 					int width = rst.getInt("width");
@@ -3389,7 +3402,7 @@ public class BuldreinfoRepository {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					media.add(new Media(idMedia, pitch, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0));
+					media.add(new Media(idMedia, crc32, pitch, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0));
 				}
 			}
 		}
@@ -3402,15 +3415,16 @@ public class BuldreinfoRepository {
 	private List<Media> getMediaSector(Setup s, int authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
 		List<Media> allMedia = new ArrayList<>();
 		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
-		String sqlStr = "SELECT m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
+		String sqlStr = "SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged"
 				+ " FROM (((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND ms.sector_id=?) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id"
-				+ " GROUP BY m.id, m.description, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname"
+				+ " GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname"
 				+ " ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, idSector);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
 					String description = rst.getString("description");
 					int pitch = 0;
 					int width = rst.getInt("width");
@@ -3424,7 +3438,7 @@ public class BuldreinfoRepository {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					Media m = new Media(idMedia, pitch, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem);
+					Media m = new Media(idMedia, crc32, pitch, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
@@ -3603,12 +3617,12 @@ public class BuldreinfoRepository {
 	}
 
 	private void setRandomMedia(Frontpage res, int authUserId, Setup setup, boolean fallbackSolution) throws SQLException {
-		String sqlStr = "SELECT m.id id_media, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, p.grade,"
+		String sqlStr = "SELECT m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, p.grade,"
 				+ " CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\"}') photographer," 
 				+ " GROUP_CONCAT(DISTINCT CONCAT('{\"id\":', u2.id, ',\"name\":\"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))), '\"}') SEPARATOR ', ') tagged"
 				+ " FROM ((((((((((media m INNER JOIN media_problem mp ON m.is_movie=0 AND m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0) INNER JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0) INNER JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND m.deleted_user_id IS NULL AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL"
-				+ " GROUP BY m.id, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, p.grade"
+				+ " GROUP BY m.id, m.checksum, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, p.grade"
 				+ " HAVING AVG(nullif(t.stars,-1))>=2 ORDER BY rand() LIMIT 1";
 		if (fallbackSolution) {
 			sqlStr = sqlStr.replace("INNER JOIN tick", "LEFT JOIN tick");
@@ -3621,6 +3635,7 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id_media");
+					int crc32 = rst.getInt("checksum");
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
 					int idArea = rst.getInt("id_area");
@@ -3634,7 +3649,7 @@ public class BuldreinfoRepository {
 					String taggedJson = rst.getString("tagged");
 					Frontpage.RandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.RandomMedia.User.class);
 					List<Frontpage.RandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.RandomMedia.User>>(){}.getType());
-					res.setRandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(setup, grade), photographer, tagged);
+					res.setRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(setup, grade), photographer, tagged);
 				}
 			}
 		}

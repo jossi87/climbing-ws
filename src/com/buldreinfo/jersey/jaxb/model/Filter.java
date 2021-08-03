@@ -17,11 +17,12 @@ public class Filter {
 	private final String grade;
 	private final boolean ticked;
 	private final int randomMediaId;
+	private final int randomMediaCrc32;
 	
 	public Filter(boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, boolean sectorLockedAdmin,
 			boolean sectorLockedSuperadmin, String sectorName, int problemId, boolean lockedAdmin,
 			boolean lockedSuperadmin, String problemName, double latitude, double longitude, double stars, String grade,
-			boolean ticked, int randomMediaId) {
+			boolean ticked, int randomMediaId, int randomMediaCrc32) {
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
@@ -38,46 +39,15 @@ public class Filter {
 		this.grade = grade;
 		this.ticked = ticked;
 		this.randomMediaId = randomMediaId;
+		this.randomMediaCrc32 = randomMediaCrc32;
 	}
-
-	public boolean isAreaLockedAdmin() {
-		return areaLockedAdmin;
-	}
-
-	public boolean isAreaLockedSuperadmin() {
-		return areaLockedSuperadmin;
-	}
-
+	
 	public String getAreaName() {
 		return areaName;
 	}
 
-	public boolean isSectorLockedAdmin() {
-		return sectorLockedAdmin;
-	}
-
-	public boolean isSectorLockedSuperadmin() {
-		return sectorLockedSuperadmin;
-	}
-
-	public String getSectorName() {
-		return sectorName;
-	}
-
-	public int getProblemId() {
-		return problemId;
-	}
-
-	public boolean isLockedAdmin() {
-		return lockedAdmin;
-	}
-
-	public boolean isLockedSuperadmin() {
-		return lockedSuperadmin;
-	}
-
-	public String getProblemName() {
-		return problemName;
+	public String getGrade() {
+		return grade;
 	}
 
 	public double getLatitude() {
@@ -88,19 +58,55 @@ public class Filter {
 		return longitude;
 	}
 
-	public double getStars() {
-		return stars;
+	public int getProblemId() {
+		return problemId;
 	}
 
-	public String getGrade() {
-		return grade;
+	public String getProblemName() {
+		return problemName;
 	}
 
-	public boolean isTicked() {
-		return ticked;
+	public int getRandomMediaCrc32() {
+		return randomMediaCrc32;
 	}
 
 	public int getRandomMediaId() {
 		return randomMediaId;
+	}
+
+	public String getSectorName() {
+		return sectorName;
+	}
+
+	public double getStars() {
+		return stars;
+	}
+
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
+	}
+
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
+	}
+
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
+	}
+
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
+	}
+
+	public boolean isSectorLockedAdmin() {
+		return sectorLockedAdmin;
+	}
+
+	public boolean isSectorLockedSuperadmin() {
+		return sectorLockedSuperadmin;
+	}
+
+	public boolean isTicked() {
+		return ticked;
 	}
 }

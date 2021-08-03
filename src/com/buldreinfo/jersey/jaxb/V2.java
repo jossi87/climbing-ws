@@ -294,9 +294,12 @@ public class V2 {
 		}
 	}
 	
+	/**
+	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
+	 */
 	@GET
 	@Path("/images")
-	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
+	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("crc32") int crc32, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			final String acceptHeader = request.getHeader("Accept");

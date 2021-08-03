@@ -22,6 +22,7 @@ public class Frontpage implements IMetadata {
 			}
 		}
 		private final int idMedia;
+		private final int crc32;
 		private final int width;
 		private final int height;
 		private final int idArea;
@@ -33,8 +34,9 @@ public class Frontpage implements IMetadata {
 		private final String grade;
 		private final User photographer;
 		private final List<User> tagged;
-		public RandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
+		public RandomMedia(int idMedia, int crc32, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
 			this.idMedia = idMedia;
+			this.crc32 = crc32;
 			this.width = width;
 			this.height = height;
 			this.idArea = idArea;
@@ -58,6 +60,9 @@ public class Frontpage implements IMetadata {
 		}
 		public int getIdArea() {
 			return idArea;
+		}
+		public int getCrc32() {
+			return crc32;
 		}
 		public int getIdMedia() {
 			return idMedia;
@@ -166,8 +171,8 @@ public class Frontpage implements IMetadata {
 		this.numTicks = numTicks;
 	}
 
-	public void setRandomMedia(int idMedia, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
-		randomMedia = new RandomMedia(idMedia, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged);
+	public void setRandomMedia(int idMedia, int crc32, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
+		randomMedia = new RandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged);
 	}
 
 	@Override

@@ -4,6 +4,7 @@ import java.util.List;
 
 public class Media {
 	private final int id;
+	private final int crc32;
 	private final int pitch;
 	private final int width;
 	private final int height;
@@ -18,8 +19,9 @@ public class Media {
 	private final int enableMoveToIdSector;
 	private final int enableMoveToIdProblem;
 	
-	public Media(int id, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
+	public Media(int id, int crc32, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
 		this.id = id;
+		this.crc32 = crc32;
 		this.pitch = pitch;
 		this.width = width;
 		this.height = height;
@@ -35,8 +37,9 @@ public class Media {
 		this.enableMoveToIdProblem = 0;
 	}
 
-	public Media(int id, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) {
+	public Media(int id, int crc32, int pitch, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) {
 		this.id = id;
+		this.crc32 = crc32;
 		this.pitch = pitch;
 		this.width = width;
 		this.height = height;
@@ -52,8 +55,20 @@ public class Media {
 		this.enableMoveToIdProblem = enableMoveToIdProblem;
 	}
 	
+	public int getCrc32() {
+		return crc32;
+	}
+	
 	public String getEmbedUrl() {
 		return embedUrl;
+	}
+	
+	public int getEnableMoveToIdProblem() {
+		return enableMoveToIdProblem;
+	}
+
+	public int getEnableMoveToIdSector() {
+		return enableMoveToIdSector;
 	}
 	
 	public int getHeight() {
@@ -71,11 +86,11 @@ public class Media {
 	public MediaMetadata getMediaMetadata() {
 		return mediaMetadata;
 	}
-	
+
 	public List<MediaSvgElement> getMediaSvgs() {
 		return mediaSvgs;
 	}
-
+	
 	public int getPitch() {
 		return pitch;
 	}
@@ -87,7 +102,7 @@ public class Media {
 	public List<Svg> getSvgs() {
 		return svgs;
 	}
-
+	
 	public String getT() {
 		return t;
 	}
@@ -98,13 +113,5 @@ public class Media {
 	
 	public boolean isInherited() {
 		return inherited;
-	}
-	
-	public int getEnableMoveToIdProblem() {
-		return enableMoveToIdProblem;
-	}
-	
-	public int getEnableMoveToIdSector() {
-		return enableMoveToIdSector;
 	}
 }

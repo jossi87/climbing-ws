@@ -20,9 +20,10 @@ public class Area implements IMetadata {
 		private final String polygonCoords;
 		private final String polyline;
 		private final int randomMediaId;
+		private final int randomMediaCrc32;
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
-		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
+		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -35,6 +36,7 @@ public class Area implements IMetadata {
 			this.polygonCoords = polygonCoords;
 			this.polyline = polyline;
 			this.randomMediaId = randomMediaId;
+			this.randomMediaCrc32 = randomMediaCrc32;
 		}
 
 		public String getAreaName() {
@@ -60,17 +62,21 @@ public class Area implements IMetadata {
 		public String getName() {
 			return name;
 		}
-
+		
 		public int getNumProblems() {
 			return numProblems;
 		}
-		
+
 		public String getPolygonCoords() {
 			return polygonCoords;
 		}
 		
 		public String getPolyline() {
 			return polyline;
+		}
+		
+		public int getRandomMediaCrc32() {
+			return randomMediaCrc32;
 		}
 		
 		public int getRandomMediaId() {
@@ -134,8 +140,8 @@ public class Area implements IMetadata {
 		this.hits = hits;
 	}
 
-	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId) {
-		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, lat, lng, polygonCoords, polyline, randomMediaId));
+	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32));
 	}
 	
 	public String getCanonical() {
@@ -148,10 +154,6 @@ public class Area implements IMetadata {
 	
 	public long getHits() {
 		return hits;
-	}
-	
-	public boolean isTrash() {
-		return trash;
 	}
 	
 	public int getId() {
@@ -178,11 +180,11 @@ public class Area implements IMetadata {
 	public String getName() {
 		return name;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public int getNumProblems() {
 		return numProblems;
 	}
@@ -194,7 +196,7 @@ public class Area implements IMetadata {
 	public int getRegionId() {
 		return regionId;
 	}
-
+	
 	public List<Sector> getSectors() {
 		return sectors;
 	}
@@ -202,7 +204,7 @@ public class Area implements IMetadata {
 	public List<TypeNumTicked> getTypeNumTicked() {
 		return typeNumTicked;
 	}
-	
+
 	public boolean isForDevelopers() {
 		return forDevelopers;
 	}
@@ -213,6 +215,10 @@ public class Area implements IMetadata {
 	
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
+	}
+	
+	public boolean isTrash() {
+		return trash;
 	}
 
 	public void orderSectors() {

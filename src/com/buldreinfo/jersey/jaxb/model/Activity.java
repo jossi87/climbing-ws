@@ -7,13 +7,18 @@ import java.util.Set;
 public class Activity {
 	public class Media {
 		private final int id;
+		private final int crc32;
 		private final boolean isMovie;
 		private final String embedUrl;
-		public Media(int id, boolean isMovie, String embedUrl) {
+		public Media(int id, int crc32, boolean isMovie, String embedUrl) {
 			super();
 			this.id = id;
+			this.crc32 = crc32;
 			this.isMovie = isMovie;
 			this.embedUrl = embedUrl;
+		}
+		public int getCrc32() {
+			return crc32;
 		}
 		public String getEmbedUrl() {
 			return embedUrl;
@@ -62,6 +67,7 @@ public class Activity {
 	private final String problemSubtype;
 	private String grade;
 	private int problemRandomMediaId;
+	private int problemRandomMediaCrc32;
 	private List<Media> media;
 	private int stars;
 	private int id;
@@ -80,25 +86,29 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, String picture, String description, int problemRandomMediaId) {
+	public void addFa(String name, int userId, String picture, String description, int problemRandomMediaId, int problemRandomMediaCrc32) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
 		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", picture));
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
+		this.problemRandomMediaCrc32 = problemRandomMediaCrc32;
 	}
-	public void addMedia(int id, boolean isMovie, String embedUrl) {
+	public void addMedia(int id, int crc32, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
-		this.media.add(new Media(id, isMovie, embedUrl));
+		this.media.add(new Media(id, crc32, isMovie, embedUrl));
 		if (!isMovie) {
 			this.problemRandomMediaId = id;
 		}
 	}
 	public Set<Integer> getActivityIds() {
 		return activityIds;
+	}
+	public int getProblemRandomMediaCrc32() {
+		return problemRandomMediaCrc32;
 	}
 	public String getDescription() {
 		return description;
