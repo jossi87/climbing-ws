@@ -282,7 +282,9 @@ public class MetaHelper {
 			Profile p = (Profile)m;
 			String title = !Strings.isNullOrEmpty(p.getLastname())? p.getFirstname() + " " + p.getLastname() : p.getFirstname();
 			OpenGraph og = getOg(setup, "/profile/" + p.getId(), null, requestedIdMedia);
-			p.setMetadata(new Metadata(c, setup, authUserId, title, og));
+			p.setMetadata(new Metadata(c, setup, authUserId, title, og)
+					.setDefaultCenter(setup.getDefaultCenter())
+					.setDefaultZoom(setup.getDefaultZoom()));
 		}
 		else if (m instanceof TableOfContents) {
 			TableOfContents toc = (TableOfContents)m;
