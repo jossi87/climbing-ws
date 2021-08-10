@@ -107,7 +107,7 @@ private static Logger logger = LogManager.getLogger();
 				Topo topo = new Topo(problemNr, id, path);
 				
 				if (typeId == 2 && hasAnchor == shouldNotHaveAnchor.contains(problemId)) {
-					logger.debug("UPDATE svg SET has_anchor=1 WHERE id={}; -- {}/{}/{}", topo.getId(), region, areaName, problemNr);
+					logger.debug("UPDATE svg SET has_anchor=1 WHERE id={}; -- {}/problem/{}", topo.getId(), region, problemId);
 				}
 				
 				if (mediaId != lastMediaId) {
