@@ -453,11 +453,11 @@ public class V2 {
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfilemedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProfilemedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("captured") boolean captured) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<MediaProblem> res = c.getBuldreinfoRepo().getProfileMedia(authUserId, setup, id);
+			List<MediaProblem> res = c.getBuldreinfoRepo().getProfileMedia(authUserId, setup, id, captured);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
