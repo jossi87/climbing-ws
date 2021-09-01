@@ -378,7 +378,8 @@ public class BuldreinfoRepository {
 					String problemSubtype = rst.getString("problem_subtype");
 					String grade = GradeHelper.intToString(setup, rst.getInt("grade"));
 					Set<Integer> activityIds = new HashSet<>();
-					for (String activity : rst.getString("activities").split(",")) {
+					String activities = rst.getString("activities");
+					for (String activity : activities.split(",")) {
 						String[] str = activity.split("-");
 						int idActivity = Integer.parseInt(str[0]);
 						String type = str[1];
@@ -388,7 +389,7 @@ public class BuldreinfoRepository {
 						case ACTIVITY_TYPE_TICK: tickActivitityIds.add(idActivity); break;
 						case ACTIVITY_TYPE_GUESTBOOK: guestbookActivitityIds.add(idActivity); break;
 						case ACTIVITY_TYPE_MEDIA: mediaActivitityIds.add(idActivity); break;
-						default: throw new RuntimeException("Invalid type: " + type);
+						default: throw new RuntimeException("Invalid type: " + type + " on idActivity=" + idActivity + " (acitivities=" + activities + ")");
 						}
 					}
 
