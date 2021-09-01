@@ -342,6 +342,11 @@ public class BuldreinfoRepository {
 	}
 
 	public List<Activity> getActivity(int authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
+		// GROUP_CONCAT has a max length 1024 characters by default, use this to ensure acitivity don't fail
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SET SESSION group_concat_max_len = 1000000")) {
+			ps.execute();
+		}
+		
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		/**
