@@ -1326,6 +1326,7 @@ public class BuldreinfoRepository {
 		res.getTicks().sort((t1, t2) -> -ComparisonChain
 				.start()
 				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
+				.compare(t1.getId(), t2.getId())
 				.compare(t1.getIdProblem(), t2.getIdProblem())
 				.result());
 		for (int i = 0; i < res.getTicks().size(); i++) {
