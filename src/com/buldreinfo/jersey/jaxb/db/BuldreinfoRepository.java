@@ -2726,7 +2726,7 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id) VALUES (?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO todo (user_id, problem_id, created) VALUES (?, ?, now())")) {
 				ps.setInt(1, authUserId);
 				ps.setInt(2, problemId);
 				ps.execute();
