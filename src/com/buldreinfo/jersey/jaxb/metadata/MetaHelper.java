@@ -320,7 +320,7 @@ public class MetaHelper {
 				}
 			}
 			String description = String.format("%d region(s), %d %s",
-					uniqueRegions,
+					uniqueRegions.size(),
 					numProblems, setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/cg", null, requestedIdMedia);
 			cg.setMetadata(new Metadata(c, setup, authUserId, "Content Graph", og).setDescription(description));
