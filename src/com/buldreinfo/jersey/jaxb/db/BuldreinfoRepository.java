@@ -718,7 +718,7 @@ public class BuldreinfoRepository {
 				+ " FROM (SELECT r.name region, s.sorting, ty.subtype t, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, p.id id_problem"
 				+ "   FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.grade>0"
 				+ " 	AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ "   WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=1)"
+				+ "   WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
 				+ "     AND (a.region_id=? OR ur.user_id IS NOT NULL)"
 				+ "   GROUP BY s.name, ty.subtype, p.id) x, grade g"
 				+ " WHERE x.grade_id=g.grade_id AND g.t=?"
@@ -730,8 +730,9 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
-			ps.setString(3, setup.getGradeSystem().toString());
+			ps.setInt(3, setup.getIdRegion());
 			ps.setString(4, setup.getGradeSystem().toString());
+			ps.setString(5, setup.getGradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String grade = rst.getString("grade");

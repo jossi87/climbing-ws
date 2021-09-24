@@ -20,6 +20,7 @@ import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
@@ -307,8 +308,13 @@ public class MetaHelper {
 		}
 		else if (m instanceof ContentGraph) {
 			ContentGraph cg = (ContentGraph)m;
+			int num = 0;
+			for (GradeDistribution gd : cg.getGradeDistribution()) {
+				num += gd.getNum();
+			}
+			String description = String.format("%d %s", num, setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/cg", null, requestedIdMedia);
-			cg.setMetadata(new Metadata(c, setup, authUserId, "Content Graph", og).setDescription("Content Graph"));
+			cg.setMetadata(new Metadata(c, setup, authUserId, "Content Graph", og).setDescription(description));
 		}
 		else if (m instanceof Trash) {
 			Trash t = (Trash)m;
