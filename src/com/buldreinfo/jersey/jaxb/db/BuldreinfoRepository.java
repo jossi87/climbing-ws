@@ -64,6 +64,7 @@ import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
+import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -710,6 +711,45 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
+	public ContentGraph getContentGraph(int authUserId, Setup setup) throws SQLException {
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		String sqlStr = "WITH x AS ("
+				+ " SELECT g.base_no grade_base_no, x.sorting, x.region, x.t, COUNT(id_problem) num"
+				+ " FROM (SELECT r.name region, s.sorting, ty.subtype t, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, p.id id_problem"
+				+ "   FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.grade>0"
+				+ " 	AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
+				+ "   WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=1)"
+				+ "   GROUP BY s.name, ty.subtype, p.id) x, grade g"
+				+ " WHERE x.grade_id=g.grade_id AND g.t=?"
+				+ " GROUP BY x.sorting, x.region, g.base_no, x.t"
+				+ " )"
+				+ " SELECT g.base_no grade, x.region, COALESCE(x.t,'Boulder') t, num"
+				+ " FROM (SELECT g.base_no, MIN(g.grade_id) sort FROM grade g WHERE g.t=? GROUP BY g.base_no) g LEFT JOIN x ON g.base_no=x.grade_base_no"
+				+ " ORDER BY g.sort, x.sorting, x.region, x.t";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setString(2, setup.getGradeSystem().toString());
+			ps.setString(3, setup.getGradeSystem().toString());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String grade = rst.getString("grade");
+					GradeDistribution g = res.get(grade);
+					if (g == null) {
+						g = new GradeDistribution(grade);
+						res.put(grade, g);
+					}
+					String region = rst.getString("region");
+					if (region != null) {
+						String t = rst.getString("t");
+						int num = rst.getInt("num");
+						g.addSector(region, t, num);
+					}
+				}
+			}
+		}
+		return new ContentGraph(res.values());
+	}
+
 	public Dangerous getDangerous(int authUserId, Setup setup) throws SQLException {
 		Dangerous res = new Dangerous();
 		Map<Integer, Dangerous.Area> areaLookup = new HashMap<>();
@@ -916,7 +956,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public MediaSvg getMediaSvg(int id) throws SQLException {
 		MediaSvg res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -944,7 +984,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Permissions getPermissions(int authUserId, int idRegion) throws SQLException {
 		ensureSuperadminWriteRegion(authUserId, idRegion);
 		// Return users
@@ -1850,7 +1890,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
 		return res;
 	}
-
+	
 	public List<Top> getTop(Setup s, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
 		String condition = (areaId>0? "a.id=" + areaId : "s.id=" + sectorId) + " AND g.t='" + (s.getGradeSystem().toString() + "'");
@@ -1897,7 +1937,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		Trash res = new Trash();
@@ -1940,7 +1980,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
@@ -1956,7 +1996,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public List<UserRegion> getUserRegion(int authUserId, Setup setup) throws SQLException {
 		List<UserRegion> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only, ur.region_visible, CASE WHEN ur.superadmin_write=1 THEN 'Superadmin' WHEN ur.superadmin_read=1 THEN 'Superadmin (read)' WHEN ur.admin_read=1 THEN 'Admin (read)' WHEN ur.admin_write=1 THEN 'Admin' END role FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
