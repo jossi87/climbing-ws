@@ -714,22 +714,24 @@ public class BuldreinfoRepository {
 	public ContentGraph getContentGraph(int authUserId, Setup setup) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = "WITH x AS ("
-				+ " SELECT g.base_no grade_base_no, x.sorting, x.region, x.t, COUNT(id_problem) num"
+				+ " SELECT g.base_no grade_base_no, x.region, x.t, COUNT(id_problem) num"
 				+ " FROM (SELECT r.name region, s.sorting, ty.subtype t, ROUND((IFNULL(AVG(NULLIF(t.grade,0)), p.grade) + p.grade)/2) grade_id, p.id id_problem"
 				+ "   FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.grade>0"
 				+ " 	AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
 				+ "   WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=1)"
+				+ "     AND (a.region_id=? OR ur.user_id IS NOT NULL)"
 				+ "   GROUP BY s.name, ty.subtype, p.id) x, grade g"
 				+ " WHERE x.grade_id=g.grade_id AND g.t=?"
-				+ " GROUP BY x.sorting, x.region, g.base_no, x.t"
+				+ " GROUP BY x.region, g.base_no, x.t"
 				+ " )"
 				+ " SELECT g.base_no grade, x.region, COALESCE(x.t,'Boulder') t, num"
 				+ " FROM (SELECT g.base_no, MIN(g.grade_id) sort FROM grade g WHERE g.t=? GROUP BY g.base_no) g LEFT JOIN x ON g.base_no=x.grade_base_no"
-				+ " ORDER BY g.sort, x.sorting, x.region, x.t";
+				+ " ORDER BY g.sort, x.region, x.t";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
-			ps.setString(2, setup.getGradeSystem().toString());
+			ps.setInt(2, setup.getIdRegion());
 			ps.setString(3, setup.getGradeSystem().toString());
+			ps.setString(4, setup.getGradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String grade = rst.getString("grade");
