@@ -2,8 +2,10 @@ package com.buldreinfo.jersey.jaxb.metadata;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
+import com.buldreinfo.jersey.jaxb.model.GradeDistribution.GradeDistributionRow;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -308,11 +311,17 @@ public class MetaHelper {
 		}
 		else if (m instanceof ContentGraph) {
 			ContentGraph cg = (ContentGraph)m;
-			int num = 0;
+			Set<String> uniqueRegions = new HashSet<>();
+			int numProblems = 0;
 			for (GradeDistribution gd : cg.getGradeDistribution()) {
-				num += gd.getNum();
+				numProblems += gd.getNum();
+				for (GradeDistributionRow r : gd.getRows()) {
+					uniqueRegions.add(r.getName());
+				}
 			}
-			String description = String.format("%d %s", num, setup.isBouldering()? "boulders" : "routes");
+			String description = String.format("%d region(s), %d %s",
+					uniqueRegions,
+					numProblems, setup.isBouldering()? "boulders" : "routes");
 			OpenGraph og = getOg(setup, "/cg", null, requestedIdMedia);
 			cg.setMetadata(new Metadata(c, setup, authUserId, "Content Graph", og).setDescription(description));
 		}
