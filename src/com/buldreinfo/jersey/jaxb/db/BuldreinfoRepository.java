@@ -1139,6 +1139,19 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		// Todos
+		sqlStr = "SELECT u.id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name FROM todo t, user u WHERE t.user_id=u.id AND t.problem_id=? ORDER BY u.firstname, u.lastname";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, p.getId());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idUser = rst.getInt("id");
+					String picture = rst.getString("picture");
+					String name = rst.getString("name");
+					p.addTodo(idUser, picture, name);
+				}
+			}
+		}
 		// Comments
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time")) {
 			ps.setInt(1, p.getId());

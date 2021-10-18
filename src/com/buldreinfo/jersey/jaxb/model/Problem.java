@@ -37,6 +37,9 @@ public class Problem implements IMetadata {
 		public int getIdUser() {
 			return idUser;
 		}
+		public List<Media> getMedia() {
+			return media;
+		}
 		public String getMessage() {
 			return message;
 		}
@@ -54,9 +57,6 @@ public class Problem implements IMetadata {
 		}
 		public boolean isResolved() {
 			return resolved;
-		}
-		public List<Media> getMedia() {
-			return media;
 		}
 		public void setEditable(boolean editable) {
 			this.editable = editable;
@@ -146,7 +146,25 @@ public class Problem implements IMetadata {
 					+ ", writable=" + writable + "]";
 		}
 	}
-	
+	public class Todo {
+		private final int idUser;
+		private final String picture;
+		private final String name;
+		public Todo(int idUser, String picture, String name) {
+			this.idUser = idUser;
+			this.picture = picture;
+			this.name = name;
+		}
+		public int getIdUser() {
+			return idUser;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getPicture() {
+			return picture;
+		}
+	}
 	private final int areaId;
 	private final boolean areaLockedAdmin;
 	private final boolean areaLockedSuperadmin;
@@ -182,6 +200,7 @@ public class Problem implements IMetadata {
 	private final double stars;
 	private final boolean ticked;
 	private List<Tick> ticks;
+	private List<Todo> todos;
 	private List<Comment> comments;
 	private final List<NewMedia> newMedia;
 	private final Type t;
@@ -243,10 +262,6 @@ public class Problem implements IMetadata {
 		this.descent = descent;
 	}
 	
-	public boolean isTrash() {
-		return trash;
-	}
-	
 	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		if (comments == null) {
 			comments = new ArrayList<>();
@@ -270,8 +285,11 @@ public class Problem implements IMetadata {
 		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
 	}
 	
-	public String getRock() {
-		return rock;
+	public void addTodo(int idUser, String picture, String name) {
+		if (todos == null) {
+			todos = new ArrayList<>();
+		}
+		todos.add(new Todo(idUser, picture, name));
 	}
 	
 	public int getAreaId() {
@@ -301,7 +319,7 @@ public class Problem implements IMetadata {
 	public String getDescent() {
 		return descent;
 	}
-
+	
 	public List<FaUser> getFa() {
 		return fa;
 	}
@@ -313,7 +331,7 @@ public class Problem implements IMetadata {
 	public String getFaDate() {
 		return faDate;
 	}
-	
+
 	public String getFaDateHr() {
 		return faDateHr;
 	}
@@ -337,7 +355,7 @@ public class Problem implements IMetadata {
 	public double getLng() {
 		return lng;
 	}
-
+	
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -350,11 +368,11 @@ public class Problem implements IMetadata {
 	public String getName() {
 		return name;
 	}
-	
+
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public int getNr() {
 		return nr;
 	}
@@ -366,6 +384,10 @@ public class Problem implements IMetadata {
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
+
+	public String getRock() {
+		return rock;
+	}
 	
 	public String getRouteLength() {
 		return routeLength;
@@ -374,7 +396,7 @@ public class Problem implements IMetadata {
 	public List<Section> getSections() {
 		return sections;
 	}
-
+	
 	public int getSectorId() {
 		return sectorId;
 	}
@@ -382,15 +404,15 @@ public class Problem implements IMetadata {
 	public int getSectorIdProblemNext() {
 		return sectorIdProblemNext;
 	}
-	
+
 	public int getSectorIdProblemPrev() {
 		return sectorIdProblemPrev;
 	}
-
+	
 	public double getSectorLat() {
 		return sectorLat;
 	}
-
+	
 	public double getSectorLng() {
 		return sectorLng;
 	}
@@ -410,7 +432,7 @@ public class Problem implements IMetadata {
 	public double getStars() {
 		return stars;
 	}
-	
+
 	public String getStartingAltitude() {
 		return startingAltitude;
 	}
@@ -418,15 +440,19 @@ public class Problem implements IMetadata {
 	public Type getT() {
 		return t;
 	}
-
+	
 	public List<Tick> getTicks() {
 		return ticks;
 	}
-	
+
+	public List<Todo> getTodos() {
+		return todos;
+	}
+
 	public String getTrivia() {
 		return trivia;
 	}
-
+	
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
@@ -438,7 +464,7 @@ public class Problem implements IMetadata {
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-	
+
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}
@@ -446,7 +472,7 @@ public class Problem implements IMetadata {
 	public boolean isSectorLockedAdmin() {
 		return sectorLockedAdmin;
 	}
-
+	
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
@@ -457,6 +483,10 @@ public class Problem implements IMetadata {
 
 	public boolean isTodo() {
 		return todo;
+	}
+
+	public boolean isTrash() {
+		return trash;
 	}
 	
 	public void setFaAid(FaAid faAid) {
