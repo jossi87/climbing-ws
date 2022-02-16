@@ -21,6 +21,11 @@ import com.google.common.collect.Lists;
 
 public class VegvesenParser {
 	private static Logger logger = LogManager.getLogger();
+	
+	public static void main(String[] args) throws Exception {
+		VegvesenParser parser = new VegvesenParser();
+		parser.getCameras();
+	}
 
 	public List<Camera> getCameras() throws Exception {
 		URL url = new URL("https://www.vegvesen.no/ws/no/vegvesen/veg/trafikkpublikasjon/kamera/2/GetCCTVSiteTable");
@@ -54,7 +59,9 @@ public class VegvesenParser {
 					break;
 				case "cctvCameraIdentification":
 					event = eventReader.nextEvent();
-					camera.setId(event.asCharacters().getData());
+					if (isCharacherString(event)) {
+						camera.setId(event.asCharacters().getData());
+					}
 					break;
 				case "cctvCameraRecordVersionTime":
 					event = eventReader.nextEvent();
@@ -80,7 +87,9 @@ public class VegvesenParser {
 									event = eventReader.nextEvent();
 									if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("value")) {
 										event = eventReader.nextEvent();
-										camera.setUrlYr(event.asCharacters().getData());
+										if (isCharacherString(event)) {
+											camera.setUrlYr(event.asCharacters().getData());
+										}
 									}
 								}
 							}
@@ -106,5 +115,12 @@ public class VegvesenParser {
 			}
 		}
 		return cameras;
+	}
+	
+	private boolean isCharacherString(XMLEvent event) {
+		if (event.toString().startsWith("<")) {
+			return false;
+		}
+		return true;
 	}
 }
