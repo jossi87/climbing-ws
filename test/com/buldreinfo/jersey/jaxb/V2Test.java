@@ -25,9 +25,8 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.net.HttpHeaders;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 public class V2Test {
 	

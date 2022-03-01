@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.util.excel;
 
-import java.awt.Color;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -252,7 +251,8 @@ public class ExcelReport implements AutoCloseable {
 	 */
 	protected ReportStyle createStyle() {
 		CellStyle headerStyle = createHeaderStyle(workbook);
-		CellStyle nullStyle = createBackgroundColorStyle(workbook, new Color(234, 234, 255));
+		byte[] color = new byte[] {(byte)234, (byte)234, (byte)255};
+		CellStyle nullStyle = createBackgroundColorStyle(workbook, color);
 		CellStyle timestampStyle = createTimestampStyle(workbook);
 		CellStyle dateStyle = createDateStyle(workbook);
 		CellStyle timeStyle = createTimeStyle(workbook);
@@ -762,7 +762,7 @@ public class ExcelReport implements AutoCloseable {
 	 * @param backgroundColor the background color.
 	 * @return The cell style.
 	 */
-	protected static CellStyle createBackgroundColorStyle(Workbook book, Color backgroundColor) {
+	protected static CellStyle createBackgroundColorStyle(Workbook book, byte[] backgroundColor) {
 		return createBackgroundColorStyle(book, backgroundColor, null);
 	}
 	
@@ -773,7 +773,7 @@ public class ExcelReport implements AutoCloseable {
 	 * @param template optional template.
 	 * @return The cell style.
 	 */
-	protected static CellStyle createBackgroundColorStyle(Workbook book, Color backgroundColor, CellStyle template) {
+	protected static CellStyle createBackgroundColorStyle(Workbook book, byte[] backgroundColor, CellStyle template) {
 		XSSFCellStyle style = (XSSFCellStyle) book.createCellStyle();
 		XSSFColor color = new XSSFColor(backgroundColor);
 		
@@ -793,7 +793,7 @@ public class ExcelReport implements AutoCloseable {
 	 * @param template optional template.
 	 * @return The cell style.
 	 */
-	protected static CellStyle createBorderColorStyle(Workbook book, BorderStyle borderStyle, Color borderColor, CellStyle template) {
+	protected static CellStyle createBorderColorStyle(Workbook book, BorderStyle borderStyle, byte[] borderColor, CellStyle template) {
 		XSSFCellStyle style = (XSSFCellStyle) book.createCellStyle();
 		XSSFColor color = new XSSFColor(borderColor);
 		
@@ -822,8 +822,8 @@ public class ExcelReport implements AutoCloseable {
 		Preconditions.checkNotNull(book, "book cannot be NULL");
 		
 		// Safely retrieve the current font
-		Font currentFont = template != null && template.getFontIndexAsInt() >= 0 ? 
-				book.getFontAt(template.getFontIndexAsInt()) : null;
+		Font currentFont = template != null && template.getFontIndex() >= 0 ? 
+				book.getFontAt(template.getFontIndex()) : null;
 		
 		// See if we actually need to change the style
 		if (Objects.equal(currentFont, newFont)) {
@@ -2094,7 +2094,7 @@ public class ExcelReport implements AutoCloseable {
 		 * @param modifyTypes report types where the background color should be changed, or NULL/empty if this should apply to ALL types.
 		 * @return An equivalent report style.
 		 */
-		public ReportStyle withBackgroundColor(Color color, ReportStyleType... modifyTypes) {
+		public ReportStyle withBackgroundColor(byte[] color, ReportStyleType... modifyTypes) {
 			Set<ReportStyleType> lookup = createLookup(modifyTypes);
 			
 			return withMapping((type, style) -> 
@@ -2109,7 +2109,7 @@ public class ExcelReport implements AutoCloseable {
 		 * @param modifyTypes report types where the background color should be changed, or NULL/empty if this should apply to ALL types.
 		 * @return An equivalent report style.
 		 */
-		public ReportStyle withBorderColor(BorderStyle borderStyle, Color color, ReportStyleType... modifyTypes) {
+		public ReportStyle withBorderColor(BorderStyle borderStyle, byte[] color, ReportStyleType... modifyTypes) {
 			Set<ReportStyleType> lookup = createLookup(modifyTypes);
 			
 			return withMapping((type, style) -> 

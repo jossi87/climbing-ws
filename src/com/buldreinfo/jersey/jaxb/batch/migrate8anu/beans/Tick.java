@@ -3,9 +3,8 @@ package com.buldreinfo.jersey.jaxb.batch.migrate8anu.beans;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-
-import jersey.repackaged.com.google.common.base.Joiner;
 
 public class Tick {
 	private final String cragName;

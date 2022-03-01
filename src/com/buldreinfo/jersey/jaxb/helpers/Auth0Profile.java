@@ -2,9 +2,8 @@ package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import jersey.repackaged.com.google.common.base.Preconditions;
 
 public class Auth0Profile {
 	private final String email;
