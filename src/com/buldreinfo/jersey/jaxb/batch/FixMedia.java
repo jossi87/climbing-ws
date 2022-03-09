@@ -119,7 +119,7 @@ public class FixMedia {
 
 	private List<String> fixMovies(Connection c) throws Exception {
 		List<String> warnings = new ArrayList<>();
-		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie, embed_url FROM media");
+		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie, embed_url FROM media WHERE");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			final int id = rst.getInt("id");
@@ -206,6 +206,15 @@ public class FixMedia {
 								g.dispose();
 								ImageIO.write(b, "jpg", jpg.toFile());
 								Preconditions.checkArgument(Files.exists(jpg) && Files.size(jpg)>0, jpg.toString() + " does not exist (or is 0 byte)");
+							}
+							if (!Files.exists(webp) || Files.size(webp) == 0) {
+								logger.debug("Create " + webp);
+								Files.createDirectories(webp.getParent());
+								String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
+								Process process = Runtime.getRuntime().exec(cmd);
+								process.waitFor();
+								Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+								logger.debug(webp.toString() + " saved");
 							}
 						}
 						else if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
