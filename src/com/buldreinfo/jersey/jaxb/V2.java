@@ -79,6 +79,7 @@ import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
+import com.buldreinfo.jersey.jaxb.xml.Camera;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -240,6 +241,7 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			Cameras res = new Cameras(vegvesenPaser.getCameras());
+			res.getCameras().add(new Camera("Langholmen", null, "Egersund Energy Hub (Langholmen)", "https://s14.ipcamlive.com/streams/0enwxur5pdx8hoysb/snapshot.jpg", null, 58.45934, 5.98234));
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
