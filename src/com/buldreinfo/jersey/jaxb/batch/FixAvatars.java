@@ -14,6 +14,8 @@ import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
@@ -22,10 +24,12 @@ import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
 
 public class FixAvatars {
+	private static Logger logger = LogManager.getLogger();
+	
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Path originalFolder = Paths.get("C:/users/joste_000/desktop/test/original");
-			final Path resizedFolder = Paths.get("C:/users/joste_000/desktop/test/resized");
+			final Path originalFolder = Paths.get("D:/gdrive/web/buldreinfo/buldreinfo_media/original/users");
+			final Path resizedFolder = Paths.get("D:/gdrive/web/buldreinfo/buldreinfo_media/web/users");
 			Files.createDirectories(originalFolder.getParent());
 			Files.createDirectories(resizedFolder.getParent());
 			Set<String> missingFiles = new TreeSet<>();
@@ -41,14 +45,13 @@ public class FixAvatars {
 							try (InputStream in = new URL(picture).openStream()) {
 								Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 								in.close();
+								logger.debug("Downloaded " + original.toString());
 							}
 						} catch (Exception e) {
 							missingFiles.add(original.toString());
 						}
 					}
-					if (Files.exists(original)) {
-						// Create new resized
-						Files.deleteIfExists(resized);
+					if (Files.exists(original) && !Files.exists(resized)) {
 						BufferedImage bOriginal = ImageIO.read(original.toFile());
 						BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
 						ImageIO.write(bScaled, "jpg", resized.toFile());
@@ -57,11 +60,12 @@ public class FixAvatars {
 						bScaled.flush();
 						bScaled = null;
 						Preconditions.checkArgument(Files.exists(resized));
+						logger.debug("Created " + resized.toString());
 					}
 				}
 			}
 			for (String missingFile : missingFiles) {
-				System.err.println(missingFile);
+				logger.warn(missingFile);
 			}
 			c.setSuccess();
 		} catch (Exception e) {
