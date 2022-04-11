@@ -3604,7 +3604,7 @@ public class BuldreinfoRepository {
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					String name = rst.getString("name");
-					s.addSibling(id, lockedAdmin, lockedSuperadmin, name);
+					s.addSector(id, lockedAdmin, lockedSuperadmin, name);
 				}
 			}
 		}

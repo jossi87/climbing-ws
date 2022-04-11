@@ -140,12 +140,12 @@ public class Sector implements IMetadata {
 			return ticked;
 		}
 	}
-	public class SectorSibling {
+	public class SectorJump {
 		private final int id;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final String name;
-		public SectorSibling(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
+		public SectorJump(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
 			this.id = id;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
@@ -182,7 +182,7 @@ public class Sector implements IMetadata {
 	private final String polygonCoords;
 	private final String polyline;
 	private final List<Media> media;
-	private final List<SectorSibling> siblings = new ArrayList<>();
+	private final List<SectorJump> sectors = new ArrayList<>();
 	private final List<Problem> problems = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private final long hits;
@@ -214,8 +214,8 @@ public class Sector implements IMetadata {
 		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 	
-	public void addSibling(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
-		this.siblings.add(new SectorSibling(id, lockedAdmin, lockedSuperadmin, name));
+	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
+		this.sectors.add(new SectorJump(id, lockedAdmin, lockedSuperadmin, name));
 	}
 	
 	public int getAreaId() {
@@ -279,8 +279,8 @@ public class Sector implements IMetadata {
 		return problems;
 	}
 	
-	public List<SectorSibling> getSiblings() {
-		return siblings;
+	public List<SectorJump> getSiblings() {
+		return sectors;
 	}
 	
 	public boolean isAreaLockedAdmin() {
