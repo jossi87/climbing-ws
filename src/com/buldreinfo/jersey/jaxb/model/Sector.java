@@ -60,10 +60,6 @@ public class Sector implements IMetadata {
 			return comment;
 		}
 		
-		public String getRock() {
-			return rock;
-		}
-
 		public String getFa() {
 			return fa;
 		}
@@ -75,35 +71,23 @@ public class Sector implements IMetadata {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-		
-		public boolean isHasImages() {
-			return hasImages;
-		}
-		
-		public boolean isHasMovies() {
-			return hasMovies;
-		}
-		
-		public boolean isHasTopo() {
-			return hasTopo;
-		}
-		
+
 		public int getId() {
 			return id;
 		}
-
+		
 		public double getLat() {
 			return lat;
 		}
-
+		
 		public double getLng() {
 			return lng;
 		}
-
+		
 		public String getName() {
 			return name;
 		}
-
+		
 		public int getNr() {
 			return nr;
 		}
@@ -114,6 +98,10 @@ public class Sector implements IMetadata {
 
 		public int getNumTicks() {
 			return numTicks;
+		}
+
+		public String getRock() {
+			return rock;
 		}
 
 		public double getStars() {
@@ -127,6 +115,18 @@ public class Sector implements IMetadata {
 		public boolean isDanger() {
 			return danger;
 		}
+
+		public boolean isHasImages() {
+			return hasImages;
+		}
+
+		public boolean isHasMovies() {
+			return hasMovies;
+		}
+
+		public boolean isHasTopo() {
+			return hasTopo;
+		}
 		
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
@@ -138,6 +138,30 @@ public class Sector implements IMetadata {
 
 		public boolean isTicked() {
 			return ticked;
+		}
+	}
+	public class SectorSibling {
+		private final int id;
+		private final boolean lockedAdmin;
+		private final boolean lockedSuperadmin;
+		private final String name;
+		public SectorSibling(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
+			this.id = id;
+			this.lockedAdmin = lockedAdmin;
+			this.lockedSuperadmin = lockedSuperadmin;
+			this.name = name;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public boolean isLockedAdmin() {
+			return lockedAdmin;
+		}
+		public boolean isLockedSuperadmin() {
+			return lockedSuperadmin;
 		}
 	}
 	
@@ -158,6 +182,7 @@ public class Sector implements IMetadata {
 	private final String polygonCoords;
 	private final String polyline;
 	private final List<Media> media;
+	private final List<SectorSibling> siblings = new ArrayList<>();
 	private final List<Problem> problems = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private final long hits;
@@ -189,18 +214,18 @@ public class Sector implements IMetadata {
 		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
 	}
 	
-	public boolean isTrash() {
-		return trash;
+	public void addSibling(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
+		this.siblings.add(new SectorSibling(id, lockedAdmin, lockedSuperadmin, name));
 	}
 	
 	public int getAreaId() {
 		return areaId;
 	}
-
+	
 	public String getAreaName() {
 		return areaName;
 	}
-	
+
 	public String getCanonical() {
 		return canonical;
 	}
@@ -233,7 +258,7 @@ public class Sector implements IMetadata {
 	public Metadata getMetadata() {
 		return metadata;
 	}
-
+	
 	public String getName() {
 		return name;
 	}
@@ -241,7 +266,7 @@ public class Sector implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-	
+
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
@@ -252,6 +277,10 @@ public class Sector implements IMetadata {
 	
 	public List<Problem> getProblems() {
 		return problems;
+	}
+	
+	public List<SectorSibling> getSiblings() {
+		return siblings;
 	}
 	
 	public boolean isAreaLockedAdmin() {
@@ -272,6 +301,10 @@ public class Sector implements IMetadata {
 	
 	public boolean isOrderByGrade() {
 		return orderByGrade;
+	}
+	
+	public boolean isTrash() {
+		return trash;
 	}
 	
 	@Override
