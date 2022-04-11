@@ -241,7 +241,7 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			Cameras res = new Cameras(vegvesenPaser.getCameras());
-			res.getCameras().add(new Camera("Langholmen", null, "Egersund Energy Hub (Langholmen)", "https://s14.ipcamlive.com/streams/0enwxur5pdx8hoysb/snapshot.jpg", null, "https://www.egersundenergyhub.no/webkamera", 58.45934, 5.98234));
+			res.getCameras().add(new Camera("Langholmen", null, "Egersund Energy Hub (Langholmen)", "https://s14.ipcamlive.com/streams/0efoakyryegxw7ziv/snapshot.jpg", null, "https://www.egersundenergyhub.no/webkamera", 58.45934, 5.98234));
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
