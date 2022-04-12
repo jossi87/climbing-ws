@@ -1685,13 +1685,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		// Truncate result to max 8
-		while (areas.size() + sectors.size() + problems.size() + users.size() > 8) {
+		// Truncate result to max 9
+		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
 			if (problems.size() > 5) {
 				problems.remove(problems.size() - 1);
-			} else if (areas.size() > 1) {
+			} else if (areas.size() > 2) {
 				areas.remove(areas.size() - 1);
-			} else if (sectors.size() > 1) {
+			} else if (sectors.size() > 2) {
 				sectors.remove(sectors.size() - 1);
 			} else if (users.size() > 1) {
 				users.remove(users.size() - 1);
