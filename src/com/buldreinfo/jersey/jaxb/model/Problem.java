@@ -173,6 +173,7 @@ public class Problem implements IMetadata {
 	private final boolean sectorLockedAdmin;
 	private final boolean sectorLockedSuperadmin;
 	private final String sectorName;
+	private final String sectorAccessInfo;
 	private final double sectorLat;
 	private final double sectorLng;
 	private final String sectorPolygonCoords;
@@ -215,7 +216,7 @@ public class Problem implements IMetadata {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -225,6 +226,7 @@ public class Problem implements IMetadata {
 		this.sectorLockedAdmin = sectorLockedAdmin;
 		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.sectorName = sectorName;
+		this.sectorAccessInfo = sectorAccessInfo;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
 		this.sectorPolygonCoords = sectorPolygonCoords;
@@ -419,6 +421,10 @@ public class Problem implements IMetadata {
 
 	public String getSectorName() {
 		return sectorName;
+	}
+	
+	public String getSectorAccessInfo() {
+		return sectorAccessInfo;
 	}
 
 	public String getSectorPolygonCoords() {

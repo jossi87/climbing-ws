@@ -202,6 +202,9 @@ public class PdfGenerator implements AutoCloseable {
 		addMetaData(title);
 		document.add(new Paragraph(title, FONT_H1));
 		writeMapProblem(area, sector, problem);
+		if (!Strings.isNullOrEmpty(sector.getAccessInfo())) {
+			document.add(new Phrase(sector.getAccessInfo(), FONT_BOLD));
+		}
 		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
 		if (!Strings.isNullOrEmpty(html)) {
 			writeHtml(html);
@@ -697,6 +700,9 @@ public class PdfGenerator implements AutoCloseable {
 			document.newPage();
 			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
 			document.add(new Paragraph(s.getName(), FONT_H2));
+			if (!Strings.isNullOrEmpty(s.getAccessInfo())) {
+				document.add(new Phrase(s.getAccessInfo(), FONT_BOLD));
+			}
 			if (!Strings.isNullOrEmpty(s.getComment())) {
 				document.add(new Phrase(s.getComment(), FONT_REGULAR));
 			}

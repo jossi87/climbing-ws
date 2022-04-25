@@ -177,6 +177,7 @@ public class Sector implements IMetadata {
 	private final boolean lockedSuperadmin;
 	private final String name;
 	private final String comment;
+	private final String accessInfo;
 	private final double lat;
 	private final double lng;
 	private final String polygonCoords;
@@ -188,7 +189,7 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -201,6 +202,7 @@ public class Sector implements IMetadata {
 		this.lockedSuperadmin = lockedSuperadmin; 
 		this.name = name;
 		this.comment = comment;
+		this.accessInfo = accessInfo;
 		this.lat = lat;
 		this.lng = lng;
 		this.polygonCoords = polygonCoords;
@@ -216,6 +218,10 @@ public class Sector implements IMetadata {
 	
 	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
 		this.sectors.add(new SectorJump(id, lockedAdmin, lockedSuperadmin, name));
+	}
+	
+	public String getAccessInfo() {
+		return accessInfo;
 	}
 	
 	public int getAreaId() {
