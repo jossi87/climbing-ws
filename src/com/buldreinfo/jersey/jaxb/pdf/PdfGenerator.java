@@ -132,8 +132,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				//generator.writeArea(area, gradeDistribution, sectors);
-				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				generator.writeArea(area, gradeDistribution, sectors);
+				//generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -176,20 +176,27 @@ public class PdfGenerator implements AutoCloseable {
 			writeHtml(area.getComment());
 		}
 		if ( (gradeDistribution != null && !gradeDistribution.isEmpty()) || (area.getMedia() != null && !area.getMedia().isEmpty()) ) {
-			PdfPTable table = new PdfPTable(1);
+			PdfPTable table = new PdfPTable(2);
 			table.setWidthPercentage(100);
+			boolean addDummyCell = false;
 			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
 				Path png = GlobalFunctions.getPathTemp().resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
 				Files.createDirectories(png.getParent());
 				GradeDistributionGenerator.write(png, gradeDistribution);
 				Image img = Image.getInstance(png.toString());
 				PdfPCell cell = new PdfPCell(img, true);
+				cell.setBorder(0);
 				table.addCell(cell);
+				addDummyCell = !addDummyCell;
 			}
 			if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 				for (Media m : area.getMedia()) {
-					writeMediaCell(table, table.getNumberOfColumns(), m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					addDummyCell = !addDummyCell;
 				}
+			}
+			if (addDummyCell) {
+				addDummyCell(table);
 			}
 			document.add(table);
 		}
@@ -340,7 +347,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 		}
 		if (!media.isEmpty()) {
-			PdfPTable table = new PdfPTable(media.size() > 1? 2 : 1);
+			PdfPTable table = new PdfPTable(2);
 			table.setWidthPercentage(100);
 			for (Media m : media) {
 				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
@@ -356,10 +363,19 @@ public class PdfGenerator implements AutoCloseable {
 				writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), txt, m.getMediaSvgs(), svgs);
 			}
 			if (media.size() > 1 && media.size() % 2 == 1) {
-				table.addCell(new PdfPCell()); // Add dummy, last image is not visible without this
+				addDummyCell(table);
 			}
 			document.add(table);
 		}
+	}
+	
+	/**
+	 * Needed if colspan=2 and written cells is an odd number
+	 */
+	private void addDummyCell(PdfPTable table) {
+		PdfPCell dummyCell = new PdfPCell();
+		dummyCell.setBorder(0);
+		table.addCell(dummyCell); // Add dummy, last image is not visible without this
 	}
 
 	private void addMetaData(String title) {
@@ -460,12 +476,19 @@ public class PdfGenerator implements AutoCloseable {
 		} 
 	}
 
+	private String removeIllegalChars(String name) {
+		if (name != null) {
+			return name.replaceAll("[^ÆØÅæøåa-zA-Z0-9]", " ");
+		}
+		return name;
+	}
+
 	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
 		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
 			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
 		}
 	}
-
+	
 	private void writeMapArea(Area area, List<Sector> sectors) {
 		try {
 			List<Marker> markers = new ArrayList<>();
@@ -507,75 +530,6 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
-				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
-				if (png != null) {
-					PdfPTable table = new PdfPTable(1);
-					table.setWidthPercentage(100);
-					Image img = Image.getInstance(png.toString());
-					PdfPCell cell = new PdfPCell(img, true);
-					cell.setColspan(table.getNumberOfColumns());
-					table.addCell(cell);
-					document.add(new Paragraph(" "));
-					document.add(table);
-				}
-			}
-		} catch (Exception | Error e) {
-			logger.warn(e.getMessage(), e);
-		}
-	}
-	
-	private void writeMapSector(Sector sector) {
-		try {
-			List<Outline> outlines = new ArrayList<>();
-			List<String> polylines = new ArrayList<>();
-			List<Marker> markers = new ArrayList<>();
-			LatLng defaultCenter = null;
-			if (sector.getLat() > 0 && sector.getLng() > 0) {
-				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
-			}
-			else {
-				defaultCenter = sector.getMetadata().getDefaultCenter();
-			}
-			int defaultZoom = 14;
-			List<String> legends = new ArrayList<>();
-			
-			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
-			List<Sector.Problem> problemsWithoutRock = new ArrayList<>();
-			for (Sector.Problem p : sector.getProblems()) {
-				if (p.getLat() > 0 && p.getLng() > 0) {
-					if (p.getRock() != null) {
-						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
-					}
-					else {
-						problemsWithoutRock.add(p);
-					}
-				}
-			}
-			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
-				Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
-				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
-				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
-			}
-			for (Sector.Problem p : problemsWithoutRock) {
-				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
-			}
-			if (markers.size() >= 1 && markers.size() <= 3) {
-				if (sector.getLat() > 0 && sector.getLng() > 0) {
-					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
-				}
-				String distance = null;
-				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-					polylines.add(sector.getPolyline());
-					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
-				}
-				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
-					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
-					outlines.add(new Outline(label, sector.getPolygonCoords()));
-				}
-			}
-
-			if (!markers.isEmpty()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
 				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
 					PdfPTable table = new PdfPTable(1);
@@ -665,11 +619,73 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 	
-	private String removeIllegalChars(String name) {
-		if (name != null) {
-			return name.replaceAll("[^ÆØÅæøåa-zA-Z0-9]", " ");
+	private void writeMapSector(Sector sector) {
+		try {
+			List<Outline> outlines = new ArrayList<>();
+			List<String> polylines = new ArrayList<>();
+			List<Marker> markers = new ArrayList<>();
+			LatLng defaultCenter = null;
+			if (sector.getLat() > 0 && sector.getLng() > 0) {
+				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
+			}
+			else {
+				defaultCenter = sector.getMetadata().getDefaultCenter();
+			}
+			int defaultZoom = 14;
+			List<String> legends = new ArrayList<>();
+			
+			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
+			List<Sector.Problem> problemsWithoutRock = new ArrayList<>();
+			for (Sector.Problem p : sector.getProblems()) {
+				if (p.getLat() > 0 && p.getLng() > 0) {
+					if (p.getRock() != null) {
+						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
+					}
+					else {
+						problemsWithoutRock.add(p);
+					}
+				}
+			}
+			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
+				Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
+				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
+				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
+			}
+			for (Sector.Problem p : problemsWithoutRock) {
+				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
+			}
+			if (markers.size() >= 1 && markers.size() <= 3) {
+				if (sector.getLat() > 0 && sector.getLng() > 0) {
+					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
+				}
+				String distance = null;
+				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
+					polylines.add(sector.getPolyline());
+					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
+				}
+				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+					outlines.add(new Outline(label, sector.getPolygonCoords()));
+				}
+			}
+
+			if (!markers.isEmpty()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
+				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
+				if (png != null) {
+					PdfPTable table = new PdfPTable(1);
+					table.setWidthPercentage(100);
+					Image img = Image.getInstance(png.toString());
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setColspan(table.getNumberOfColumns());
+					table.addCell(cell);
+					document.add(new Paragraph(" "));
+					document.add(table);
+				}
+			}
+		} catch (Exception | Error e) {
+			logger.warn(e.getMessage(), e);
 		}
-		return name;
 	}
 
 	private void writeMediaCell(PdfPTable table, int colSpan, int mediaId, int width, int height, String txt, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
@@ -693,6 +709,7 @@ public class PdfGenerator implements AutoCloseable {
 				cell.addElement(p);
 			}
 			cell.setColspan(colSpan);
+			cell.setBorder(0);
 			table.addCell(cell);
 		}
 	}
@@ -757,13 +774,23 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				table.addCell(cell);
 			}
-			if (s.getMedia() != null) {
-				for (Media m : s.getMedia()) {
-					writeMediaCell(table, table.getNumberOfColumns(), m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
-				}
-			}
 			document.add(new Paragraph(" "));
 			document.add(table);
+			if (s.getMedia() != null) {
+				int columns = 1;
+				if (s.getMedia().stream().filter(m -> m.getSvgs().size() > 5).findAny().isPresent()) {
+					columns = 2;
+				}
+				table = new PdfPTable(columns);
+				table.setWidthPercentage(100);
+				for (Media m : s.getMedia()) {
+					writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+				}
+				if (columns == 2 && s.getMedia().size() % 2 == 1) {
+					addDummyCell(table);
+				}
+				document.add(table);
+			}
 		}
 	}
 }
