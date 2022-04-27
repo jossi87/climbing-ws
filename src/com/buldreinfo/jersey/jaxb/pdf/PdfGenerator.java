@@ -104,7 +104,7 @@ public class PdfGenerator implements AutoCloseable {
 	public static void main(String[] args) throws Exception {
 		int areaId = 2859;
 		int sectorId = 3112;
-		int problemId = 7085;
+		int problemId = 7109;
 		String urlBase = "https://buldreforer.tromsoklatring.no/";
 		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
 		Files.createDirectories(dst.getParent());
@@ -132,8 +132,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				generator.writeArea(area, gradeDistribution, sectors);
-				//generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				//generator.writeArea(area, gradeDistribution, sectors);
+				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -188,7 +188,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 				for (Media m : area.getMedia()) {
-					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					writeMediaCell(table, table.getNumberOfColumns(), m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
 				}
 			}
 			document.add(table);
@@ -340,7 +340,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 		}
 		if (!media.isEmpty()) {
-			PdfPTable table = new PdfPTable(1);
+			PdfPTable table = new PdfPTable(media.size() > 1? 2 : 1);
 			table.setWidthPercentage(100);
 			for (Media m : media) {
 				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
@@ -353,7 +353,10 @@ public class PdfGenerator implements AutoCloseable {
 						txt = m.getMediaMetadata().getDescription();
 					}
 				}
-				writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), txt, m.getMediaSvgs(), svgs);
+				writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), txt, m.getMediaSvgs(), svgs);
+			}
+			if (media.size() > 1 && media.size() % 2 == 1) {
+				table.addCell(new PdfPCell()); // Add dummy, last image is not visible without this
 			}
 			document.add(table);
 		}
@@ -669,7 +672,7 @@ public class PdfGenerator implements AutoCloseable {
 		return name;
 	}
 
-	private void writeMediaCell(PdfPTable table, int mediaId, int width, int height, String txt, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
+	private void writeMediaCell(PdfPTable table, int colSpan, int mediaId, int width, int height, String txt, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws MalformedURLException, IOException, DocumentException, TranscoderException, TransformerException {
 		Image img = null;
 		if ((mediaSvgs == null || mediaSvgs.isEmpty()) && (svgs == null || svgs.isEmpty())) {
 			if (mediaIdProcessed.add(mediaId)) {
@@ -682,14 +685,15 @@ public class PdfGenerator implements AutoCloseable {
 			img = Image.getInstance(topo.toString());
 		}
 		if (img != null) {
-			PdfPCell cell = new PdfPCell(img, true);
-			cell.setColspan(table.getNumberOfColumns());
-			table.addCell(cell);
+			PdfPCell cell = new PdfPCell();
+			cell.addElement(img);
 			if (!Strings.isNullOrEmpty(txt)) {
-				cell = new PdfPCell(new Phrase(txt, FONT_ITALIC));
-				cell.setColspan(table.getNumberOfColumns());
-				table.addCell(cell);
+				Paragraph p = new Paragraph(txt, FONT_ITALIC);
+				p.setAlignment(Element.ALIGN_CENTER);
+				cell.addElement(p);
 			}
+			cell.setColspan(colSpan);
+			table.addCell(cell);
 		}
 	}
 
@@ -755,7 +759,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (s.getMedia() != null) {
 				for (Media m : s.getMedia()) {
-					writeMediaCell(table, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					writeMediaCell(table, table.getNumberOfColumns(), m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
 				}
 			}
 			document.add(new Paragraph(" "));
