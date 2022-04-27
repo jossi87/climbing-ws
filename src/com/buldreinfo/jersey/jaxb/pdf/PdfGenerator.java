@@ -559,7 +559,7 @@ public class PdfGenerator implements AutoCloseable {
 			for (Sector.Problem p : problemsWithoutRock) {
 				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
 			}
-			if (markers.size() >= 1 && markers.size() <= 8) {
+			if (markers.size() >= 1 && markers.size() <= 3) {
 				if (sector.getLat() > 0 && sector.getLng() > 0) {
 					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
 				}
