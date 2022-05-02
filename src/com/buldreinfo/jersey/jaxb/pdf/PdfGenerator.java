@@ -778,7 +778,7 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(table);
 			if (s.getMedia() != null) {
 				int columns = 1;
-				if (s.getMedia().stream().filter(m -> m.getSvgs().size() > 5).findAny().isPresent()) {
+				if (s.getMedia().stream().filter(m -> m.getSvgs() != null && m.getSvgs().size() > 5).findAny().isPresent()) {
 					columns = 2;
 				}
 				table = new PdfPTable(columns);
