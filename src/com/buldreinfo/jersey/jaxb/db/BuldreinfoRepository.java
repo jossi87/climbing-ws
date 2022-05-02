@@ -91,6 +91,7 @@ import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
@@ -148,7 +149,7 @@ public class BuldreinfoRepository {
 		}
 		fillActivity(p.getId());
 	}
-	
+
 	public void deleteMedia(int authUserId, int id) throws SQLException {
 		List<Integer> idProblems = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT problem_id FROM media_problem WHERE media_id=?")) {
@@ -347,7 +348,7 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SET SESSION group_concat_max_len = 1000000")) {
 			ps.execute();
 		}
-		
+
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		/**
@@ -594,7 +595,7 @@ public class BuldreinfoRepository {
 		logger.debug("getArea(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
 		return a;
 	}
-	
+
 	public Collection<Area> getAreaList(int authUserId, int reqIdRegion) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		MarkerHelper markerHelper = new MarkerHelper();
@@ -960,7 +961,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public MediaSvg getMediaSvg(int id) throws SQLException {
 		MediaSvg res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -1908,7 +1909,7 @@ public class BuldreinfoRepository {
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
 		return res;
 	}
-	
+
 	public List<Top> getTop(Setup s, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
 		String condition = (areaId>0? "a.id=" + areaId : "s.id=" + sectorId) + " AND g.t='" + (s.getGradeSystem().toString() + "'");
@@ -1998,7 +1999,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
@@ -2316,13 +2317,15 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 			idArea = a.getId();
-			
+
 			// Sector order
-			for (SectorOrder x : a.getSectorOrder()) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET sorting=? WHERE id=?")) {
-					ps.setInt(1, x.getSorting());
-					ps.setInt(2, x.getId());
-					ps.execute();
+			if (a.getSectorOrder() != null) {
+				for (SectorOrder x : a.getSectorOrder()) {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET sorting=? WHERE id=?")) {
+						ps.setInt(1, x.getSorting());
+						ps.setInt(2, x.getId());
+						ps.execute();
+					}
 				}
 			}
 
@@ -2636,6 +2639,17 @@ public class BuldreinfoRepository {
 				}
 			}
 			idSector = s.getId();
+
+			// Problem order
+			if (s.getProblemOrder() != null) {
+				for (ProblemOrder x : s.getProblemOrder()) {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
+						ps.setInt(1, x.getNr());
+						ps.setInt(2, x.getId());
+						ps.execute();
+					}
+				}
+			}
 
 			// Also update problems (last_updated and locked) + last_updated on area
 			String sqlStr = null;

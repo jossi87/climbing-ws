@@ -6,6 +6,25 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Sector implements IMetadata {
+	public class ProblemOrder {
+		private final int id;
+		private final String name;
+		private final int nr;
+		public ProblemOrder(int id, String name, int nr) {
+			this.id = id;
+			this.name = name;
+			this.nr = nr;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public int getNr() {
+			return nr;
+		}
+	}
 	public class Problem {
 		private final int id;
 		private final boolean lockedAdmin;
@@ -185,6 +204,7 @@ public class Sector implements IMetadata {
 	private final List<Media> media;
 	private final List<SectorJump> sectors = new ArrayList<>();
 	private final List<Problem> problems = new ArrayList<>();
+	private final List<ProblemOrder> problemOrder = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	private Metadata metadata;
@@ -214,6 +234,7 @@ public class Sector implements IMetadata {
 	
 	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
 		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
+		this.problemOrder.add(new ProblemOrder(id, name, nr));
 	}
 	
 	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
@@ -246,6 +267,10 @@ public class Sector implements IMetadata {
 	
 	public int getId() {
 		return id;
+	}
+	
+	public List<ProblemOrder> getProblemOrder() {
+		return problemOrder;
 	}
 	
 	public double getLat() {
