@@ -7,6 +7,26 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Area implements IMetadata {
+	public class SectorOrder {
+		private final int id;
+		private final String name;
+		private final int sorting;
+		public SectorOrder(int id, String name, int sorting) {
+			this.id = id;
+			this.name = name;
+			this.sorting = sorting;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public int getSorting() {
+			return sorting;
+		}
+	}
+	
 	public class Sector {
 		private final String areaName;
 		private final int id;
@@ -120,6 +140,7 @@ public class Area implements IMetadata {
 	private final int numSectors;
 	private final int numProblems;
 	private final List<Sector> sectors;
+	private final List<SectorOrder> sectorOrder;
 	private final List<Media> media;
 	private final List<NewMedia> newMedia;
 	private final long hits;
@@ -141,6 +162,7 @@ public class Area implements IMetadata {
 		this.numSectors = numSectors;
 		this.numProblems = numProblems;
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
+		this.sectorOrder = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
 		this.newMedia = newMedia;
 		this.hits = hits;
@@ -148,6 +170,7 @@ public class Area implements IMetadata {
 
 	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
 		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32));
+		sectorOrder.add(new SectorOrder(id, name, sorting));
 	}
 	
 	public String getCanonical() {
@@ -205,6 +228,10 @@ public class Area implements IMetadata {
 	
 	public List<Sector> getSectors() {
 		return sectors;
+	}
+	
+	public List<SectorOrder> getSectorOrder() {
+		return sectorOrder;
 	}
 
 	public List<TypeNumTicked> getTypeNumTicked() {

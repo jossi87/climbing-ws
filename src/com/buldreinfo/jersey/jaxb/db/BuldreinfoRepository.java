@@ -63,6 +63,7 @@ import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Area.SectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
@@ -2315,6 +2316,15 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 			idArea = a.getId();
+			
+			// Sector order
+			for (SectorOrder x : a.getSectorOrder()) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET sorting=? WHERE id=?")) {
+					ps.setInt(1, x.getSorting());
+					ps.setInt(2, x.getId());
+					ps.execute();
+				}
+			}
 
 			// Also update sectors and problems (last_updated and locked)
 			String sqlStr = null;
