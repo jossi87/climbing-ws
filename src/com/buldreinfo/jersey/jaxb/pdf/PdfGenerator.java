@@ -701,8 +701,7 @@ public class PdfGenerator implements AutoCloseable {
 			img = Image.getInstance(topo.toString());
 		}
 		if (img != null) {
-			PdfPCell cell = new PdfPCell();
-			cell.addElement(img);
+			PdfPCell cell = new PdfPCell(img, true);
 			if (!Strings.isNullOrEmpty(txt)) {
 				Paragraph p = new Paragraph(txt, FONT_ITALIC);
 				p.setAlignment(Element.ALIGN_CENTER);
