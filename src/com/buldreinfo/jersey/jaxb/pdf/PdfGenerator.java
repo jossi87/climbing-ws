@@ -66,17 +66,32 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
+import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfDestination;
 import com.itextpdf.text.pdf.PdfOutline;
 import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPCellEvent;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfPageEventHelper;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
 
 public class PdfGenerator implements AutoCloseable {
+	class WatermarkedCell implements PdfPCellEvent {
+	    String watermark;
+	    public WatermarkedCell(String watermark) {
+	        this.watermark = watermark;
+	    }
+	    public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
+	        PdfContentByte canvas = canvases[PdfPTable.TEXTCANVAS];
+	        ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER,
+	            new Phrase(watermark),
+	            (position.getLeft() + position.getRight()) / 2,
+	            (position.getBottom()+2), 0);
+	    }
+	}
 	class MyFooter extends PdfPageEventHelper {
 		public void onEndPage(PdfWriter writer, Document document) {
 			PdfContentByte cb = writer.getDirectContent();
@@ -132,8 +147,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				generator.writeArea(area, gradeDistribution, sectors);
-				//generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				// generator.writeArea(area, gradeDistribution, sectors);
+				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -703,9 +718,7 @@ public class PdfGenerator implements AutoCloseable {
 		if (img != null) {
 			PdfPCell cell = new PdfPCell(img, true);
 			if (!Strings.isNullOrEmpty(txt)) {
-				Paragraph p = new Paragraph(txt, FONT_ITALIC);
-				p.setAlignment(Element.ALIGN_CENTER);
-				cell.addElement(p);
+				cell.setCellEvent(new WatermarkedCell(txt));
 			}
 			cell.setColspan(colSpan);
 			cell.setBorder(0);
