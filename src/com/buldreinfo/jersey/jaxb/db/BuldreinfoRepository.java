@@ -2296,8 +2296,8 @@ public class BuldreinfoRepository {
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(authUserId, a.getId());
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=?, trash=?, trash_by=? WHERE id=?")) {
-				ps.setString(1, a.getName().trim());
-				ps.setString(2, Strings.emptyToNull(a.getComment().trim()));
+				ps.setString(1, trimString(a.getName()));
+				ps.setString(2, trimString(a.getComment()));
 				if (a.getLat() > 0) {
 					ps.setDouble(3, a.getLat());
 				} else {
@@ -2354,8 +2354,8 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, locked_admin, locked_superadmin, for_developers, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getIdRegion());
-				ps.setString(3, a.getName().trim());
-				ps.setString(4, Strings.emptyToNull(a.getComment().trim()));
+				ps.setString(3, trimString(a.getName()));
+				ps.setString(4, trimString(a.getComment()));
 				if (a.getLat() > 0) {
 					ps.setDouble(5, a.getLat());
 				} else {
@@ -2396,6 +2396,13 @@ public class BuldreinfoRepository {
 		}
 		return new Redirect(null, idArea, 0, 0);
 	}
+	
+	private String trimString(String str) {
+		if (str == null) {
+			return null;
+		}
+		return Strings.emptyToNull(str.trim());
+	}
 
 	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
@@ -2407,9 +2414,9 @@ public class BuldreinfoRepository {
 			fillProblemCoordinationsHistory(authUserId, p);
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=?, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId);
-				ps.setString(2, p.getName().trim());
-				ps.setString(3, p.getRock().trim());
-				ps.setString(4, Strings.emptyToNull(p.getComment().trim()));
+				ps.setString(2, trimString(p.getName()));
+				ps.setString(3, trimString(p.getRock()));
+				ps.setString(4, trimString(p.getComment()));
 				ps.setInt(5, GradeHelper.stringToInt(s, p.getOriginalGrade()));
 				ps.setDate(6, dt);
 				if (p.getLat() > 0) {
@@ -2426,11 +2433,11 @@ public class BuldreinfoRepository {
 				ps.setBoolean(10, p.isLockedSuperadmin());
 				ps.setInt(11, p.getNr());
 				ps.setInt(12, p.getT().getId());
-				ps.setString(13, p.getTrivia().trim());
-				ps.setString(14, p.getStartingAltitude().trim());
-				ps.setString(15, p.getAspect().trim());
-				ps.setString(16, p.getRouteLength().trim());
-				ps.setString(17, p.getDescent().trim());
+				ps.setString(13, trimString(p.getTrivia()));
+				ps.setString(14, trimString(p.getStartingAltitude()));
+				ps.setString(15, trimString(p.getAspect()));
+				ps.setString(16, trimString(p.getRouteLength()));
+				ps.setString(17, trimString(p.getDescent()));
 				ps.setTimestamp(18, p.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
 				ps.setInt(19, p.isTrash()? authUserId : 0);
 				ps.setInt(20, p.getId());
@@ -2444,9 +2451,9 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, latitude, longitude, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
-				ps.setString(3, p.getName().trim());
-				ps.setString(4, p.getRock().trim());
-				ps.setString(5, Strings.emptyToNull(p.getComment().trim()));
+				ps.setString(3, trimString(p.getName()));
+				ps.setString(4, trimString(p.getRock()));
+				ps.setString(5, trimString(p.getComment()));
 				ps.setInt(6, GradeHelper.stringToInt(s, p.getOriginalGrade()));
 				ps.setDate(7, dt);
 				if (p.getLat() > 0) {
@@ -2463,11 +2470,11 @@ public class BuldreinfoRepository {
 				ps.setBoolean(11, p.isLockedSuperadmin());
 				ps.setInt(12, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
 				ps.setInt(13, p.getT().getId());
-				ps.setString(14, p.getTrivia().trim());
-				ps.setString(15, p.getStartingAltitude().trim());
-				ps.setString(16, p.getAspect().trim());
-				ps.setString(17, p.getRouteLength().trim());
-				ps.setString(18, p.getDescent().trim());
+				ps.setString(14, trimString(p.getTrivia()));
+				ps.setString(15, trimString(p.getStartingAltitude()));
+				ps.setString(16, trimString(p.getAspect()));
+				ps.setString(17, trimString(p.getRouteLength()));
+				ps.setString(18, trimString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -2556,7 +2563,7 @@ public class BuldreinfoRepository {
 				for (Section section : p.getSections()) {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.getNr());
-					ps.setString(3, section.getDescription().trim());
+					ps.setString(3, trimString(section.getDescription()));
 					ps.setInt(4, GradeHelper.stringToInt(s, section.getGrade()));
 					ps.addBatch();
 				}
@@ -2579,7 +2586,7 @@ public class BuldreinfoRepository {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
 					ps.setInt(1, faAid.getProblemId());
 					ps.setDate(2, aidDt);
-					ps.setString(3, faAid.getDescription().trim());
+					ps.setString(3, trimString(faAid.getDescription()));
 					ps.execute();
 				}
 				if (!faAid.getUsers().isEmpty()) {
@@ -2612,9 +2619,9 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		if (s.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=?, s.trash=?, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
-				ps.setString(1, s.getName().trim());
-				ps.setString(2, Strings.emptyToNull(s.getComment().trim()));
-				ps.setString(3, Strings.emptyToNull(s.getAccessInfo().trim()));
+				ps.setString(1, trimString(s.getName()));
+				ps.setString(2, trimString(s.getComment()));
+				ps.setString(3, trimString(s.getAccessInfo()));
 				if (s.getLat() > 0) {
 					ps.setDouble(4, s.getLat());
 				} else {
@@ -2627,8 +2634,8 @@ public class BuldreinfoRepository {
 				}
 				ps.setBoolean(6, isLockedAdmin);
 				ps.setBoolean(7, s.isLockedSuperadmin());
-				ps.setString(8, Strings.emptyToNull(s.getPolygonCoords()));
-				ps.setString(9, Strings.emptyToNull(s.getPolyline()));
+				ps.setString(8, trimString(s.getPolygonCoords()));
+				ps.setString(9, trimString(s.getPolyline()));
 				ps.setTimestamp(10, s.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
 				ps.setInt(11, s.isTrash()? authUserId : 0);
 				ps.setInt(12, s.getId());
@@ -2676,8 +2683,8 @@ public class BuldreinfoRepository {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getAreaId());
 				ps.setString(3, s.getName());
-				ps.setString(4, Strings.emptyToNull(s.getComment()));
-				ps.setString(5, Strings.emptyToNull(s.getAccessInfo()));
+				ps.setString(4, trimString(s.getComment()));
+				ps.setString(5, trimString(s.getAccessInfo()));
 				if (s.getLat() > 0) {
 					ps.setDouble(6, s.getLat());
 				} else {
@@ -2690,8 +2697,8 @@ public class BuldreinfoRepository {
 				}
 				ps.setBoolean(8, isLockedAdmin);
 				ps.setBoolean(9, s.isLockedSuperadmin());
-				ps.setString(10, Strings.emptyToNull(s.getPolygonCoords()));
-				ps.setString(11, Strings.emptyToNull(s.getPolyline()));
+				ps.setString(10, trimString(s.getPolygonCoords()));
+				ps.setString(11, trimString(s.getPolyline()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -2748,7 +2755,7 @@ public class BuldreinfoRepository {
 				ps.setInt(2, authUserId);
 				ps.setDate(3, dt);
 				ps.setInt(4, GradeHelper.stringToInt(setup, t.getGrade()));
-				ps.setString(5, Strings.emptyToNull(t.getComment().trim()));
+				ps.setString(5, trimString(t.getComment()));
 				ps.setDouble(6, t.getStars());
 				ps.execute();
 			}
@@ -2757,7 +2764,7 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
 				ps.setInt(2, GradeHelper.stringToInt(setup, t.getGrade()));
-				ps.setString(3, Strings.emptyToNull(t.getComment().trim()));
+				ps.setString(3, trimString(t.getComment()));
 				ps.setDouble(4, t.getStars());
 				ps.setInt(5, t.getId());
 				ps.setInt(6, t.getIdProblem());
@@ -2855,7 +2862,7 @@ public class BuldreinfoRepository {
 			}
 			else {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
-					ps.setString(1, co.getComment().trim());
+					ps.setString(1, trimString(co.getComment()));
 					ps.setBoolean(2, co.isDanger());
 					ps.setBoolean(3, co.isResolved());
 					ps.setInt(4, co.getId());
@@ -2873,7 +2880,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		} else {
-			Preconditions.checkNotNull(Strings.emptyToNull(co.getComment()));
+			Preconditions.checkNotNull(trimString(co.getComment()));
 			int parentId = 0;
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
 				ps.setInt(1, co.getIdProblem());
@@ -2885,7 +2892,7 @@ public class BuldreinfoRepository {
 			}
 
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
-				ps.setString(1, co.getComment().trim());
+				ps.setString(1, trimString(co.getComment()));
 				ps.setInt(2, co.getIdProblem());
 				ps.setInt(3, authUserId);
 				if (parentId == 0) {
@@ -2972,7 +2979,7 @@ public class BuldreinfoRepository {
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		ensureAdminWriteProblem(authUserId, problemId);
 		// Delete/Insert/Update
-		if (svg.isDelete() || Strings.emptyToNull(svg.getPath()) == null) {
+		if (svg.isDelete() || trimString(svg.getPath()) == null) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
@@ -3048,7 +3055,7 @@ public class BuldreinfoRepository {
 				ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
 				ps.setInt(4, idUser);
 				ps.setTimestamp(5, now);
-				ps.setString(6, m.getDescription().trim());
+				ps.setString(6, trimString(m.getDescription()));
 				ps.setString(7, m.getEmbedVideoUrl());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
