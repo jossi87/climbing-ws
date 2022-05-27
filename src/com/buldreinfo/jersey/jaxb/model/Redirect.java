@@ -1,10 +1,14 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 public class Redirect {
+	private final int idArea;
+	private final int idSector;
 	private final String redirectUrl;
 	private final String destination;
 
 	public Redirect(String redirectUrl, int idArea, int idSector, int idProblem) {
+		this.idArea = idArea;
+		this.idSector = idSector;
 		this.redirectUrl = redirectUrl;
 		if (idArea > 0) {
 			this.destination = "/area/" + idArea;
@@ -15,6 +19,14 @@ public class Redirect {
 		} else {
 			this.destination = "/";
 		}
+	}
+	
+	public int getIdArea() {
+		return idArea;
+	}
+	
+	public int getIdSector() {
+		return idSector;
 	}
 
 	public String getRedirectUrl() {

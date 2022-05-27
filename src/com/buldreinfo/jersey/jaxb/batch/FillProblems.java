@@ -18,9 +18,10 @@
 //import com.buldreinfo.jersey.jaxb.model.Area;
 //import com.buldreinfo.jersey.jaxb.model.FaUser;
 //import com.buldreinfo.jersey.jaxb.model.Problem;
+//import com.buldreinfo.jersey.jaxb.model.Redirect;
 //import com.buldreinfo.jersey.jaxb.model.Sector;
 //import com.buldreinfo.jersey.jaxb.model.Type;
-//import com.buldreinfo.jersey.jaxb.model.User;
+//import com.buldreinfo.jersey.jaxb.model.UserSearch;
 //import com.google.common.base.Preconditions;
 //import com.google.common.base.Strings;
 //
@@ -163,7 +164,7 @@
 //			for (String user : fa.split(splitter)) {
 //				user = user.trim();
 //				int id = -1;
-//				List<User> users = c.getBuldreinfoRepo().getUserSearch(AUTH_USER_ID, user);
+//				List<UserSearch> users = c.getBuldreinfoRepo().getUserSearch(AUTH_USER_ID, user);
 //				if (!users.isEmpty()) {
 //					id = users.get(0).getId();
 //				}
@@ -177,7 +178,7 @@
 //		logger.debug("insert {}", d);
 //		List<FaUser> fa = getFas(c, d.getFa());
 //		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
-//		Problem p = new Problem(idArea, false, false, null, idSector, false, false, null, 0, 0, null, null, -1, -1, null, -1, false, false, d.getNr(), d.getProblem(), d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLat(), d.getLng(), null, 0, 0, false, null, t, false, 0);
+//		Problem p = new Problem(idArea, false, false, null, idSector, false, false, null, null, 0, 0, null, null, -1, -1, null, -1, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLat(), d.getLng(), null, 0, 0, false, null, t, false, 0, null, null, null, null, null);
 //		if (d.getNumPitches() > 1) {
 //			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 //				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
@@ -192,9 +193,9 @@
 //				return a.getId();
 //			}
 //		}
-//		Area a = new Area(REGION_ID, null, -1, false, false, false, d.getArea(), null, 0, 0, 0, 0, null, null, 0);
-//		a = c.getBuldreinfoRepo().setArea(new MetaHelper().getSetup(REGION_ID), AUTH_USER_ID, a, null);
-//		return a.getId();
+//		Area a = new Area(REGION_ID, null, -1, false, false, false, false, d.getArea(), null, 0, 0, 0, 0, null, null, 0);
+//		Redirect r = c.getBuldreinfoRepo().setArea(new MetaHelper().getSetup(REGION_ID), AUTH_USER_ID, a, null);
+//		return r.getIdArea();
 //	}
 //
 //	private int upsertSector(DbConnection c, int idArea, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException {
@@ -204,8 +205,8 @@
 //				return s.getId();
 //			}
 //		}
-//		Sector s = new Sector(false, idArea, false, false, a.getName(), null, -1, false, false, d.getSector(), null, 0, 0, null, null, null, null, 0);
-//		s = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, new MetaHelper().getSetup(REGION_ID), s, null);
-//		return s.getId();
+//		Sector s = new Sector(false, idArea, false, false, a.getName(), null, -1, false, false, false, d.getSector(), null, null, 0, 0, null, null, null, null, 0);
+//		Redirect r = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, new MetaHelper().getSetup(REGION_ID), s, null);
+//		return r.getIdSector();
 //	}
 //}
