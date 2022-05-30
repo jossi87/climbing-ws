@@ -1090,9 +1090,15 @@ public class BuldreinfoRepository {
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
+					List<Media> media = null;
+					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaProblem(s, authUserId, sectorId, id, showHiddenMedia);
-					List<Media> media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
-					List<Media> triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
+					if (allMedia != null && allMedia.size() > 0) {
+						media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
+						if (media.size() != allMedia.size()) {
+							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
+						}
+					}
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int hits = rst.getInt("hits");
 					String trivia = rst.getString("trivia");
