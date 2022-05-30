@@ -45,12 +45,13 @@ public class Sector implements IMetadata {
 		private final int numTicks;
 		private final double stars;
 		private final boolean ticked;
+		private final boolean todo;
 		private final Type t;
 		private final boolean danger;
 		
 		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
 				int numPitches,
-				boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t,
+				boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, boolean todo, Type t,
 				boolean danger) {
 			this.id = id;
 			this.lockedAdmin = lockedAdmin;
@@ -71,6 +72,7 @@ public class Sector implements IMetadata {
 			this.numTicks = numTicks;
 			this.stars = stars;
 			this.ticked = ticked;
+			this.todo = todo;
 			this.t = t;
 			this.danger = danger;
 		}
@@ -158,6 +160,10 @@ public class Sector implements IMetadata {
 		public boolean isTicked() {
 			return ticked;
 		}
+		
+		public boolean isTodo() {
+			return todo;
+		}
 	}
 	public class SectorJump {
 		private final int id;
@@ -232,8 +238,8 @@ public class Sector implements IMetadata {
 		this.hits = hits;
 	}
 	
-	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, Type t, boolean danger) {
-		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, t, danger));
+	public void addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa, int numPitches, boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, boolean todo, Type t, boolean danger) {
+		this.problems.add(new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, gradeNumber, grade, fa, numPitches, hasImages, hasMovies, hasTopo, lat, lng, numTicks, stars, ticked, todo, t, danger));
 		this.problemOrder.add(new ProblemOrder(id, name, nr));
 	}
 	
