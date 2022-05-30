@@ -1090,7 +1090,9 @@ public class BuldreinfoRepository {
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
-					List<Media> media = getMediaProblem(s, authUserId, sectorId, id, showHiddenMedia);
+					List<Media> allMedia = getMediaProblem(s, authUserId, sectorId, id, showHiddenMedia);
+					List<Media> media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
+					List<Media> triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int hits = rst.getInt("hits");
 					String trivia = rst.getString("trivia");
@@ -1119,7 +1121,7 @@ public class BuldreinfoRepository {
 							GradeHelper.intToString(s, grade),
 							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, l.getLat(),
 							l.getLng(), media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
-							trivia, startingAltitude, aspect, routeLength, descent);
+							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
 			}
 		}
