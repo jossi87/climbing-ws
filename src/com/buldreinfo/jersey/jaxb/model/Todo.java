@@ -4,47 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Todo {
-	public class Area {
-		private final int id;
-		private final String name;
-		private final boolean lockedAdmin;
-		private final boolean lockedSuperadmin;
-		private final List<Sector> sectors = new ArrayList<>();
+	private final List<Sector> sectors = new ArrayList<>();
 		
-		public Area(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			this.id = id;
-			this.name = name;
-			this.lockedAdmin = lockedAdmin;
-			this.lockedSuperadmin = lockedSuperadmin;
-		}
-		
-		public Sector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			Sector s = new Sector(id, name, lockedAdmin, lockedSuperadmin);
-			this.sectors.add(s);
-			return s;
-		}
-
-		public int getId() {
-			return id;
-		}
-		
-		public String getName() {
-			return name;
-		}
-
-		public List<Sector> getSectors() {
-			return sectors;
-		}
-
-		public boolean isLockedAdmin() {
-			return lockedAdmin;
-		}
-		
-		public boolean isLockedSuperadmin() {
-			return lockedSuperadmin;
-		}
-	}
-	
 	public class Partner {
 		private final int id;
 		private final String name;
@@ -161,18 +122,16 @@ public class Todo {
 		}
 	}
 	
-	private final List<Area> areas = new ArrayList<>();
-	
 	public Todo() {
 	}
-	
-	public Area addArea(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Area a = new Area(id, name, lockedAdmin, lockedSuperadmin);
-		this.areas.add(a);
-		return a;
-	}
 
-	public List<Area> getAreas() {
-		return areas;
+	public List<Sector> getSectors() {
+		return sectors;
+	}
+	
+	public Sector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Sector s = new Sector(id, name, lockedAdmin, lockedSuperadmin);
+		this.sectors.add(s);
+		return s;
 	}
 }
