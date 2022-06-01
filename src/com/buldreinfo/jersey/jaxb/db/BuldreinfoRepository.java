@@ -97,6 +97,7 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
@@ -1403,7 +1404,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public ProfileTodo getProfileTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -1493,7 +1494,7 @@ public class BuldreinfoRepository {
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		res.getAreas().sort(Comparator.comparing(ProfileTodo.Area::getName));
-		logger.debug("getTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
+		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
 		return res;
 	}
 
@@ -1917,6 +1918,82 @@ public class BuldreinfoRepository {
 		int numPages = (int)(Math.ceil(numTicks / 200f));
 		Ticks res = new Ticks(ticks, page, numPages);
 		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
+		return res;
+	}
+
+	public Todo getTodo(int authUserId, Setup setup, int idArea, int idSector) throws SQLException {
+		Todo res = new Todo();
+		Map<Integer, Todo.Area> areaLookup = new HashMap<>();
+		Map<Integer, Todo.Sector> sectorLookup = new HashMap<>();
+		Map<Integer, Todo.Problem> problemLookup = new HashMap<>();
+		String condition = null;
+		int id = 0;
+		if (idSector > 0) {
+			condition = "s.id=?";
+			id = idSector;
+		}
+		else if (idArea > 0) {
+			condition = "a.id=?";
+			id = idArea;
+		}
+		else {
+			throw new RuntimeException("Invalid arguments");
+		}
+		String sqlStr = "SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,"
+				+ " u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) user_name"
+				+ " FROM (((((region r INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN todo t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+				+ " WHERE " + condition
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
+				+ " ORDER BY a.name, s.sorting, s.name, p.nr, u.firstname, u.lastname";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					// Area
+					int areaId = rst.getInt("area_id");
+					Todo.Area a = areaLookup.get(areaId);
+					if (a == null) {
+						String areaName = rst.getString("area_name");
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						a = res.addArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						areaLookup.put(areaId, a);
+					}
+					// Sector
+					int sectorId = rst.getInt("sector_id");
+					Todo.Sector s = sectorLookup.get(sectorId);
+					if (s == null) {
+						String sectorName = rst.getString("sector_name");
+						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						s = a.addSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						sectorLookup.put(sectorId, s);
+					}
+					// Problem
+					int problemId = rst.getInt("problem_id");
+					Todo.Problem p = problemLookup.get(problemId);
+					if (p == null) {
+						int problemNr = rst.getInt("problem_nr");
+						String problemName = rst.getString("problem_name");
+						int problemGrade = rst.getInt("problem_grade");
+						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
+						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
+						p = s.addProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade));
+						problemLookup.put(problemId, p);
+					}
+					// Partner
+					int userId = rst.getInt("user_id");
+					String userName = rst.getString("user_name");
+					p.addPartner(userId, userName);
+				}
+			}
+		}
+		// Sort areas (ae, oe, aa is sorted wrong by MySql):
+		res.getAreas().sort(Comparator.comparing(Todo.Area::getName));
+		logger.debug("getTodo(authUserId={}, idArea={}, idSector)={}) - res={}", authUserId, setup.getIdRegion(), idArea, idSector, res);
 		return res;
 	}
 
@@ -2407,13 +2484,6 @@ public class BuldreinfoRepository {
 		return new Redirect(null, idArea, 0, 0);
 	}
 	
-	private String trimString(String str) {
-		if (str == null) {
-			return null;
-		}
-		return Strings.emptyToNull(str.trim());
-	}
-
 	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -3788,6 +3858,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+	}
+
+	private String trimString(String str) {
+		if (str == null) {
+			return null;
+		}
+		return Strings.emptyToNull(str.trim());
 	}
 
 	private int upsertUserReturnId(String uniqueId) throws SQLException {
