@@ -2014,8 +2014,8 @@ public class BuldreinfoRepository {
 				+ "    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)"
 				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
 				+ ") y, x"
-				+ "GROUP BY y.user_id, y.name, y.picture, x.sum"
-				+ "ORDER BY percentage DESC, name";
+				+ " GROUP BY y.user_id, y.name, y.picture, x.sum"
+				+ " ORDER BY percentage DESC, name";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			try (ResultSet rst = ps.executeQuery()) {
 				double prevPercentage = 0;
