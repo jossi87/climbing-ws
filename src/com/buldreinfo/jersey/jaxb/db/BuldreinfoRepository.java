@@ -2179,7 +2179,7 @@ public class BuldreinfoRepository {
 						writer.write("SECTOR", sectorName);
 						if (subType != null) {
 							writer.write("TYPE", subType);
-							writer.write("PITCHES", numPitches);
+							writer.write("PITCHES", numPitches > 0? numPitches : 1);
 						}
 						writer.write("NAME", name);
 						writer.write("FIRST ASCENT", fa? "Yes" : "No");

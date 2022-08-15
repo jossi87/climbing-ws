@@ -685,6 +685,9 @@ public class V2 {
 									type += " (" + p.getT().getSubType() + ")";			
 								}
 								writer.write("TYPE", type);
+								if (!setup.isBouldering()) {
+									writer.write("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
+								}
 								writer.write("FA", p.getFa());
 								writer.write("STARS", p.getStars());
 								writer.write("DESCRIPTION", p.getDescription());
