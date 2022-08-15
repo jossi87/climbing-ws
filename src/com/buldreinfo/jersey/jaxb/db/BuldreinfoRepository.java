@@ -1340,6 +1340,9 @@ public class BuldreinfoRepository {
 					int id = rst.getInt("id_tick");
 					String subType = rst.getString("subtype");
 					int numPitches = rst.getInt("num_pitches");
+					if (numPitches > 1) {
+						subType += " (multi-pitch)";
+					}
 					int idProblem = rst.getInt("id_problem");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
