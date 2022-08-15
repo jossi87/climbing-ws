@@ -67,8 +67,9 @@ public class TableOfContents implements IMetadata {
 		private final double stars;
 		private final boolean ticked;
 		private final Type t;
+		private final int numPitches;
 		
-		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
+		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
 			this.id = id;
 			this.url = url;
 			this.lockedAdmin = lockedAdmin;
@@ -82,6 +83,7 @@ public class TableOfContents implements IMetadata {
 			this.stars = stars;
 			this.ticked = ticked;
 			this.t = t;
+			this.numPitches = numPitches;
 		}
 		
 		public String getDescription() {
@@ -108,6 +110,10 @@ public class TableOfContents implements IMetadata {
 			return nr;
 		}
 
+		public int getNumPitches() {
+			return numPitches;
+		}
+
 		public int getNumTicks() {
 			return numTicks;
 		}
@@ -131,7 +137,7 @@ public class TableOfContents implements IMetadata {
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
 		}
-
+		
 		public boolean isTicked() {
 			return ticked;
 		}
@@ -153,8 +159,8 @@ public class TableOfContents implements IMetadata {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t) {
-			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t);
+		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t, numPitches);
 			this.problems.add(p);
 			return p;
 		}
