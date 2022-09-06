@@ -2380,8 +2380,11 @@ public class BuldreinfoRepository {
 		ensureAdminWriteRegion(authUserId, s.getIdRegion());
 		int idArea = -1;
 		final boolean isLockedAdmin = a.isLockedSuperadmin()? false : a.isLockedAdmin();
+		boolean setPermissionRecursive = false;
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(authUserId, a.getId());
+			Area currArea = getArea(s, authUserId, a.getId());
+			setPermissionRecursive = currArea.isLockedAdmin() != isLockedAdmin || currArea.isLockedSuperadmin() != a.isLockedSuperadmin();
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=?, trash=?, trash_by=? WHERE id=?")) {
 				ps.setString(1, trimString(a.getName()));
 				ps.setString(2, trimString(a.getComment()));
@@ -2418,7 +2421,7 @@ public class BuldreinfoRepository {
 
 			// Also update sectors and problems (last_updated and locked)
 			String sqlStr = null;
-			if (a.isLockedAdmin() || a.isLockedSuperadmin()) {
+			if (setPermissionRecursive) {
 				sqlStr = "UPDATE (area a LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), a.locked_admin=?, a.locked_superadmin=?, s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE a.id=?";
 				try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 					ps.setBoolean(1, isLockedAdmin);
@@ -2697,7 +2700,10 @@ public class BuldreinfoRepository {
 	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
+		boolean setPermissionRecursive = false;
 		if (s.getId() > 0) {
+			Sector currSector = getSector(authUserId, false, setup, s.getId());
+			setPermissionRecursive = currSector.isLockedAdmin() != isLockedAdmin || currSector.isLockedSuperadmin() != s.isLockedSuperadmin();
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=?, s.trash=?, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
 				ps.setString(1, trimString(s.getName()));
 				ps.setString(2, trimString(s.getComment()));
@@ -2740,7 +2746,7 @@ public class BuldreinfoRepository {
 
 			// Also update problems (last_updated and locked) + last_updated on area
 			String sqlStr = null;
-			if (s.isLockedAdmin() || s.isLockedSuperadmin()) {
+			if (setPermissionRecursive) {
 				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?";
 				try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 					ps.setBoolean(1, isLockedAdmin);
