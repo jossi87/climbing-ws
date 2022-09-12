@@ -16,13 +16,14 @@ public class Filter {
 	private final double stars;
 	private final String grade;
 	private final boolean ticked;
+	private final int ticks;
 	private final int randomMediaId;
 	private final int randomMediaCrc32;
 	
 	public Filter(boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, boolean sectorLockedAdmin,
 			boolean sectorLockedSuperadmin, String sectorName, int problemId, boolean lockedAdmin,
 			boolean lockedSuperadmin, String problemName, double latitude, double longitude, double stars, String grade,
-			boolean ticked, int randomMediaId, int randomMediaCrc32) {
+			boolean ticked, int ticks, int randomMediaId, int randomMediaCrc32) {
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
@@ -38,6 +39,7 @@ public class Filter {
 		this.stars = stars;
 		this.grade = grade;
 		this.ticked = ticked;
+		this.ticks = ticks;
 		this.randomMediaId = randomMediaId;
 		this.randomMediaCrc32 = randomMediaCrc32;
 	}
@@ -82,6 +84,10 @@ public class Filter {
 		return stars;
 	}
 
+	public int getTicks() {
+		return ticks;
+	}
+
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
@@ -105,7 +111,7 @@ public class Filter {
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
-
+	
 	public boolean isTicked() {
 		return ticked;
 	}
