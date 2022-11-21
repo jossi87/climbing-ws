@@ -70,6 +70,7 @@ public class Activity {
 	private int problemRandomMediaCrc32;
 	private List<Media> media;
 	private int stars;
+	private boolean repeat;
 	private int id;
 	private String name;
 	private String picture;
@@ -107,9 +108,6 @@ public class Activity {
 	public Set<Integer> getActivityIds() {
 		return activityIds;
 	}
-	public int getProblemRandomMediaCrc32() {
-		return problemRandomMediaCrc32;
-	}
 	public String getDescription() {
 		return description;
 	}
@@ -134,6 +132,9 @@ public class Activity {
 	public String getProblemName() {
 		return problemName;
 	}
+	public int getProblemRandomMediaCrc32() {
+		return problemRandomMediaCrc32;
+	}
 	public int getProblemRandomMediaId() {
 		return problemRandomMediaId;
 	}
@@ -152,13 +153,17 @@ public class Activity {
 	public boolean isProblemLockedSuperadmin() {
 		return problemLockedSuperadmin;
 	}
+	public boolean isRepeat() {
+		return repeat;
+	}
 	public void setGuestbook(int id, String name, String picture, String message) {
 		this.id = id;
 		this.name = name;
 		this.picture = picture;
 		this.message = message;
 	}
-	public void setTick(int id, String name, String picture, String description, int stars, String personalGrade) {
+	public void setTick(boolean repeat, int id, String name, String picture, String description, int stars, String personalGrade) {
+		this.repeat = repeat;
 		this.id = id;
 		this.name = name;
 		this.picture = picture;

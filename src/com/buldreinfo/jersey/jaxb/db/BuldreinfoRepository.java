@@ -466,7 +466,7 @@ public class BuldreinfoRepository {
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
 						String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
-						a.setTick(userId, name, picture, description, stars, personalGrade);
+						a.setTick(false, userId, name, picture, description, stars, personalGrade);
 					}
 				}
 			}
@@ -487,7 +487,7 @@ public class BuldreinfoRepository {
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
 						String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
-						a.setTick(userId, name, picture, description, stars, personalGrade);
+						a.setTick(true, userId, name, picture, description, stars, personalGrade);
 					}
 				}
 			}
