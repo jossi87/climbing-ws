@@ -3915,7 +3915,10 @@ public class BuldreinfoRepository {
 						ps.setDate(1, dt);
 						ps.setString(2, trimString(r.getComment()));
 						ps.setInt(3, r.getId());
-						ps.execute();
+						int res = ps.executeUpdate();
+						if (res != 1) {
+							throw new SQLException("Invalid repeat=" + r);
+						}
 					}
 				}
 				else {
