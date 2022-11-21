@@ -96,6 +96,7 @@ import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
 import com.buldreinfo.jersey.jaxb.model.Tick;
+import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
@@ -1135,6 +1136,7 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
 		// Ascents
+		Map<Integer, Problem.Tick> tickLookup = new HashMap<>();
 		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date, t.id";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, p.getId());
@@ -1149,7 +1151,21 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					int grade = rst.getInt("grade");
 					boolean writable = idUser == authUserId;
-					p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s, grade), comment, stars, writable);
+					Problem.Tick t = p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s, grade), comment, stars, writable);
+					tickLookup.put(id, t);
+				}
+			}
+		}
+		sqlStr = "SELECT r.id, r.tick_id, r.date, r.comment FROM tick t, tick_repeat r WHERE t.problem_id=? AND t.id=r.tick_id ORDER BY r.tick_id, r.date, r.id";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, p.getId());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					int tickId = rst.getInt("tick_id");
+					String date = rst.getString("date");
+					String comment = rst.getString("comment");
+					tickLookup.get(tickId).addRepeat(id, tickId, date, comment);
 				}
 			}
 		}
@@ -1408,7 +1424,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public ProfileTodo getProfileTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		MarkerHelper markerHelper = new MarkerHelper();
 		final int userId = reqId > 0? reqId : authUserId;
@@ -2487,7 +2503,7 @@ public class BuldreinfoRepository {
 		}
 		return new Redirect(null, idArea, 0, 0);
 	}
-	
+
 	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -2837,16 +2853,21 @@ public class BuldreinfoRepository {
 				}
 			}
 		} else if (t.getId() == -1) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, t.getIdProblem());
 				ps.setInt(2, authUserId);
 				ps.setDate(3, dt);
 				ps.setInt(4, GradeHelper.stringToInt(setup, t.getGrade()));
 				ps.setString(5, trimString(t.getComment()));
 				ps.setDouble(6, t.getStars());
-				ps.execute();
+				ps.executeUpdate();
+				try (ResultSet rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						int idTick = rst.getInt(1);
+						upsertTickRepeats(idTick, t.getRepeats());
+					}
+				}
 			}
-
 		} else if (t.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
@@ -2860,6 +2881,7 @@ public class BuldreinfoRepository {
 				if (res != 1) {
 					throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 				}
+				upsertTickRepeats(t.getId(), t.getRepeats());
 			}
 		} else {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
@@ -3872,6 +3894,41 @@ public class BuldreinfoRepository {
 			return null;
 		}
 		return Strings.emptyToNull(str.trim());
+	}
+
+	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) throws SQLException, ParseException {
+		// Deleted removed ascents
+		String sqlStr = repeats == null || repeats.isEmpty()?
+				"DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN "
+				:
+					"DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + repeats.stream().filter(x -> x.getId() > 0).map(TickRepeat::getId).map(String::valueOf).collect(Collectors.joining(",")) + ")";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, idTick);
+			ps.execute();
+		}
+		// Upsert repeats
+		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		if (repeats != null && !repeats.isEmpty()) { 
+			for (TickRepeat r : repeats) {
+				final Date dt = Strings.isNullOrEmpty(r.getDate()) ? null : new Date(sdf.parse(r.getDate()).getTime());
+				if (r.getId() > 0) {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
+						ps.setInt(1, idTick);
+						ps.setDate(2, dt);
+						ps.setString(3, trimString(r.getComment()));
+						ps.execute();
+					}
+				}
+				else {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
+						ps.setDate(1, dt);
+						ps.setString(2, trimString(r.getComment()));
+						ps.setInt(3, r.getId());
+						ps.execute();
+					}
+				}
+			}
+		}
 	}
 
 	private int upsertUserReturnId(String uniqueId) throws SQLException {

@@ -1,5 +1,7 @@
 package com.buldreinfo.jersey.jaxb.model;
 
+import java.util.List;
+
 public class Tick {
 	private final boolean delete;
 	private final int id;
@@ -8,8 +10,9 @@ public class Tick {
 	private final String date;
 	private final double stars;
 	private final String grade;
+	private final List<TickRepeat> repeats;
 	
-	public Tick(boolean delete, int id, int idProblem, String comment, String date, double stars, String grade) {
+	public Tick(boolean delete, int id, int idProblem, String comment, String date, double stars, String grade, List<TickRepeat> repeats) {
 		this.delete = delete;
 		this.id = id;
 		this.idProblem = idProblem;
@@ -17,6 +20,7 @@ public class Tick {
 		this.date = date;
 		this.stars = stars;
 		this.grade = grade;
+		this.repeats = repeats;
 	}
 	
 	public String getComment() {
@@ -39,10 +43,14 @@ public class Tick {
 		return idProblem;
 	}
 
+	public List<TickRepeat> getRepeats() {
+		return repeats;
+	}
+
 	public double getStars() {
 		return stars;
 	}
-
+	
 	public boolean isDelete() {
 		return delete;
 	}
@@ -50,6 +58,6 @@ public class Tick {
 	@Override
 	public String toString() {
 		return "Tick [delete=" + delete + ", id=" + id + ", idProblem=" + idProblem + ", comment=" + comment + ", date="
-				+ date + ", stars=" + stars + ", grade=" + grade + "]";
+				+ date + ", stars=" + stars + ", grade=" + grade + ", repeats=" + repeats + "]";
 	}
 }

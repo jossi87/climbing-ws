@@ -92,6 +92,7 @@ public class Problem implements IMetadata {
 		}
 	}
 	public class Tick {
+		private List<TickRepeat> repeats;
 		private final int id;
 		private final int idUser;
 		private final String picture;
@@ -139,11 +140,20 @@ public class Problem implements IMetadata {
 		public boolean isWritable() {
 			return writable;
 		}
+		public List<TickRepeat> getRepeats() {
+			return repeats;
+		}
 		@Override
 		public String toString() {
 			return "Tick [id=" + id + ", idUser=" + idUser + ", picture=" + picture + ", date=" + date + ", name="
 					+ name + ", suggestedGrade=" + suggestedGrade + ", comment=" + comment + ", stars=" + stars
-					+ ", writable=" + writable + "]";
+					+ ", writable=" + writable + ", repeats=" + repeats + "]";
+		}
+		public void addRepeat(int id2, int tickId2, String date2, String comment2) {
+			if (repeats == null) {
+				repeats = new ArrayList<>();
+			}
+			repeats.add(new TickRepeat(id2, tickId2, comment2, date2));
 		}
 	}
 	public class Todo {
@@ -282,11 +292,13 @@ public class Problem implements IMetadata {
 		sections.add(new Section(id, nr, description, grade, media));
 	}
 	
-	public void addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+	public Tick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
-		ticks.add(new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable));
+		Tick t = new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable);
+		ticks.add(t);
+		return t;
 	}
 	
 	public void addTodo(int idUser, String picture, String name) {
