@@ -3906,23 +3906,23 @@ public class BuldreinfoRepository {
 			ps.execute();
 		}
 		// Upsert repeats
-		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-		if (repeats != null && !repeats.isEmpty()) { 
+		if (repeats != null && !repeats.isEmpty()) {
+			final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 			for (TickRepeat r : repeats) {
 				final Date dt = Strings.isNullOrEmpty(r.getDate()) ? null : new Date(sdf.parse(r.getDate()).getTime());
 				if (r.getId() > 0) {
-					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
-						ps.setInt(1, idTick);
-						ps.setDate(2, dt);
-						ps.setString(3, trimString(r.getComment()));
-						ps.execute();
-					}
-				}
-				else {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
 						ps.setDate(1, dt);
 						ps.setString(2, trimString(r.getComment()));
 						ps.setInt(3, r.getId());
+						ps.execute();
+					}
+				}
+				else {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
+						ps.setInt(1, idTick);
+						ps.setDate(2, dt);
+						ps.setString(3, trimString(r.getComment()));
 						ps.execute();
 					}
 				}
