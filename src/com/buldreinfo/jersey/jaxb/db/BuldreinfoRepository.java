@@ -2320,6 +2320,60 @@ public class BuldreinfoRepository {
 					bytes = os.toByteArray();
 				}
 			}
+			sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, t.stars, 0 fa, t.grade grade"
+					+ " FROM (((((((((problem p INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) INNER JOIN tick t ON p.id=t.problem_id AND t.user_id=?) INNER JOIN tick_repeat tr ON t.id=tr.tick_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+					+ " WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
+					+ " GROUP BY r.id, ty.type, pt.subtype, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, p.fa_date, tr.date, t.stars, t.grade, p.grade"
+					+ " ORDER BY ty.type, a.name, s.name, p.name, tr.date";
+			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+				ps.setInt(1, authUserId);
+				ps.setInt(2, authUserId);
+				try (ResultSet rst = ps.executeQuery()) {
+					Map<String, SheetWriter> writers = new HashMap<>();
+					while (rst.next()) {
+						int regionId = rst.getInt("region_id");
+						String type = rst.getString("type");
+						type = "REPEAT_";
+						String subType = rst.getString("subtype");
+						int numPitches = rst.getInt("num_pitches");
+						String url = rst.getString("url");
+						String areaName = rst.getString("area_name");
+						String sectorName = rst.getString("sector_name");
+						String name = rst.getString("name");
+						String comment = rst.getString("comment");
+						Date date = rst.getDate("date");
+						int stars = rst.getInt("stars");
+						boolean fa = rst.getBoolean("fa");
+						String grade = GradeHelper.intToString(new MetaHelper().getSetup(regionId), rst.getInt("grade"));
+						SheetWriter writer = writers.get(type);
+						if (writer == null) {
+							writer = report.addSheet(type);
+							writers.put(type, writer);
+						}
+						writer.incrementRow();
+						writer.write("AREA", areaName);
+						writer.write("SECTOR", sectorName);
+						if (subType != null) {
+							writer.write("TYPE", subType);
+							writer.write("PITCHES", numPitches > 0? numPitches : 1);
+						}
+						writer.write("NAME", name);
+						writer.write("FIRST ASCENT", fa? "Yes" : "No");
+						writer.write("DATE", date);
+						writer.write("GRADE", grade);
+						writer.write("STARS", stars);
+						writer.write("DESCRIPTION", comment);
+						writer.write("URL", SheetHyperlink.of(url));
+					}
+					for (SheetWriter writer : writers.values()) {
+						writer.close();
+					}
+				}
+				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+					report.writeExcel(os);
+					bytes = os.toByteArray();
+				}
+			}
 			sqlStr = "SELECT r.id region_id, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, aid.aid_description comment, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date" + 
 					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
 					" WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
