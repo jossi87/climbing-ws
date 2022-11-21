@@ -131,6 +131,7 @@ public class BuldreinfoRepository {
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
+	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 	private static Logger logger = LogManager.getLogger();
 	private final DbConnection c;
 
@@ -226,13 +227,14 @@ public class BuldreinfoRepository {
 		if (!exists) {
 			return;
 		}
-		try (PreparedStatement psAddActivity = c.getConnection().prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id) VALUES (?, ?, ?, ?, ?, ?)")) {
+		try (PreparedStatement psAddActivity = c.getConnection().prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
 			psAddActivity.setTimestamp(1, problemActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(problemActivityTimestamp));
 			psAddActivity.setString(2, ACTIVITY_TYPE_FA);
 			psAddActivity.setInt(3, idProblem);
 			psAddActivity.setNull(4, Types.INTEGER);
 			psAddActivity.setNull(5, Types.INTEGER);
 			psAddActivity.setNull(6, Types.INTEGER);
+			psAddActivity.setNull(7, Types.INTEGER);
 			psAddActivity.addBatch();
 
 
@@ -259,6 +261,7 @@ public class BuldreinfoRepository {
 						psAddActivity.setInt(4, id);
 						psAddActivity.setNull(5, Types.INTEGER);
 						psAddActivity.setNull(6, Types.INTEGER);
+						psAddActivity.setNull(7, Types.INTEGER);
 						psAddActivity.addBatch();
 					}
 				}
@@ -293,6 +296,43 @@ public class BuldreinfoRepository {
 						psAddActivity.setNull(4, Types.INTEGER);
 						psAddActivity.setInt(5, userId);
 						psAddActivity.setNull(6, Types.INTEGER);
+						psAddActivity.setNull(7, Types.INTEGER);
+						psAddActivity.addBatch();
+					}
+				}
+			}
+			
+			/**
+			 * Tick repeat
+			 */
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, t.user_id, r.date, r.created FROM tick t, tick_repeat r WHERE t.problem_id=? AND t.id=r.tick_id ORDER BY r.tick_id, r.date, r.id")) {
+				ps.setInt(1, idProblem);
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int id = rst.getInt("id");
+						int userId = rst.getInt("user_id");
+						LocalDateTime tickRepeatActivityTimestamp = null;
+						Timestamp tickDate = rst.getTimestamp("date");
+						Timestamp tickCreated = rst.getTimestamp("created");
+						if (tickDate != null && tickCreated != null) {
+							Calendar tickCal = Calendar.getInstance();
+							tickCal.setTimeInMillis(tickDate.getTime());
+							Calendar createdCal = Calendar.getInstance();
+							createdCal.setTimeInMillis(tickCreated.getTime());
+							tickRepeatActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
+						}
+						else if (tickDate != null) {
+							Calendar tickCal = Calendar.getInstance();
+							tickCal.setTimeInMillis(tickDate.getTime());
+							tickRepeatActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+						}
+						psAddActivity.setTimestamp(1, tickRepeatActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(tickRepeatActivityTimestamp));
+						psAddActivity.setString(2, ACTIVITY_TYPE_TICK_REPEAT);
+						psAddActivity.setInt(3, idProblem);
+						psAddActivity.setNull(4, Types.INTEGER);
+						psAddActivity.setInt(5, userId);
+						psAddActivity.setNull(6, Types.INTEGER);
+						psAddActivity.setInt(7, id);
 						psAddActivity.addBatch();
 					}
 				}
@@ -313,6 +353,7 @@ public class BuldreinfoRepository {
 						psAddActivity.setNull(4, Types.INTEGER);
 						psAddActivity.setNull(5, Types.INTEGER);
 						psAddActivity.setInt(6, id);
+						psAddActivity.setNull(7, Types.INTEGER);
 						psAddActivity.addBatch();
 					}
 				}
@@ -358,6 +399,7 @@ public class BuldreinfoRepository {
 		 */
 		final Set<Integer> faActivitityIds = new HashSet<>();
 		final Set<Integer> tickActivitityIds = new HashSet<>();
+		final Set<Integer> tickRepeatActivitityIds = new HashSet<>();
 		final Set<Integer> mediaActivitityIds = new HashSet<>();
 		final Set<Integer> guestbookActivitityIds = new HashSet<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT x.activity_timestamp, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
@@ -368,7 +410,7 @@ public class BuldreinfoRepository {
 				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade) +
 				(fa? "" : " AND x.type!='FA'") +
 				(comments? "" : " AND x.type!='GUESTBOOK'") +
-				(ticks? "" : " AND x.type!='TICK'") +
+				(ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT'") +
 				(media? "" : " AND x.type!='MEDIA'") +
 				(idArea==0? "" : " AND a.id=" + idArea) +
 				(idSector==0? "" : " AND s.id=" + idSector) +
@@ -396,6 +438,7 @@ public class BuldreinfoRepository {
 						switch (type) {
 						case ACTIVITY_TYPE_FA: faActivitityIds.add(idActivity); break;
 						case ACTIVITY_TYPE_TICK: tickActivitityIds.add(idActivity); break;
+						case ACTIVITY_TYPE_TICK_REPEAT: tickRepeatActivitityIds.add(idActivity); break;
 						case ACTIVITY_TYPE_GUESTBOOK: guestbookActivitityIds.add(idActivity); break;
 						case ACTIVITY_TYPE_MEDIA: mediaActivitityIds.add(idActivity); break;
 						default: throw new RuntimeException("Invalid type: " + type + " on idActivity=" + idActivity + " (acitivities=" + activities + ")");
@@ -413,6 +456,27 @@ public class BuldreinfoRepository {
 					" FROM activity a, tick t, user u" + 
 					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
 					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id")) {
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int id = rst.getInt("id");
+						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
+						int userId = rst.getInt("user_id");
+						String name = rst.getString("name");
+						String picture = rst.getString("picture");
+						String description = rst.getString("description");
+						int stars = rst.getInt("stars");
+						String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
+						a.setTick(userId, name, picture, description, stars, personalGrade);
+					}
+				}
+			}
+		}
+		
+		if (!tickRepeatActivitityIds.isEmpty()) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, r.comment description, t.stars, t.grade" + 
+					" FROM activity a, tick t, repeat r, user u" + 
+					" WHERE a.id IN (" + Joiner.on(",").join(tickActivitityIds) + ")" + 
+					"   AND a.user_id=u.id AND a.problem_id=t.problem_id AND a.tick_repeat_id=r.id AND t.id=r.tick_id AND u.id=t.user_id")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
