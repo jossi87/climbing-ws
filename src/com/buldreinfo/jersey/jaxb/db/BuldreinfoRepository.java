@@ -2332,8 +2332,7 @@ public class BuldreinfoRepository {
 					Map<String, SheetWriter> writers = new HashMap<>();
 					while (rst.next()) {
 						int regionId = rst.getInt("region_id");
-						String type = rst.getString("type");
-						type = "REPEAT_";
+						String type = rst.getString("type") + " (repeats)";
 						String subType = rst.getString("subtype");
 						int numPitches = rst.getInt("num_pitches");
 						String url = rst.getString("url");
