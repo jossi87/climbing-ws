@@ -13,6 +13,7 @@ public class ProfileStatistics {
 		private final boolean sectorLockedSuperadmin;
 		private int num;
 		private final int id;
+		private final int idTickRepeat;
 		private final String subType;
 		private final int numPitches;
 		private final int idProblem;
@@ -28,7 +29,7 @@ public class ProfileStatistics {
 		private final int gradeNumber;
 		
 		public Tick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
-				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int numPitches,
+				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches,
 				int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 				String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
 			this.areaName = areaName;
@@ -38,6 +39,7 @@ public class ProfileStatistics {
 			this.sectorLockedAdmin = sectorLockedAdmin;
 			this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 			this.id = id;
+			this.idTickRepeat = idTickRepeat;
 			this.subType = subType;
 			this.numPitches = numPitches;
 			this.idProblem = idProblem;
@@ -56,7 +58,7 @@ public class ProfileStatistics {
 		public String getAreaName() {
 			return areaName;
 		}
-
+		
 		public String getComment() {
 			return comment;
 		}
@@ -83,6 +85,10 @@ public class ProfileStatistics {
 
 		public int getIdProblem() {
 			return idProblem;
+		}
+
+		public int getIdTickRepeat() {
+			return idTickRepeat;
 		}
 
 		public String getName() {
@@ -150,8 +156,8 @@ public class ProfileStatistics {
 	public ProfileStatistics() {
 	}
 	
-	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
-		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
+	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber) {
+		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber));
 	}
 
 	public int getNumImagesCreated() {
