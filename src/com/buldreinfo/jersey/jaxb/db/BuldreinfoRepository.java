@@ -3901,6 +3901,7 @@ public class BuldreinfoRepository {
 		String repeatIdsToKeep = repeats == null? null : repeats.stream().filter(x -> x.getId() > 0).map(String::valueOf).collect(Collectors.joining(","));
 		String sqlStr = Strings.isNullOrEmpty(repeatIdsToKeep) ? "DELETE FROM tick_repeat WHERE tick_id=?" :
 					"DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + repeatIdsToKeep + ")";
+	logger.info(repeatIdsToKeep + "<--");
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, idTick);
 			ps.execute();
