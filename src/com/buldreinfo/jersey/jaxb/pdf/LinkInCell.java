@@ -1,12 +1,12 @@
 package com.buldreinfo.jersey.jaxb.pdf;
 
-import com.itextpdf.text.Rectangle;
-import com.itextpdf.text.pdf.PdfAction;
-import com.itextpdf.text.pdf.PdfAnnotation;
-import com.itextpdf.text.pdf.PdfContentByte;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPCellEvent;
-import com.itextpdf.text.pdf.PdfWriter;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.PdfAction;
+import com.lowagie.text.pdf.PdfAnnotation;
+import com.lowagie.text.pdf.PdfContentByte;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPCellEvent;
+import com.lowagie.text.pdf.PdfWriter;
 
 public class LinkInCell implements PdfPCellEvent {
     protected String url;

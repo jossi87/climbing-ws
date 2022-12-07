@@ -1,9 +1,8 @@
 package com.buldreinfo.jersey.jaxb.pdf;
 
-import java.io.ByteArrayInputStream;
+import java.awt.Color;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -55,28 +54,26 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.itextpdf.text.Anchor;
-import com.itextpdf.text.BadElementException;
-import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Chunk;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Element;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.Image;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.Phrase;
-import com.itextpdf.text.Rectangle;
-import com.itextpdf.text.pdf.ColumnText;
-import com.itextpdf.text.pdf.PdfContentByte;
-import com.itextpdf.text.pdf.PdfDestination;
-import com.itextpdf.text.pdf.PdfOutline;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPCellEvent;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfPageEventHelper;
-import com.itextpdf.text.pdf.PdfWriter;
-import com.itextpdf.tool.xml.XMLWorkerHelper;
+import com.lowagie.text.Anchor;
+import com.lowagie.text.BadElementException;
+import com.lowagie.text.Chunk;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.Image;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.ColumnText;
+import com.lowagie.text.pdf.PdfContentByte;
+import com.lowagie.text.pdf.PdfDestination;
+import com.lowagie.text.pdf.PdfOutline;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPCellEvent;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfPageEventHelper;
+import com.lowagie.text.pdf.PdfWriter;
 
 public class PdfGenerator implements AutoCloseable {
 	class WatermarkedCell implements PdfPCellEvent {
@@ -108,13 +105,13 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 	private static Logger logger = LogManager.getLogger();
-	private static Font FONT_SMALL = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
-	private static Font FONT_H1 = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
-	private static Font FONT_H2 = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
-	private static Font FONT_REGULAR = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL);
-	private static Font FONT_ITALIC = new Font(Font.FontFamily.HELVETICA, 9, Font.ITALIC);
-	private static Font FONT_REGULAR_LINK = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, BaseColor.BLUE);
-	private static Font FONT_BOLD = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
+	private static Font FONT_SMALL = new Font(Font.UNDEFINED, 5, Font.ITALIC);
+	private static Font FONT_H1 = new Font(Font.HELVETICA, 18, Font.BOLD);
+	private static Font FONT_H2 = new Font(Font.HELVETICA, 12, Font.BOLD);
+	private static Font FONT_REGULAR = new Font(Font.HELVETICA, 9, Font.NORMAL);
+	private static Font FONT_ITALIC = new Font(Font.HELVETICA, 9, Font.ITALIC);
+	private static Font FONT_REGULAR_LINK = new Font(Font.HELVETICA, 9, Font.NORMAL, Color.BLUE);
+	private static Font FONT_BOLD = new Font(Font.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
 	public static void main(String[] args) throws Exception {
 		int areaId = 2859;
@@ -147,8 +144,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				// generator.writeArea(area, gradeDistribution, sectors);
-				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				generator.writeArea(area, gradeDistribution, sectors);
+				// generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -411,7 +408,7 @@ public class PdfGenerator implements AutoCloseable {
 			cell.setCellEvent(new LinkInCell(url));
 		}
 		if (greenBackground) {
-			cell.setBackgroundColor(BaseColor.GREEN);
+			cell.setBackgroundColor(Color.GREEN);
 		}
 		table.addCell(cell);
 	} 
@@ -499,9 +496,13 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
-		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
-			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
-		}
+		document.add(new Paragraph(html));
+		// TODO Not working in OpenPDF
+		//		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
+		//			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
+		//			worker.parseXHtml(writer, document, is)
+		//			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
+		//		}
 	}
 	
 	private void writeMapArea(Area area, List<Sector> sectors) {
@@ -782,7 +783,7 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				PdfPCell cell = new PdfPCell(note);
 				if (p.isTicked()) {
-					cell.setBackgroundColor(BaseColor.GREEN);
+					cell.setBackgroundColor(Color.GREEN);
 				}
 				table.addCell(cell);
 			}
