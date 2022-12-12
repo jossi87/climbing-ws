@@ -224,10 +224,10 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(new Phrase(sector.getAccessInfo(), FONT_BOLD));
 		}
 		if (!Strings.isNullOrEmpty(area.getComment())) {
-			document.add(new Paragraph(area.getComment()));
+			document.add(new Paragraph(area.getComment(), FONT_ITALIC));
 		}
 		if (!Strings.isNullOrEmpty(sector.getComment())) {
-			document.add(new Paragraph(sector.getComment()));
+			document.add(new Paragraph(sector.getComment(), FONT_REGULAR));
 		}
 
 		// Route/Problem info
