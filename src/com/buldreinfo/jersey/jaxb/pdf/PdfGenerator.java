@@ -45,7 +45,6 @@ import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.Problem.Tick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -77,17 +76,17 @@ import com.lowagie.text.pdf.PdfWriter;
 
 public class PdfGenerator implements AutoCloseable {
 	class WatermarkedCell implements PdfPCellEvent {
-	    String watermark;
-	    public WatermarkedCell(String watermark) {
-	        this.watermark = watermark;
-	    }
-	    public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
-	        PdfContentByte canvas = canvases[PdfPTable.TEXTCANVAS];
-	        ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER,
-	            new Phrase(watermark),
-	            (position.getLeft() + position.getRight()) / 2,
-	            (position.getBottom()+2), 0);
-	    }
+		String watermark;
+		public WatermarkedCell(String watermark) {
+			this.watermark = watermark;
+		}
+		public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
+			PdfContentByte canvas = canvases[PdfPTable.TEXTCANVAS];
+			ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER,
+					new Phrase(watermark),
+					(position.getLeft() + position.getRight()) / 2,
+					(position.getBottom()+2), 0);
+		}
 	}
 	class MyFooter extends PdfPageEventHelper {
 		public void onEndPage(PdfWriter writer, Document document) {
@@ -144,8 +143,8 @@ public class PdfGenerator implements AutoCloseable {
 				con = (HttpURLConnection)obj.openConnection();
 				con.setRequestMethod("GET");
 				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				generator.writeArea(area, gradeDistribution, sectors);
-				// generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+				// generator.writeArea(area, gradeDistribution, sectors);
+				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
 			}
 		}
 	}
@@ -185,7 +184,7 @@ public class PdfGenerator implements AutoCloseable {
 		paragraph.add(new Chunk(String.valueOf(LocalDateTime.now()), FONT_REGULAR));
 		document.add(paragraph);
 		if (!Strings.isNullOrEmpty(area.getComment())) {
-			writeHtml(area.getComment());
+			document.add(new Paragraph(area.getComment()));
 		}
 		if ( (gradeDistribution != null && !gradeDistribution.isEmpty()) || (area.getMedia() != null && !area.getMedia().isEmpty()) ) {
 			PdfPTable table = new PdfPTable(2);
@@ -214,7 +213,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		writeSectors(sectors);
 	}
-	
+
 	public void writeProblem(Area area, Sector sector, Problem problem) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && sector != null && problem != null);
 		String title = String.format("%s (%s / %s)", problem.getName(), area.getName(), sector.getName());
@@ -224,9 +223,11 @@ public class PdfGenerator implements AutoCloseable {
 		if (!Strings.isNullOrEmpty(sector.getAccessInfo())) {
 			document.add(new Phrase(sector.getAccessInfo(), FONT_BOLD));
 		}
-		String html = Joiner.on("<hr/>").skipNulls().join(Lists.newArrayList(area.getComment(), sector.getComment()));
-		if (!Strings.isNullOrEmpty(html)) {
-			writeHtml(html);
+		if (!Strings.isNullOrEmpty(area.getComment())) {
+			document.add(new Paragraph(area.getComment()));
+		}
+		if (!Strings.isNullOrEmpty(sector.getComment())) {
+			document.add(new Paragraph(sector.getComment()));
 		}
 
 		// Route/Problem info
@@ -380,7 +381,7 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(table);
 		}
 	}
-	
+
 	/**
 	 * Needed if colspan=2 and written cells is an odd number
 	 */
@@ -495,16 +496,6 @@ public class PdfGenerator implements AutoCloseable {
 		return name;
 	}
 
-	private void writeHtml(String html) throws DocumentException, IOException, TranscoderException, TransformerException {
-		document.add(new Paragraph(html));
-		// TODO Not working in OpenPDF
-		//		try (InputStream is = new ByteArrayInputStream(("<p style=\"font-size:12px;\">"+html+"</p>").getBytes())) {
-		//			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
-		//			worker.parseXHtml(writer, document, is)
-		//			XMLWorkerHelper.getInstance().parseXHtml(writer, document, is);
-		//		}
-	}
-	
 	private void writeMapArea(Area area, List<Sector> sectors) {
 		try {
 			List<Marker> markers = new ArrayList<>();
@@ -610,7 +601,7 @@ public class PdfGenerator implements AutoCloseable {
 					PdfPCell cell = new PdfPCell(img, true);
 					cell.setColspan(table.getNumberOfColumns());
 					table.addCell(cell);
-					
+
 					// Also append photo map
 					markers = markers.stream().filter(m -> !m.getIconType().equals(Marker.ICON_TYPE.PARKING)).collect(Collectors.toList());
 					if (!markers.isEmpty()) {
@@ -625,7 +616,7 @@ public class PdfGenerator implements AutoCloseable {
 							table.addCell(cell);
 						}
 					}
-					
+
 					document.add(new Paragraph(" "));
 					document.add(table);
 				}
@@ -634,7 +625,7 @@ public class PdfGenerator implements AutoCloseable {
 			logger.warn(e.getMessage(), e);
 		}
 	}
-	
+
 	private void writeMapSector(Sector sector) {
 		try {
 			List<Outline> outlines = new ArrayList<>();
@@ -649,7 +640,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
-			
+
 			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			List<Sector.Problem> problemsWithoutRock = new ArrayList<>();
 			for (Sector.Problem p : sector.getProblems()) {
