@@ -7,26 +7,6 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Area implements IMetadata {
-	public class SectorOrder {
-		private final int id;
-		private final String name;
-		private final int sorting;
-		public SectorOrder(int id, String name, int sorting) {
-			this.id = id;
-			this.name = name;
-			this.sorting = sorting;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getSorting() {
-			return sorting;
-		}
-	}
-	
 	public class Sector {
 		private final String areaName;
 		private final int id;
@@ -126,6 +106,26 @@ public class Area implements IMetadata {
 		}
 	}
 	
+	public class SectorOrder {
+		private final int id;
+		private final String name;
+		private final int sorting;
+		public SectorOrder(int id, String name, int sorting) {
+			this.id = id;
+			this.name = name;
+			this.sorting = sorting;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public int getSorting() {
+			return sorting;
+		}
+	}
+	
 	private final int regionId;
 	private final String canonical;
 	private final int id;
@@ -133,6 +133,7 @@ public class Area implements IMetadata {
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final boolean forDevelopers;
+	private final boolean noDogsAllowed;
 	private final String name;
 	private final String comment;
 	private final double lat;
@@ -147,7 +148,7 @@ public class Area implements IMetadata {
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -155,6 +156,7 @@ public class Area implements IMetadata {
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.forDevelopers = forDevelopers;
+		this.noDogsAllowed = noDogsAllowed;
 		this.name = name;
 		this.comment = comment;
 		this.lat = lat;
@@ -213,11 +215,11 @@ public class Area implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public int getNumProblems() {
 		return numProblems;
 	}
-	
+
 	public int getNumSectors() {
 		return numSectors;
 	}
@@ -226,14 +228,14 @@ public class Area implements IMetadata {
 		return regionId;
 	}
 	
+	public List<SectorOrder> getSectorOrder() {
+		return sectorOrder;
+	}
+	
 	public List<Sector> getSectors() {
 		return sectors;
 	}
 	
-	public List<SectorOrder> getSectorOrder() {
-		return sectorOrder;
-	}
-
 	public List<TypeNumTicked> getTypeNumTicked() {
 		return typeNumTicked;
 	}
@@ -241,13 +243,17 @@ public class Area implements IMetadata {
 	public boolean isForDevelopers() {
 		return forDevelopers;
 	}
-	
+
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
 	
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
+	}
+	
+	public boolean isNoDogsAllowed() {
+		return noDogsAllowed;
 	}
 	
 	public boolean isTrash() {

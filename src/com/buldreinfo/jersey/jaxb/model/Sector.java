@@ -6,25 +6,6 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
 public class Sector implements IMetadata {
-	public class ProblemOrder {
-		private final int id;
-		private final String name;
-		private final int nr;
-		public ProblemOrder(int id, String name, int nr) {
-			this.id = id;
-			this.name = name;
-			this.nr = nr;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getNr() {
-			return nr;
-		}
-	}
 	public class Problem {
 		private final int id;
 		private final boolean lockedAdmin;
@@ -165,6 +146,25 @@ public class Sector implements IMetadata {
 			return todo;
 		}
 	}
+	public class ProblemOrder {
+		private final int id;
+		private final String name;
+		private final int nr;
+		public ProblemOrder(int id, String name, int nr) {
+			this.id = id;
+			this.name = name;
+			this.nr = nr;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public int getNr() {
+			return nr;
+		}
+	}
 	public class SectorJump {
 		private final int id;
 		private final boolean lockedAdmin;
@@ -194,6 +194,7 @@ public class Sector implements IMetadata {
 	private final int areaId;
 	private final boolean areaLockedAdmin;
 	private final boolean areaLockedSuperadmin;
+	private final boolean areaNoDogsAllowed;
 	private final String areaName;
 	private final String canonical;
 	private final int id;
@@ -215,11 +216,12 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
+		this.areaNoDogsAllowed = areaNoDogsAllowed;
 		this.areaName = areaName;
 		this.canonical = canonical;
 		this.id = id;
@@ -258,11 +260,11 @@ public class Sector implements IMetadata {
 	public String getAreaName() {
 		return areaName;
 	}
-
+	
 	public String getCanonical() {
 		return canonical;
 	}
-	
+
 	public String getComment() {
 		return comment;
 	}
@@ -273,10 +275,6 @@ public class Sector implements IMetadata {
 	
 	public int getId() {
 		return id;
-	}
-	
-	public List<ProblemOrder> getProblemOrder() {
-		return problemOrder;
 	}
 	
 	public double getLat() {
@@ -299,17 +297,21 @@ public class Sector implements IMetadata {
 	public String getName() {
 		return name;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
-	
+
 	public String getPolyline() {
 		return polyline;
+	}
+
+	public List<ProblemOrder> getProblemOrder() {
+		return problemOrder;
 	}
 	
 	public List<Problem> getProblems() {
@@ -326,6 +328,10 @@ public class Sector implements IMetadata {
 	
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
+	}
+	
+	public boolean isAreaNoDogsAllowed() {
+		return areaNoDogsAllowed;
 	}
 
 	public boolean isLockedAdmin() {
