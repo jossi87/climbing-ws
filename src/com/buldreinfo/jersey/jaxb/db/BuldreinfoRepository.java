@@ -2637,7 +2637,7 @@ public class BuldreinfoRepository {
 				ps.setBoolean(7, isLockedAdmin);
 				ps.setBoolean(8, a.isLockedSuperadmin());
 				ps.setBoolean(9, a.isForDevelopers());
-				ps.setBoolean(9, a.isNoDogsAllowed());
+				ps.setBoolean(10, a.isNoDogsAllowed());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
