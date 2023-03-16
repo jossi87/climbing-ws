@@ -133,7 +133,7 @@ public class MetaHelper {
 				.setDescription("Ice climbing in Fredrikstad (Eastern Norway)")
 				.setLatLng(59.15, 10.92).setDefaultZoom(11));
 		setups.add(new Setup("is.tromsoklatring.no", Setup.GRADE_SYSTEM.ICE)
-				.setIdRegion(17)
+				.setIdRegion(18)
 				.setTitle("Is-klatring i Tromsø")
 				.setDescription("Ice climbing in Tromsø (Northern Norway)")
 				.setLatLng(69.73, 18.49).setDefaultZoom(11));
