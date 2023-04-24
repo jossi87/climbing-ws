@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -53,13 +54,13 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
-import com.buldreinfo.jersey.jaxb.model.MediaProblem;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
+import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
@@ -477,7 +478,11 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<MediaProblem> res = c.getBuldreinfoRepo().getProfileMedia(authUserId, setup, id, captured);
+			List<ProfileMedia> res = c.getBuldreinfoRepo().getProfileMediaProblem(authUserId, setup, id, captured);
+			if (captured) {
+				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedSector(authUserId, setup, id));
+				res.sort(Comparator.comparingInt(ProfileMedia::getId).reversed());
+			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

@@ -75,7 +75,7 @@ import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
-import com.buldreinfo.jersey.jaxb.model.MediaProblem;
+import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -1338,7 +1338,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<MediaProblem> getProfileMedia(int authUserId, Setup setup, int reqId, boolean captured) throws SQLException {
+	public List<ProfileMedia> getProfileMediaProblem(int authUserId, Setup setup, int reqId, boolean captured) throws SQLException {
 		String sqlStr = null;
 		if (captured) {
 			sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id  FROM ((((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
@@ -1346,7 +1346,7 @@ public class BuldreinfoRepository {
 		else {
 			sqlStr = "SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC";
 		}
-		List<MediaProblem> res = new ArrayList<>();
+		List<ProfileMedia> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -1368,7 +1368,41 @@ public class BuldreinfoRepository {
 					int problemId = rst.getInt("problem_id");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					MediaProblem m = new MediaProblem(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, problemId);
+					String url = "/problem/" + problemId;
+					ProfileMedia m = new ProfileMedia(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, url);
+					res.add(m);
+				}
+			}
+		}
+		return res;
+	}
+	
+	public List<ProfileMedia> getProfileMediaCapturedSector(int authUserId, Setup setup, int reqId) throws SQLException {
+		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(s.id) sector_id  FROM (((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_sector ms ON m.id=ms.media_id) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
+		List<ProfileMedia> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, reqId);
+			ps.setInt(2, authUserId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String tagged = rst.getString("tagged");
+					int idMedia = rst.getInt("id");
+					int crc32 = rst.getInt("checksum");
+					String description = rst.getString("description");
+					int pitch = 0;
+					boolean trivia = false;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					int sectorId = rst.getInt("sector_id");
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
+					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
+					String url = "/sector/" + sectorId;
+					ProfileMedia m = new ProfileMedia(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, url);
 					res.add(m);
 				}
 			}
