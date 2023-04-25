@@ -3939,21 +3939,18 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 		}
-		logger.debug(authUserId + " - 1");
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
 		Map<Integer, String> problemIdFirstAidAscentLookup = null;
 		if (!setup.isBouldering()) {
 			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(reqId);
 		}
-		logger.debug(authUserId + " - 2");
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.no_dogs_allowed area_no_dogs_allowed, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.no_dogs_allowed, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
 			ps.setInt(3, setup.getIdRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					logger.debug(authUserId + " - 3");
 					int areaId = rst.getInt("area_id");
 					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
@@ -3978,14 +3975,12 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		logger.debug(authUserId + " - 4");
 		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name ORDER BY s.sorting")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, s.getAreaId());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					logger.debug(authUserId + " - 5");
 					int id = rst.getInt("id");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
@@ -4018,7 +4013,6 @@ public class BuldreinfoRepository {
 			ps.setInt(5, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					logger.debug(authUserId + " - 6");
 					int id = rst.getInt("id");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
