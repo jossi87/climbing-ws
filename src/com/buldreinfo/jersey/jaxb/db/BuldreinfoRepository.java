@@ -1093,6 +1093,7 @@ public class BuldreinfoRepository {
 			ps.setInt(1, reqId);
 			ps.execute();
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - hits updated", authUserId, s.getIdRegion(), reqId, stopwatch);
 		List<Integer> todoIdProblems = new ArrayList<>();
 		ProfileTodo todo = getProfileTodo(authUserId, s, authUserId);
 		if (todo != null) {
@@ -1104,6 +1105,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - todo fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		MarkerHelper markerHelper = new MarkerHelper();
 		Problem p = null;
 		String sqlStr = "SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.parking_latitude sector_lat, s.parking_longitude sector_lng, s.polygon_coords sector_polygon_coords, s.polyline sector_polyline, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
@@ -1202,6 +1204,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - problem fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		// Ascents
 		Map<Integer, Problem.Tick> tickLookup = new HashMap<>();
 		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date, t.id";
@@ -1223,6 +1226,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - ascents fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		sqlStr = "SELECT r.id, r.tick_id, r.date, r.comment FROM tick t, tick_repeat r WHERE t.problem_id=? AND t.id=r.tick_id ORDER BY r.tick_id, r.date, r.id";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, p.getId());
@@ -1236,6 +1240,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - comments fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		// Todos
 		sqlStr = "SELECT u.id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name FROM todo t, user u WHERE t.user_id=u.id AND t.problem_id=? ORDER BY u.firstname, u.lastname";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
@@ -1249,6 +1254,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - todos fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		// Comments
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time")) {
 			ps.setInt(1, p.getId());
@@ -1272,6 +1278,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - comments fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		// Sections
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, nr, description, grade FROM problem_section WHERE problem_id=? ORDER BY nr")) {
 			ps.setInt(1, p.getId());
@@ -1290,6 +1297,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - sections fetched", authUserId, s.getIdRegion(), reqId, stopwatch);
 		// First aid ascent
 		if (!s.isBouldering()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture FROM (fa_aid a LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id) LEFT JOIN user u ON au.user_id=u.id WHERE a.problem_id=?")) {
@@ -1315,7 +1323,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.getIdRegion(), reqId, stopwatch, p);
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - first aid ascent fetched, p={}", authUserId, s.getIdRegion(), reqId, stopwatch, p);
 		return p;
 	}
 
