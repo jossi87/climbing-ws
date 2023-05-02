@@ -1932,9 +1932,6 @@ public class BuldreinfoRepository {
 		if (!areas.isEmpty()) {
 			res.addAll(areas);
 		}
-		if (!externalAreas.isEmpty()) {
-			res.addAll(externalAreas);
-		}
 		if (!sectors.isEmpty()) {
 			res.addAll(sectors);
 		}
@@ -1943,6 +1940,9 @@ public class BuldreinfoRepository {
 		}
 		if (!users.isEmpty()) {
 			res.addAll(users);
+		}
+		if (!externalAreas.isEmpty()) {
+			res.addAll(externalAreas);
 		}
 		return res;
 	}
