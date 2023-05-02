@@ -1814,6 +1814,7 @@ public class BuldreinfoRepository {
 	public List<Search> getSearch(int authUserId, Setup setup, SearchRequest sr) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
+		Set<Integer> areaIdsVisible = new HashSet<>();
 		List<Search> areas = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ? OR a.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin ORDER BY a.name LIMIT 8")) {
 			ps.setInt(1, authUserId);
@@ -1825,12 +1826,31 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
+					areaIdsVisible.add(id);
 					String name = rst.getString("name");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					areas.add(new Search(name, null, "/area/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+				}
+			}
+		}
+		// External Areas
+		List<Search> externalAreas = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name ORDER BY a_external.name LIMIT 4")) {
+			ps.setInt(1, setup.getIdRegion());
+			ps.setString(2, sr.getValue() + "%");
+			ps.setString(3, "% " + sr.getValue() + "%");
+			ps.setString(4, "%(" + sr.getValue() + "%");
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					if (!areaIdsVisible.contains(id)) {
+						String externalUrl = rst.getString("external_url");
+						String name = rst.getString("name");
+						externalAreas.add(new Search(name, null, null, externalUrl, null, 0, 0, false, false));
+					}
 				}
 			}
 		}
@@ -1851,7 +1871,7 @@ public class BuldreinfoRepository {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -1877,7 +1897,7 @@ public class BuldreinfoRepository {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -1892,7 +1912,7 @@ public class BuldreinfoRepository {
 					String picture = rst.getString("picture");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					users.add(new Search(name, null, "/user/" + id, picture, 0, 0, false, false));
+					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false));
 				}
 			}
 		}
@@ -1919,6 +1939,9 @@ public class BuldreinfoRepository {
 		}
 		if (!users.isEmpty()) {
 			res.addAll(users);
+		}
+		if (!externalAreas.isEmpty()) {
+			res.addAll(externalAreas);
 		}
 		return res;
 	}
