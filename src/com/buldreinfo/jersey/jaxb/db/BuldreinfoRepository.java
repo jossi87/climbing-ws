@@ -1838,7 +1838,7 @@ public class BuldreinfoRepository {
 		}
 		// External Areas
 		List<Search> externalAreas = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name ORDER BY a_external.name LIMIT 4")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name, r_external.name ORDER BY a_external.name LIMIT 3")) {
 			ps.setInt(1, setup.getIdRegion());
 			ps.setString(2, sr.getValue() + "%");
 			ps.setString(3, "% " + sr.getValue() + "%");
@@ -1849,7 +1849,8 @@ public class BuldreinfoRepository {
 					if (!areaIdsVisible.contains(id)) {
 						String externalUrl = rst.getString("external_url");
 						String name = rst.getString("name");
-						externalAreas.add(new Search(name, null, null, externalUrl, null, 0, 0, false, false));
+						String regionName = rst.getString("region_name");
+						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false));
 					}
 				}
 			}
@@ -1931,6 +1932,9 @@ public class BuldreinfoRepository {
 		if (!areas.isEmpty()) {
 			res.addAll(areas);
 		}
+		if (!externalAreas.isEmpty()) {
+			res.addAll(externalAreas);
+		}
 		if (!sectors.isEmpty()) {
 			res.addAll(sectors);
 		}
@@ -1939,9 +1943,6 @@ public class BuldreinfoRepository {
 		}
 		if (!users.isEmpty()) {
 			res.addAll(users);
-		}
-		if (!externalAreas.isEmpty()) {
-			res.addAll(externalAreas);
 		}
 		return res;
 	}
