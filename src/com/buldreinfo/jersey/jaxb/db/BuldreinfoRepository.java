@@ -1380,7 +1380,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public List<ProfileMedia> getProfileMediaCapturedSector(int authUserId, Setup setup, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(s.id) sector_id  FROM (((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_sector ms ON m.id=ms.media_id) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
 		List<ProfileMedia> res = new ArrayList<>();
@@ -1413,7 +1413,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public List<ProfileMedia> getProfileMediaCapturedArea(int authUserId, Setup setup, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(a.id) area_id FROM ((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_area ma ON m.id=ma.media_id) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
 		List<ProfileMedia> res = new ArrayList<>();
@@ -4016,7 +4016,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
 	}
-	
+
 	private List<SectorProblem> getSectorProblems(Setup setup, int authUserId, int sectorId) throws SQLException {
 		List<SectorProblem> res = new ArrayList<>();
 		Map<Integer, String> problemIdFirstAidAscentLookup = null;
@@ -4052,6 +4052,8 @@ public class BuldreinfoRepository {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int nr = rst.getInt("nr");
 					int grade = rst.getInt("grade");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
 					String name = rst.getString("name");
 					String rock = rst.getString("rock");
 					String comment = rst.getString("description");
@@ -4069,7 +4071,7 @@ public class BuldreinfoRepository {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, comment, fa, numPitches, hasImages, hasMovies, hasTopo, grade, numPitches, numTicks, stars, ticked, todo, t, danger));
+					res.add(new SectorProblem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, latitude, longitude, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}
