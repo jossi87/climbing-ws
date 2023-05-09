@@ -628,9 +628,6 @@ public class BuldreinfoRepository {
 					for (SectorProblem sp : getSectorProblems(s, authUserId, as.getId())) {
 						as.getProblems().add(sp);
 					}
-					if (!as.getProblems().isEmpty()) {
-						Collections.sort(as.getProblems(), Comparator.comparing(SectorProblem::getGradeNumber).reversed());
-					}
 				}
 			}
 		}
