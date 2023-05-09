@@ -22,7 +22,7 @@ public class Area implements IMetadata {
 		private final String polyline;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
-		private List<SectorProblem> problems;
+		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
 		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
@@ -52,10 +52,6 @@ public class Area implements IMetadata {
 		
 		public String getComment() {
 			return comment;
-		}
-		
-		public void setProblems(List<SectorProblem> problems) {
-			this.problems = problems;
 		}
 		
 		public List<SectorProblem> getProblems() {

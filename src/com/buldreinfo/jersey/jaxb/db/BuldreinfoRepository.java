@@ -625,7 +625,12 @@ public class BuldreinfoRepository {
 						}
 					}
 					Area.Sector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
-					as.setProblems(getSectorProblems(s, authUserId, as.getId()));
+					for (SectorProblem sp : getSectorProblems(s, authUserId, as.getId())) {
+						as.getProblems().add(sp);
+					}
+					if (!as.getProblems().isEmpty()) {
+						Collections.sort(as.getProblems(), Comparator.comparing(SectorProblem::getGradeNumber).reversed());
+					}
 				}
 			}
 		}
