@@ -137,6 +137,16 @@ public class MetaHelper {
 				.setTitle("Is-klatring i Tromsø")
 				.setDescription("Ice climbing in Tromsø (Northern Norway)")
 				.setLatLng(69.73, 18.49).setDefaultZoom(11));
+		setups.add(new Setup("sorlandet.brattelinjer.no", Setup.GRADE_SYSTEM.CLIMBING)
+				.setIdRegion(19)
+				.setTitle("Klatring på Sørlandet")
+				.setDescription("Climbing in Southern Norway")
+				.setLatLng(58.34991, 7.51464).setDefaultZoom(9));
+		setups.add(new Setup("sorlandet.buldreinfo.com", Setup.GRADE_SYSTEM.BOULDER)
+				.setIdRegion(20)
+				.setTitle("Buldring på Haugalandet")
+				.setDescription("Bouldering in Southern Norway")
+				.setLatLng(58.34991, 7.51464).setDefaultZoom(8));
 	}
 
 	public Setup getSetup(HttpServletRequest request) {
