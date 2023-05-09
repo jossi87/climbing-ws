@@ -22,6 +22,7 @@ public class Area implements IMetadata {
 		private final String polyline;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
+		private List<SectorProblem> problems;
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
 		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
@@ -51,6 +52,14 @@ public class Area implements IMetadata {
 		
 		public String getComment() {
 			return comment;
+		}
+		
+		public void setProblems(List<SectorProblem> problems) {
+			this.problems = problems;
+		}
+		
+		public List<SectorProblem> getProblems() {
+			return problems;
 		}
 		
 		public int getId() {
@@ -170,9 +179,11 @@ public class Area implements IMetadata {
 		this.hits = hits;
 	}
 
-	public void addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
-		sectors.add(new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32));
+	public Sector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		Sector s = new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+		sectors.add(s);
 		sectorOrder.add(new SectorOrder(id, name, sorting));
+		return s;
 	}
 	
 	public String getCanonical() {

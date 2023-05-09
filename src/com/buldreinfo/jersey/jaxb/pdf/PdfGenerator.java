@@ -44,6 +44,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.Problem.Tick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -641,9 +642,9 @@ public class PdfGenerator implements AutoCloseable {
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
 
-			Multimap<String, Sector.Problem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
-			List<Sector.Problem> problemsWithoutRock = new ArrayList<>();
-			for (Sector.Problem p : sector.getProblems()) {
+			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
+			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
+			for (SectorProblem p : sector.getProblems()) {
 				if (p.getLat() > 0 && p.getLng() > 0) {
 					if (p.getRock() != null) {
 						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
@@ -654,11 +655,11 @@ public class PdfGenerator implements AutoCloseable {
 				}
 			}
 			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
-				Collection<Sector.Problem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
+				Collection<SectorProblem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
 				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
 				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
 			}
-			for (Sector.Problem p : problemsWithoutRock) {
+			for (SectorProblem p : problemsWithoutRock) {
 				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
@@ -744,7 +745,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			addTableCell(table, FONT_BOLD, "FA");
 			addTableCell(table, FONT_BOLD, "Note");
-			for (Sector.Problem p : s.getProblems()) {
+			for (SectorProblem p : s.getProblems()) {
 				String description = Strings.emptyToNull(p.getComment());
 				if (!Strings.isNullOrEmpty(p.getRock())) {
 					if (description == null) {

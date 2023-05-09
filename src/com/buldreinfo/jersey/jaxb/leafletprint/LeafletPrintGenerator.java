@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
-import com.buldreinfo.jersey.jaxb.model.Sector;
+import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
@@ -42,12 +42,12 @@ public class LeafletPrintGenerator {
 		}
 		return meter + " meter";
 	}
-	public static LatLng getCenter(Collection<Sector.Problem> problems) {
+	public static LatLng getCenter(Collection<SectorProblem> problems) {
 		double x = 0.0;
 	    double y = 0.0;
 	    double z = 0.0;
 
-	    for (Sector.Problem p : problems) {
+	    for (SectorProblem p : problems) {
 	        double lat = p.getLat() * Math.PI / 180;
 	        double lon = p.getLng() * Math.PI / 180;
 

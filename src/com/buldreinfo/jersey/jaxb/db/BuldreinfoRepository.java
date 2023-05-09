@@ -75,7 +75,6 @@ import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
-import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -84,6 +83,7 @@ import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
 import com.buldreinfo.jersey.jaxb.model.Profile;
+import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
@@ -92,6 +92,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
+import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.TableOfContents;
@@ -623,7 +624,8 @@ public class BuldreinfoRepository {
 							randomMediaId = x.get(0).getId();
 						}
 					}
-					a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+					Area.Sector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+					as.setProblems(getSectorProblems(s, authUserId, as.getId()));
 				}
 			}
 		}
@@ -1179,10 +1181,10 @@ public class BuldreinfoRepository {
 
 					int sectorIdProblemPrev = 0;
 					int sectorIdProblemNext = 0;
-					List<Sector.Problem> problems = getSectorDontUpdateHits(authUserId, false, s, sectorId).getProblems();
+					List<SectorProblem> problems = getSectorProblems(s, authUserId, sectorId);
 					if (problems.size() > 1) {
 						for (int i = 0; i < problems.size(); i++) {
-							Sector.Problem prob = problems.get(i);
+							SectorProblem prob = problems.get(i);
 							if (prob.getId() == id) {
 								sectorIdProblemPrev = problems.get((i == 0? problems.size()-1 : i-1)).getId();
 								sectorIdProblemNext = problems.get((i == problems.size()-1? 0 : i+1)).getId();
@@ -1724,8 +1726,7 @@ public class BuldreinfoRepository {
 						String name = rst.getString("name");
 						String comment = rst.getString("description");
 						LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-						com.buldreinfo.jersey.jaxb.model.app.Area a = new com.buldreinfo.jersey.jaxb.model.app.Area(regionId,
-								id, name, comment, l.getLat(), l.getLng());
+						com.buldreinfo.jersey.jaxb.model.app.Area a = new com.buldreinfo.jersey.jaxb.model.app.Area(regionId, id, name, comment, l.getLat(), l.getLng());
 						r.getAreas().add(a);
 						areaMap.put(a.getId(), a);
 					}
@@ -1949,11 +1950,6 @@ public class BuldreinfoRepository {
 
 	public Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = true;
-		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
-	}
-
-	public Sector getSectorDontUpdateHits(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
-		final boolean updateHits = false;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
 
@@ -3965,10 +3961,6 @@ public class BuldreinfoRepository {
 		}
 		MarkerHelper markerHelper = new MarkerHelper();
 		Sector s = null;
-		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.isBouldering()) {
-			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(reqId);
-		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.no_dogs_allowed area_no_dogs_allowed, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.no_dogs_allowed, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.polyline, s.hits")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
@@ -4013,6 +4005,22 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		for (SectorProblem sp : getSectorProblems(setup, authUserId, reqId)) {
+			s.addProblem(sp);
+		}
+		if (!s.getProblems().isEmpty() && orderByGrade) {
+			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::getGradeNumber).reversed());
+		}
+		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
+		return s;
+	}
+	
+	private List<SectorProblem> getSectorProblems(Setup setup, int authUserId, int sectorId) throws SQLException {
+		List<SectorProblem> res = new ArrayList<>();
+		Map<Integer, String> problemIdFirstAidAscentLookup = null;
+		if (!setup.isBouldering()) {
+			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(sectorId);
+		}
 		String sqlStr = "SELECT p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.latitude, p.longitude,"
 				+ " COUNT(DISTINCT ps.id) num_pitches,"
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,"
@@ -4034,7 +4042,7 @@ public class BuldreinfoRepository {
 			ps.setInt(2, authUserId);
 			ps.setInt(3, authUserId);
 			ps.setInt(4, authUserId);
-			ps.setInt(5, reqId);
+			ps.setInt(5, sectorId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -4049,7 +4057,6 @@ public class BuldreinfoRepository {
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
 						fa = "FA: " + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
 					}
-					LatLng l = markerHelper.getLatLngWithoutShifting(rst.getDouble("latitude"), rst.getDouble("longitude"));
 					int numPitches = rst.getInt("num_pitches");
 					boolean hasImages = rst.getInt("num_images")>0;
 					boolean hasMovies = rst.getInt("num_movies")>0;
@@ -4060,15 +4067,11 @@ public class BuldreinfoRepository {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					s.addProblem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, l.getLat(), l.getLng(), numTicks, stars, ticked, todo, t, danger);
+					res.add(new SectorProblem(id, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, comment, fa, numPitches, hasImages, hasMovies, hasTopo, grade, numPitches, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}
-		if (!s.getProblems().isEmpty() && orderByGrade) {
-			Collections.sort(s.getProblems(), Comparator.comparing(Sector.Problem::getGradeNumber).reversed());
-		}
-		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
-		return s;
+		return res;
 	}
 
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
