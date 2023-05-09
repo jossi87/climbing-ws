@@ -144,7 +144,7 @@ public class MetaHelper {
 				.setLatLng(58.34991, 7.51464).setDefaultZoom(9));
 		setups.add(new Setup("sorlandet.buldreinfo.com", Setup.GRADE_SYSTEM.BOULDER)
 				.setIdRegion(20)
-				.setTitle("Buldring på Haugalandet")
+				.setTitle("Buldring på Sørlandet")
 				.setDescription("Bouldering in Southern Norway")
 				.setLatLng(58.34991, 7.51464).setDefaultZoom(8));
 	}
