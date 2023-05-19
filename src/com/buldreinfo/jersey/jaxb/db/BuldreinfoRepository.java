@@ -2679,8 +2679,8 @@ public class BuldreinfoRepository {
 				ps.setBoolean(5, isLockedAdmin);
 				ps.setBoolean(6, a.isLockedSuperadmin());
 				ps.setBoolean(7, a.isForDevelopers());
-				ps.setString(8, a.getAccessInfo());
-				ps.setString(9, a.getAccessClosed());
+				ps.setString(8, trimString(a.getAccessInfo()));
+				ps.setString(9, trimString(a.getAccessClosed()));
 				ps.setBoolean(10, a.isNoDogsAllowed());
 				ps.setTimestamp(11, a.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
 				ps.setInt(12, a.isTrash()? authUserId : 0);
@@ -2722,7 +2722,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, locked_admin, locked_superadmin, for_developers, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, latitude, longitude, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getIdRegion());
 				ps.setString(3, trimString(a.getName()));
@@ -2740,7 +2740,9 @@ public class BuldreinfoRepository {
 				ps.setBoolean(7, isLockedAdmin);
 				ps.setBoolean(8, a.isLockedSuperadmin());
 				ps.setBoolean(9, a.isForDevelopers());
-				ps.setBoolean(10, a.isNoDogsAllowed());
+				ps.setString(10, trimString(a.getAccessInfo()));
+				ps.setString(11, trimString(a.getAccessClosed()));
+				ps.setBoolean(12, a.isNoDogsAllowed());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -3048,26 +3050,27 @@ public class BuldreinfoRepository {
 			}
 		} else {
 			ensureAdminWriteArea(authUserId, s.getAreaId());
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, parking_latitude, parking_longitude, locked_admin, locked_superadmin, polygon_coords, polyline, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_latitude, parking_longitude, locked_admin, locked_superadmin, polygon_coords, polyline, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getAreaId());
 				ps.setString(3, s.getName());
 				ps.setString(4, trimString(s.getComment()));
 				ps.setString(5, trimString(s.getAccessInfo()));
+				ps.setString(6, trimString(s.getAccessClosed()));
 				if (s.getLat() > 0) {
-					ps.setDouble(6, s.getLat());
-				} else {
-					ps.setNull(6, Types.DOUBLE);
-				}
-				if (s.getLng() > 0) {
-					ps.setDouble(7, s.getLng());
+					ps.setDouble(7, s.getLat());
 				} else {
 					ps.setNull(7, Types.DOUBLE);
 				}
-				ps.setBoolean(8, isLockedAdmin);
-				ps.setBoolean(9, s.isLockedSuperadmin());
-				ps.setString(10, trimString(s.getPolygonCoords()));
-				ps.setString(11, trimString(s.getPolyline()));
+				if (s.getLng() > 0) {
+					ps.setDouble(8, s.getLng());
+				} else {
+					ps.setNull(8, Types.DOUBLE);
+				}
+				ps.setBoolean(9, isLockedAdmin);
+				ps.setBoolean(10, s.isLockedSuperadmin());
+				ps.setString(11, trimString(s.getPolygonCoords()));
+				ps.setString(12, trimString(s.getPolyline()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
