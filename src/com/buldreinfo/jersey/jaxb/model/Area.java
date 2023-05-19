@@ -16,6 +16,7 @@ public class Area implements IMetadata {
 		private final String name;
 		private final String comment;
 		private final String accessInfo;
+		private final String accessClosed;
 		private final double lat;
 		private final double lng;
 		private final String polygonCoords;
@@ -25,7 +26,7 @@ public class Area implements IMetadata {
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
-		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -34,12 +35,17 @@ public class Area implements IMetadata {
 			this.name = name;
 			this.comment = comment;
 			this.accessInfo = accessInfo;
+			this.accessClosed = accessClosed;
 			this.lat = lat;
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
 			this.polyline = polyline;
 			this.randomMediaId = randomMediaId;
 			this.randomMediaCrc32 = randomMediaCrc32;
+		}
+		
+		public String getAccessClosed() {
+			return accessClosed;
 		}
 		
 		public String getAccessInfo() {
@@ -179,8 +185,8 @@ public class Area implements IMetadata {
 		this.hits = hits;
 	}
 
-	public Sector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
-		Sector s = new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+	public Sector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		Sector s = new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new SectorOrder(id, name, sorting));
 		return s;
