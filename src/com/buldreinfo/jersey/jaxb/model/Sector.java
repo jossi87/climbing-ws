@@ -55,6 +55,8 @@ public class Sector implements IMetadata {
 	private final int areaId;
 	private final boolean areaLockedAdmin;
 	private final boolean areaLockedSuperadmin;
+	private final String areaAccessInfo;
+	private final String areaAccessClosed;
 	private final boolean areaNoDogsAllowed;
 	private final String areaName;
 	private final String canonical;
@@ -65,6 +67,7 @@ public class Sector implements IMetadata {
 	private final String name;
 	private final String comment;
 	private final String accessInfo;
+	private final String accessClosed;
 	private final double lat;
 	private final double lng;
 	private final String polygonCoords;
@@ -77,11 +80,13 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
+		this.areaAccessInfo = areaAccessInfo;
+		this.areaAccessClosed = areaAccessClosed;
 		this.areaNoDogsAllowed = areaNoDogsAllowed;
 		this.areaName = areaName;
 		this.canonical = canonical;
@@ -92,6 +97,7 @@ public class Sector implements IMetadata {
 		this.name = name;
 		this.comment = comment;
 		this.accessInfo = accessInfo;
+		this.accessClosed = accessClosed;
 		this.lat = lat;
 		this.lng = lng;
 		this.polygonCoords = polygonCoords;
@@ -110,8 +116,20 @@ public class Sector implements IMetadata {
 		this.sectors.add(new SectorJump(id, lockedAdmin, lockedSuperadmin, name));
 	}
 	
+	public String getAccessClosed() {
+		return accessClosed;
+	}
+	
 	public String getAccessInfo() {
 		return accessInfo;
+	}
+	
+	public String getAreaAccessClosed() {
+		return areaAccessClosed;
+	}
+	
+	public String getAreaAccessInfo() {
+		return areaAccessInfo;
 	}
 	
 	public int getAreaId() {

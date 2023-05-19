@@ -54,18 +54,14 @@ public class Area implements IMetadata {
 			return comment;
 		}
 		
-		public List<SectorProblem> getProblems() {
-			return problems;
-		}
-		
 		public int getId() {
 			return id;
 		}
-
+		
 		public double getLat() {
 			return lat;
 		}
-		
+
 		public double getLng() {
 			return lng;
 		}
@@ -77,13 +73,17 @@ public class Area implements IMetadata {
 		public int getNumProblems() {
 			return numProblems;
 		}
-
+		
 		public String getPolygonCoords() {
 			return polygonCoords;
 		}
-		
+
 		public String getPolyline() {
 			return polyline;
+		}
+		
+		public List<SectorProblem> getProblems() {
+			return problems;
 		}
 		
 		public int getRandomMediaCrc32() {
@@ -138,6 +138,8 @@ public class Area implements IMetadata {
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final boolean forDevelopers;
+	private final String accessInfo;
+	private final String accessClosed;
 	private final boolean noDogsAllowed;
 	private final String name;
 	private final String comment;
@@ -153,7 +155,7 @@ public class Area implements IMetadata {
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -161,6 +163,8 @@ public class Area implements IMetadata {
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.forDevelopers = forDevelopers;
+		this.accessInfo = accessInfo;
+		this.accessClosed = accessClosed;
 		this.noDogsAllowed = noDogsAllowed;
 		this.name = name;
 		this.comment = comment;
@@ -182,10 +186,18 @@ public class Area implements IMetadata {
 		return s;
 	}
 	
+	public String getAccessClosed() {
+		return accessClosed;
+	}
+
+	public String getAccessInfo() {
+		return accessInfo;
+	}
+	
 	public String getCanonical() {
 		return canonical;
 	}
-
+	
 	public String getComment() {
 		return comment;
 	}

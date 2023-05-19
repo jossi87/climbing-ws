@@ -113,6 +113,12 @@ public class Problem implements IMetadata {
 			this.stars = stars;
 			this.writable = writable;
 		}
+		public void addRepeat(int id2, int tickId2, String date2, String comment2) {
+			if (repeats == null) {
+				repeats = new ArrayList<>();
+			}
+			repeats.add(new TickRepeat(id2, tickId2, comment2, date2));
+		}
 		public String getComment() {
 			return comment;
 		}
@@ -131,6 +137,9 @@ public class Problem implements IMetadata {
 		public String getPicture() {
 			return picture;
 		}
+		public List<TickRepeat> getRepeats() {
+			return repeats;
+		}
 		public double getStars() {
 			return stars;
 		}
@@ -140,20 +149,11 @@ public class Problem implements IMetadata {
 		public boolean isWritable() {
 			return writable;
 		}
-		public List<TickRepeat> getRepeats() {
-			return repeats;
-		}
 		@Override
 		public String toString() {
 			return "Tick [id=" + id + ", idUser=" + idUser + ", picture=" + picture + ", date=" + date + ", name="
 					+ name + ", suggestedGrade=" + suggestedGrade + ", comment=" + comment + ", stars=" + stars
 					+ ", writable=" + writable + ", repeats=" + repeats + "]";
-		}
-		public void addRepeat(int id2, int tickId2, String date2, String comment2) {
-			if (repeats == null) {
-				repeats = new ArrayList<>();
-			}
-			repeats.add(new TickRepeat(id2, tickId2, comment2, date2));
 		}
 	}
 	public class Todo {
@@ -179,11 +179,15 @@ public class Problem implements IMetadata {
 	private final boolean areaLockedAdmin;
 	private final boolean areaLockedSuperadmin;
 	private final String areaName;
+	private final String areaAccessInfo;
+	private final String areaAccessClosed;
+	private final boolean areaNoDogsAllowed;
 	private final int sectorId;
 	private final boolean sectorLockedAdmin;
 	private final boolean sectorLockedSuperadmin;
 	private final String sectorName;
 	private final String sectorAccessInfo;
+	private final String sectorAccessClosed;
 	private final double sectorLat;
 	private final double sectorLng;
 	private final String sectorPolygonCoords;
@@ -227,17 +231,23 @@ public class Problem implements IMetadata {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed,
+			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
+			double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
 		this.areaName = areaName;
+		this.areaAccessInfo = areaAccessInfo;
+		this.areaAccessClosed = areaAccessClosed;
+		this.areaNoDogsAllowed = areaNoDogsAllowed;
 		this.sectorId = sectorId;
 		this.sectorLockedAdmin = sectorLockedAdmin;
 		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.sectorName = sectorName;
 		this.sectorAccessInfo = sectorAccessInfo;
+		this.sectorAccessClosed = sectorAccessClosed;
 		this.sectorLat = sectorLat;
 		this.sectorLng = sectorLng;
 		this.sectorPolygonCoords = sectorPolygonCoords;
@@ -308,6 +318,14 @@ public class Problem implements IMetadata {
 		todos.add(new Todo(idUser, picture, name));
 	}
 	
+	public String getAreaAccessClosed() {
+		return areaAccessClosed;
+	}
+	
+	public String getAreaAccessInfo() {
+		return areaAccessInfo;
+	}
+	
 	public int getAreaId() {
 		return areaId;
 	}
@@ -351,7 +369,7 @@ public class Problem implements IMetadata {
 	public String getFaDateHr() {
 		return faDateHr;
 	}
-
+	
 	public String getGrade() {
 		return grade;
 	}
@@ -359,7 +377,7 @@ public class Problem implements IMetadata {
 	public long getHits() {
 		return hits;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
@@ -388,7 +406,7 @@ public class Problem implements IMetadata {
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
-
+	
 	public int getNr() {
 		return nr;
 	}
@@ -396,7 +414,7 @@ public class Problem implements IMetadata {
 	public int getNumTicks() {
 		return numTicks;
 	}
-	
+
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
@@ -404,13 +422,17 @@ public class Problem implements IMetadata {
 	public String getRock() {
 		return rock;
 	}
-
+	
 	public String getRouteLength() {
 		return routeLength;
 	}
 	
 	public List<Section> getSections() {
 		return sections;
+	}
+
+	public String getSectorAccessClosed() {
+		return sectorAccessClosed;
 	}
 	
 	public String getSectorAccessInfo() {
@@ -424,11 +446,11 @@ public class Problem implements IMetadata {
 	public int getSectorIdProblemNext() {
 		return sectorIdProblemNext;
 	}
-
+	
 	public int getSectorIdProblemPrev() {
 		return sectorIdProblemPrev;
 	}
-	
+
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -436,15 +458,15 @@ public class Problem implements IMetadata {
 	public double getSectorLng() {
 		return sectorLng;
 	}
-
+	
 	public String getSectorName() {
 		return sectorName;
 	}
-	
+
 	public String getSectorPolygonCoords() {
 		return sectorPolygonCoords;
 	}
-
+	
 	public String getSectorPolyline() {
 		return sectorPolyline;
 	}
@@ -464,11 +486,11 @@ public class Problem implements IMetadata {
 	public List<Tick> getTicks() {
 		return ticks;
 	}
-	
+
 	public List<Todo> getTodos() {
 		return todos;
 	}
-
+	
 	public String getTrivia() {
 		return trivia;
 	}
@@ -476,13 +498,17 @@ public class Problem implements IMetadata {
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
-	
+
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
-
+	
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
+	}
+
+	public boolean isAreaNoDogsAllowed() {
+		return areaNoDogsAllowed;
 	}
 
 	public boolean isLockedAdmin() {
