@@ -147,6 +147,11 @@ public class MetaHelper {
 				.setTitle("Buldring på Sørlandet")
 				.setDescription("Bouldering in Southern Norway")
 				.setLatLng(58.34991, 7.51464).setDefaultZoom(8));
+		setups.add(new Setup("salten.brattelinjer.no", Setup.GRADE_SYSTEM.CLIMBING)
+				.setIdRegion(21)
+				.setTitle("Klatring på Salten")
+				.setDescription("Climbing in Salten (Northern Norway)")
+				.setLatLng(67.38370, 15.20014).setDefaultZoom(9));
 	}
 
 	public Setup getSetup(HttpServletRequest request) {
