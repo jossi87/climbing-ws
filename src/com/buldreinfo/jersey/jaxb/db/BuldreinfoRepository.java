@@ -1547,11 +1547,10 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Tick_repeat
-		sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, t.grade,"
-				+ " p.latitude problem_latitude, p.longitude problem_longitude, s.polygon_coords, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude"
+		sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, t.grade"
 				+ " FROM ((((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN tick t ON p.id=t.problem_id AND t.user_id=?) INNER JOIN tick_repeat tr ON t.id=tr.tick_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, t.grade, p.latitude, p.longitude, s.polygon_coords, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude";
+				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, t.grade";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -1582,27 +1581,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
-					double problemLatitude = rst.getDouble("problem_latitude");
-					double problemLongitude = rst.getDouble("problem_longitude");
-					String polygonCoords = rst.getString("polygon_coords");
-					double sectorLatitude = rst.getDouble("sector_latitude");
-					double sectorLongitude = rst.getDouble("sector_longitude");
-					double areaLatitude = rst.getDouble("area_latitude");
-					double areaLongitude = rst.getDouble("area_longitude");
-					LatLng l = markerHelper.getLatLng(problemLatitude, problemLongitude);
-					if (problemLatitude == 0 || problemLongitude == 0) {
-						if (!Strings.isNullOrEmpty(polygonCoords)) {
-							String[] latLng = polygonCoords.split(";")[0].split(",");
-							l = markerHelper.getLatLng(Double.parseDouble(latLng[0]), Double.parseDouble(latLng[1]));
-						}
-						else if (sectorLatitude > 0 && sectorLongitude > 0) {
-							l = markerHelper.getLatLng(sectorLatitude, sectorLongitude);
-						}
-						else if (areaLatitude > 0 && areaLongitude > 0) {
-							l = markerHelper.getLatLng(areaLatitude, areaLongitude);
-						}
-					}
-					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade, l.getLat(), l.getLng());
+					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade, 0, 0);
 				}
 			}
 		}
