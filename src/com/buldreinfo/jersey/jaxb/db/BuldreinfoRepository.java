@@ -2356,6 +2356,9 @@ public class BuldreinfoRepository {
 			ps.setInt(10, authUserId);
 			ps.setInt(11, setup.getIdRegion());
 			ps.setInt(12, setup.getIdRegion());
+			ps.setInt(13, authUserId);
+			ps.setInt(14, setup.getIdRegion());
+			ps.setInt(15, setup.getIdRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
