@@ -2313,20 +2313,30 @@ public class BuldreinfoRepository {
 	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		Trash res = new Trash();
-		String sqlStr = "SELECT a.id area_id, null sector_id, null problem_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+		String sqlStr =
+				// Area
+				"SELECT a.id area_id, null sector_id, null problem_id, null media_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
 				+ " FROM (((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN user u ON a.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE a.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, null)=1"
-				+ " GROUP BY area_id, sector_id, problem_id, name, trash, trash_by"
+				+ " GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by"
 				+ " UNION ALL"
-				+ " SELECT null area_id, s.id sector_id, null problem_id, CONCAT(s.name,' (',a.name,')') name, DATE_FORMAT(s.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				// Sector
+				+ " SELECT null area_id, s.id sector_id, null problem_id, null media_id, CONCAT(s.name,' (',a.name,')') name, DATE_FORMAT(s.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
 				+ " FROM ((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user u ON s.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE a.trash IS NULL AND s.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, null)=1"
-				+ " GROUP BY area_id, sector_id, problem_id, name, trash, trash_by"
+				+ " GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by"
 				+ " UNION ALL"
-				+ " SELECT null area_id, null sector_id, p.id problem_id, CONCAT(p.name,' (',a.name,'/',s.name,')') name, DATE_FORMAT(p.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				// Problem
+				+ " SELECT null area_id, null sector_id, p.id problem_id, null media_id, CONCAT(p.name,' (',a.name,'/',s.name,')') name, DATE_FORMAT(p.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
 				+ " FROM (((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN user u ON p.trash_by=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE a.trash IS NULL AND s.trash IS NULL AND p.trash IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, null)=1"
-				+ " GROUP BY area_id, sector_id, problem_id, name, trash, trash_by"
+				+ " GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by"
+				+ " UNION ALL"
+				// Media (Area)
+				+ " SELECT null area_id, null sector_id, null problem_id, m.id media_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
+				+ " FROM (((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN media_area ma ON a.id=ma.area_id) INNER JOIN media m ON ma.media_id=m.id) INNER JOIN user u ON m.deleted_user_id=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
+				+ " WHERE m.deleted_user_id IS NOT NULL AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, null)=1"
+				+ " GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by"
 				+ " ORDER BY trash DESC";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
@@ -2338,15 +2348,19 @@ public class BuldreinfoRepository {
 			ps.setInt(7, authUserId);
 			ps.setInt(8, setup.getIdRegion());
 			ps.setInt(9, setup.getIdRegion());
+			ps.setInt(10, authUserId);
+			ps.setInt(11, setup.getIdRegion());
+			ps.setInt(12, setup.getIdRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
 					int sectorId = rst.getInt("sector_id");
 					int problemId = rst.getInt("problem_id");
+					int mediaId = rst.getInt("media_id");
 					String name = rst.getString("name");
 					String when = rst.getString("trash");
 					String by = rst.getString("trash_by");
-					res.addTrashItem(areaId, sectorId, problemId, name, when, by);
+					res.addTrashItem(areaId, sectorId, problemId, mediaId, name, when, by);
 				}
 			}
 		}
@@ -3245,7 +3259,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void trashRecover(Setup setup, int authUserId, int idArea, int idSector, int idProblem) throws SQLException {
+	public void trashRecover(Setup setup, int authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
 		ensureSuperadminWriteRegion(authUserId, setup.getIdRegion());
 		String sqlStr = null;
 		int id = 0;
@@ -3260,6 +3274,10 @@ public class BuldreinfoRepository {
 		else if (idProblem > 0) {
 			sqlStr = "UPDATE problem SET trash=NULL, trash_by=NULL WHERE id=?";
 			id = idProblem;
+		}
+		else if (idMedia > 0) {
+			sqlStr = "UPDATE media SET deleted_user_id=NULL, deleted_timestamp=NULL WHERE id=?";
+			id = idMedia;
 		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, id);

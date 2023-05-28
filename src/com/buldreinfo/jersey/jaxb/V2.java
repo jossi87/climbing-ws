@@ -1223,15 +1223,16 @@ public class V2 {
 
 	@PUT
 	@Path("/trash")
-	public Response putTrash(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector, @QueryParam("idProblem") int idProblem) throws ExecutionException, IOException {
-		Preconditions.checkArgument((idArea > 0 && idSector == 0 && idProblem == 0) ||
-				(idArea == 0 && idSector > 0 && idProblem == 0) ||
-				(idArea == 0 && idSector == 0 && idProblem > 0),
+	public Response putTrash(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector, @QueryParam("idProblem") int idProblem, @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
+		Preconditions.checkArgument((idArea > 0 && idSector == 0 && idProblem == 0 && idMedia == 0) ||
+				(idArea == 0 && idSector > 0 && idProblem == 0 && idMedia == 0) ||
+				(idArea == 0 && idSector == 0 && idProblem > 0 && idMedia == 0) ||
+				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0),
 				"Invalid arguments");
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().trashRecover(setup, authUserId, idArea, idSector, idProblem);
+			c.getBuldreinfoRepo().trashRecover(setup, authUserId, idArea, idSector, idProblem, idMedia);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
