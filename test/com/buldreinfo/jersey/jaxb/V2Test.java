@@ -151,6 +151,13 @@ public class V2Test {
 	}
 	
 	@Test
+	public void testGetTrash() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getTrash(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+	}
+	
+	@Test
 	public void testPostFilter() throws Exception {
 		V2 tester = new V2();
 		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20),Lists.newArrayList(1,2,3,4)));
