@@ -3339,6 +3339,7 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_problem SET pitch=?, trivia=? WHERE id=?")) {
 			ps.setInt(1, m.getPitch());
 			ps.setBoolean(2, m.isTrivia());
+			ps.setInt(3, m.getMediaId());
 			ps.execute();
 		}
 	}
