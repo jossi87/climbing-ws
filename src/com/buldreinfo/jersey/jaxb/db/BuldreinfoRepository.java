@@ -3336,11 +3336,14 @@ public class BuldreinfoRepository {
 			ps.setInt(2, m.getMediaId());
 			ps.execute();
 		}
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_problem SET pitch=?, trivia=? WHERE id=?")) {
-			ps.setInt(1, m.getPitch());
-			ps.setBoolean(2, m.isTrivia());
-			ps.setInt(3, m.getMediaId());
-			ps.execute();
+		for (int idProblem : idProblems) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_problem SET pitch=?, trivia=? WHERE media_id=? AND problem_id=?")) {
+				ps.setInt(1, m.getPitch());
+				ps.setBoolean(2, m.isTrivia());
+				ps.setInt(3, m.getMediaId());
+				ps.setInt(4, idProblem);
+				ps.execute();
+			}
 		}
 	}
 
