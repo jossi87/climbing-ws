@@ -54,6 +54,7 @@ import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
@@ -977,25 +978,6 @@ public class V2 {
 		}
 	}
 
-	@PUT
-	@Path("/media")
-	public Response moveMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left, @QueryParam("toIdSector") int toIdSector, @QueryParam("toIdProblem") int toIdProblem) throws ExecutionException, IOException {
-		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector > 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem > 0),
-				"Invalid arguments");
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().moveMedia(authUserId, id, left, toIdSector, toIdProblem);
-			c.setSuccess();
-			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
 	@POST
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1013,7 +995,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1073,7 +1055,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1093,7 +1075,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1111,7 +1093,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
@@ -1200,6 +1182,39 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setUserRegion(authUserId, regionId, delete);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@PUT
+	@Path("/media")
+	public Response putMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left, @QueryParam("toIdSector") int toIdSector, @QueryParam("toIdProblem") int toIdProblem) throws ExecutionException, IOException {
+		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector > 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem > 0),
+				"Invalid arguments");
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = getUserId(request);
+			Preconditions.checkArgument(id > 0);
+			c.getBuldreinfoRepo().moveMedia(authUserId, id, left, toIdSector, toIdProblem);
+			c.setSuccess();
+			return Response.ok().build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@PUT
+	@Path("/media/info")
+	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final int authUserId = getUserId(request);
+			Preconditions.checkArgument(authUserId > 0);
+			c.getBuldreinfoRepo().updateMediaInfo(authUserId, m);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {
