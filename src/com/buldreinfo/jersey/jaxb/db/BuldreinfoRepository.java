@@ -3613,10 +3613,9 @@ public class BuldreinfoRepository {
 				ps.execute();
 			}
 		} else if (idGuestbook > 0) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id, trivia) VALUES (?, ?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idGuestbook);
-				ps.setBoolean(3, trivia);
 				ps.execute();
 			}
 		} else {
