@@ -4036,7 +4036,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		if (media.isEmpty()) {
+		if (media != null && media.isEmpty()) {
 			media = null;
 		}
 		return media;
@@ -4163,7 +4163,7 @@ public class BuldreinfoRepository {
 						}
 					}
 					
-					if (media.isEmpty()) {
+					if (media != null && media.isEmpty()) {
 						media = null;
 					}
 					s = new Sector(orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, l.getLat(), l.getLng(), polygonCoords, polyline, media, triviaMedia, null, hits);
