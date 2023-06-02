@@ -62,7 +62,7 @@ public class NewMedia {
 	@Override
 	public String toString() {
 		return "NewMedia [name=" + name + ", photographer=" + photographer + ", inPhoto=" + inPhoto + ", pitch=" + pitch
-				+ ", description=" + description + ", embedVideoUrl=" + embedVideoUrl + ", embedThumbnailUrl="
-				+ embedThumbnailUrl + ", embedMilliseconds=" + embedMilliseconds + "]";
+				+ ", trivia=" + trivia + ", description=" + description + ", embedVideoUrl=" + embedVideoUrl
+				+ ", embedThumbnailUrl=" + embedThumbnailUrl + ", embedMilliseconds=" + embedMilliseconds + "]";
 	}
 }

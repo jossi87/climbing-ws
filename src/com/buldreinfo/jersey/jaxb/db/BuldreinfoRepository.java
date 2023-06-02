@@ -3529,7 +3529,7 @@ public class BuldreinfoRepository {
 
 	private int addNewMedia(int idUser, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		int idMedia = -1;
-		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, m={}) initialized", idUser, idProblem, pitch, trivia, idSector, m);
+		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", idUser, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
 				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0)
 				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0)
