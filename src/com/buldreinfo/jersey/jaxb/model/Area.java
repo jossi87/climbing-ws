@@ -156,12 +156,13 @@ public class Area implements IMetadata {
 	private final List<Sector> sectors;
 	private final List<SectorOrder> sectorOrder;
 	private final List<Media> media;
+	private final List<Media> triviaMedia;
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	private Metadata metadata;
 	
-	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -181,25 +182,26 @@ public class Area implements IMetadata {
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
 		this.sectorOrder = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
+		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
 		this.hits = hits;
 	}
-
+	
 	public Sector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
 		Sector s = new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new SectorOrder(id, name, sorting));
 		return s;
 	}
-	
+
 	public String getAccessClosed() {
 		return accessClosed;
 	}
-
+	
 	public String getAccessInfo() {
 		return accessInfo;
 	}
-	
+
 	public String getCanonical() {
 		return canonical;
 	}
@@ -244,11 +246,11 @@ public class Area implements IMetadata {
 	public int getNumProblems() {
 		return numProblems;
 	}
-
+	
 	public int getNumSectors() {
 		return numSectors;
 	}
-	
+
 	public int getRegionId() {
 		return regionId;
 	}
@@ -259,6 +261,10 @@ public class Area implements IMetadata {
 	
 	public List<Sector> getSectors() {
 		return sectors;
+	}
+	
+	public List<Media> getTriviaMedia() {
+		return triviaMedia;
 	}
 	
 	public List<TypeNumTicked> getTypeNumTicked() {

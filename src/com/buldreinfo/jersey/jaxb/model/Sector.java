@@ -73,6 +73,7 @@ public class Sector implements IMetadata {
 	private final String polygonCoords;
 	private final String polyline;
 	private final List<Media> media;
+	private final List<Media> triviaMedia;
 	private final List<SectorJump> sectors = new ArrayList<>();
 	private final List<SectorProblem> problems = new ArrayList<>();
 	private final List<ProblemOrder> problemOrder = new ArrayList<>();
@@ -80,7 +81,7 @@ public class Sector implements IMetadata {
 	private final long hits;
 	private Metadata metadata;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<NewMedia> newMedia, long hits) {
+	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -103,6 +104,7 @@ public class Sector implements IMetadata {
 		this.polygonCoords = polygonCoords;
 		this.polyline = polyline;
 		this.media = media;
+		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
 		this.hits = hits;
 	}
@@ -143,11 +145,11 @@ public class Sector implements IMetadata {
 	public String getCanonical() {
 		return canonical;
 	}
-
+	
 	public String getComment() {
 		return comment;
 	}
-	
+
 	public long getHits() {
 		return hits;
 	}
@@ -184,7 +186,7 @@ public class Sector implements IMetadata {
 	public String getPolygonCoords() {
 		return polygonCoords;
 	}
-
+	
 	public String getPolyline() {
 		return polyline;
 	}
@@ -192,13 +194,17 @@ public class Sector implements IMetadata {
 	public List<ProblemOrder> getProblemOrder() {
 		return problemOrder;
 	}
-	
+
 	public List<SectorProblem> getProblems() {
 		return problems;
 	}
 	
 	public List<SectorJump> getSiblings() {
 		return sectors;
+	}
+	
+	public List<Media> getTriviaMedia() {
+		return triviaMedia;
 	}
 	
 	public boolean isAreaLockedAdmin() {

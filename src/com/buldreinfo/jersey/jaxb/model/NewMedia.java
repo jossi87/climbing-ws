@@ -5,16 +5,18 @@ public class NewMedia {
 	private final String photographer;
 	private final String inPhoto;
 	private final int pitch;
+	private final boolean trivia;
 	private final String description;
 	private final String embedVideoUrl;
 	private final String embedThumbnailUrl;
 	private final long embedMilliseconds;
 	
-	public NewMedia(String name, String photographer, String inPhoto, int pitch, String description, String embedVideoUrl, String embedThumbnailUrl, long embedMilliseconds) {
+	public NewMedia(String name, String photographer, String inPhoto, int pitch, boolean trivia, String description, String embedVideoUrl, String embedThumbnailUrl, long embedMilliseconds) {
 		this.name = name;
 		this.photographer = photographer;
 		this.inPhoto = inPhoto;
 		this.pitch = pitch;
+		this.trivia = trivia;
 		this.description = description;
 		this.embedVideoUrl = embedVideoUrl;
 		this.embedThumbnailUrl = embedThumbnailUrl;
@@ -40,17 +42,21 @@ public class NewMedia {
 	public String getInPhoto() {
 		return inPhoto;
 	}
-
+	
 	public String getName() {
 		return name;
 	}
-	
+
 	public String getPhotographer() {
 		return photographer;
 	}
-
+	
 	public int getPitch() {
 		return pitch;
+	}
+
+	public boolean isTrivia() {
+		return trivia;
 	}
 
 	@Override
