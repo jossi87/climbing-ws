@@ -976,10 +976,10 @@ public class BuldreinfoRepository {
 		 * RandomMedia
 		 */
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,"
-				+ " ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
+				+ " ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,"
 				+ " CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\"}') photographer," 
 				+ " GROUP_CONCAT(DISTINCT CONCAT('{\"id\":', u2.id, ',\"name\":\"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))), '\"}') SEPARATOR ', ') tagged"
-				+ " FROM ((((((((media m INNER JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)) INNER JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0) INNER JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0) INNER JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN user u ON m.photographer_user_id=u.id) INNER JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id"
+				+ " FROM ((((((((media m INNER JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)) INNER JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0) INNER JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0) INNER JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN user u ON m.photographer_user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id"
 				+ " WHERE r.id=? AND m.deleted_user_id IS NULL AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL AND a.access_closed IS NULL AND s.access_closed IS NULL"
 				+ " GROUP BY m.id, m.checksum, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname"
 				+ " ORDER BY rand() LIMIT 1")) {
