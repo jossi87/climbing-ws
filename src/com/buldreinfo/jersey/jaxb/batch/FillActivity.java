@@ -19,6 +19,7 @@ public class FillActivity {
 
 	public FillActivity() {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			c.getConnection().setAutoCommit(true);
 			PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM problem ORDER BY id");
 			ResultSet rst = ps.executeQuery();
 			int done = 0;
