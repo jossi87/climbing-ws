@@ -4284,12 +4284,12 @@ public class BuldreinfoRepository {
 
 	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.id problem_id, p.name problem_name, g.grade problem_grade, pt.subtype problem_subtype, g.group problem_grade_group, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, CASE WHEN t.id IS NOT NULL OR fa.user_id THEN 1 ELSE 0 END is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM ((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN grade g ON p.grade=g.grade_id AND g.t=?) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL ORDER BY p.nr DESC")) {
-			ps.setString(1, s.getGradeSystem().toString());
+		try (PreparedStatement ps = c.getConnection().prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.prim, x.is_ticked, x.is_dangerous FROM x LEFT JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr DESC")) {
+			ps.setInt(1, authUserId);
 			ps.setInt(2, authUserId);
 			ps.setInt(3, authUserId);
-			ps.setInt(4, authUserId);
-			ps.setInt(5, idMedia);
+			ps.setInt(4, idMedia);
+			ps.setString(5, s.getGradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					if (res == null) {
