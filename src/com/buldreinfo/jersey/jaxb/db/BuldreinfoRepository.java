@@ -255,7 +255,7 @@ public class BuldreinfoRepository {
 						if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp) < 4)) {
 							useMediaActivityTimestamp = problemActivityTimestamp;
 						}
-						else if (useMediaActivityTimestamp == null || ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp) > 4) {
+						else if (useMediaActivityTimestamp == null || ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp) < 4) {
 							useMediaActivityTimestamp = mediaActivityTimestamp;
 						}
 						psAddActivity.setTimestamp(1, useMediaActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(useMediaActivityTimestamp));
