@@ -252,10 +252,10 @@ public class BuldreinfoRepository {
 						int id = rst.getInt("id");
 						Timestamp ts = rst.getTimestamp("date_created");
 						LocalDateTime mediaActivityTimestamp = ts == null? null : ts.toLocalDateTime();
-						if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && Math.abs(ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp)) < 5)) {
+						if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && Math.abs(ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp)) <= 7)) {
 							useMediaActivityTimestamp = problemActivityTimestamp;
 						}
-						else if (useMediaActivityTimestamp == null || Math.abs(ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp)) >= 5) {
+						else if (useMediaActivityTimestamp == null || Math.abs(ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp)) > 7) {
 							useMediaActivityTimestamp = mediaActivityTimestamp;
 						}
 						psAddActivity.setTimestamp(1, useMediaActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(useMediaActivityTimestamp));
