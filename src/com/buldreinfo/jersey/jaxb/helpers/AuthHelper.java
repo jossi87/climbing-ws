@@ -6,14 +6,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.auth0.client.auth.AuthAPI;
 import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
+import com.auth0.net.Response;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
@@ -24,9 +23,11 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.net.HttpHeaders;
 import com.google.gson.Gson;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 public class AuthHelper {
 	private static Logger logger = LogManager.getLogger();
-	private static AuthAPI auth = new AuthAPI("climbing.eu.auth0.com", "DNJNVzhxbF7PtaBFh7H6iBSNLh2UJWHt", "gTycciaaWFspUL6tJvGMxFMprMSRypGGlXiwHeFWLCDbO8BRe6Tatz6ItrajwLFm");
+	private static AuthAPI auth = new AuthAPI.Builder("climbing.eu.auth0.com", "DNJNVzhxbF7PtaBFh7H6iBSNLh2UJWHt").withClientSecret("gTycciaaWFspUL6tJvGMxFMprMSRypGGlXiwHeFWLCDbO8BRe6Tatz6ItrajwLFm").build();
 	private static LoadingCache<String, Auth0Profile> cache = CacheBuilder.newBuilder()
 			.maximumSize(1000)
 			.expireAfterWrite(4, TimeUnit.HOURS)
@@ -35,8 +36,8 @@ public class AuthHelper {
 				public Auth0Profile load(String authorization) throws Exception {
 					try {
 						Request<UserInfo> req = auth.userInfo(authorization);
-						UserInfo info = req.execute();
-						Map<String, Object> values = info.getValues();
+						Response<UserInfo> info = req.execute();
+						Map<String, Object> values = info.getBody().getValues();
 						return new Auth0Profile(values);
 					} catch (Exception ex) {
 						logger.warn(ex.getMessage(), ex);

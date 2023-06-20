@@ -6,11 +6,11 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 
-import javax.ws.rs.core.Response;
-
 import org.junit.Test;
 
 import com.buldreinfo.jersey.jaxb.model.app.Region;
+
+import jakarta.ws.rs.core.Response;
 
 public class V1Test {
 	@Test
