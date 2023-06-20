@@ -211,5 +211,10 @@
 			<artifactId>jfreechart</artifactId>
 			<version>1.5.4</version>
 		</dependency>
+		<dependency>
+		  <groupId>io.swagger</groupId>
+		  <artifactId>swagger-jersey2-jaxrs</artifactId>
+		  <version>1.5.0</version>
+		</dependency>
 	</dependencies>
 </project>
