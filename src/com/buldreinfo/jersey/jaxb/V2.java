@@ -90,13 +90,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
-import io.swagger.annotations.Api;
-
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 @Path("/v2/")
-@Api("/v2/")
 public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	private final static AuthHelper auth = new AuthHelper();
