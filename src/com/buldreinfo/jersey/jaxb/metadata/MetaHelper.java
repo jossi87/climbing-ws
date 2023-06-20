@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
@@ -40,8 +42,6 @@ import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 public class MetaHelper {
 	private List<Setup> setups = new ArrayList<>();

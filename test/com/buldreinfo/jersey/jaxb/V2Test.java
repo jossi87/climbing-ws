@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +27,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.net.HttpHeaders;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Response;
 
 public class V2Test {

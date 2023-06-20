@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,8 +24,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.net.HttpHeaders;
 import com.google.gson.Gson;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 public class AuthHelper {
 	private static Logger logger = LogManager.getLogger();
