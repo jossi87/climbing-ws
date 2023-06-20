@@ -10,16 +10,11 @@
 		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
 		<init-param>
 			<param-name>jersey.config.server.provider.packages</param-name>
-			<param-value>com.buldreinfo.jersey.jaxb</param-value>
+			<param-value>
+				io.swagger.jaxrs.listing,
+				com.buldreinfo.jersey.jaxb
+			</param-value>
 		</init-param>
-		<init-param>
-            <param-name>jersey.config.server.provider.classnames</param-name>
-            <param-value>
-                io.swagger.jaxrs.listing.ApiListingResource,
-                io.swagger.jaxrs.listing.SwaggerSerializers,
-                com.buldreinfo.jersey.jaxb.V2
-            </param-value>
-        </init-param>
 		<init-param>
 			<param-name>javax.ws.rs.Application</param-name>
 			<param-value>com.buldreinfo.jersey.jaxb.BuldreinfoApplication</param-value>
