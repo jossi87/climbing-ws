@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 
