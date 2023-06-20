@@ -18,12 +18,15 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.model.app.Region;
 
+import io.swagger.annotations.Api;
+
 
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  * Legacy code for buldreinfo-app
  */
 @Path("/v1/")
+@Api("/v1/")
 public class V1 {
 
 	@GET
