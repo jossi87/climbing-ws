@@ -1119,6 +1119,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update area (area must be provided as json on field \"json\" in multiPart)", response = Redirect.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1137,6 +1139,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update comment (comment must be provided as json on field \"json\" in multiPart)")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1154,6 +1158,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Filter on boulders/routes", response = Filter.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/filter")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -1169,6 +1175,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update Media SVG")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, MediaSvg ms) throws ExecutionException, IOException {
@@ -1183,6 +1191,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update user privilegies")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
@@ -1197,6 +1207,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update problem (problem must be provided as json on field \"json\" in multiPart)", response = Redirect.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1217,11 +1229,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", response = Problem.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postProblemsMedia(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	public Response postProblemsMedia(@Context HttpServletRequest request,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -1235,9 +1251,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update topo line on route/boulder (SVG on sector/problem-image)")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/problems/svg")
-	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
+	public Response postProblemsSvg(@Context HttpServletRequest request,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			@ApiParam(value = "Media id", required = true) @QueryParam("mediaId") int mediaId,
+			Svg svg
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
@@ -1251,6 +1273,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Search for area/sector/problem/user", response = Search.class, responseContainer = "list")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -1266,6 +1290,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update sector (sector smust be provided as json on field \"json\" in multiPart)", response = Redirect.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/sectors")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1286,6 +1312,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update tick (public ascent)")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
@@ -1302,10 +1330,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update todo")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/todo")
 	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postTodo(@Context HttpServletRequest request, @QueryParam("idProblem") int idProblem) throws ExecutionException, IOException {
+	public Response postTodo(@Context HttpServletRequest request,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("idProblem") int idProblem
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			c.getBuldreinfoRepo().toggleTodo(authUserId, idProblem);
@@ -1316,9 +1348,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update visible regions")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/user/regions")
-	public Response postUserRegions(@Context HttpServletRequest request, @QueryParam("regionId") int regionId, @QueryParam("delete") boolean delete) throws ExecutionException, IOException {
+	public Response postUserRegions(@Context HttpServletRequest request,
+			@ApiParam(value = "Region id", required = true) @QueryParam("regionId") int regionId,
+			@ApiParam(value = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId != -1);
@@ -1330,9 +1367,16 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update media location")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@PUT
 	@Path("/media")
-	public Response putMedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("left") boolean left, @QueryParam("toIdSector") int toIdSector, @QueryParam("toIdProblem") int toIdProblem) throws ExecutionException, IOException {
+	public Response putMedia(@Context HttpServletRequest request,
+			@ApiParam(value = "Move right", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "Move left", required = true) @QueryParam("left") boolean left,
+			@ApiParam(value = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
+			@ApiParam(value = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
+			) throws ExecutionException, IOException {
 		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector > 0 && toIdProblem == 0) ||
@@ -1349,6 +1393,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update media info")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@PUT
 	@Path("/media/info")
 	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) throws ExecutionException, IOException {
@@ -1363,9 +1409,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Update media rotation")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@PUT
 	@Path("/media/jpeg/rotate")
-	public Response putMediaJpegRotate(@Context HttpServletRequest request, @QueryParam("idMedia") int idMedia, @QueryParam("degrees") int degrees) {
+	public Response putMediaJpegRotate(@Context HttpServletRequest request,
+			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia,
+			@ApiParam(value = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
+			) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -1377,9 +1428,16 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@PUT
 	@Path("/trash")
-	public Response putTrash(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector, @QueryParam("idProblem") int idProblem, @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
+	public Response putTrash(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = true) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id", required = true) @QueryParam("idSector") int idSector,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
+			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia
+			) throws ExecutionException, IOException {
 		Preconditions.checkArgument(
 				(idArea > 0 && idSector == 0 && idProblem == 0) ||
 				(idArea == 0 && idSector > 0 && idProblem == 0) ||
