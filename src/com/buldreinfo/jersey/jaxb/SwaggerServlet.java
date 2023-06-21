@@ -19,7 +19,7 @@ public class SwaggerServlet extends HttpServlet {
         beanConfig.setVersion("2.0.0");
         beanConfig.setSchemes(new String[]{"https"});
         beanConfig.setHost("brattelinjer.no");
-        beanConfig.setBasePath("/com.buldreinfo.jersey.jaxb");
+        beanConfig.setBasePath("com.buldreinfo.jersey.jaxb");
         beanConfig.setResourcePackage("io.swagger.resources");
         beanConfig.setScan(true);
     }
