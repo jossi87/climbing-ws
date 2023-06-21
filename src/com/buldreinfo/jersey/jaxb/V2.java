@@ -110,9 +110,12 @@ public class V2 {
 	public V2() {
 	}
 
+	@ApiOperation(value = "Move media to trash")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@DELETE
 	@Path("/media")
-	public Response deleteMedia(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response deleteMedia(@Context HttpServletRequest request,
+			@ApiParam(value = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(id > 0);
@@ -124,6 +127,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get about (administrators with metadata)", response = About.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/about")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -140,17 +145,19 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get activity feed", response = Activity.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getActivity(@Context HttpServletRequest request,
-			@QueryParam("idArea") int idArea,
-			@QueryParam("idSector") int idSector,
-			@QueryParam("lowerGrade") int lowerGrade,
-			@QueryParam("fa") boolean fa,
-			@QueryParam("comments") boolean comments,
-			@QueryParam("ticks") boolean ticks,
-			@QueryParam("media") boolean media) throws ExecutionException, IOException {
+			@ApiParam(value = "Area id", required = false) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id", required = false) @QueryParam("idSector") int idSector,
+			@ApiParam(value = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
+			@ApiParam(value = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
+			@ApiParam(value = "Include comments", required = false) @QueryParam("comments") boolean comments,
+			@ApiParam(value = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
+			@ApiParam(value = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -162,10 +169,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get area by id", response = Area.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getAreas(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -186,10 +197,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get area PDF by id", response = Byte[].class)
 	@GET
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
-	public Response getAreasPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
+	public Response getAreasPdf(@Context final HttpServletRequest request,
+			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
@@ -225,6 +239,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get all areas", response = Browse.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -242,6 +258,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get all web cameras", response = Browse.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -260,6 +278,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get content graph (number of boulders/routes grouped by grade)", response = ContentGraph.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/cg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -276,6 +296,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get boulders/routes marked as dangerous", response = Dangerous.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/dangerous")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -292,6 +314,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get frontpage", response = Frontpage.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -308,10 +332,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get grade distribution by Area Id or Sector Id", response = GradeDistribution.class, responseContainer = "list")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getGradeDistribution(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
+	public Response getGradeDistribution(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = false) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id", required = false) @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -326,9 +354,14 @@ public class V2 {
 	/**
 	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
 	 */
+	@ApiOperation(value = "Get media by id", response = Byte[].class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/images")
-	public Response getImages(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("crc32") int crc32, @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
+	public Response getImages(@Context HttpServletRequest request,
+			@ApiParam(value = "Media id", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
+			@ApiParam(value = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			final String acceptHeader = request.getHeader("Accept");
@@ -356,10 +389,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Media SVG by id", response = MediaSvg.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/media/svg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getMediaSvg(@Context HttpServletRequest request, @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
+	public Response getMediaSvg(@Context HttpServletRequest request,
+			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -432,10 +468,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
 	@GET
 	@Path("/problems/pdf")
 	@Produces("application/pdf")
-	public Response getProblemsPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
+	public Response getProblemsPdf(@Context final HttpServletRequest request,
+			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
@@ -577,10 +616,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get sector PDF by id", response = Byte[].class)
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
-	public Response getSectorsPdf(@Context final HttpServletRequest request, @QueryParam("accessToken") String accessToken, @QueryParam("id") int id) throws Throwable{
+	public Response getSectorsPdf(@Context final HttpServletRequest request,
+			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int requestedIdMedia = 0;
