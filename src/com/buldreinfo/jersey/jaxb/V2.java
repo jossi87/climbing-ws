@@ -92,12 +92,13 @@ import com.google.gson.Gson;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
-@Path("/v2/")
 @Api("/v2/")
+@Path("/v2/")
 public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	private final static AuthHelper auth = new AuthHelper();
@@ -120,7 +121,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/about")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -238,7 +239,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -288,7 +289,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -304,7 +305,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -319,7 +320,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	/**
 	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
 	 */
@@ -385,7 +386,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -476,7 +477,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -495,7 +496,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -510,7 +511,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/profile/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -525,7 +526,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -541,10 +542,14 @@ public class V2 {
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
+	@ApiOperation(value = "Get sector by id", response = Sector.class)
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSectors(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getSectors(@Context HttpServletRequest request,
+			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "Media id used in Open Graph.response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -565,7 +570,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
@@ -669,7 +674,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/toc/xlsx")
 	@Produces(MIME_TYPE_XLSX)
@@ -765,7 +770,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -789,7 +794,7 @@ public class V2 {
 			Preconditions.checkArgument(authUserId>0, "User not logged in");
 			byte[] bytes = c.getBuldreinfoRepo().getUserTicks(authUserId);
 			c.setSuccess();
-			
+
 			String fn = GlobalFunctions.getFilename("Ticks", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
@@ -847,7 +852,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/without-js/dangerous")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -863,7 +868,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -914,7 +919,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@GET
 	@Path("/without-js/sites/climbing")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -1000,7 +1005,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1017,7 +1022,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/filter")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -1046,7 +1051,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
@@ -1080,7 +1085,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1098,7 +1103,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request, @QueryParam("problemId") int problemId, @QueryParam("mediaId") int mediaId, Svg svg) throws ExecutionException, IOException {
