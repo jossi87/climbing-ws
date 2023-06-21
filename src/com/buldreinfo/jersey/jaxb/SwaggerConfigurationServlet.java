@@ -9,7 +9,7 @@ import io.swagger.jaxrs.config.BeanConfig;
 /**
  * Creates https://brattelinjer.no/com.buldreinfo.jersey.jaxb/swagger.json
  */
-public class SwaggerServlet extends HttpServlet {
+public class SwaggerConfigurationServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 
 	@Override

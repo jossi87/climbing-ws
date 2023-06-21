@@ -5,12 +5,16 @@
     http://java.sun.com/xml/ns/javaee
     http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd">
 	<display-name>com.buldreinfo.jersey.jaxb</display-name>
+	
 	<servlet>
 		<servlet-name>Jersey REST Service</servlet-name>
 		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
 		<init-param>
 			<param-name>jersey.config.server.provider.packages</param-name>
-			<param-value>com.buldreinfo.jersey.jaxb</param-value>
+			<param-value>
+				io.swagger.jaxrs.listing,
+				com.buldreinfo.jersey.jaxb
+			</param-value>
 		</init-param>
 		<init-param>
 			<param-name>javax.ws.rs.Application</param-name>
@@ -18,14 +22,15 @@
 		</init-param>
 		<load-on-startup>1</load-on-startup>
 	</servlet>
-	<servlet-mapping>
-		<servlet-name>Jersey REST Service</servlet-name>
-		<url-pattern>/*</url-pattern>
-	</servlet-mapping>
 	
 	<servlet>
         <servlet-name>SwaggerBootstrap</servlet-name>
-        <servlet-class>com.buldreinfo.jersey.jaxb.SwaggerServlet</servlet-class>
+        <servlet-class>com.buldreinfo.jersey.jaxb.SwaggerConfigurationServlet</servlet-class>
         <load-on-startup>2</load-on-startup>
     </servlet>
+    
+    <servlet-mapping>
+		<servlet-name>Jersey REST Service</servlet-name>
+		<url-pattern>/*</url-pattern>
+	</servlet-mapping>
 </web-app>
