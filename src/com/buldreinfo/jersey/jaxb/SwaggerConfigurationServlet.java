@@ -18,7 +18,7 @@ public class SwaggerConfigurationServlet extends HttpServlet {
         BeanConfig beanConfig = new BeanConfig();
         beanConfig.setVersion("2.0.0");
         beanConfig.setSchemes(new String[]{"https"});
-        beanConfig.setHost(config.getServletContext().getContextPath());
+        beanConfig.setHost(getServletContext().getVirtualServerName());
         beanConfig.setBasePath("/com.buldreinfo.jersey.jaxb");
         beanConfig.setResourcePackage("com.buldreinfo.jersey.jaxb");
         beanConfig.setScan(true);
