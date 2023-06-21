@@ -1016,7 +1016,7 @@ public class BuldreinfoRepository {
 				+ "  SELECT g.base_no grade_base_no, x.sorting, x.sector, x.t, COUNT(id_problem) num"
 				+ "  FROM (SELECT s.name sector, s.sorting, ty.subtype t, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade_id, p.id id_problem"
 				+ "    FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)"
-				+ (optionalAreaId!=0? " WHERE a.id=?" : " WHERE p.sector_id=?")
+				+ (optionalSectorId!=0? " WHERE p.sector_id=?" : " WHERE a.id=?")
 				+ "      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
 				+ "    GROUP BY s.name, ty.subtype, p.id) x, grade g"
 				+ "  WHERE x.grade_id=g.grade_id AND g.t=?"
@@ -1027,7 +1027,7 @@ public class BuldreinfoRepository {
 				+ " ORDER BY g.sort, x.sorting, x.sector, x.t";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
-			ps.setInt(2, optionalAreaId!=0? optionalAreaId : optionalSectorId);
+			ps.setInt(2, optionalSectorId!=0? optionalSectorId : optionalAreaId);
 			ps.setString(3, setup.getGradeSystem().toString());
 			ps.setString(4, setup.getGradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
@@ -2291,7 +2291,7 @@ public class BuldreinfoRepository {
 
 	public List<Top> getTop(Setup s, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
-		String condition = (areaId>0? "a.id=" + areaId : "s.id=" + sectorId);
+		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
 		String sqlStr = "WITH x AS ("
 				+ "  SELECT COUNT(p.id) sum"
 				+ "  FROM area a, sector s, problem p"

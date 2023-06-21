@@ -151,8 +151,8 @@ public class V2 {
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getActivity(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = false) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id", required = false) @QueryParam("idSector") int idSector,
+			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
 			@ApiParam(value = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
 			@ApiParam(value = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
 			@ApiParam(value = "Include comments", required = false) @QueryParam("comments") boolean comments,
@@ -240,7 +240,7 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get all areas", response = Browse.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/browse")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -258,8 +258,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get all web cameras", response = Browse.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiOperation(value = "Get all web cameras", response = Cameras.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/cameras")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -279,7 +279,7 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get content graph (number of boulders/routes grouped by grade)", response = ContentGraph.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/cg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -297,7 +297,7 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get boulders/routes marked as dangerous", response = Dangerous.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/dangerous")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -315,7 +315,7 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get frontpage", response = Frontpage.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -333,13 +333,14 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get grade distribution by Area Id or Sector Id", response = GradeDistribution.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getGradeDistribution(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = false) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id", required = false) @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
+			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -354,8 +355,8 @@ public class V2 {
 	/**
 	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
 	 */
-	@ApiOperation(value = "Get media by id", response = Byte[].class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiOperation(value = "Get media by id", response = Byte[].class, produces = "image/*")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
@@ -390,7 +391,7 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get Media SVG by id", response = MediaSvg.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/media/svg")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -444,10 +445,16 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get problem by id", response = Problem.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("idMedia") int requestedIdMedia, @QueryParam("showHiddenMedia") boolean showHiddenMedia) throws ExecutionException, IOException {
+	public Response getProblems(@Context HttpServletRequest request,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia,
+			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -506,10 +513,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get profile by id", response = Profile.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfile(@Context HttpServletRequest request, @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
+	public Response getProfile(@Context HttpServletRequest request,
+			@ApiParam(value = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -522,10 +532,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get profile media by id", response = ProfileMedia.class, responseContainer = "list")
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfilemedia(@Context HttpServletRequest request, @QueryParam("id") int id, @QueryParam("captured") boolean captured) throws ExecutionException, IOException {
+	public Response getProfilemedia(@Context HttpServletRequest request,
+			@ApiParam(value = "User id", required = true) @QueryParam("id") int id,
+			@ApiParam(value = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -541,10 +555,12 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get profile statistics by id", response = ProfileStatistics.class)
 	@GET
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfileStatistics(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProfileStatistics(@Context HttpServletRequest request,
+			@ApiParam(value = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -556,10 +572,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get profile todo", response = ProfileTodo.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/profile/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProfileTodo(@Context HttpServletRequest request, @QueryParam("id") int id) throws ExecutionException, IOException {
+	public Response getProfileTodo(@Context HttpServletRequest request,
+			@ApiParam(value = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -571,10 +590,11 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get robots.txt", response = String.class)
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
-	public Response getRobotsTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
+	public Response getRobotsTxt(@Context HttpServletRequest request) {
 		final Setup setup = metaHelper.getSetup(request);
 		if (setup.isSetRobotsDenyAll()) {
 			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
@@ -653,6 +673,7 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get sitemap.txt", response = String.class)
 	@GET
 	@Path("/sitemap.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -667,10 +688,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get sites", response = Sites.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/sites")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSites(@Context HttpServletRequest request, @QueryParam("type") String type) throws ExecutionException, IOException {
+	public Response getSites(@Context HttpServletRequest request,
+			@ApiParam(value = "Type (BOULDER/CLIMBING/ICE)", required = true) @QueryParam("type") String type
+			) throws ExecutionException, IOException {
 		GRADE_SYSTEM system = null;
 		switch (Strings.nullToEmpty(type).toUpperCase()) {
 		case "BOULDER": system = GRADE_SYSTEM.BOULDER; break;
@@ -691,10 +716,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get ticks (public ascents)", response = Ticks.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/ticks")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTicks(@Context HttpServletRequest request, @QueryParam("page") int page) throws ExecutionException, IOException {
+	public Response getTicks(@Context HttpServletRequest request,
+			@ApiParam(value = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -707,6 +736,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Table of Contents", response = TableOfContents.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/toc")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -723,6 +754,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Table of Contents as Excel (xlsx)", response = Byte[].class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/toc/xlsx")
 	@Produces(MIME_TYPE_XLSX)
@@ -774,10 +807,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get todo on Area/Sector", response = Todo.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTodo(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
+	public Response getTodo(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -789,10 +827,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get top on Area/Sector", response = Top.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/top")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTop(@Context HttpServletRequest request, @QueryParam("idArea") int idArea, @QueryParam("idSector") int idSector) throws ExecutionException, IOException {
+	public Response getTop(@Context HttpServletRequest request, 
+			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			Collection<Top> res = c.getBuldreinfoRepo().getTop(setup, idArea, idSector);
@@ -803,6 +846,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get trash", response = Trash.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/trash")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -819,10 +864,14 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Search for user", response = UserSearch.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getUsersSearch(@Context HttpServletRequest request, @QueryParam("value") String value) throws ExecutionException, IOException {
+	public Response getUsersSearch(@Context HttpServletRequest request,
+			@ApiParam(value = "Search keyword", required = true) @QueryParam("value") String value
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			List<UserSearch> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
@@ -833,6 +882,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", response = Byte[].class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/users/ticks")
 	@Produces(MIME_TYPE_XLSX)
@@ -852,6 +903,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -868,10 +921,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Area by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/area/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getWithoutJsArea(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -884,6 +942,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Areas without JavaScript (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/browse")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -901,6 +961,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Boulders/Routes marked as dangerous (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/dangerous")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -916,11 +978,16 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
+	@ApiOperation(value = "Get Problem by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getWithoutJsProblem(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -933,10 +1000,15 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Sector by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @PathParam("id") int id, @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+	public Response getWithoutJsSector(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -950,6 +1022,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Boulder sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/sites/boulder")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -968,6 +1042,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Climbing sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/sites/climbing")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -986,6 +1062,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Ice sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/sites/ice")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -1004,6 +1082,8 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Table of Contents (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/toc")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -1020,10 +1100,13 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get User by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/without-js/user/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsUser(@Context HttpServletRequest request, @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsUser(@Context HttpServletRequest request,
+			@ApiParam(value = "User id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
