@@ -91,6 +91,8 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 
@@ -543,12 +545,13 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get sector by id", response = Sector.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@Context HttpServletRequest request,
 			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Media id used in Open Graph.response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
