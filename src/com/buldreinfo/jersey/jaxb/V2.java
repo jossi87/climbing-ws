@@ -91,6 +91,7 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
@@ -368,6 +369,7 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get metadata", response = Meta.class)
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
