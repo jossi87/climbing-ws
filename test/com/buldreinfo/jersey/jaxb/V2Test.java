@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collection;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -42,16 +43,16 @@ public class V2Test {
 		// All areas
 		Response r = tester.getAreas(getRequest(), 0, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
+		assertTrue(r.getEntity() instanceof Collection<?>);
 		@SuppressWarnings("unchecked")
-		List<Area> areas = (List<Area>)r.getEntity();
+		Collection<Area> areas = (Collection<Area>)r.getEntity();
 		assertTrue(areas.size() > 1);
 		// One area
 		r = tester.getAreas(getRequest(), 7, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
+		assertTrue(r.getEntity() instanceof Collection<?>);
 		@SuppressWarnings("unchecked")
-		List<Area> area = (List<Area>)r.getEntity();
+		Collection<Area> area = (Collection<Area>)r.getEntity();
 		assertTrue(area.size() == 1);
 	}
 
