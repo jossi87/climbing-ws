@@ -10,6 +10,7 @@ import java.util.Map;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 
 public class Meta {
 	private final String title;
@@ -19,6 +20,9 @@ public class Meta {
 	private final List<Grade> grades;
 	private int defaultZoom;
 	private LatLng defaultCenter;
+	private final boolean isBouldering;
+	private final boolean isClimbing;
+	private final boolean isIce;
 	private final Setup.GRADE_SYSTEM gradeSystem;
 	private final String url;
 	private List<Type> types;
@@ -54,6 +58,9 @@ public class Meta {
 		}
 		this.grades = grades;
 		this.gradeSystem = setup.getGradeSystem();
+		this.isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
+		this.isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
+		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
 		this.url = setup.getUrl();
 	}
 	
@@ -91,6 +98,18 @@ public class Meta {
 	
 	public boolean isAuthenticated() {
 		return isAuthenticated;
+	}
+	
+	public boolean isBouldering() {
+		return isBouldering;
+	}
+	
+	public boolean isClimbing() {
+		return isClimbing;
+	}
+	
+	public boolean isIce() {
+		return isIce;
 	}
 	
 	public boolean isSuperAdmin() {
