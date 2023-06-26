@@ -122,7 +122,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get activity feed", response = Activity.class)
+	@ApiOperation(value = "Get activity feed", response = Activity.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/activity")
@@ -770,7 +770,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get top on Area/Sector", response = Top.class)
+	@ApiOperation(value = "Get top on Area/Sector", response = Top.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/top")
@@ -806,7 +806,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Search for user", response = UserSearch.class)
+	@ApiOperation(value = "Search for user", response = UserSearch.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/users/search")
@@ -884,7 +884,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Filter on boulders/routes", response = Filter.class)
+	@ApiOperation(value = "Filter on boulders/routes", response = Filter.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/filter")
