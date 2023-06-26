@@ -23,7 +23,6 @@ public class Meta {
 	private final boolean isBouldering;
 	private final boolean isClimbing;
 	private final boolean isIce;
-	private final Setup.GRADE_SYSTEM gradeSystem;
 	private final String url;
 	private final List<Type> types;
 
@@ -59,7 +58,7 @@ public class Meta {
 		this.grades = grades;
 		this.defaultZoom = setup.getDefaultZoom();
 		this.defaultCenter = setup.getDefaultCenter();
-		this.gradeSystem = setup.getGradeSystem();
+		GRADE_SYSTEM gradeSystem = setup.getGradeSystem();
 		this.isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
 		this.isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
 		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
@@ -77,10 +76,6 @@ public class Meta {
 	
 	public List<Grade> getGrades() {
 		return grades;
-	}
-	
-	public Setup.GRADE_SYSTEM getGradeSystem() {
-		return gradeSystem;
 	}
 	
 	public String getTitle() {
