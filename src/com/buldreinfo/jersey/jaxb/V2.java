@@ -697,10 +697,8 @@ public class V2 {
 			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
-			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
 			c.setSuccess();

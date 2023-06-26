@@ -506,9 +506,6 @@ public class PdfGenerator implements AutoCloseable {
 			if (area.getLat() > 0 && area.getLng() > 0) {
 				defaultCenter = new LatLng(area.getLat(), area.getLng());
 			}
-			else {
-				defaultCenter = area.getMetadata().getDefaultCenter();
-			}
 			int defaultZoom = 14;
 
 			boolean useLegend = sectors.size()>1;
@@ -536,7 +533,7 @@ public class PdfGenerator implements AutoCloseable {
 				}
 			}
 
-			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
+			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
 				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
@@ -570,9 +567,6 @@ public class PdfGenerator implements AutoCloseable {
 			else if (area.getLat() > 0 && area.getLng() > 0) {
 				defaultCenter = new LatLng(area.getLat(), area.getLng());
 			}
-			else {
-				defaultCenter = area.getMetadata().getDefaultCenter();
-			}
 			int defaultZoom = 15;
 
 			if (sector.getLat() > 0 && sector.getLng() > 0) {
@@ -592,7 +586,7 @@ public class PdfGenerator implements AutoCloseable {
 				outlines.add(new Outline(label, sector.getPolygonCoords()));
 			}
 
-			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty() || defaultCenter != area.getMetadata().getDefaultCenter()) {
+			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
 				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (png != null) {
