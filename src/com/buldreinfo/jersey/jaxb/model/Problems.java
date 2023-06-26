@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
-public class TableOfContents implements IMetadata {
+public class Problems implements IMetadata {
 	public class Area {
 		private final int id;
 		private final String url;
@@ -193,7 +193,7 @@ public class TableOfContents implements IMetadata {
 	private Metadata metadata;
 	private List<Area> areas = new ArrayList<>();
 	
-	public TableOfContents() {
+	public Problems() {
 	}
 
 	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {

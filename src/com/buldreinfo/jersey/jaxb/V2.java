@@ -45,7 +45,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Areas;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
@@ -70,7 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.TableOfContents;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
@@ -173,7 +173,7 @@ public class V2 {
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@Context HttpServletRequest request,
+	public Response getAreaById(@Context HttpServletRequest request,
 			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id,
 			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -191,6 +191,25 @@ public class V2 {
 			}
 			c.setSuccess();
 			return response;
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get all areas", response = Areas.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@GET
+	@Path("/areas")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getAreas(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+			Areas res = new Areas(areas);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -233,25 +252,6 @@ public class V2 {
 			};
 			String fn = GlobalFunctions.getFilename(area.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get all areas", response = Browse.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/browse")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Browse res = new Browse(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -448,7 +448,7 @@ public class V2 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request,
+	public Response getProblemById(@Context HttpServletRequest request,
 			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
 			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia,
 			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
@@ -468,6 +468,24 @@ public class V2 {
 			}
 			c.setSuccess();
 			return response;
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get problems", response = Problems.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@GET
+	@Path("/problems")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
+			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -506,6 +524,59 @@ public class V2 {
 			};
 			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get problems as Excel (xlsx)", response = Byte[].class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@GET
+	@Path("/problems/xlsx")
+	@Produces(MIME_TYPE_XLSX)
+	public Response getProblemsXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
+			byte[] bytes;
+			try (ExcelReport report = new ExcelReport()) {
+				try (SheetWriter writer = report.addSheet("TOC")) {
+					for (Problems.Area a : res.getAreas()) {
+						for (Problems.Sector s : a.getSectors()) {
+							for (Problems.Problem p : s.getProblems()) {
+								writer.incrementRow();
+								writer.write("URL", SheetHyperlink.of(p.getUrl()));
+								writer.write("AREA", a.getName());
+								writer.write("SECTOR", s.getName());
+								writer.write("NR", p.getNr());
+								writer.write("NAME", p.getName());
+								writer.write("GRADE", p.getGrade());
+								String type = p.getT().getType();
+								if (p.getT().getSubType() != null) {
+									type += " (" + p.getT().getSubType() + ")";			
+								}
+								writer.write("TYPE", type);
+								if (!setup.isBouldering()) {
+									writer.write("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
+								}
+								writer.write("FA", p.getFa());
+								writer.write("STARS", p.getStars());
+								writer.write("DESCRIPTION", p.getDescription());
+							}
+						}
+					}
+				}
+				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+					report.writeExcel(os);
+					bytes = os.toByteArray();
+				}
+			}
+			c.setSuccess();
+			String fn = GlobalFunctions.getFilename("TableOfContents", "xlsx");
+			return Response.ok(bytes, MIME_TYPE_XLSX)
+					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
+					.build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -734,77 +805,6 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get Table of Contents", response = TableOfContents.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/toc")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Table of Contents as Excel (xlsx)", response = Byte[].class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/toc/xlsx")
-	@Produces(MIME_TYPE_XLSX)
-	public Response getTocXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
-			byte[] bytes;
-			try (ExcelReport report = new ExcelReport()) {
-				try (SheetWriter writer = report.addSheet("TOC")) {
-					for (TableOfContents.Area a : res.getAreas()) {
-						for (TableOfContents.Sector s : a.getSectors()) {
-							for (TableOfContents.Problem p : s.getProblems()) {
-								writer.incrementRow();
-								writer.write("URL", SheetHyperlink.of(p.getUrl()));
-								writer.write("AREA", a.getName());
-								writer.write("SECTOR", s.getName());
-								writer.write("NR", p.getNr());
-								writer.write("NAME", p.getName());
-								writer.write("GRADE", p.getGrade());
-								String type = p.getT().getType();
-								if (p.getT().getSubType() != null) {
-									type += " (" + p.getT().getSubType() + ")";			
-								}
-								writer.write("TYPE", type);
-								if (!setup.isBouldering()) {
-									writer.write("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
-								}
-								writer.write("FA", p.getFa());
-								writer.write("STARS", p.getStars());
-								writer.write("DESCRIPTION", p.getDescription());
-							}
-						}
-					}
-				}
-				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					report.writeExcel(os);
-					bytes = os.toByteArray();
-				}
-			}
-			c.setSuccess();
-			String fn = GlobalFunctions.getFilename("TableOfContents", "xlsx");
-			return Response.ok(bytes, MIME_TYPE_XLSX)
-					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
-					.build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@ApiOperation(value = "Get todo on Area/Sector", response = Todo.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
@@ -950,7 +950,7 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Browse res = new Browse(areas);
+			Areas res = new Areas(areas);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();
@@ -1089,7 +1089,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			TableOfContents res = c.getBuldreinfoRepo().getTableOfContents(authUserId, setup);
+			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();

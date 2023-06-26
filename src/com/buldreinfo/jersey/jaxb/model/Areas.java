@@ -4,11 +4,11 @@ import java.util.Collection;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
 
-public class Browse implements IMetadata {
+public class Areas implements IMetadata {
 	private final Collection<Area> areas;
 	private Metadata metadata;
 	
-	public Browse(Collection<Area> areas) {
+	public Areas(Collection<Area> areas) {
 		this.areas = areas;
 	}
 

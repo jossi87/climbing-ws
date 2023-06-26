@@ -96,7 +96,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.TableOfContents;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -2049,14 +2049,14 @@ public class BuldreinfoRepository {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
 		urls.add(setup.getUrl(null));
-		urls.add(setup.getUrl("/gpl-3.0.txt"));
-		urls.add(setup.getUrl("/browse"));
-		urls.add(setup.getUrl("/filter"));
 		urls.add(setup.getUrl("/about"));
+		urls.add(setup.getUrl("/areas"));
+		urls.add(setup.getUrl("/filter"));
+		urls.add(setup.getUrl("/gpl-3.0.txt"));
+		urls.add(setup.getUrl("/problems"));
 		urls.add(setup.getUrl("/sites/bouldering"));
 		urls.add(setup.getUrl("/sites/climbing"));
 		urls.add(setup.getUrl("/sites/ice"));
-		urls.add(setup.getUrl("/toc"));
 		// Users
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
 			ps.setInt(1, setup.getIdRegion());
@@ -2112,11 +2112,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public TableOfContents getTableOfContents(int authUserId, Setup setup) throws IOException, SQLException {
+	public Problems getProblems(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		TableOfContents toc = new TableOfContents();
-		Map<Integer, TableOfContents.Area> areaLookup = new HashMap<>();
-		Map<Integer, TableOfContents.Sector> sectorLookup = new HashMap<>();
+		Problems toc = new Problems();
+		Map<Integer, Problems.Area> areaLookup = new HashMap<>();
+		Map<Integer, Problems.Sector> sectorLookup = new HashMap<>();
 		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
@@ -2138,7 +2138,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					TableOfContents.Area a = areaLookup.get(areaId);
+					Problems.Area a = areaLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
@@ -2149,7 +2149,7 @@ public class BuldreinfoRepository {
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					TableOfContents.Sector s = sectorLookup.get(sectorId);
+					Problems.Sector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -2178,7 +2178,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		toc.getAreas().sort(Comparator.comparing(TableOfContents.Area::getName));
+		toc.getAreas().sort(Comparator.comparing(Problems.Area::getName));
 		logger.debug("getProblemList(authUserId={}, setup={}) - toc={} - duration={}", authUserId, setup, toc, stopwatch);
 		return toc;
 	}

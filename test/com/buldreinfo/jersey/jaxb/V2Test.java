@@ -11,7 +11,7 @@ import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Areas;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -22,7 +22,7 @@ import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.TableOfContents;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -38,9 +38,9 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetAreas() throws Exception {
+	public void testGetAreaById() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getAreas(getRequest(), 7, 0);
+		Response r = tester.getAreaById(getRequest(), 7, 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Area);
 		Area a = (Area)r.getEntity();
@@ -49,12 +49,12 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetBrowse() throws Exception {
+	public void testGetAreas() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getBrowse(getRequest());
+		Response r = tester.getAreas(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Browse);
-		Browse b = (Browse)r.getEntity();
+		assertTrue(r.getEntity() instanceof Areas);
+		Areas b = (Areas)r.getEntity();
 		assertTrue(!b.getAreas().isEmpty());
 		assertTrue(b.getMetadata() != null);
 	}
@@ -89,9 +89,9 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetProblems() throws Exception {
+	public void testGetProblemById() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblems(getRequest(), 1193, 0, false);
+		Response r = tester.getProblemById(getRequest(), 1193, 0, false);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Problem);
 		Problem p = (Problem)r.getEntity();
@@ -129,12 +129,12 @@ public class V2Test {
 	}
 	
 	@Test
-	public void testGetToc() throws Exception {
+	public void testGetProblems() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getToc(getRequest());
+		Response r = tester.getProblems(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof TableOfContents);
-		TableOfContents b = (TableOfContents)r.getEntity();
+		assertTrue(r.getEntity() instanceof Problems);
+		Problems b = (Problems)r.getEntity();
 		assertTrue(!b.getAreas().isEmpty());
 		assertTrue(b.getMetadata() != null);
 	}

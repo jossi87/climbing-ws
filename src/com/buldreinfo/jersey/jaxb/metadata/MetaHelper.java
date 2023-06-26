@@ -17,7 +17,7 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Browse;
+import com.buldreinfo.jersey.jaxb.model.Areas;
 import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
@@ -36,7 +36,7 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
-import com.buldreinfo.jersey.jaxb.model.TableOfContents;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.google.common.base.Joiner;
@@ -277,8 +277,8 @@ public class MetaHelper {
 					.setDefaultZoom(setup.getDefaultZoom())
 					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
-		else if (m instanceof Browse) {
-			Browse b = (Browse)m;
+		else if (m instanceof Areas) {
+			Areas b = (Areas)m;
 			String description = String.format("%d areas, %d sectors, %d %s",
 					b.getAreas().size(),
 					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
@@ -310,14 +310,14 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		else if (m instanceof TableOfContents) {
-			TableOfContents toc = (TableOfContents)m;
+		else if (m instanceof Problems) {
+			Problems toc = (Problems)m;
 			int numAreas = 0;
 			int numSectors = 0;
 			int numProblems = 0;
-			for (TableOfContents.Area a : toc.getAreas()) {
+			for (Problems.Area a : toc.getAreas()) {
 				numAreas++;
-				for (TableOfContents.Sector s : a.getSectors()) {
+				for (Problems.Sector s : a.getSectors()) {
 					numSectors++;
 					numProblems += s.getProblems().size();
 				}
