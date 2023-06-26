@@ -97,9 +97,10 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.getProblems(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof ProblemArea);
-		ProblemArea b = (ProblemArea)r.getEntity();
-		assertTrue(!b.getSectors().isEmpty());
+		assertTrue(r.getEntity() instanceof Collection<?>);
+		@SuppressWarnings("unchecked")
+		Collection<ProblemArea> problemAreas = (Collection<ProblemArea>)r.getEntity();
+		assertTrue(problemAreas.size() > 1);
 	}
 
 	@Test
