@@ -58,7 +58,7 @@ import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemsList;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
@@ -430,9 +430,9 @@ public class V2 {
 	@ApiOperation(value = "Get problem by id", response = Problem.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/problems")
+	@Path("/problem")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request,
+	public Response getProblem(@Context HttpServletRequest request,
 			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
 			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia,
 			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
@@ -457,16 +457,53 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems list", response = ProblemsList.class)
+	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
+	@GET
+	@Path("/problem/pdf")
+	@Produces("application/pdf")
+	public Response getProblemPdf(@Context final HttpServletRequest request,
+			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int requestedIdMedia = 0;
+			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
+			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
+			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
+			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
+			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			StreamingOutput stream = new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					try {
+						try (PdfGenerator generator = new PdfGenerator(output)) {
+							generator.writeProblem(area, sector, problem);
+						}
+					} catch (Throwable e) {
+						e.printStackTrace();
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
+					}	            	 
+				}
+			};
+			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
+			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get problems", response = Problems.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/problems-list")
+	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblemsList(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			ProblemsList res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
+			Problems res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -475,22 +512,22 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems list as Excel (xlsx)", response = Byte[].class)
+	@ApiOperation(value = "Get problems as Excel (xlsx)", response = Byte[].class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/problems-list/xlsx")
+	@Path("/problems/xlsx")
 	@Produces(MIME_TYPE_XLSX)
-	public Response getProblemsListXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getProblemsXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			ProblemsList res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
+			Problems res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			byte[] bytes;
 			try (ExcelReport report = new ExcelReport()) {
 				try (SheetWriter writer = report.addSheet("TOC")) {
-					for (ProblemsList.Area a : res.getAreas()) {
-						for (ProblemsList.Sector s : a.getSectors()) {
-							for (ProblemsList.Problem p : s.getProblems()) {
+					for (Problems.Area a : res.getAreas()) {
+						for (Problems.Sector s : a.getSectors()) {
+							for (Problems.Problem p : s.getProblems()) {
 								writer.incrementRow();
 								writer.write("URL", SheetHyperlink.of(p.getUrl()));
 								writer.write("AREA", a.getName());
@@ -523,43 +560,6 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
-	@GET
-	@Path("/problems/pdf")
-	@Produces("application/pdf")
-	public Response getProblemsPdf(@Context final HttpServletRequest request,
-			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int requestedIdMedia = 0;
-			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
-			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
-			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
-			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
-			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			StreamingOutput stream = new StreamingOutput() {
-				@Override
-				public void write(OutputStream output) throws IOException, WebApplicationException {
-					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeProblem(area, sector, problem);
-						}
-					} catch (Throwable e) {
-						e.printStackTrace();
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
-					}	            	 
-				}
-			};
-			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
-			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

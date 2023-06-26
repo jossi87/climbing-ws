@@ -16,7 +16,7 @@ import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemsList;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -85,9 +85,9 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetProblems() throws Exception {
+	public void testGetProblem() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblems(getRequest(), 1193, 0, false);
+		Response r = tester.getProblem(getRequest(), 1193, 0, false);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Problem);
 		Problem p = (Problem)r.getEntity();
@@ -95,12 +95,12 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetProblemsList() throws Exception {
+	public void testGetProblems() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblemsList(getRequest());
+		Response r = tester.getProblems(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof ProblemsList);
-		ProblemsList b = (ProblemsList)r.getEntity();
+		assertTrue(r.getEntity() instanceof Problems);
+		Problems b = (Problems)r.getEntity();
 		assertTrue(!b.getAreas().isEmpty());
 		assertTrue(b.getMetadata() != null);
 	}

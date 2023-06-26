@@ -96,7 +96,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.ProblemsList;
+import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -2112,11 +2112,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public ProblemsList getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
+	public Problems getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		ProblemsList toc = new ProblemsList();
-		Map<Integer, ProblemsList.Area> areaLookup = new HashMap<>();
-		Map<Integer, ProblemsList.Sector> sectorLookup = new HashMap<>();
+		Problems toc = new Problems();
+		Map<Integer, Problems.Area> areaLookup = new HashMap<>();
+		Map<Integer, Problems.Sector> sectorLookup = new HashMap<>();
 		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
@@ -2138,7 +2138,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					ProblemsList.Area a = areaLookup.get(areaId);
+					Problems.Area a = areaLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
@@ -2149,7 +2149,7 @@ public class BuldreinfoRepository {
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProblemsList.Sector s = sectorLookup.get(sectorId);
+					Problems.Sector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -2178,7 +2178,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		toc.getAreas().sort(Comparator.comparing(ProblemsList.Area::getName));
+		toc.getAreas().sort(Comparator.comparing(Problems.Area::getName));
 		logger.debug("getProblemList(authUserId={}, setup={}) - toc={} - duration={}", authUserId, setup, toc, stopwatch);
 		return toc;
 	}
