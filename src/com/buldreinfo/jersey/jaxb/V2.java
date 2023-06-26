@@ -46,7 +46,6 @@ import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Cameras;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
@@ -78,11 +77,11 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
+import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
-import com.buldreinfo.jersey.jaxb.xml.Camera;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -258,18 +257,17 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get all web cameras", response = Cameras.class)
+	@ApiOperation(value = "Get all web webcams", response = Webcams.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/cameras")
+	@Path("/webcams")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getCameras(@Context HttpServletRequest request) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
-			Cameras res = new Cameras(vegvesenPaser.getCameras());
-			res.getCameras().add(new Camera("Langholmen", null, "Egersund Energy Hub (Langholmen)", "https://s14.ipcamlive.com/streams/0efoakyryegxw7ziv/snapshot.jpg", null, "https://www.egersundenergyhub.no/webkamera", 58.45934, 5.98234));
+			Webcams res = new Webcams(vegvesenPaser.getCameras());
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();

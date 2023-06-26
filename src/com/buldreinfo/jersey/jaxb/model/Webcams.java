@@ -3,13 +3,13 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-import com.buldreinfo.jersey.jaxb.xml.Camera;
+import com.buldreinfo.jersey.jaxb.xml.Webcam;
 
-public class Cameras implements IMetadata {
+public class Webcams implements IMetadata {
 	private Metadata metadata;
-	private final List<Camera> cameras;
+	private final List<Webcam> cameras;
 	
-	public Cameras(List<Camera> cameras) {
+	public Webcams(List<Webcam> cameras) {
 		this.cameras = cameras;
 	}
 
@@ -18,7 +18,7 @@ public class Cameras implements IMetadata {
 		return metadata;
 	}
 	
-	public List<Camera> getCameras() {
+	public List<Webcam> getCameras() {
 		return cameras;
 	}
 

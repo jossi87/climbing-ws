@@ -27,7 +27,7 @@ public class VegvesenParser {
 		parser.getCameras();
 	}
 
-	public List<Camera> getCameras() throws Exception {
+	public List<Webcam> getCameras() throws Exception {
 		URL url = new URL("https://www.vegvesen.no/ws/no/vegvesen/veg/trafikkpublikasjon/kamera/2/GetCCTVSiteTable");
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 		String auth = "TjeDatexBuldreinfo:BZGOqBNXC2s9bAzTZjhA";
@@ -37,16 +37,16 @@ public class VegvesenParser {
 
 		int responseCode = connection.getResponseCode();
 		Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);
-		List<Camera> res = parseCameras(connection.getInputStream());
+		List<Webcam> res = parseCameras(connection.getInputStream());
 		logger.debug("getCameras() - res.size()={}", res.size());
 		return res;
 	}
 	
-	private List<Camera> parseCameras(InputStream is) throws Exception {
-		List<Camera> cameras = Lists.newArrayList();
+	private List<Webcam> parseCameras(InputStream is) throws Exception {
+		List<Webcam> cameras = Lists.newArrayList();
 		XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		XMLEventReader eventReader = inputFactory.createXMLEventReader(is);
-		Camera camera = null;
+		Webcam camera = null;
 		while (eventReader.hasNext()) {
 			XMLEvent event = eventReader.nextEvent();
 			if (event.isStartElement()) {
@@ -55,7 +55,7 @@ public class VegvesenParser {
 				String elementName = startElement.getName().getLocalPart();
 				switch (elementName) {
 				case "cctvCameraMetadataRecord":
-					camera = new Camera();
+					camera = new Webcam();
 					break;
 				case "cctvCameraIdentification":
 					event = eventReader.nextEvent();

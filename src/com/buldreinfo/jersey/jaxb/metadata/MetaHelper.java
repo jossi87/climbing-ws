@@ -18,7 +18,7 @@ import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Browse;
-import com.buldreinfo.jersey.jaxb.model.Cameras;
+import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -203,8 +203,8 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		else if (m instanceof Cameras) {
-			Cameras f = (Cameras)m;
+		else if (m instanceof Webcams) {
+			Webcams f = (Webcams)m;
 			String title =  "Weather map";
 			String description = "Weather map";
 			OpenGraph og = getOg(setup, "/weather", null, requestedIdMedia);

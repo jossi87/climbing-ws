@@ -1,6 +1,6 @@
 package com.buldreinfo.jersey.jaxb.xml;
 
-public class Camera {
+public class Webcam {
 	private String id;
 	private String lastUpdated;
 	private String name;
@@ -10,10 +10,10 @@ public class Camera {
 	private double lat;
 	private double lng;
 	
-	public Camera() {
+	public Webcam() {
 	}
 	
-	public Camera(String id, String lastUpdated, String name, String urlStillImage, String urlYr, String urlOther, double lat, double lng) {
+	public Webcam(String id, String lastUpdated, String name, String urlStillImage, String urlYr, String urlOther, double lat, double lng) {
 		this.id = id;
 		this.lastUpdated = lastUpdated;
 		this.name = name;
