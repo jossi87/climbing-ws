@@ -18,14 +18,14 @@ public class Meta {
 	private final boolean isAdmin;
 	private final boolean isSuperAdmin;
 	private final List<Grade> grades;
-	private int defaultZoom;
-	private LatLng defaultCenter;
+	private final int defaultZoom;
+	private final LatLng defaultCenter;
 	private final boolean isBouldering;
 	private final boolean isClimbing;
 	private final boolean isIce;
 	private final Setup.GRADE_SYSTEM gradeSystem;
 	private final String url;
-	private List<Type> types;
+	private final List<Type> types;
 
 	public Meta(DbConnection c, Setup setup, int authUserId) throws SQLException {
 		this.title = setup.getTitle();
@@ -57,11 +57,14 @@ public class Meta {
 			grades.add(new Grade(id, lookup.get(id)));
 		}
 		this.grades = grades;
+		this.defaultZoom = setup.getDefaultZoom();
+		this.defaultCenter = setup.getDefaultCenter();
 		this.gradeSystem = setup.getGradeSystem();
 		this.isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
 		this.isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
 		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
 		this.url = setup.getUrl();
+		this.types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
 	}
 	
 	public LatLng getDefaultCenter() {
