@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableBiMap;
 

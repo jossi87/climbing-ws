@@ -2,10 +2,7 @@ package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-
-public class Ticks implements IMetadata {
-	private Metadata metadata;
+public class Ticks {
 	private final List<PublicAscent> ticks;
 	private final int currPage;
 	private final int numPages;
@@ -14,14 +11,6 @@ public class Ticks implements IMetadata {
 		this.ticks = ticks;
 		this.currPage = currPage;
 		this.numPages = numPages;
-	}
-
-	public Metadata getMetadata() {
-		return metadata;
-	}
-
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
 	}
 
 	public List<PublicAscent> getTicks() {
@@ -38,6 +27,6 @@ public class Ticks implements IMetadata {
 
 	@Override
 	public String toString() {
-		return "Ticks [metadata=" + metadata + ", ticks.size()=" + ticks.size() + ", currPage=" + currPage + ", numPages=" + numPages + "]";
+		return "Ticks [ticks.size()=" + ticks.size() + ", currPage=" + currPage + ", numPages=" + numPages + "]";
 	}
 }

@@ -39,26 +39,24 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
-import com.buldreinfo.jersey.jaxb.model.About;
+import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
+import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.Activity;
+import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
-import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
-import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problems;
+import com.buldreinfo.jersey.jaxb.model.ProblemArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
@@ -67,7 +65,6 @@ import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
@@ -76,12 +73,12 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
-import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
+import com.buldreinfo.jersey.jaxb.xml.Webcam;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -125,24 +122,6 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get about (administrators with metadata)", response = About.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/about")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAbout(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			About res = c.getBuldreinfoRepo().getAbout(setup.getIdRegion());
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
 	@ApiOperation(value = "Get activity feed", response = Activity.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
@@ -167,14 +146,28 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get administrators", response = Administrator.class, responseContainer = "list")
+	@GET
+	@Path("/administrators")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getAdministrators(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			List<Administrator> administrators = c.getBuldreinfoRepo().getAdministrators(setup.getIdRegion());
+			c.setSuccess();
+			return Response.ok().entity(administrators).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
 	@ApiOperation(value = "Get areas", response = Area.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = false) @QueryParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
+			@ApiParam(value = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
@@ -209,15 +202,14 @@ public class V2 {
 			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Meta meta = new Meta(c, setup, authUserId);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.Sector sector : area.getSectors()) {
 				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, sector.getId());
-				metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
 				sectors.add(s);
 			}
 			c.setSuccess();
@@ -226,7 +218,7 @@ public class V2 {
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
 						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeArea(area, gradeDistribution, sectors);
+							generator.writeArea(meta, area, gradeDistribution, sectors);
 						}
 					} catch (Throwable e) {
 						e.printStackTrace();
@@ -241,18 +233,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get all web webcams", response = Webcams.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@ApiOperation(value = "Get webcams", response = Webcam.class, responseContainer = "list")
 	@GET
 	@Path("/webcams")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getCameras(@Context HttpServletRequest request) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
 			VegvesenParser vegvesenPaser = new VegvesenParser();
-			Webcams res = new Webcams(vegvesenPaser.getCameras());
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			List<Webcam> res = vegvesenPaser.getCameras();
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -260,25 +248,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get content graph (number of boulders/routes grouped by grade)", response = ContentGraph.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/cg")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getCg(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			ContentGraph res = c.getBuldreinfoRepo().getContentGraph(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get boulders/routes marked as dangerous", response = Dangerous.class)
+	@ApiOperation(value = "Get boulders/routes marked as dangerous", response = Dangerous.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/dangerous")
@@ -287,8 +257,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Dangerous res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			Collection<Dangerous> res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -306,7 +275,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -327,6 +295,23 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, idArea, idSector);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get graph (number of boulders/routes grouped by grade)", response = GradeDistribution.class, responseContainer = "list")
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@GET
+	@Path("/graph")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getGraph(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = getUserId(request);
+			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getContentGraph(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -372,18 +357,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get Media SVG by id", response = MediaSvg.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@ApiOperation(value = "Get Media by id", response = Media.class)
 	@GET
-	@Path("/media/svg")
+	@Path("/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getMediaSvg(@Context HttpServletRequest request,
+	public Response getMedia(@Context HttpServletRequest request,
 			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			MediaSvg res = c.getBuldreinfoRepo().getMediaSvg(idMedia);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			Media res = c.getBuldreinfoRepo().getMedia(idMedia);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -400,8 +381,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Meta res = new Meta();
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			Meta res = new Meta(c, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -409,7 +389,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get permissions", response = Permissions.class)
+	@ApiOperation(value = "Get permissions", response = PermissionUser.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/permissions")
@@ -418,8 +398,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Permissions res = c.getBuldreinfoRepo().getPermissions(authUserId, setup.getIdRegion());
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			List<PermissionUser> res = c.getBuldreinfoRepo().getPermissions(authUserId, setup.getIdRegion());
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -434,7 +413,6 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProblem(@Context HttpServletRequest request,
 			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia,
 			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -443,7 +421,6 @@ public class V2 {
 			Response response = null;
 			try {
 				Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, showHiddenMedia);
-				metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
 				response = Response.ok().entity(res).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
@@ -466,13 +443,10 @@ public class V2 {
 			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
-			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
-			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
@@ -494,7 +468,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems", response = Problems.class)
+	@ApiOperation(value = "Get problems", response = ProblemArea.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/problems")
@@ -503,8 +477,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problems res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			List<ProblemArea> res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -521,13 +494,13 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problems res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
+			List<ProblemArea> res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			byte[] bytes;
 			try (ExcelReport report = new ExcelReport()) {
 				try (SheetWriter writer = report.addSheet("TOC")) {
-					for (Problems.Area a : res.getAreas()) {
-						for (Problems.Sector s : a.getSectors()) {
-							for (Problems.Problem p : s.getProblems()) {
+					for (ProblemArea a : res) {
+						for (ProblemArea.Sector s : a.getSectors()) {
+							for (ProblemArea.Problem p : s.getProblems()) {
 								writer.incrementRow();
 								writer.write("URL", SheetHyperlink.of(p.getUrl()));
 								writer.write("AREA", a.getName());
@@ -576,7 +549,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Profile res = c.getBuldreinfoRepo().getProfile(authUserId, setup, reqUserId);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -664,8 +636,7 @@ public class V2 {
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@Context HttpServletRequest request,
-			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
+			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
@@ -674,7 +645,6 @@ public class V2 {
 			Response response = null;
 			try {
 				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-				metaHelper.updateMetadata(c, s, setup, authUserId, requestedIdMedia);
 				response = Response.ok().entity(s).build();
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
@@ -698,6 +668,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Meta meta = new Meta(c, setup, authUserId);
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
@@ -707,7 +678,7 @@ public class V2 {
 				public void write(OutputStream output) throws IOException, WebApplicationException {
 					try {
 						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeArea(area, gradeDistribution, Lists.newArrayList(sector));
+							generator.writeArea(meta, area, gradeDistribution, Lists.newArrayList(sector));
 						}
 					} catch (Throwable e) {
 						e.printStackTrace();
@@ -737,8 +708,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get sites", response = Sites.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@ApiOperation(value = "Get sites", response = SitesRegion.class, responseContainer = "list")
 	@GET
 	@Path("/sites")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -753,11 +723,7 @@ public class V2 {
 		default: throw new RuntimeException("Invalid type=" + type);
 		}
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			List<SitesRegion> res = c.getBuldreinfoRepo().getSites(system);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -777,7 +743,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup, page);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -824,7 +789,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get trash", response = Trash.class)
+	@ApiOperation(value = "Get trash", response = Trash.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/trash")
@@ -833,8 +798,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Trash res = c.getBuldreinfoRepo().getTrash(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
+			List<Trash> res = c.getBuldreinfoRepo().getTrash(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -876,24 +840,6 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJs(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -959,11 +905,11 @@ public class V2 {
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
 	@Path("/media/svg")
-	public Response postMediaSvg(@Context HttpServletRequest request, MediaSvg ms) throws ExecutionException, IOException {
+	public Response postMediaSvg(@Context HttpServletRequest request, Media m) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().upsertMediaSvg(authUserId, setup, ms);
+			c.getBuldreinfoRepo().upsertMediaSvg(authUserId, setup, m);
 			c.setSuccess();
 			return Response.ok().build();
 		} catch (Exception e) {

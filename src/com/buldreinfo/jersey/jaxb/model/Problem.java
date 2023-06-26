@@ -3,9 +3,7 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-
-public class Problem implements IMetadata {
+public class Problem {
 	public class Comment {
 		private final int id;
 		private final String date;
@@ -220,7 +218,6 @@ public class Problem implements IMetadata {
 	private final List<NewMedia> newMedia;
 	private final Type t;
 	private List<Section> sections;
-	private Metadata metadata;
 	private final boolean todo;
 	private final long hits;
 	private FaAid faAid;
@@ -394,11 +391,6 @@ public class Problem implements IMetadata {
 		return media;
 	}
 	
-	@Override
-	public Metadata getMetadata() {
-		return metadata;
-	}
-	
 	public String getName() {
 		return name;
 	}
@@ -541,10 +533,5 @@ public class Problem implements IMetadata {
 	
 	public void setFaAid(FaAid faAid) {
 		this.faAid = faAid;
-	}
-	
-	@Override
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
 	}
 }

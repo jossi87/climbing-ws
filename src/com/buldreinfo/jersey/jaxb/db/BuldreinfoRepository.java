@@ -55,17 +55,15 @@ import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
+import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
+import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
-import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
-import com.buldreinfo.jersey.jaxb.model.About;
-import com.buldreinfo.jersey.jaxb.model.AboutAdministrator;
 import com.buldreinfo.jersey.jaxb.model.Activity;
+import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.SectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -76,13 +74,12 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
-import com.buldreinfo.jersey.jaxb.model.MediaSvg;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
-import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
+import com.buldreinfo.jersey.jaxb.model.ProblemArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
@@ -96,7 +93,6 @@ import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -369,26 +365,6 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public About getAbout(int idRegion) throws SQLException {
-		// Return users
-		About res = new About();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
-			ps.setInt(1, idRegion);
-			try (ResultSet rst = ps.executeQuery()) {
-				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-				while (rst.next()) {
-					int userId = rst.getInt("id");
-					String name = rst.getString("name");
-					String picture = rst.getString("picture");
-					String lastLogin = rst.getString("last_login");
-					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.getAdministrators().add(new AboutAdministrator(userId, name, picture, timeAgo));
-				}
-			}
-		}
-		return res;
-	}
-
 	public List<Activity> getActivity(int authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
 		// GROUP_CONCAT has a max length 1024 characters by default, use this to ensure acitivity don't fail
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SET SESSION group_concat_max_len = 1000000")) {
@@ -564,6 +540,25 @@ public class BuldreinfoRepository {
 			}
 		}
 		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}, duration={}", authUserId, setup, res.size(), stopwatch);
+		return res;
+	}
+
+	public List<Administrator> getAdministrators(int idRegion) throws SQLException {
+		List<Administrator> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
+			ps.setInt(1, idRegion);
+			try (ResultSet rst = ps.executeQuery()) {
+				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+				while (rst.next()) {
+					int userId = rst.getInt("id");
+					String name = rst.getString("name");
+					String picture = rst.getString("picture");
+					String lastLogin = rst.getString("last_login");
+					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
+					res.add(new Administrator(userId, name, picture, timeAgo));
+				}
+			}
+		}
 		return res;
 	}
 
@@ -797,7 +792,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public ContentGraph getContentGraph(int authUserId, Setup setup) throws SQLException {
+	public Collection<GradeDistribution> getContentGraph(int authUserId, Setup setup) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = "WITH x AS ("
 				+ " SELECT g.base_no grade_base_no, x.region, x.t, COUNT(id_problem) num"
@@ -836,12 +831,11 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		return new ContentGraph(res.values());
+		return res.values();
 	}
 
-	public Dangerous getDangerous(int authUserId, Setup setup) throws SQLException {
-		Dangerous res = new Dangerous();
-		Map<Integer, Dangerous.Area> areaLookup = new HashMap<>();
+	public Collection<Dangerous> getDangerous(int authUserId, Setup setup) throws SQLException {
+		Map<Integer, Dangerous> areasLookup = new LinkedHashMap<>();
 		Map<Integer, Dangerous.Sector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message FROM ((((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin, u.firstname, u.lastname, g.post_time, g.message ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId);
@@ -851,14 +845,14 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					Dangerous.Area a = areaLookup.get(areaId);
+					Dangerous a = areasLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = res.addArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
-						areaLookup.put(areaId, a);
+						a = new Dangerous(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						areasLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
@@ -886,7 +880,7 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		return res;
+		return areasLookup.values();
 	}
 
 	public List<Filter> getFilter(int authUserId, Setup setup, FilterRequest fr) throws SQLException {
@@ -1065,21 +1059,8 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public Point getMediaDimention(int id) throws SQLException {
-		Point res = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?")) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res = new Point(rst.getInt("width"), rst.getInt("height"));
-				}
-			}
-		}
-		return res;
-	}
-
-	public MediaSvg getMediaSvg(int id) throws SQLException {
-		MediaSvg res = null;
+	public Media getMedia(int id) throws SQLException {
+		Media res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -1099,18 +1080,30 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
-					Media m = new Media(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl);
-					res = new MediaSvg(m);
+					res = new Media(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl);
 				}
 			}
 		}
 		return res;
 	}
 
-	public Permissions getPermissions(int authUserId, int idRegion) throws SQLException {
+	public Point getMediaDimention(int id) throws SQLException {
+		Point res = null;
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT width, height FROM media WHERE id=?")) {
+			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res = new Point(rst.getInt("width"), rst.getInt("height"));
+				}
+			}
+		}
+		return res;
+	}
+
+	public List<PermissionUser> getPermissions(int authUserId, int idRegion) throws SQLException {
 		ensureSuperadminWriteRegion(authUserId, idRegion);
 		// Return users
-		Permissions res = new Permissions();
+		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT x.id, x.name, x.picture, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write FROM (SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture UNION SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write FROM user u, user_region ur, user_login l WHERE u.id=ur.user_id AND ur.region_id=? AND u.id=l.user_id GROUP BY u.id, u.firstname, u.lastname, u.picture) x GROUP BY x.id, x.name, x.picture, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write ORDER BY IFNULL(x.superadmin_write,0) DESC, IFNULL(x.superadmin_read,0) DESC, IFNULL(x.admin_write,0) DESC, IFNULL(x.admin_read,0) DESC, x.name")) {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
@@ -1126,7 +1119,7 @@ public class BuldreinfoRepository {
 					boolean superadminRead = rst.getBoolean("superadmin_read");
 					boolean superadminWrite = rst.getBoolean("superadmin_write");
 					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.getUsers().add(new PermissionUser(userId, name, picture, timeAgo, adminRead, adminWrite, superadminRead, superadminWrite, authUserId==userId));
+					res.add(new PermissionUser(userId, name, picture, timeAgo, adminRead, adminWrite, superadminRead, superadminWrite, authUserId==userId));
 				}
 			}
 		}
@@ -1368,6 +1361,77 @@ public class BuldreinfoRepository {
 		}
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.getIdRegion(), reqId, stopwatch, p);
 		return p;
+	}
+
+	public List<ProblemArea> getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
+		Map<Integer, ProblemArea.Sector> sectorLookup = new HashMap<>();
+		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
+				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
+				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
+				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches"
+				+ " FROM (((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
+				+ " WHERE (a.region_id=? OR ur.user_id IS NOT NULL)"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
+				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
+				+ " GROUP BY r.url, a.id, a.name, a.locked_admin, a.locked_superadmin, s.sorting, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.grade, ty.id, ty.type, ty.subtype"
+				+ " ORDER BY a.name, s.sorting, s.name, p.nr";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId);
+			ps.setInt(2, authUserId);
+			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(4, authUserId);
+			ps.setInt(5, setup.getIdRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					// Area
+					int areaId = rst.getInt("area_id");
+					ProblemArea a = areaLookup.get(areaId);
+					if (a == null) {
+						String areaUrl = rst.getString("area_url");
+						String areaName = rst.getString("area_name");
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						a = new ProblemArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						areaLookup.put(areaId, a);
+					}
+					// Sector
+					int sectorId = rst.getInt("sector_id");
+					ProblemArea.Sector s = sectorLookup.get(sectorId);
+					if (s == null) {
+						String sectorUrl = rst.getString("sector_url");
+						String sectorName = rst.getString("sector_name");
+						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						sectorLookup.put(sectorId, s);
+					}
+					// Problem
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					int nr = rst.getInt("nr");
+					String name = rst.getString("name");
+					String description = rst.getString("description");
+					int grade = rst.getInt("grade");
+					String fa = rst.getString("fa");
+					int numTicks = rst.getInt("num_ticks");
+					double stars = rst.getDouble("stars");
+					boolean ticked = rst.getBoolean("ticked");
+					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					int numPitches = rst.getInt("num_pitches");
+					s.addProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
+				}
+			}
+		}
+		// Sort areas (ae, oe, aa is sorted wrong by MySql):
+		List<ProblemArea> res = Lists.newArrayList(areaLookup.values());
+		res.sort(Comparator.comparing(ProblemArea::getName));
+		logger.debug("getProblemList(authUserId={}, setup={}) - res.size()={} - duration={}", authUserId, setup, res.size(), stopwatch);
+		return res;
 	}
 
 	public Profile getProfile(int authUserId, Setup setup, int reqUserId) throws SQLException {
@@ -2105,82 +2169,11 @@ public class BuldreinfoRepository {
 					String url = rst.getString("url");
 					String polygonCoords = rst.getString("polygon_coords");
 					int numProblems = rst.getInt("num_problems");
-					res.add(new SitesRegion(name, url, polygonCoords, numProblems));
+					res.add(new SitesRegion(name, url, polygonCoords, numProblems, system));
 				}
 			}
 		}
 		return res;
-	}
-
-	public Problems getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Problems toc = new Problems();
-		Map<Integer, Problems.Area> areaLookup = new HashMap<>();
-		Map<Integer, Problems.Sector> sectorLookup = new HashMap<>();
-		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
-				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
-				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
-				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches"
-				+ " FROM (((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
-				+ " WHERE (a.region_id=? OR ur.user_id IS NOT NULL)"
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY r.url, a.id, a.name, a.locked_admin, a.locked_superadmin, s.sorting, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.grade, ty.id, ty.type, ty.subtype"
-				+ " ORDER BY a.name, s.sorting, s.name, p.nr";
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId);
-			ps.setInt(2, authUserId);
-			ps.setInt(3, setup.getIdRegion());
-			ps.setInt(4, authUserId);
-			ps.setInt(5, setup.getIdRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					// Area
-					int areaId = rst.getInt("area_id");
-					Problems.Area a = areaLookup.get(areaId);
-					if (a == null) {
-						String areaUrl = rst.getString("area_url");
-						String areaName = rst.getString("area_name");
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = toc.addArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
-						areaLookup.put(areaId, a);
-					}
-					// Sector
-					int sectorId = rst.getInt("sector_id");
-					Problems.Sector s = sectorLookup.get(sectorId);
-					if (s == null) {
-						String sectorUrl = rst.getString("sector_url");
-						String sectorName = rst.getString("sector_name");
-						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
-						sectorLookup.put(sectorId, s);
-					}
-					// Problem
-					int id = rst.getInt("id");
-					String url = rst.getString("url");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					String name = rst.getString("name");
-					String description = rst.getString("description");
-					int grade = rst.getInt("grade");
-					String fa = rst.getString("fa");
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					int numPitches = rst.getInt("num_pitches");
-					s.addProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
-				}
-			}
-		}
-		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		toc.getAreas().sort(Comparator.comparing(Problems.Area::getName));
-		logger.debug("getProblemList(authUserId={}, setup={}) - toc={} - duration={}", authUserId, setup, toc, stopwatch);
-		return toc;
 	}
 
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {
@@ -2347,9 +2340,9 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public Trash getTrash(int authUserId, Setup setup) throws IOException, SQLException {
+	public List<Trash> getTrash(int authUserId, Setup setup) throws IOException, SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
-		Trash res = new Trash();
+		List<Trash> res = new ArrayList<>();
 		String sqlStr =
 				// Area
 				"SELECT a.id area_id, null sector_id, null problem_id, null media_id, a.name, DATE_FORMAT(a.trash,'%Y.%m.%d-%k:%i:%s') trash, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) trash_by"
@@ -2416,7 +2409,7 @@ public class BuldreinfoRepository {
 					String name = rst.getString("name");
 					String when = rst.getString("trash");
 					String by = rst.getString("trash_by");
-					res.addTrashItem(areaId, sectorId, problemId, mediaId, name, when, by);
+					res.add(new Trash(areaId, sectorId, problemId, mediaId, name, when, by));
 				}
 			}
 		}
@@ -3472,25 +3465,25 @@ public class BuldreinfoRepository {
 		fillActivity(co.getIdProblem());
 	}
 
-	public void upsertMediaSvg(int authUserId, Setup setup, MediaSvg ms) throws SQLException {
+	public void upsertMediaSvg(int authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		// Clear existing
 		try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM media_svg WHERE media_id=?")) {
-			ps.setInt(1, ms.getM().getId());
+			ps.setInt(1, m.getId());
 			ps.execute();
 		}
 		// Insert
-		for (MediaSvgElement element : ms.getM().getMediaSvgs()) {
+		for (MediaSvgElement element : m.getMediaSvgs()) {
 			if (element.getT().equals(MediaSvgElement.TYPE.PATH)) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, path) VALUES (?, ?)")) {
-					ps.setInt(1, ms.getM().getId());
+					ps.setInt(1, m.getId());
 					ps.setString(2, element.getPath());
 					ps.execute();
 				}
 			}
 			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED) || element.getT().equals(MediaSvgElement.TYPE.RAPPEL_NOT_BOLTED)) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y, rappel_bolted) VALUES (?, ?, ?, ?)")) {
-					ps.setInt(1, ms.getM().getId());
+					ps.setInt(1, m.getId());
 					ps.setInt(2, element.getRappelX());
 					ps.setInt(3, element.getRappelY());
 					ps.setBoolean(4, element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED));

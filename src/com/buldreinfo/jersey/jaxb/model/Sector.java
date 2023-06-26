@@ -3,10 +3,7 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-
-public class Sector implements IMetadata {
-	
+public class Sector {
 	public class ProblemOrder {
 		private final int id;
 		private final String name;
@@ -79,7 +76,6 @@ public class Sector implements IMetadata {
 	private final List<ProblemOrder> problemOrder = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private final long hits;
-	private Metadata metadata;
 	
 	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.orderByGrade = orderByGrade;
@@ -170,11 +166,6 @@ public class Sector implements IMetadata {
 		return media;
 	}
 	
-	@Override
-	public Metadata getMetadata() {
-		return metadata;
-	}
-	
 	public String getName() {
 		return name;
 	}
@@ -233,10 +224,5 @@ public class Sector implements IMetadata {
 	
 	public boolean isTrash() {
 		return trash;
-	}
-	
-	@Override
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
 	}
 }

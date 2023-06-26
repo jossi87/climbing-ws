@@ -17,7 +17,7 @@ import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problems;
+import com.buldreinfo.jersey.jaxb.model.ProblemArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -41,14 +41,14 @@ public class V2Test {
 	public void testGetAreas() throws Exception {
 		V2 tester = new V2();
 		// All areas
-		Response r = tester.getAreas(getRequest(), 0, 0);
+		Response r = tester.getAreas(getRequest(), 0);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Collection<?>);
 		@SuppressWarnings("unchecked")
 		Collection<Area> areas = (Collection<Area>)r.getEntity();
 		assertTrue(areas.size() > 1);
 		// One area
-		r = tester.getAreas(getRequest(), 7, 0);
+		r = tester.getAreas(getRequest(), 7);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Collection<?>);
 		@SuppressWarnings("unchecked")
@@ -72,7 +72,6 @@ public class V2Test {
 		Frontpage f = (Frontpage)r.getEntity();
 		assertTrue(f.getNumImages()>0);
 		assertTrue(f.getRandomMedia() != null);
-		assertTrue(f.getMetadata() != null);
 	}
 
 	@Test
@@ -81,14 +80,12 @@ public class V2Test {
 		Response r = tester.getMeta(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Meta);
-		Meta m = (Meta)r.getEntity();
-		assertTrue(m.getMetadata() != null);
 	}
 
 	@Test
 	public void testGetProblem() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getProblem(getRequest(), 1193, 0, false);
+		Response r = tester.getProblem(getRequest(), 1193, false);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Problem);
 		Problem p = (Problem)r.getEntity();
@@ -100,10 +97,9 @@ public class V2Test {
 		V2 tester = new V2();
 		Response r = tester.getProblems(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Problems);
-		Problems b = (Problems)r.getEntity();
-		assertTrue(!b.getAreas().isEmpty());
-		assertTrue(b.getMetadata() != null);
+		assertTrue(r.getEntity() instanceof ProblemArea);
+		ProblemArea b = (ProblemArea)r.getEntity();
+		assertTrue(!b.getSectors().isEmpty());
 	}
 
 	@Test
@@ -120,7 +116,7 @@ public class V2Test {
 	@Test
 	public void testGetSectors() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getSectors(getRequest(), 47, 0);
+		Response r = tester.getSectors(getRequest(), 47);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Sector);
 		Sector s = (Sector)r.getEntity();

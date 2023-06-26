@@ -16,8 +16,6 @@ import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.auth0.net.Response;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;

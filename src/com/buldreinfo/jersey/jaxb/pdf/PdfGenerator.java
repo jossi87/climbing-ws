@@ -26,12 +26,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -39,6 +39,7 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
+import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
 import com.buldreinfo.jersey.jaxb.model.Problem.Section;
@@ -168,7 +169,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.close();		
 	}
 
-	public void writeArea(Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+	public void writeArea(Meta meta, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
 		String title = area.getName();
 		addMetaData(title);
@@ -212,7 +213,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			document.add(table);
 		}
-		writeSectors(sectors);
+		writeSectors(meta, sectors);
 	}
 
 	public void writeProblem(Area area, Sector sector, Problem problem) throws DocumentException, IOException, TranscoderException, TransformerException {
@@ -630,9 +631,6 @@ public class PdfGenerator implements AutoCloseable {
 			if (sector.getLat() > 0 && sector.getLng() > 0) {
 				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
 			}
-			else {
-				defaultCenter = sector.getMetadata().getDefaultCenter();
-			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
 
@@ -713,10 +711,10 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeSectors(List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+	private void writeSectors(Meta meta, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
 		// TODO Include trivia + ice-fields? trivia, starting_altitude, aspect, route_length, descent
 		for (Sector s : sectors) {
-			final boolean showType = s.getMetadata().getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING);
+			final boolean showType = meta.getGradeSystem().equals(Setup.GRADE_SYSTEM.CLIMBING);
 			document.newPage();
 			new PdfOutline(writer.getRootOutline(), new PdfDestination(PdfDestination.FITH, writer.getVerticalPosition(true)), s.getName(), true);
 			document.add(new Paragraph(s.getName(), FONT_H2));
@@ -750,9 +748,7 @@ public class PdfGenerator implements AutoCloseable {
 					}
 				}
 				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()), null, p.isTicked());
-				String url = s.getMetadata().getCanonical();
-				url = url.substring(0, url.indexOf("/sector"));
-				url += "/problem/" + p.getId();
+				String url = meta.getUrl() + "/problem/" + p.getId();
 				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url, p.isTicked());
 				addTableCell(table, FONT_REGULAR, p.getGrade(), null, p.isTicked());
 				if (showType) {

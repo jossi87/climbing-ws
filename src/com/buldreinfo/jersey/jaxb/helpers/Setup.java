@@ -1,11 +1,10 @@
-package com.buldreinfo.jersey.jaxb.metadata.beans;
+package com.buldreinfo.jersey.jaxb.helpers;
 
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;
 
 public class Setup {
 	public static enum GRADE_SYSTEM {CLIMBING, BOULDER, ICE};
-	
 	private final String domain;
 	private int idRegion;
 	private GRADE_SYSTEM gradeSystem;
@@ -14,12 +13,12 @@ public class Setup {
 	private LatLng defaultCenter;
 	private int defaultZoom;
 	private boolean setRobotsDenyAll = false;
-	
+
 	public Setup(String domain, GRADE_SYSTEM gradeSystem) {
 		this.domain = domain;
 		this.gradeSystem = gradeSystem;
 	}
-	
+
 	public LatLng getDefaultCenter() {
 		return defaultCenter;
 	}
@@ -27,7 +26,7 @@ public class Setup {
 	public int getDefaultZoom() {
 		return defaultZoom;
 	}
-	
+
 	public String getDescription() {
 		return description;
 	}
@@ -48,29 +47,26 @@ public class Setup {
 		return title;
 	}
 
-	public String getTitle(String prefix) {
-		if (Strings.isNullOrEmpty(prefix)) {
-			return title;
-		}
-		return prefix + " | " + title;
+	public String getUrl() {
+		return "https://" + domain;
 	}
-
+	
 	public String getUrl(String suffix) {
 		if (Strings.isNullOrEmpty(suffix)) {
 			return "https://" + domain;
 		}
 		return "https://" + domain + suffix;
 	}
-	
+
 	public boolean isSetRobotsDenyAll() {
 		return setRobotsDenyAll;
 	}
-	
+
 	public Setup setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
 	}
-	
+
 	public Setup setDescription(String description) {
 		this.description = description;
 		return this;
@@ -95,7 +91,7 @@ public class Setup {
 		this.title = title;
 		return this;
 	}
-	
+
 	public boolean isBouldering() {
 		return gradeSystem.equals(Setup.GRADE_SYSTEM.BOULDER);
 	}

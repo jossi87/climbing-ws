@@ -13,8 +13,8 @@ import javax.ws.rs.ext.Provider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.metadata.MetaHelper;
-import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
+import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
+import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.google.common.collect.Sets;
 
 @Provider

@@ -3,56 +3,7 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-
-public class Problems implements IMetadata {
-	public class Area {
-		private final int id;
-		private final String url;
-		private final String name;
-		private final boolean lockedAdmin;
-		private final boolean lockedSuperadmin;
-		private final List<Sector> sectors = new ArrayList<>();
-		
-		public Area(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			this.id = id;
-			this.url = url;
-			this.name = name;
-			this.lockedAdmin = lockedAdmin;
-			this.lockedSuperadmin = lockedSuperadmin;
-		}
-		
-		public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
-			this.sectors.add(s);
-			return s;
-		}
-
-		public int getId() {
-			return id;
-		}
-		
-		public String getName() {
-			return name;
-		}
-
-		public List<Sector> getSectors() {
-			return sectors;
-		}
-
-		public String getUrl() {
-			return url;
-		}
-
-		public boolean isLockedAdmin() {
-			return lockedAdmin;
-		}
-		
-		public boolean isLockedSuperadmin() {
-			return lockedSuperadmin;
-		}
-	}
-	
+public class ProblemArea {
 	public class Problem {
 		private final int id;
 		private final String url;
@@ -190,29 +141,48 @@ public class Problems implements IMetadata {
 		}
 	}
 	
-	private Metadata metadata;
-	private List<Area> areas = new ArrayList<>();
+	private final int id;
+	private final String url;
+	private final String name;
+	private final boolean lockedAdmin;
+	private final boolean lockedSuperadmin;
+	private final List<Sector> sectors = new ArrayList<>();
 	
-	public Problems() {
+	public ProblemArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		this.id = id;
+		this.url = url;
+		this.name = name;
+		this.lockedAdmin = lockedAdmin;
+		this.lockedSuperadmin = lockedSuperadmin;
+	}
+	
+	public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
+		this.sectors.add(s);
+		return s;
 	}
 
-	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Area a = new Area(id, url, name, lockedAdmin, lockedSuperadmin);
-		this.areas.add(a);
-		return a;
+	public int getId() {
+		return id;
 	}
 	
-	public List<Area> getAreas() {
-		return areas;
+	public String getName() {
+		return name;
+	}
+
+	public List<Sector> getSectors() {
+		return sectors;
+	}
+
+	public String getUrl() {
+		return url;
+	}
+
+	public boolean isLockedAdmin() {
+		return lockedAdmin;
 	}
 	
-	@Override
-	public Metadata getMetadata() {
-		return metadata;
-	}
-	
-	@Override
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
+	public boolean isLockedSuperadmin() {
+		return lockedSuperadmin;
 	}
 }
