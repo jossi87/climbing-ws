@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -19,7 +20,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -45,7 +45,6 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.About;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Areas;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
@@ -59,6 +58,7 @@ import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.ProblemsList;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
@@ -70,7 +70,6 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
 import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
@@ -168,48 +167,34 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get area by id", response = Area.class)
+	@ApiOperation(value = "Get areas", response = Area.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreaById(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id,
+	public Response getAreas(@Context HttpServletRequest request,
+			@ApiParam(value = "Area id", required = false) @QueryParam("id") int id,
 			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Response response = null;
-			try {
-				Area a = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
-				metaHelper.updateMetadata(c, a, setup, authUserId, requestedIdMedia);
-				response = Response.ok().entity(a).build();
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
-				response = Response.ok().entity(res).build();
+			if (id > 0) {
+				try {
+					Collection<Area> areas = Collections.singleton(c.getBuldreinfoRepo().getArea(setup, authUserId, id));
+					response = Response.ok().entity(areas).build();
+				} catch (Exception e) {
+					logger.warn(e.getMessage(), e);
+					Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
+					response = Response.ok().entity(res).build();
+				}
+			}
+			else {
+				Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+				response = Response.ok().entity(areas).build();
 			}
 			c.setSuccess();
 			return response;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get all areas", response = Areas.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/areas")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAreas(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Areas res = new Areas(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -227,7 +212,6 @@ public class V2 {
 			final int requestedIdMedia = 0;
 			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
-			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
@@ -448,7 +432,7 @@ public class V2 {
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblemById(@Context HttpServletRequest request,
+	public Response getProblems(@Context HttpServletRequest request,
 			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
 			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia,
 			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
@@ -473,16 +457,16 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems", response = Problems.class)
+	@ApiOperation(value = "Get problems list", response = ProblemsList.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/problems")
+	@Path("/problems-list")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getProblemsList(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
+			ProblemsList res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -491,60 +475,22 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
-	@GET
-	@Path("/problems/pdf")
-	@Produces("application/pdf")
-	public Response getProblemsPdf(@Context final HttpServletRequest request,
-			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int requestedIdMedia = 0;
-			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
-			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
-			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
-			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
-			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
-			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			StreamingOutput stream = new StreamingOutput() {
-				@Override
-				public void write(OutputStream output) throws IOException, WebApplicationException {
-					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeProblem(area, sector, problem);
-						}
-					} catch (Throwable e) {
-						e.printStackTrace();
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
-					}	            	 
-				}
-			};
-			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
-			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get problems as Excel (xlsx)", response = Byte[].class)
+	@ApiOperation(value = "Get problems list as Excel (xlsx)", response = Byte[].class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
-	@Path("/problems/xlsx")
+	@Path("/problems-list/xlsx")
 	@Produces(MIME_TYPE_XLSX)
-	public Response getProblemsXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
+	public Response getProblemsListXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
+			ProblemsList res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			byte[] bytes;
 			try (ExcelReport report = new ExcelReport()) {
 				try (SheetWriter writer = report.addSheet("TOC")) {
-					for (Problems.Area a : res.getAreas()) {
-						for (Problems.Sector s : a.getSectors()) {
-							for (Problems.Problem p : s.getProblems()) {
+					for (ProblemsList.Area a : res.getAreas()) {
+						for (ProblemsList.Sector s : a.getSectors()) {
+							for (ProblemsList.Problem p : s.getProblems()) {
 								writer.incrementRow();
 								writer.write("URL", SheetHyperlink.of(p.getUrl()));
 								writer.write("AREA", a.getName());
@@ -573,10 +519,47 @@ public class V2 {
 				}
 			}
 			c.setSuccess();
-			String fn = GlobalFunctions.getFilename("TableOfContents", "xlsx");
+			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
+	@GET
+	@Path("/problems/pdf")
+	@Produces("application/pdf")
+	public Response getProblemsPdf(@Context final HttpServletRequest request,
+			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int requestedIdMedia = 0;
+			final int authUserId = auth.getUserId(c, request, metaHelper, accessToken);
+			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
+			metaHelper.updateMetadata(c, problem, setup, authUserId, requestedIdMedia);
+			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
+			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
+			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
+			c.setSuccess();
+			StreamingOutput stream = new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					try {
+						try (PdfGenerator generator = new PdfGenerator(output)) {
+							generator.writeProblem(area, sector, problem);
+						}
+					} catch (Throwable e) {
+						e.printStackTrace();
+						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
+					}	            	 
+				}
+			};
+			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
+			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
@@ -720,7 +703,6 @@ public class V2 {
 			metaHelper.updateMetadata(c, sector, setup, authUserId, requestedIdMedia);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
-			metaHelper.updateMetadata(c, area, setup, authUserId, requestedIdMedia);
 			c.setSuccess();
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
@@ -911,204 +893,6 @@ public class V2 {
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Area by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/area/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsArea(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Area res = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Areas without JavaScript (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/browse")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsBrowse(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
-			Areas res = new Areas(areas);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Boulders/Routes marked as dangerous (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/dangerous")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsDangerous(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Dangerous res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
-	@ApiOperation(value = "Get Problem by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/problem/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsProblem(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Sector by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/sector/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSector(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = true) @PathParam("id") int id,
-			@ApiParam(value = "Media Id used in Open Graph-response (for embedding on e.g. Facebook)", required = false) @QueryParam("idMedia") int requestedIdMedia
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			final boolean orderByGrade = setup.isBouldering();
-			Sector res = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-			metaHelper.updateMetadata(c, res, setup, authUserId, requestedIdMedia);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Boulder sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/sites/boulder")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSitesBoulder(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.BOULDER;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Climbing sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/sites/climbing")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSitesClimbing(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.CLIMBING;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Ice sites (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/sites/ice")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSitesIce(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final GRADE_SYSTEM system = GRADE_SYSTEM.ICE;
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<SitesRegion> regions = c.getBuldreinfoRepo().getSites(system);
-			Sites res = new Sites(regions, system);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get Table of Contents (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/toc")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsToc(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Problems res = c.getBuldreinfoRepo().getProblems(authUserId, setup);
-			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
-			c.setSuccess();
-			return Response.ok().entity(res.getMetadata().toHtml()).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get User by id (for embedding on e.g. Facebook - web server routes to this endpoint on known web crawlers)", response = String.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@GET
-	@Path("/without-js/user/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsUser(@Context HttpServletRequest request,
-			@ApiParam(value = "User id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			Profile res = c.getBuldreinfoRepo().getProfile(authUserId, setup, id);
 			metaHelper.updateMetadata(c, res, setup, authUserId, 0);
 			c.setSuccess();
 			return Response.ok().entity(res.getMetadata().toHtml()).build();

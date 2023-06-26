@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.metadata.beans.IMetadata;
-
-public class Area implements IMetadata {
+public class Area {
 	public class Sector {
 		private final String areaName;
 		private final int id;
@@ -160,7 +158,6 @@ public class Area implements IMetadata {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
-	private Metadata metadata;
 	
 	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.regionId = regionId;
@@ -228,11 +225,6 @@ public class Area implements IMetadata {
 	
 	public List<Media> getMedia() {
 		return media;
-	}
-	
-	@Override
-	public Metadata getMetadata() {
-		return metadata;
 	}
 	
 	public String getName() {
@@ -321,10 +313,5 @@ public class Area implements IMetadata {
 				}
 			});
 		}
-	}
-	
-	@Override
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
 	}
 }

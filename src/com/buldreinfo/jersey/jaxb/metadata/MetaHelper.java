@@ -16,9 +16,6 @@ import com.buldreinfo.jersey.jaxb.metadata.beans.Setup;
 import com.buldreinfo.jersey.jaxb.metadata.beans.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.metadata.jsonld.JsonLdCreator;
 import com.buldreinfo.jersey.jaxb.model.About;
-import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Areas;
-import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.buldreinfo.jersey.jaxb.model.ContentGraph;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
@@ -33,12 +30,13 @@ import com.buldreinfo.jersey.jaxb.model.Metadata;
 import com.buldreinfo.jersey.jaxb.model.OpenGraph;
 import com.buldreinfo.jersey.jaxb.model.Permissions;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.ProblemsList;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sites;
-import com.buldreinfo.jersey.jaxb.model.Problems;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Trash;
+import com.buldreinfo.jersey.jaxb.model.Webcams;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -181,28 +179,6 @@ public class MetaHelper {
 		if (m == null) {
 			return;
 		}
-		if (m instanceof Area) {
-			Area a = (Area)m;
-			String description = null;
-			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
-					.stream()
-					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
-					.collect(Collectors.joining(", "));
-			if (setup.isBouldering()) {
-				description = String.format("Bouldering in %s (%s)", a.getName(), info);
-			}
-			else {
-				description = String.format("Climbing in %s (%s)", a.getName(), info);
-			}
-
-			OpenGraph og = getOg(setup, "/area/" + a.getId(), a.getMedia(), requestedIdMedia);
-			a.setMetadata(new Metadata(c, setup, authUserId, a.getName(), og)
-					.setCanonical(a.getCanonical())
-					.setDescription(description)
-					.setJsonLd(JsonLdCreator.getJsonLd(setup, a))
-					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
-		}
 		else if (m instanceof Webcams) {
 			Webcams f = (Webcams)m;
 			String title =  "Weather map";
@@ -277,19 +253,6 @@ public class MetaHelper {
 					.setDefaultZoom(setup.getDefaultZoom())
 					.setTypes(c.getBuldreinfoRepo().getTypes(setup.getIdRegion())));
 		}
-		else if (m instanceof Areas) {
-			Areas b = (Areas)m;
-			String description = String.format("%d areas, %d sectors, %d %s",
-					b.getAreas().size(),
-					b.getAreas().stream().map(x -> x.getNumSectors()).mapToInt(Integer::intValue).sum(),
-					b.getAreas().stream().map(x -> x.getNumProblems()).mapToInt(Integer::intValue).sum(),
-					setup.isBouldering()? "boulders" : "routes");
-			OpenGraph og = getOg(setup, "/browse", null, requestedIdMedia);
-			b.setMetadata(new Metadata(c, setup, authUserId, "Browse", og)
-					.setDescription(description)
-					.setDefaultCenter(setup.getDefaultCenter())
-					.setDefaultZoom(setup.getDefaultZoom()));
-		}
 		else if (m instanceof Dangerous) {
 			Dangerous hse = (Dangerous)m;
 			int numProblems = 0;
@@ -310,14 +273,14 @@ public class MetaHelper {
 					.setDefaultCenter(setup.getDefaultCenter())
 					.setDefaultZoom(setup.getDefaultZoom()));
 		}
-		else if (m instanceof Problems) {
-			Problems toc = (Problems)m;
+		else if (m instanceof ProblemsList) {
+			ProblemsList toc = (ProblemsList)m;
 			int numAreas = 0;
 			int numSectors = 0;
 			int numProblems = 0;
-			for (Problems.Area a : toc.getAreas()) {
+			for (ProblemsList.Area a : toc.getAreas()) {
 				numAreas++;
-				for (Problems.Sector s : a.getSectors()) {
+				for (ProblemsList.Sector s : a.getSectors()) {
 					numSectors++;
 					numProblems += s.getProblems().size();
 				}
