@@ -1323,12 +1323,12 @@ public class V2 {
 		}
 		String html = "<html><head>" +
 				"<meta charset=\"UTF-8\">" +
-				"<title>" + setup.getTitle() + "</title>" + 
+				"<title>" + title + "</title>" + 
 				"<meta name=\"description\" content=\"" + description + "\" />" + 
 				"<meta property=\"og:type\" content=\"website\" />" + 
 				"<meta property=\"og:description\" content=\"" + description + "\" />" + 
-				"<meta property=\"og:url\" content=\"" + setup.getUrl() + "\" />" + 
-				"<meta property=\"og:title\" content=\"" + setup.getTitle() + "\" />" + 
+				"<meta property=\"og:url\" content=\"" + url + "\" />" + 
+				"<meta property=\"og:title\" content=\"" + title + "\" />" + 
 				"<meta property=\"fb:app_id\" content=\"275320366630912\" />" +
 				ogImage +
 				"</head></html>";
