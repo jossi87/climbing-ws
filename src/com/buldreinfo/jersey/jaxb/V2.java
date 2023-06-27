@@ -1329,6 +1329,7 @@ public class V2 {
 				"<meta property=\"og:description\" content=\"" + description + "\" />" + 
 				"<meta property=\"og:url\" content=\"" + setup.getUrl() + "\" />" + 
 				"<meta property=\"og:title\" content=\"" + setup.getTitle() + "\" />" + 
+				"<meta property=\"fb:app_id\" content=\"275320366630912\" />" +
 				ogImage +
 				"</head></html>";
 		return html;
