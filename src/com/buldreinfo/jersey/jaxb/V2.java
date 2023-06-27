@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
@@ -20,6 +21,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -50,6 +52,7 @@ import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Filter;
 import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -845,6 +848,135 @@ public class V2 {
 		}
 	}
 
+	@ApiOperation(value = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@GET
+	@Path("/without-js")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJs(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = 0;
+			Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
+					setup.getDescription(),
+					f.getNumProblems(),
+					(setup.isBouldering()? "boulders" : "routes"),
+					f.getNumTicks(),
+					f.getNumImages(),
+					f.getNumMovies());
+			RandomMedia randomMedia = f.getRandomMedia();
+			String html = getHtml(setup,
+					setup.getUrl(),
+					setup.getTitle(),
+					description,
+					(randomMedia == null? 0 : randomMedia.getIdMedia()),
+					(randomMedia == null? 0 : randomMedia.getWidth()),
+					(randomMedia == null? 0 : randomMedia.getHeight()));
+			c.setSuccess();
+			return Response.ok().entity(html).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get area by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@GET
+	@Path("/without-js/area/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @ApiParam(value = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = 0;
+			Area a = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
+			String description = null;
+			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
+					.stream()
+					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
+					.collect(Collectors.joining(", "));
+			if (setup.isBouldering()) {
+				description = String.format("Bouldering in %s (%s)", a.getName(), info);
+			}
+			else {
+				description = String.format("Climbing in %s (%s)", a.getName(), info);
+			}
+			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().get(0) : null;
+			String html = getHtml(setup,
+					setup.getUrl("/area/" + a.getId()),
+					a.getName(),
+					description,
+					(m == null? 0 : m.getId()),
+					(m == null? 0 : m.getWidth()),
+					(m == null? 0 : m.getHeight()));
+			c.setSuccess();
+			return Response.ok().entity(html).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@GET
+	@Path("/without-js/problem/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @ApiParam(value = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = 0;
+			Problem p = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
+			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
+			String description = p.getComment();
+			if (p.getFa() != null && !p.getFa().isEmpty()) {
+				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.getName().trim()).collect(Collectors.toList()));
+				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
+			}
+			Media m = p.getMedia() != null && !p.getMedia().isEmpty()? p.getMedia().get(p.getMedia().size()-1) : null;
+			String html = getHtml(setup,
+					setup.getUrl("/problem/" + p.getId()),
+					title,
+					description,
+					(m == null? 0 : m.getId()),
+					(m == null? 0 : m.getWidth()),
+					(m == null? 0 : m.getHeight()));
+			c.setSuccess();
+			return Response.ok().entity(html).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
+	@ApiOperation(value = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@GET
+	@Path("/without-js/sector/{id}")
+	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @ApiParam(value = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
+			final int authUserId = 0;
+			final boolean orderByGrade = false;
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
+			String description = String.format("%s in %s / %s (%d %s)%s",
+					(setup.isBouldering()? "Bouldering" : "Climbing"),
+					s.getAreaName(),
+					s.getName(),
+					(s.getProblems() != null? s.getProblems().size() : 0),
+					(setup.isBouldering()? "boulders" : "routes"),
+					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
+			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().get(0) : null;
+			String html = getHtml(setup,
+					setup.getUrl("/sector/" + s.getId()),
+					title,
+					description,
+					(m == null? 0 : m.getId()),
+					(m == null? 0 : m.getWidth()),
+					(m == null? 0 : m.getHeight()));
+			c.setSuccess();
+			return Response.ok().entity(html).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+
 	@ApiOperation(value = "Update area (area must be provided as json on field \"json\" in multiPart)", response = Redirect.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@POST
@@ -1180,7 +1312,28 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-
+	
+	private String getHtml(Setup setup, String url, String title, String description, int mediaId, int mediaWidth, int mediaHeight) {
+		String ogImage = "";
+		if (mediaId > 0) {
+			String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(mediaId/100*100) + "/" + mediaId + ".jpg");
+			ogImage = "<meta property=\"og:image\" content=\"" + image + "\" />" + 
+					"<meta property=\"og:image:width\" content=\"" + mediaWidth + "\" />" + 
+					"<meta property=\"og:image:height\" content=\"" + mediaHeight + "\" />";
+		}
+		String html = "<html><head>" +
+				"<meta charset=\"UTF-8\">" +
+				"<title>" + setup.getTitle() + "</title>" + 
+				"<meta name=\"description\" content=\"" + description + "\" />" + 
+				"<meta property=\"og:type\" content=\"website\" />" + 
+				"<meta property=\"og:description\" content=\"" + description + "\" />" + 
+				"<meta property=\"og:url\" content=\"" + setup.getUrl() + "\" />" + 
+				"<meta property=\"og:title\" content=\"" + setup.getTitle() + "\" />" + 
+				ogImage +
+				"</head></html>";
+		return html;
+	}
+	
 	private int getUserId(HttpServletRequest request) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request, metaHelper);
