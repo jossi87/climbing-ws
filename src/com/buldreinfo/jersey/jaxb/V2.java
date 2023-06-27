@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -929,7 +930,16 @@ public class V2 {
 				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.getName().trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
-			Media m = p.getMedia() != null && !p.getMedia().isEmpty()? p.getMedia().get(p.getMedia().size()-1) : null;
+			Media m = null;
+			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
+				Optional<Media> optM = p.getMedia().stream().filter(x -> !x.isInherited()).findFirst();
+				if (optM.isPresent()) {
+					m = optM.get();
+				}
+				else {
+					m = p.getMedia().get(0);
+				}
+			}
 			String html = getHtml(setup,
 					setup.getUrl("/problem/" + p.getId()),
 					title,
