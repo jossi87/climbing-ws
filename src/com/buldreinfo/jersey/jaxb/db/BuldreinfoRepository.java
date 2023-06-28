@@ -4311,14 +4311,6 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		if (res != null && optionalIdProblem > 0) {
-			// Draw problem topo line last. This line will have a different opacity on the client compared to possible neighbours with shared path. E.g. https://brattelinjer.no/problem/4264?idMedia=20654
-			Optional<Svg> svgForOptionalIdProblem = res.stream().filter(x -> x.getProblemId() == optionalIdProblem).findAny();
-			if (svgForOptionalIdProblem.isPresent()) {
-				res.remove(svgForOptionalIdProblem.get());
-				res.add(svgForOptionalIdProblem.get());
-			}
-		}
 		return res;
 	}
 
