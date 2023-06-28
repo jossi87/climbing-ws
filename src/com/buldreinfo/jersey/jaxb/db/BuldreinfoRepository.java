@@ -4054,7 +4054,7 @@ public class BuldreinfoRepository {
 						}
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(s, authUserId, idMedia, problemId);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					media.add(new Media(idMedia, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0));
 				}
@@ -4094,7 +4094,7 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					List<Svg> svgs = getSvgs(s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(s, authUserId, idMedia, optionalIdProblem);
 					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description);
 					Media m = new Media(idMedia, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
@@ -4279,7 +4279,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia) throws SQLException {
+	private List<Svg> getSvgs(Setup s, int authUserId, int idMedia, int optionalIdProblem) throws SQLException {
 		List<Svg> res = null;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr DESC")) {
 			ps.setInt(1, authUserId);
@@ -4309,6 +4309,14 @@ public class BuldreinfoRepository {
 					boolean isDangerous = rst.getBoolean("is_dangerous");
 					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
 				}
+			}
+		}
+		if (optionalIdProblem > 0) {
+			// Draw problem topo line last. This line will have a different opacity on the client compared to possible neighbours with shared path. E.g. https://brattelinjer.no/problem/4264?idMedia=20654
+			Optional<Svg> svgForOptionalIdProblem = res.stream().filter(x -> x.getProblemId() == optionalIdProblem).findAny();
+			if (svgForOptionalIdProblem.isPresent()) {
+				res.remove(svgForOptionalIdProblem.get());
+				res.add(svgForOptionalIdProblem.get());
 			}
 		}
 		return res;
