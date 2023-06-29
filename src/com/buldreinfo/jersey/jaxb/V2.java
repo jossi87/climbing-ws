@@ -1108,12 +1108,14 @@ public class V2 {
 			FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
 			c.setSuccess();
-			return Response.ok().entity(p).build();
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, p.getId(), false);
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
