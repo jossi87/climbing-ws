@@ -1,4 +1,2 @@
 /target/
 /logs/
-### Sensitive Data ###
-src/com/buldreinfo/jersey/jaxb/config/buldreinfo.properties
