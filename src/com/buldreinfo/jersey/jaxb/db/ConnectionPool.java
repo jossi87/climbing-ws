@@ -14,11 +14,10 @@ public class ConnectionPool {
 	private final BasicDataSource bds;
 	
 	public ConnectionPool() {
-		String db = System.getenv("buldreinfo_db");
-		Preconditions.checkNotNull(Strings.emptyToNull(db), "Could not find environment variable \"buldreinfo_db\". Expected a value with the following format: \"jdbc:mysql://HOST/DATABASE?user=USER&password=PASSWORD&serverTimezone=UTC\"");
+		final String buldreinfoDb = Preconditions.checkNotNull(Strings.emptyToNull(System.getenv("buldreinfo_db")), "Could not find environment variable \"buldreinfo_db\". Expected a value with the following format: \"jdbc:mysql://HOST/DATABASE?user=USER&password=PASSWORD&serverTimezone=UTC\"");
         this.bds = new BasicDataSource();
 		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
-		this.bds.setUrl(db);
+		this.bds.setUrl(buldreinfoDb);
 		this.bds.setMaxTotal(64);
 	}
 	

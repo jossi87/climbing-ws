@@ -16,6 +16,7 @@ import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.auth0.net.Response;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -25,7 +26,8 @@ import com.google.gson.Gson;
 
 public class AuthHelper {
 	private static Logger logger = LogManager.getLogger();
-	private static AuthAPI auth = new AuthAPI.Builder("climbing.eu.auth0.com", "DNJNVzhxbF7PtaBFh7H6iBSNLh2UJWHt").withClientSecret("gTycciaaWFspUL6tJvGMxFMprMSRypGGlXiwHeFWLCDbO8BRe6Tatz6ItrajwLFm").build();
+	private static String buldreinfoAuth0ClientSecret = Preconditions.checkNotNull(Strings.emptyToNull(System.getenv("buldreinfo_auth0_client_secret")), "Could not find environment variable \"buldreinfo_auth0_client_secret\"");
+	private static AuthAPI auth = new AuthAPI.Builder("climbing.eu.auth0.com", "DNJNVzhxbF7PtaBFh7H6iBSNLh2UJWHt").withClientSecret(buldreinfoAuth0ClientSecret).build();
 	private static LoadingCache<String, Auth0Profile> cache = CacheBuilder.newBuilder()
 			.maximumSize(1000)
 			.expireAfterWrite(4, TimeUnit.HOURS)
