@@ -4,20 +4,21 @@ import java.sql.SQLException;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
 public class ConnectionPool {
-	private static final String HOST = "172.104.157.185";
-	private static final String DATABASE = "buldreinfo";
-	private static final String USER = "buldreinfo";
-	private static final String PASSWORD = "5459OoiwqQwerJgfg12_224WrejvJqGhhJ";
 	private final BasicDataSource bds;
 	
 	public ConnectionPool() {
-		this.bds = new BasicDataSource();
+		String db = System.getenv("buldreinfo_db");
+		Preconditions.checkNotNull(Strings.emptyToNull(db), "Could not find environment variable \"buldreinfo_db\". Expected a value with the following format: \"jdbc:mysql://HOST/DATABASE?user=USER&password=PASSWORD&serverTimezone=UTC\"");
+        this.bds = new BasicDataSource();
 		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
-		this.bds.setUrl(String.format("jdbc:mysql://%s/%s?user=%s&password=%s&serverTimezone=UTC", HOST, DATABASE, USER, PASSWORD));
+		this.bds.setUrl(db);
 		this.bds.setMaxTotal(64);
 	}
 	
