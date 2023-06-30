@@ -20,7 +20,6 @@ import com.google.common.hash.Hashing;
 public class GlobalFunctions {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String MEDIA_ROOT_PRODUCTION = "/mnt/buldreinfo/media";
-	private static final String MEDIA_ROOT_TEST = "c:/users/jostein.verico/desktop/buldreinfo_test";
 
 	public static String getFilename(String purpose, String ext) {
 		purpose = removeIllegalCharacters(purpose);
@@ -81,11 +80,9 @@ public class GlobalFunctions {
 	
 	private static Path getPathRoot() throws IOException {
 		Path res = Paths.get(MEDIA_ROOT_PRODUCTION);
-		if (Files.exists(res)) {
-			return res;
+		if (!Files.exists(res)) {
+			throw new RuntimeException(res.toString() + " does not exists");
 		}
-		// Test
-		res = Paths.get(MEDIA_ROOT_TEST);
 		return res;
 	}
 	

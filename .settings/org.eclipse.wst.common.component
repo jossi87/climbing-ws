@@ -8,7 +8,7 @@
                 
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src"/>
                 
-        <property name="java-output-path" value="/com.verico.inspection.jersey.jaxb/build/classes"/>
+        <property name="java-output-path" value="/com.buldreinfo.jersey.jaxb/build/classes"/>
                 
         <property name="context-root" value="com.buldreinfo.jersey.jaxb"/>
             
