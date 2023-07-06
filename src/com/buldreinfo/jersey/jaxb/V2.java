@@ -1150,9 +1150,11 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.getValue()).trim());
+			Preconditions.checkNotNull(search, "Invalid search: " + search);
 			final Setup setup = metaHelper.getSetup(request);
 			final int authUserId = getUserId(request);
-			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup, sr);
+			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup, search);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

@@ -87,7 +87,6 @@ import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
-import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
@@ -1968,7 +1967,7 @@ public class BuldreinfoRepository {
 		return regionMap.values();
 	}
 
-	public List<Search> getSearch(int authUserId, Setup setup, SearchRequest sr) throws SQLException {
+	public List<Search> getSearch(int authUserId, Setup setup, String search) throws SQLException {
 		List<Search> res = new ArrayList<>();
 		// Areas
 		Set<Integer> areaIdsVisible = new HashSet<>();
@@ -1977,9 +1976,9 @@ public class BuldreinfoRepository {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
-			ps.setString(4, sr.getValue() + "%");
-			ps.setString(5, "% " + sr.getValue() + "%");
-			ps.setString(6, "%(" + sr.getValue() + "%");
+			ps.setString(4, search + "%");
+			ps.setString(5, "% " + search + "%");
+			ps.setString(6, "%(" + search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -1997,9 +1996,9 @@ public class BuldreinfoRepository {
 		List<Search> externalAreas = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name, r_external.name ORDER BY a_external.name LIMIT 3")) {
 			ps.setInt(1, setup.getIdRegion());
-			ps.setString(2, sr.getValue() + "%");
-			ps.setString(3, "% " + sr.getValue() + "%");
-			ps.setString(4, "%(" + sr.getValue() + "%");
+			ps.setString(2, search + "%");
+			ps.setString(3, "% " + search + "%");
+			ps.setString(4, "%(" + search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2018,8 +2017,8 @@ public class BuldreinfoRepository {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
-			ps.setString(4, sr.getValue() + "%");
-			ps.setString(5, "% " + sr.getValue() + "%");
+			ps.setString(4, search + "%");
+			ps.setString(5, "% " + search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2039,10 +2038,10 @@ public class BuldreinfoRepository {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
-			ps.setString(4, sr.getValue() + "%");
-			ps.setString(5, "% " + sr.getValue() + "%");
-			ps.setString(6, sr.getValue() + "%");
-			ps.setString(7, "% " + sr.getValue() + "%");
+			ps.setString(4, search + "%");
+			ps.setString(5, "% " + search + "%");
+			ps.setString(6, search + "%");
+			ps.setString(7, "% " + search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String areaName = rst.getString("area_name");
@@ -2062,9 +2061,9 @@ public class BuldreinfoRepository {
 		// Users
 		List<Search> users = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', id, '.jpg') END picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8")) {
-			ps.setString(1, sr.getValue() + "%");
-			ps.setString(2, sr.getValue() + "%");
-			ps.setString(3, sr.getValue() + "%");
+			ps.setString(1, search + "%");
+			ps.setString(2, search + "%");
+			ps.setString(3, search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String picture = rst.getString("picture");
