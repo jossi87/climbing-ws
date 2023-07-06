@@ -2667,6 +2667,7 @@ public class BuldreinfoRepository {
 		else {
 			String table = null;
 			String column = null;
+			String extraOrder = "";
 			int columnId = 0;
 			if (areaId > 0) {
 				table = "media_area";
@@ -2680,9 +2681,10 @@ public class BuldreinfoRepository {
 				table = "media_problem";
 				column = "problem_id";
 				columnId = problemId;
+				extraOrder = "pitch, ";
 			}
 			List<Integer> idMediaList = new ArrayList<>();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY -x.sorting DESC, m.id")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
 				ps.setInt(1, columnId);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
