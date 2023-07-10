@@ -25,6 +25,7 @@ public class Meta {
 	private final boolean isIce;
 	private final String url;
 	private final List<Type> types;
+	private final List<SitesRegion> sites;
 
 	public Meta(DbConnection c, Setup setup, int authUserId) throws SQLException {
 		this.title = setup.getTitle();
@@ -64,6 +65,7 @@ public class Meta {
 		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
 		this.url = setup.getUrl();
 		this.types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
+		this.sites = c.getBuldreinfoRepo().getSites(gradeSystem);
 	}
 	
 	public LatLng getDefaultCenter() {
@@ -76,6 +78,10 @@ public class Meta {
 	
 	public List<Grade> getGrades() {
 		return grades;
+	}
+	
+	public List<SitesRegion> getSites() {
+		return sites;
 	}
 	
 	public String getTitle() {
