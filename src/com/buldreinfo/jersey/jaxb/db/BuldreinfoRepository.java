@@ -2145,7 +2145,7 @@ public class BuldreinfoRepository {
 
 	public List<Site> getSites(int currIdRegion) throws SQLException {
 		List<Site> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY CASE t.group WHEN 'Bouldering' THEN 1 WHEN 'Route climbing' THEN 2 ELSE 3 END, r.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY t.group, r.name")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idRegion = rst.getInt("region_id");
