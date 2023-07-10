@@ -2770,7 +2770,7 @@ public class BuldreinfoRepository {
 			ensureAdminWriteArea(authUserId, a.getId());
 			Area currArea = getArea(s, authUserId, a.getId());
 			setPermissionRecursive = currArea.isLockedAdmin() != isLockedAdmin || currArea.isLockedSuperadmin() != a.isLockedSuperadmin();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, trash=?, trash_by=? WHERE id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, latitude=?, longitude=?, locked_admin=?, locked_superadmin=?, for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?")) {
 				ps.setString(1, trimString(a.getName()));
 				ps.setString(2, trimString(a.getComment()));
 				if (a.getLat() > 0) {
@@ -2789,7 +2789,7 @@ public class BuldreinfoRepository {
 				ps.setString(8, trimString(a.getAccessInfo()));
 				ps.setString(9, trimString(a.getAccessClosed()));
 				ps.setBoolean(10, a.isNoDogsAllowed());
-				ps.setTimestamp(11, a.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setBoolean(11, a.isTrash());
 				ps.setInt(12, a.isTrash()? authUserId : 0);
 				ps.setInt(13, a.getId());
 				ps.execute();
