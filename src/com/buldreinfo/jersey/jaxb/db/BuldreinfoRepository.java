@@ -2164,10 +2164,11 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String name = rst.getString("name");
+					String shortName = name.substring(0, name.indexOf(" - "));
 					String url = rst.getString("url");
 					String polygonCoords = rst.getString("polygon_coords");
 					int numProblems = rst.getInt("num_problems");
-					res.add(new SitesRegion(name, url, polygonCoords, numProblems, system));
+					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system));
 				}
 			}
 		}
