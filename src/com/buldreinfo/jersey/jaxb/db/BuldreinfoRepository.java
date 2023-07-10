@@ -2169,8 +2169,8 @@ public class BuldreinfoRepository {
 					String url = rst.getString("url");
 					String polygonCoords = rst.getString("polygon_coords");
 					int numProblems = rst.getInt("num_problems");
-					boolean enabled = idRegion == currIdRegion;
-					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system, enabled));
+					boolean active = idRegion == currIdRegion;
+					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system, active));
 				}
 			}
 		}
