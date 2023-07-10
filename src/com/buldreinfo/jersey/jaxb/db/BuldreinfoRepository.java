@@ -57,7 +57,6 @@ import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
@@ -90,7 +89,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
-import com.buldreinfo.jersey.jaxb.model.SitesRegion;
+import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
@@ -2144,33 +2143,18 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<SitesRegion> getSites(int currIdRegion, GRADE_SYSTEM system) throws SQLException {
-		List<SitesRegion> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.id, r.name, r.url, r.polygon_coords ORDER BY r.name")) {
-			int type = 1;
-			if (system.equals(GRADE_SYSTEM.BOULDER)) {
-				type = 1;
-			}
-			else if (system.equals(GRADE_SYSTEM.CLIMBING)) {
-				type = 2;
-			}
-			else if (system.equals(GRADE_SYSTEM.ICE)) {
-				type = 10;
-			}
-			else {
-				throw new RuntimeException("Invalid system: " + system);
-			}
-			ps.setInt(1, type);
+	public List<Site> getSites(int currIdRegion) throws SQLException {
+		List<Site> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY CASE t.group WHEN 'Bouldering' THEN 1 WHEN 'Route climbing' THEN 2 ELSE 3 END, r.name")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int idRegion = rst.getInt("id");
+					int idRegion = rst.getInt("id_region");
+					String group = rst.getString("group");
 					String name = rst.getString("name");
-					String shortName = name.substring(0, name.indexOf(" - "));
 					String url = rst.getString("url");
 					String polygonCoords = rst.getString("polygon_coords");
-					int numProblems = rst.getInt("num_problems");
 					boolean active = idRegion == currIdRegion;
-					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system, active));
+					res.add(new Site(group, name, url, polygonCoords, active));
 				}
 			}
 		}

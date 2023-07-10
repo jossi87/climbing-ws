@@ -44,7 +44,6 @@ import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -69,7 +68,6 @@ import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.SitesRegion;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
@@ -705,30 +703,6 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = metaHelper.getSetup(request);
 			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Get sites", response = SitesRegion.class, responseContainer = "list")
-	@GET
-	@Path("/sites")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getSites(@Context HttpServletRequest request,
-			@ApiParam(value = "Type (BOULDER/CLIMBING/ICE)", required = true) @QueryParam("type") String type
-			) throws ExecutionException, IOException {
-		GRADE_SYSTEM system = null;
-		switch (Strings.nullToEmpty(type).toUpperCase()) {
-		case "BOULDER": system = GRADE_SYSTEM.BOULDER; break;
-		case "CLIMBING": system = GRADE_SYSTEM.CLIMBING; break;
-		case "ICE": system = GRADE_SYSTEM.ICE; break;
-		default: throw new RuntimeException("Invalid type=" + type);
-		}
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			List<SitesRegion> res = c.getBuldreinfoRepo().getSites(setup.getIdRegion(), system);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
