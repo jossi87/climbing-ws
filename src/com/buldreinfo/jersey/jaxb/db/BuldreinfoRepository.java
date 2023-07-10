@@ -2144,9 +2144,9 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<SitesRegion> getSites(GRADE_SYSTEM system) throws SQLException {
+	public List<SitesRegion> getSites(int currIdRegion, GRADE_SYSTEM system) throws SQLException {
 		List<SitesRegion> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.name, r.url, r.polygon_coords")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name, r.url, r.polygon_coords, COUNT(p.id) num_problems FROM (((region_type rt INNER JOIN region r ON rt.type_id=? AND rt.region_id=r.id) LEFT JOIN area a ON r.id=a.region_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id GROUP BY r.id, r.name, r.url, r.polygon_coords")) {
 			int type = 1;
 			if (system.equals(GRADE_SYSTEM.BOULDER)) {
 				type = 1;
@@ -2163,12 +2163,14 @@ public class BuldreinfoRepository {
 			ps.setInt(1, type);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					int idRegion = rst.getInt("id");
 					String name = rst.getString("name");
 					String shortName = name.substring(0, name.indexOf(" - "));
 					String url = rst.getString("url");
 					String polygonCoords = rst.getString("polygon_coords");
 					int numProblems = rst.getInt("num_problems");
-					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system));
+					boolean enabled = idRegion == currIdRegion;
+					res.add(new SitesRegion(shortName, name, url, polygonCoords, numProblems, system, enabled));
 				}
 			}
 		}

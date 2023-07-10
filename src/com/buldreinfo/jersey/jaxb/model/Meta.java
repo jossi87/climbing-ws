@@ -65,7 +65,7 @@ public class Meta {
 		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
 		this.url = setup.getUrl();
 		this.types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
-		this.sites = c.getBuldreinfoRepo().getSites(gradeSystem);
+		this.sites = c.getBuldreinfoRepo().getSites(setup.getIdRegion(), gradeSystem);
 	}
 	
 	public LatLng getDefaultCenter() {

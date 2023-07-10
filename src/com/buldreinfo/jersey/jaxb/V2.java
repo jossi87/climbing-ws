@@ -727,7 +727,8 @@ public class V2 {
 		default: throw new RuntimeException("Invalid type=" + type);
 		}
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			List<SitesRegion> res = c.getBuldreinfoRepo().getSites(system);
+			final Setup setup = metaHelper.getSetup(request);
+			List<SitesRegion> res = c.getBuldreinfoRepo().getSites(setup.getIdRegion(), system);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
