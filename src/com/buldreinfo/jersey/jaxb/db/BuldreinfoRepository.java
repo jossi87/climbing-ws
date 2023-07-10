@@ -140,12 +140,11 @@ public class BuldreinfoRepository {
 
 	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient permissions");
-		Timestamp now = new Timestamp(System.currentTimeMillis());
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
 			final int idGuestbook = 0;
-			addNewMedia(authUserId, p.getId(), m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart, now);
+			addNewMedia(authUserId, p.getId(), m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 		}
 		fillActivity(p.getId());
 	}
@@ -2863,13 +2862,12 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (a.getNewMedia() != null) {
-			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : a.getNewMedia()) {
 				final int idProblem = 0;
 				final int pitch = 0;
 				final int idSector = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		if (a.isTrash()) {
@@ -2886,7 +2884,7 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
 		if (p.getId() > 0) {
 			fillProblemCoordinationsHistory(authUserId, p);
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=?, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.latitude=?, p.longitude=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId);
 				ps.setString(2, trimString(p.getName()));
 				ps.setString(3, trimString(p.getRock()));
@@ -2912,7 +2910,7 @@ public class BuldreinfoRepository {
 				ps.setString(15, trimString(p.getAspect()));
 				ps.setString(16, trimString(p.getRouteLength()));
 				ps.setString(17, trimString(p.getDescent()));
-				ps.setTimestamp(18, p.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setBoolean(18, p.isTrash());
 				ps.setInt(19, p.isTrash()? authUserId : 0);
 				ps.setInt(20, p.getId());
 				int res = ps.executeUpdate();
@@ -2971,12 +2969,11 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (p.getNewMedia() != null) {
-			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : p.getNewMedia()) {
 				final int idSector = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		// FA
@@ -3095,7 +3092,7 @@ public class BuldreinfoRepository {
 		if (s.getId() > 0) {
 			Sector currSector = getSector(authUserId, false, setup, s.getId());
 			setPermissionRecursive = currSector.isLockedAdmin() != isLockedAdmin || currSector.isLockedSuperadmin() != s.isLockedSuperadmin();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=?, s.trash=?, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.parking_latitude=?, s.parking_longitude=?, s.locked_admin=?, s.locked_superadmin=?, s.polygon_coords=?, s.polyline=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
 				ps.setString(1, trimString(s.getName()));
 				ps.setString(2, trimString(s.getComment()));
 				ps.setString(3, trimString(s.getAccessInfo()));
@@ -3114,7 +3111,7 @@ public class BuldreinfoRepository {
 				ps.setBoolean(8, s.isLockedSuperadmin());
 				ps.setString(9, trimString(s.getPolygonCoords()));
 				ps.setString(10, trimString(s.getPolyline()));
-				ps.setTimestamp(11, s.isTrash()? new Timestamp(System.currentTimeMillis()) : null);
+				ps.setBoolean(11, s.isTrash());
 				ps.setInt(12, s.isTrash()? authUserId : 0);
 				ps.setInt(13, s.getId());
 				ps.setInt(14, authUserId);
@@ -3191,13 +3188,12 @@ public class BuldreinfoRepository {
 		}
 		// New media
 		if (s.getNewMedia() != null) {
-			Timestamp now = new Timestamp(System.currentTimeMillis());
 			for (NewMedia m : s.getNewMedia()) {
 				final int pitch = 0;
 				final int idProblem = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart, now);
+				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		if (s.isTrash()) {
@@ -3412,12 +3408,11 @@ public class BuldreinfoRepository {
 					ps.execute();
 					if (co.getNewMedia() != null) {
 						// New media
-						Timestamp now = new Timestamp(System.currentTimeMillis());
 						for (NewMedia m : co.getNewMedia()) {
 							final int idProblem = 0;
 							final int idSector = 0;
 							final int idArea = 0;
-							addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, co.getId(), m, multiPart, now);
+							addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, co.getId(), m, multiPart);
 						}
 					}
 				}
@@ -3451,12 +3446,11 @@ public class BuldreinfoRepository {
 						int idGuestbook = rst.getInt(1);
 						if (co.getNewMedia() != null) {
 							// New media
-							Timestamp now = new Timestamp(System.currentTimeMillis());
 							for (NewMedia m : co.getNewMedia()) {
 								final int idProblem = 0;
 								final int idSector = 0;
 								final int idArea = 0;
-								addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart, now);
+								addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 							}
 						}
 					}
@@ -3552,7 +3546,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart, Timestamp now) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+	private int addNewMedia(int idUser, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		int idMedia = -1;
 		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", idUser, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
@@ -3592,14 +3586,13 @@ public class BuldreinfoRepository {
 		 * DB
 		 */
 		if (!alreadyExistsInDb) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, isMovie);
 				ps.setString(2, suffix);
 				ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
 				ps.setInt(4, idUser);
-				ps.setTimestamp(5, now);
-				ps.setString(6, trimString(m.getDescription()));
-				ps.setString(7, m.getEmbedVideoUrl());
+				ps.setString(5, trimString(m.getDescription()));
+				ps.setString(6, m.getEmbedVideoUrl());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
