@@ -32,8 +32,8 @@ import com.google.common.base.Preconditions;
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
 	public final static Path root = Paths.get( "D:/gdrive/web/buldreinfo/buldreinfo_media");
-	private final static String LOCAL_LIB_WEBC_PATH = "D:/gdrive/web/buldreinfo/sw/libwebp-1.1.0-windows-x64/bin/cwebp.exe";
-	private final static String LOCAL_FFMPEG_PATH = "D:/gdrive/web/buldreinfo/sw/ffmpeg-2020-11-22-git-0066bf4d1a-full_build/bin/ffmpeg.exe";
+	private final static String LOCAL_LIB_WEBC_PATH = "D:/gdrive/web/buldreinfo/sw/libwebp-1.3.1-windows-x64/bin/cwebp.exe";
+	private final static String LOCAL_FFMPEG_PATH = "D:/gdrive/web/buldreinfo/sw/ffmpeg-2023-07-10-git-1c61c24f5f-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YOUTUBE_DL_PATH = "D:/gdrive/web/buldreinfo/sw/youtube-dl/youtube-dl.exe";
 
 	public static void main(String[] args) {
