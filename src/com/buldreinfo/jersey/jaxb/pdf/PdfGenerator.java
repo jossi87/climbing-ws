@@ -26,7 +26,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
