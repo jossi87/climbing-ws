@@ -49,8 +49,6 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
-import com.buldreinfo.jersey.jaxb.model.Filter;
-import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
@@ -996,23 +994,6 @@ public class V2 {
 			c.getBuldreinfoRepo().upsertComment(authUserId, setup, co, multiPart);
 			c.setSuccess();
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-
-	@ApiOperation(value = "Filter on boulders/routes", response = Filter.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
-	@POST
-	@Path("/filter")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postFilter(@Context HttpServletRequest request, FilterRequest fr) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = metaHelper.getSetup(request);
-			final int authUserId = getUserId(request);
-			List<Filter> res = c.getBuldreinfoRepo().getFilter(authUserId, setup, fr);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}

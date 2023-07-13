@@ -12,8 +12,6 @@ import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Filter;
-import com.buldreinfo.jersey.jaxb.model.FilterRequest;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -25,7 +23,6 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.net.HttpHeaders;
 
 public class V2Test {
@@ -142,17 +139,6 @@ public class V2Test {
 		assertTrue(r.getEntity() instanceof ProfileTodo);
 		ProfileTodo t = (ProfileTodo)r.getEntity();
 		assertTrue(!t.getAreas().isEmpty());
-	}
-
-	@Test
-	public void testPostFilter() throws Exception {
-		V2 tester = new V2();
-		Response r = tester.postFilter(getRequest(), new FilterRequest(Lists.newArrayList(19,20),Lists.newArrayList(1,2,3,4),null));
-		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof List<?>);
-		@SuppressWarnings("unchecked")
-		List<Filter> res = (List<Filter>)r.getEntity();
-		assertTrue(!res.isEmpty());
 	}
 
 	@Test
