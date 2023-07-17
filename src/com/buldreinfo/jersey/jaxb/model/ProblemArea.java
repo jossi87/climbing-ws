@@ -12,6 +12,8 @@ public class ProblemArea {
 		private final int nr;
 		private final String name;
 		private final String description;
+		private final double lat;
+		private final double lng;
 		private final String grade;
 		private final String fa;
 		private final int numTicks;
@@ -20,7 +22,7 @@ public class ProblemArea {
 		private final Type t;
 		private final int numPitches;
 		
-		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
 			this.id = id;
 			this.url = url;
 			this.lockedAdmin = lockedAdmin;
@@ -28,6 +30,8 @@ public class ProblemArea {
 			this.nr = nr;
 			this.name = name;
 			this.description = description;
+			this.lat = lat;
+			this.lng = lng;
 			this.grade = grade;
 			this.fa = fa;
 			this.numTicks = numTicks;
@@ -40,17 +44,25 @@ public class ProblemArea {
 		public String getDescription() {
 			return description;
 		}
-
+		
 		public String getFa() {
 			return fa;
 		}
-
+		
 		public String getGrade() {
 			return grade;
 		}
 
 		public int getId() {
 			return id;
+		}
+
+		public double getLat() {
+			return lat;
+		}
+
+		public double getLng() {
+			return lng;
 		}
 
 		public String getName() {
@@ -98,26 +110,38 @@ public class ProblemArea {
 		private final int id;
 		private final String url;
 		private final String name;
+		private final double lat;
+		private final double lng;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<Problem> problems = new ArrayList<>();
 		
-		public Sector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public Sector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
+			this.lat = lat;
+			this.lng = lng;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
-			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, grade, fa, numTicks, stars, ticked, t, numPitches);
+		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
 			this.problems.add(p);
 			return p;
 		}
 		
 		public int getId() {
 			return id;
+		}
+		
+		public double getLat() {
+			return lat;
+		}
+		
+		public double getLng() {
+			return lng;
 		}
 		
 		public String getName() {
@@ -144,26 +168,38 @@ public class ProblemArea {
 	private final int id;
 	private final String url;
 	private final String name;
+	private final double lat;
+	private final double lng;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final List<Sector> sectors = new ArrayList<>();
 	
-	public ProblemArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+	public ProblemArea(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
 		this.id = id;
 		this.url = url;
 		this.name = name;
+		this.lat = lat;
+		this.lng = lng;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 	}
 	
-	public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
+	public Sector addSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
+		Sector s = new Sector(id, url, name, lat, lng, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
 
 	public int getId() {
 		return id;
+	}
+	
+	public double getLat() {
+		return lat;
+	}
+	
+	public double getLng() {
+		return lng;
 	}
 	
 	public String getName() {

@@ -1312,7 +1312,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
 		Map<Integer, ProblemArea.Sector> sectorLookup = new HashMap<>();
-		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
+		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.latitude area_latitude, a.longitude area_longitude, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude problem_latitude, p.longitude problem_longitude, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches"
@@ -1321,7 +1321,7 @@ public class BuldreinfoRepository {
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY r.url, a.id, a.name, a.locked_admin, a.locked_superadmin, s.sorting, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.grade, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.name, a.latitude, a.longitude, a.locked_admin, a.locked_superadmin, s.sorting, s.id, s.name, s.parking_latitude, s.parking_longitude, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude, p.longitude, p.grade, ty.id, ty.type, ty.subtype"
 				+ " ORDER BY a.name, s.sorting, s.name, p.nr";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
@@ -1337,9 +1337,11 @@ public class BuldreinfoRepository {
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
+						double areaLatitude = rst.getDouble("area_latitude");
+						double areaLongitude = rst.getDouble("area_longitude");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = new ProblemArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						a = new ProblemArea(areaId, areaUrl, areaName, areaLatitude, areaLongitude, areaLockedAdmin, areaLockedSuperadmin);
 						areaLookup.put(areaId, a);
 					}
 					// Sector
@@ -1348,9 +1350,11 @@ public class BuldreinfoRepository {
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
+						double sectorLatitude = rst.getDouble("sector_latitude");
+						double sectorLongitude = rst.getDouble("sector_longitude");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLatitude, sectorLongitude, sectorLockedAdmin, sectorLockedSuperadmin);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
@@ -1361,6 +1365,8 @@ public class BuldreinfoRepository {
 					int nr = rst.getInt("nr");
 					String name = rst.getString("name");
 					String description = rst.getString("description");
+					double latitude = rst.getDouble("problem_latitude");
+					double longitude = rst.getDouble("problem_longitude");
 					int grade = rst.getInt("grade");
 					String fa = rst.getString("fa");
 					int numTicks = rst.getInt("num_ticks");
@@ -1368,7 +1374,7 @@ public class BuldreinfoRepository {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					s.addProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
+					s.addProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, latitude, longitude, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
 				}
 			}
 		}
