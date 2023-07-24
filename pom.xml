@@ -163,11 +163,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.sanselan</groupId>
-			<artifactId>sanselan</artifactId>
-			<version>0.97-incubator</version>
-		</dependency>
-		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>32.1.1-jre</version>
