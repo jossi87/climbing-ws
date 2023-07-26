@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProfileStatistics {
-	public class Tick {
+	public class ProfileStatisticsTick {
 		private final String areaName;
 		private final boolean areaLockedAdmin;
 		private final boolean areaLockedSuperadmin;
@@ -30,7 +30,7 @@ public class ProfileStatistics {
 		private final double lat;
 		private final double lng;
 		
-		public Tick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
+		public ProfileStatisticsTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
 				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches,
 				int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 				String dateHr, double stars, boolean fa, String grade, int gradeNumber, double lat, double lng) {
@@ -163,13 +163,13 @@ public class ProfileStatistics {
 	private int numVideosCreated;
 	private int numImageTags;
 	private int numVideoTags;
-	private final List<Tick> ticks = new ArrayList<>();
+	private final List<ProfileStatisticsTick> ticks = new ArrayList<>();
 	
 	public ProfileStatistics() {
 	}
 	
 	public void addTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber, double lat, double lng) {
-		ticks.add(new Tick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber, lat, lng));
+		ticks.add(new ProfileStatisticsTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber, lat, lng));
 	}
 
 	public int getNumImagesCreated() {
@@ -188,7 +188,7 @@ public class ProfileStatistics {
 		return numVideoTags;
 	}
 	
-	public List<Tick> getTicks() {
+	public List<ProfileStatisticsTick> getTicks() {
 		return ticks;
 	}
 	
