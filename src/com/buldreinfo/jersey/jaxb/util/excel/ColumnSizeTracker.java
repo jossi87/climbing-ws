@@ -209,7 +209,7 @@ public class ColumnSizeTracker {
             String txt = longestLine + defaultChar;
             AttributedString str = new AttributedString(txt);
             
-            Font font = workbook.getFontAt(style.getFontIndexAsInt());
+            Font font = workbook.getFontAt(style.getFontIndex());
             copyAttributes(font, str, 0, txt.length());
             
             // Compute width

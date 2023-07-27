@@ -1,14 +1,10 @@
 package com.buldreinfo.jersey.jaxb.pdf;
 
 import java.awt.Color;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -52,8 +48,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.lowagie.text.Anchor;
 import com.lowagie.text.BadElementException;
 import com.lowagie.text.Chunk;
@@ -113,42 +107,42 @@ public class PdfGenerator implements AutoCloseable {
 	private static Font FONT_REGULAR_LINK = new Font(Font.HELVETICA, 9, Font.NORMAL, Color.BLUE);
 	private static Font FONT_BOLD = new Font(Font.HELVETICA, 9, Font.BOLD);
 	private final static int IMAGE_STAR_SIZE = 9;
-	public static void main(String[] args) throws Exception {
-		int areaId = 2859;
-		int sectorId = 3112;
-		int problemId = 7109;
-		String urlBase = "https://buldreforer.tromsoklatring.no/";
-		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
-		Files.createDirectories(dst.getParent());
-		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
-			Gson gson = new Gson();
-			List<Sector> sectors = new ArrayList<>();
-			URL obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/areas?id=" + areaId);
-			HttpURLConnection con = (HttpURLConnection)obj.openConnection();
-			con.setRequestMethod("GET");
-			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
-			for (Area.AreaSector s : area.getSectors()) {
-				if (s.getId() == sectorId) {
-					obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
-					con = (HttpURLConnection)obj.openConnection();
-					con.setRequestMethod("GET");
-					sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
-				}
-			}
-			obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
-			con = (HttpURLConnection)obj.openConnection();
-			con.setRequestMethod("GET");
-			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
-			try (PdfGenerator generator = new PdfGenerator(fos)) {
-				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
-				con = (HttpURLConnection)obj.openConnection();
-				con.setRequestMethod("GET");
-				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
-				// generator.writeArea(area, gradeDistribution, sectors);
-				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
-			}
-		}
-	}
+	//	public static void main(String[] args) throws Exception {
+	//		int areaId = 2859;
+	//		int sectorId = 3112;
+	//		int problemId = 7109;
+	//		String urlBase = "https://buldreforer.tromsoklatring.no/";
+	//		Path dst = GlobalFunctions.getPathTemp().resolve("test.pdf");
+	//		Files.createDirectories(dst.getParent());
+	//		try (FileOutputStream fos = new FileOutputStream(dst.toFile())) {
+	//			Gson gson = new Gson();
+	//			List<Sector> sectors = new ArrayList<>();
+	//			URL obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/areas?id=" + areaId);
+	//			HttpURLConnection con = (HttpURLConnection)obj.openConnection();
+	//			con.setRequestMethod("GET");
+	//			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
+	//			for (Area.AreaSector s : area.getSectors()) {
+	//				if (s.getId() == sectorId) {
+	//					obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
+	//					con = (HttpURLConnection)obj.openConnection();
+	//					con.setRequestMethod("GET");
+	//					sectors.add(gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Sector.class));
+	//				}
+	//			}
+	//			obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/problems?id=" + problemId);
+	//			con = (HttpURLConnection)obj.openConnection();
+	//			con.setRequestMethod("GET");
+	//			Problem problem = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Problem.class);
+	//			try (PdfGenerator generator = new PdfGenerator(fos)) {
+	//				obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/grade/distribution?idArea=" + area.getId() + "&idSector=0");
+	//				con = (HttpURLConnection)obj.openConnection();
+	//				con.setRequestMethod("GET");
+	//				List<GradeDistribution> gradeDistribution = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), new TypeToken<ArrayList<GradeDistribution>>(){}.getType());
+	//				// generator.writeArea(area, gradeDistribution, sectors);
+	//				generator.writeProblem(area, sectors.stream().filter(x -> x.getId() == problem.getSectorId()).findAny().get(), problem);
+	//			}
+	//		}
+	//	}
 	private final PdfWriter writer;
 	private final Document document;
 	private final Set<Integer> mediaIdProcessed = Sets.newHashSet();
