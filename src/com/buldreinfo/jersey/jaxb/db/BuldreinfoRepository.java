@@ -57,6 +57,7 @@ import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
@@ -86,7 +87,6 @@ import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblemOrder;
-import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -100,6 +100,7 @@ import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
+import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
@@ -2060,6 +2061,39 @@ public class BuldreinfoRepository {
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
 
+	public List<Setup> getSetups() throws SQLException {
+		List<Setup> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(r.url,'https://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idRegion = rst.getInt("id_region");
+					String title = rst.getString("title");
+					String description = rst.getString("description");
+					String domain = rst.getString("domain");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					int defaultZoom = rst.getInt("default_zoom");
+					GRADE_SYSTEM gradeSystem = null;
+					String group = rst.getString("group");
+					switch (group) {
+					case "Bouldering": gradeSystem = GRADE_SYSTEM.BOULDER; break;
+					case "Climbing": gradeSystem = GRADE_SYSTEM.CLIMBING; break;
+					case "Ice": gradeSystem = GRADE_SYSTEM.ICE; break;
+					default: throw new RuntimeException("Invalid group: " + group);
+					}
+					res.add(new Setup(domain, gradeSystem)
+							.setIdRegion(idRegion)
+							.setTitle(title)
+							.setDescription(description)
+							.setLatLng(latitude, longitude)
+							.setDefaultZoom(defaultZoom));
+				}
+			}
+		}
+		logger.debug("getSetups() - res.size()={}", res.size());
+		return res;
+	}
+
 	public String getSitemapTxt(Setup setup) throws SQLException {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
@@ -2438,7 +2472,7 @@ public class BuldreinfoRepository {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						String grade = GradeHelper.intToString(new MetaHelper().getSetup(regionId), rst.getInt("grade"));
+						String grade = GradeHelper.intToString(MetaHelper.getMeta().getSetup(regionId), rst.getInt("grade"));
 						SheetWriter writer = writers.get(type);
 						if (writer == null) {
 							writer = report.addSheet(type);
@@ -2491,7 +2525,7 @@ public class BuldreinfoRepository {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						String grade = GradeHelper.intToString(new MetaHelper().getSetup(regionId), rst.getInt("grade"));
+						String grade = GradeHelper.intToString(MetaHelper.getMeta().getSetup(regionId), rst.getInt("grade"));
 						SheetWriter writer = writers.get(type);
 						if (writer == null) {
 							writer = report.addSheet(type);

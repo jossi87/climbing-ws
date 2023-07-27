@@ -41,7 +41,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			}
 			
 			if (LEGAL_ORIGINS.isEmpty()) {
-				for (String domain : new MetaHelper().getSetups()
+				for (String domain : MetaHelper.getMeta().getSetups()
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {
