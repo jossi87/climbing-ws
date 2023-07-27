@@ -3,7 +3,7 @@ package com.buldreinfo.jersey.jaxb.helpers;
 import java.util.List;
 
 public class SetupHolder {
-	private final static long fiftyNineMinutesInMs = 59*60*1000;
+	private final static long oneHourInMs = 60*60*1000;
 	private final List<Setup> setups;
 	private final long created;
 	
@@ -17,6 +17,6 @@ public class SetupHolder {
 	}
 	
 	public long getValidMilliseconds() {
-		return fiftyNineMinutesInMs - (System.currentTimeMillis() - created);
+		return oneHourInMs - (System.currentTimeMillis() - created);
 	}
 }

@@ -50,7 +50,7 @@ public class MetaHelper {
 		List<Setup> res = null;
 		long validMilliseconds = holder == null? 0 : holder.getValidMilliseconds();
 		if (validMilliseconds > 0) {
-			logger.debug("getSetups() - Still valid, tokenValidMs={}", validMilliseconds);
+			logger.debug("getSetups() - From cache, validMilliseconds={}", validMilliseconds);
 			res = holder.getSetups();
 		}
 		else {
