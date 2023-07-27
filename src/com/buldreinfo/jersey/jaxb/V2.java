@@ -50,7 +50,7 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -208,7 +208,7 @@ public class V2 {
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
-			for (Area.Sector sector : area.getSectors()) {
+			for (Area.AreaSector sector : area.getSectors()) {
 				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, sector.getId());
 				sectors.add(s);
 			}
@@ -499,8 +499,8 @@ public class V2 {
 			try (ExcelReport report = new ExcelReport()) {
 				try (SheetWriter writer = report.addSheet("TOC")) {
 					for (ProblemArea a : res) {
-						for (ProblemArea.Sector s : a.getSectors()) {
-							for (ProblemArea.Problem p : s.getProblems()) {
+						for (ProblemArea.ProblemAreaSector s : a.getSectors()) {
+							for (ProblemArea.ProblemAreaProblem p : s.getProblems()) {
 								writer.incrementRow();
 								writer.write("URL", SheetHyperlink.of(p.getUrl()));
 								writer.write("AREA", a.getName());
@@ -838,7 +838,7 @@ public class V2 {
 					f.getNumTicks(),
 					f.getNumImages(),
 					f.getNumMovies());
-			RandomMedia randomMedia = f.getRandomMedia();
+			FrontpageRandomMedia randomMedia = f.getRandomMedia();
 			String html = getHtml(setup,
 					setup.getUrl(),
 					setup.getTitle(),

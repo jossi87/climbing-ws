@@ -5,7 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 public class Area {
-	public class Sector {
+	public class AreaSector {
 		private final String areaName;
 		private final int id;
 		private final int sorting;
@@ -24,7 +24,7 @@ public class Area {
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 		
-		public Sector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -115,11 +115,11 @@ public class Area {
 		}
 	}
 	
-	public class SectorOrder {
+	public class AreaSectorOrder {
 		private final int id;
 		private final String name;
 		private final int sorting;
-		public SectorOrder(int id, String name, int sorting) {
+		public AreaSectorOrder(int id, String name, int sorting) {
 			this.id = id;
 			this.name = name;
 			this.sorting = sorting;
@@ -151,8 +151,8 @@ public class Area {
 	private final double lng;
 	private final int numSectors;
 	private final int numProblems;
-	private final List<Sector> sectors;
-	private final List<SectorOrder> sectorOrder;
+	private final List<AreaSector> sectors;
+	private final List<AreaSectorOrder> sectorOrder;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<NewMedia> newMedia;
@@ -184,10 +184,10 @@ public class Area {
 		this.hits = hits;
 	}
 	
-	public Sector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
-		Sector s = new Sector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
-		sectorOrder.add(new SectorOrder(id, name, sorting));
+		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;
 	}
 
@@ -247,11 +247,11 @@ public class Area {
 		return regionId;
 	}
 	
-	public List<SectorOrder> getSectorOrder() {
+	public List<AreaSectorOrder> getSectorOrder() {
 		return sectorOrder;
 	}
 	
-	public List<Sector> getSectors() {
+	public List<AreaSector> getSectors() {
 		return sectors;
 	}
 	
@@ -285,12 +285,12 @@ public class Area {
 
 	public void orderSectors() {
 		if (sectors != null) {
-			sectors.sort(new Comparator<Sector>() {
+			sectors.sort(new Comparator<AreaSector>() {
 				@Override
-				public int compare(Sector o1, Sector o2) {
+				public int compare(AreaSector o1, AreaSector o2) {
 					return getName(o1).compareTo(getName(o2));
 				}
-				private String getName(Sector s) {
+				private String getName(AreaSector s) {
 					if (s.getSorting() > 0) {
 						return String.format("%04d", s.getSorting());
 					}

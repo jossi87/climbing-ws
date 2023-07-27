@@ -2,10 +2,10 @@ package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.model.Frontpage.RandomMedia.User;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia.User;
 
 public class Frontpage {
-	public class RandomMedia {
+	public class FrontpageRandomMedia {
 		public class User {
 			private final int id;
 			private final String name;
@@ -33,7 +33,7 @@ public class Frontpage {
 		private final String grade;
 		private final User photographer;
 		private final List<User> tagged;
-		public RandomMedia(int idMedia, int crc32, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
+		public FrontpageRandomMedia(int idMedia, int crc32, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
 			this.idMedia = idMedia;
 			this.crc32 = crc32;
 			this.width = width;
@@ -102,7 +102,7 @@ public class Frontpage {
 	private int numTicks;
 	private int numImages;
 	private int numMovies;
-	private RandomMedia randomMedia;
+	private FrontpageRandomMedia randomMedia;
 	
 	public Frontpage() {
 	}
@@ -131,7 +131,7 @@ public class Frontpage {
 		return numTicks;
 	}
 
-	public RandomMedia getRandomMedia() {
+	public FrontpageRandomMedia getRandomMedia() {
 		return randomMedia;
 	}
 	
@@ -160,6 +160,6 @@ public class Frontpage {
 	}
 
 	public void setRandomMedia(int idMedia, int crc32, int width, int height, int idArea, String area, int idSector, String sector, int idProblem, String problem, String grade, User photographer, List<User> tagged) {
-		randomMedia = new RandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged);
+		randomMedia = new FrontpageRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged);
 	}
 }

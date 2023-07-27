@@ -1,9 +1,9 @@
-package com.buldreinfo.jersey.jaxb.model.app;
+package com.buldreinfo.jersey.jaxb.model.v1;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Problem {
+public class V1Problem {
 	private final int sectorId;
 	private final int id;
 	private final int nr;
@@ -13,9 +13,9 @@ public class Problem {
 	private final String fa;
 	private final double lat;
 	private final double lng;
-	private final List<Media> media = new ArrayList<>();
+	private final List<V1Media> media = new ArrayList<>();
 	
-	public Problem(int sectorId, int id, int nr, String name, String comment, int grade, String fa, double lat, double lng) {
+	public V1Problem(int sectorId, int id, int nr, String name, String comment, int grade, String fa, double lat, double lng) {
 		this.sectorId = sectorId;
 		this.id = id;
 		this.nr = nr;
@@ -63,7 +63,7 @@ public class Problem {
 		return lng;
 	}
 
-	public List<Media> getMedia() {
+	public List<V1Media> getMedia() {
 		return media;
 	}
 }

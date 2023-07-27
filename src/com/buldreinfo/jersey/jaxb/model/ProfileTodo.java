@@ -4,15 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProfileTodo {
-	public class Area {
+	public class ProfileTodoArea {
 		private final int id;
 		private final String url;
 		private final String name;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
-		private final List<Sector> sectors = new ArrayList<>();
+		private final List<ProfileTodoSector> sectors = new ArrayList<>();
 		
-		public Area(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProfileTodoArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
@@ -20,8 +20,8 @@ public class ProfileTodo {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 		
-		public Sector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-			Sector s = new Sector(id, url, name, lockedAdmin, lockedSuperadmin);
+		public ProfileTodoSector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+			ProfileTodoSector s = new ProfileTodoSector(id, url, name, lockedAdmin, lockedSuperadmin);
 			this.sectors.add(s);
 			return s;
 		}
@@ -34,7 +34,7 @@ public class ProfileTodo {
 			return name;
 		}
 
-		public List<Sector> getSectors() {
+		public List<ProfileTodoSector> getSectors() {
 			return sectors;
 		}
 
@@ -51,11 +51,11 @@ public class ProfileTodo {
 		}
 	}
 	
-	public class Partner {
+	public class ProfileTodoPartner {
 		private final int id;
 		private final String name;
 		
-		public Partner(int id, String name) {
+		public ProfileTodoPartner(int id, String name) {
 			this.id = id;
 			this.name = name;
 		}
@@ -69,7 +69,7 @@ public class ProfileTodo {
 		}
 	}
 	
-	public class Problem {
+	public class ProfileTodoProblem {
 		private final int todoId;
 		private final int id;
 		private final String url;
@@ -80,9 +80,9 @@ public class ProfileTodo {
 		private final String grade;
 		private final double lat;
 		private final double lng;
-		private List<Partner> partners = new ArrayList<>();
+		private List<ProfileTodoPartner> partners = new ArrayList<>();
 		
-		public Problem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
+		public ProfileTodoProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
 			this.todoId = todoId;
 			this.id = id;
 			this.url = url;
@@ -95,8 +95,8 @@ public class ProfileTodo {
 			this.lng = lng;
 		}
 		
-		public Partner addPartner(int id, String name) {
-			Partner res = new Partner(id, name);
+		public ProfileTodoPartner addPartner(int id, String name) {
+			ProfileTodoPartner res = new ProfileTodoPartner(id, name);
 			this.partners.add(res);
 			return res;
 		}
@@ -125,7 +125,7 @@ public class ProfileTodo {
 			return nr;
 		}
 		
-		public List<Partner> getPartners() {
+		public List<ProfileTodoPartner> getPartners() {
 			return partners;
 		}
 		
@@ -145,20 +145,20 @@ public class ProfileTodo {
 			return lockedSuperadmin;
 		}
 		
-		public void setPartners(List<Partner> partners) {
+		public void setPartners(List<ProfileTodoPartner> partners) {
 			this.partners = partners;
 		}
 	}
 	
-	public class Sector {
+	public class ProfileTodoSector {
 		private final int id;
 		private final String url;
 		private final String name;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
-		private final List<Problem> problems = new ArrayList<>();
+		private final List<ProfileTodoProblem> problems = new ArrayList<>();
 		
-		public Sector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProfileTodoSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
@@ -166,8 +166,8 @@ public class ProfileTodo {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
-			Problem p = new Problem(todoId, id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, lat, lng);
+		public ProfileTodoProblem addProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
+			ProfileTodoProblem p = new ProfileTodoProblem(todoId, id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, lat, lng);
 			this.problems.add(p);
 			return p;
 		}
@@ -180,7 +180,7 @@ public class ProfileTodo {
 			return name;
 		}
 		
-		public List<Problem> getProblems() {
+		public List<ProfileTodoProblem> getProblems() {
 			return problems;
 		}
 
@@ -197,18 +197,18 @@ public class ProfileTodo {
 		}
 	}
 	
-	private final List<Area> areas = new ArrayList<>();
+	private final List<ProfileTodoArea> areas = new ArrayList<>();
 	
 	public ProfileTodo() {
 	}
 	
-	public Area addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Area a = new Area(id, url, name, lockedAdmin, lockedSuperadmin);
+	public ProfileTodoArea addArea(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProfileTodoArea a = new ProfileTodoArea(id, url, name, lockedAdmin, lockedSuperadmin);
 		this.areas.add(a);
 		return a;
 	}
 
-	public List<Area> getAreas() {
+	public List<ProfileTodoArea> getAreas() {
 		return areas;
 	}
 }

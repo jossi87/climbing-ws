@@ -10,7 +10,7 @@ import javax.ws.rs.core.Response;
 
 import org.junit.jupiter.api.Test;
 
-import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 
 public class V1Test {
 	@Test
@@ -32,8 +32,8 @@ public class V1Test {
 		Collection<?> res = (Collection<?>) r.getEntity();
 		assertTrue(!res.isEmpty());
 		for (Object o : res) {
-			assertTrue(o instanceof Region);
-			Region region = (Region)o;
+			assertTrue(o instanceof V1Region);
+			V1Region region = (V1Region)o;
 			numAreas += region.getAreas().size();
 		}
 		return numAreas;

@@ -4,11 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Sector {
-	public class ProblemOrder {
+	public class SectorProblemOrder {
 		private final int id;
 		private final String name;
 		private final int nr;
-		public ProblemOrder(int id, String name, int nr) {
+		public SectorProblemOrder(int id, String name, int nr) {
 			this.id = id;
 			this.name = name;
 			this.nr = nr;
@@ -73,7 +73,7 @@ public class Sector {
 	private final List<Media> triviaMedia;
 	private final List<SectorJump> sectors = new ArrayList<>();
 	private final List<SectorProblem> problems = new ArrayList<>();
-	private final List<ProblemOrder> problemOrder = new ArrayList<>();
+	private final List<SectorProblemOrder> problemOrder = new ArrayList<>();
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
@@ -107,7 +107,7 @@ public class Sector {
 	
 	public void addProblem(SectorProblem sp) {
 		this.problems.add(sp);
-		this.problemOrder.add(new ProblemOrder(sp.getId(), sp.getName(), sp.getNr()));
+		this.problemOrder.add(new SectorProblemOrder(sp.getId(), sp.getName(), sp.getNr()));
 	}
 	
 	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
@@ -182,7 +182,7 @@ public class Sector {
 		return polyline;
 	}
 
-	public List<ProblemOrder> getProblemOrder() {
+	public List<SectorProblemOrder> getProblemOrder() {
 		return problemOrder;
 	}
 

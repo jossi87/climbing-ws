@@ -1,11 +1,11 @@
-package com.buldreinfo.jersey.jaxb.model.app;
+package com.buldreinfo.jersey.jaxb.model.v1;
 
-public class Media {
+public class V1Media {
 	private final int id;
 	private final boolean isMovie;
 	private final int t;
 	
-	public Media(int id, boolean isMovie, int t) {
+	public V1Media(int id, boolean isMovie, int t) {
 		this.id = id;
 		this.isMovie = isMovie;
 		this.t = t;

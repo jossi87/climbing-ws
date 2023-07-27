@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProblemArea {
-	public class Problem {
+	public class ProblemAreaProblem {
 		private final int id;
 		private final String url;
 		private final boolean lockedAdmin;
@@ -22,7 +22,7 @@ public class ProblemArea {
 		private final Type t;
 		private final int numPitches;
 		
-		public Problem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+		public ProblemAreaProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
 			this.id = id;
 			this.url = url;
 			this.lockedAdmin = lockedAdmin;
@@ -106,7 +106,7 @@ public class ProblemArea {
 		}
 	}
 	
-	public class Sector {
+	public class ProblemAreaSector {
 		private final int id;
 		private final String url;
 		private final String name;
@@ -114,9 +114,9 @@ public class ProblemArea {
 		private final double lng;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
-		private final List<Problem> problems = new ArrayList<>();
+		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public Sector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
@@ -126,8 +126,8 @@ public class ProblemArea {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
-			Problem p = new Problem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
+		public ProblemAreaProblem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+			ProblemAreaProblem p = new ProblemAreaProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
 			this.problems.add(p);
 			return p;
 		}
@@ -148,7 +148,7 @@ public class ProblemArea {
 			return name;
 		}
 		
-		public List<Problem> getProblems() {
+		public List<ProblemAreaProblem> getProblems() {
 			return problems;
 		}
 
@@ -172,7 +172,7 @@ public class ProblemArea {
 	private final double lng;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
-	private final List<Sector> sectors = new ArrayList<>();
+	private final List<ProblemAreaSector> sectors = new ArrayList<>();
 	
 	public ProblemArea(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
 		this.id = id;
@@ -184,8 +184,8 @@ public class ProblemArea {
 		this.lockedSuperadmin = lockedSuperadmin;
 	}
 	
-	public Sector addSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Sector s = new Sector(id, url, name, lat, lng, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, lat, lng, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
@@ -206,7 +206,7 @@ public class ProblemArea {
 		return name;
 	}
 
-	public List<Sector> getSectors() {
+	public List<ProblemAreaSector> getSectors() {
 		return sectors;
 	}
 

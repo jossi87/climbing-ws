@@ -1,14 +1,14 @@
-package com.buldreinfo.jersey.jaxb.model.app;
+package com.buldreinfo.jersey.jaxb.model.v1;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Region {
+public class V1Region {
 	private final int id;
 	private final String name;
-	private final List<Area> areas = new ArrayList<>();
+	private final List<V1Area> areas = new ArrayList<>();
 	
-	public Region(int id, String name) {
+	public V1Region(int id, String name) {
 		this.id = id;
 		this.name = name;
 	}
@@ -21,7 +21,7 @@ public class Region {
 		return name;
 	}
 	
-	public List<Area> getAreas() {
+	public List<V1Area> getAreas() {
 		return areas;
 	}
 }

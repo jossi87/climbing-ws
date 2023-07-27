@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Todo {
-	private final List<Sector> sectors = new ArrayList<>();
+	private final List<TodoSector> sectors = new ArrayList<>();
 		
-	public class Partner {
+	public class TodoPartner {
 		private final int id;
 		private final String name;
 		
-		public Partner(int id, String name) {
+		public TodoPartner(int id, String name) {
 			this.id = id;
 			this.name = name;
 		}
@@ -24,16 +24,16 @@ public class Todo {
 		}
 	}
 	
-	public class Problem {
+	public class TodoProblem {
 		private final int id;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final int nr;
 		private final String name;
 		private final String grade;
-		private List<Partner> partners = new ArrayList<>();
+		private List<TodoPartner> partners = new ArrayList<>();
 		
-		public Problem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
+		public TodoProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
 			this.id = id;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
@@ -42,8 +42,8 @@ public class Todo {
 			this.grade = grade;
 		}
 		
-		public Partner addPartner(int id, String name) {
-			Partner res = new Partner(id, name);
+		public TodoPartner addPartner(int id, String name) {
+			TodoPartner res = new TodoPartner(id, name);
 			this.partners.add(res);
 			return res;
 		}
@@ -64,7 +64,7 @@ public class Todo {
 			return nr;
 		}
 		
-		public List<Partner> getPartners() {
+		public List<TodoPartner> getPartners() {
 			return partners;
 		}
 		
@@ -76,27 +76,27 @@ public class Todo {
 			return lockedSuperadmin;
 		}
 		
-		public void setPartners(List<Partner> partners) {
+		public void setPartners(List<TodoPartner> partners) {
 			this.partners = partners;
 		}
 	}
 	
-	public class Sector {
+	public class TodoSector {
 		private final int id;
 		private final String name;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
-		private final List<Problem> problems = new ArrayList<>();
+		private final List<TodoProblem> problems = new ArrayList<>();
 		
-		public Sector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public TodoSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.name = name;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public Problem addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
-			Problem p = new Problem(id, lockedAdmin, lockedSuperadmin, nr, name, grade);
+		public TodoProblem addProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
+			TodoProblem p = new TodoProblem(id, lockedAdmin, lockedSuperadmin, nr, name, grade);
 			this.problems.add(p);
 			return p;
 		}
@@ -109,7 +109,7 @@ public class Todo {
 			return name;
 		}
 		
-		public List<Problem> getProblems() {
+		public List<TodoProblem> getProblems() {
 			return problems;
 		}
 
@@ -125,12 +125,12 @@ public class Todo {
 	public Todo() {
 	}
 
-	public List<Sector> getSectors() {
+	public List<TodoSector> getSectors() {
 		return sectors;
 	}
 	
-	public Sector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		Sector s = new Sector(id, name, lockedAdmin, lockedSuperadmin);
+	public TodoSector addSector(int id, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		TodoSector s = new TodoSector(id, name, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}

@@ -40,9 +40,9 @@ import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problem.Comment;
-import com.buldreinfo.jersey.jaxb.model.Problem.Section;
-import com.buldreinfo.jersey.jaxb.model.Problem.Tick;
+import com.buldreinfo.jersey.jaxb.model.Problem.ProblemComment;
+import com.buldreinfo.jersey.jaxb.model.Problem.ProblemSection;
+import com.buldreinfo.jersey.jaxb.model.Problem.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -127,7 +127,7 @@ public class PdfGenerator implements AutoCloseable {
 			HttpURLConnection con = (HttpURLConnection)obj.openConnection();
 			con.setRequestMethod("GET");
 			Area area = gson.fromJson(new InputStreamReader(con.getInputStream(), Charset.forName("UTF-8")), Area.class);
-			for (Area.Sector s : area.getSectors()) {
+			for (Area.AreaSector s : area.getSectors()) {
 				if (s.getId() == sectorId) {
 					obj = new URL(urlBase + "/com.buldreinfo.jersey.jaxb/v2/sectors?id=" + s.getId());
 					con = (HttpURLConnection)obj.openConnection();
@@ -300,7 +300,7 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "#");
 			addTableCell(table, FONT_BOLD, "Grade");
 			addTableCell(table, FONT_BOLD, "Description");
-			for (Section section : problem.getSections()) {
+			for (ProblemSection section : problem.getSections()) {
 				addTableCell(table, FONT_REGULAR, String.valueOf(section.getNr()));
 				addTableCell(table, FONT_REGULAR, section.getGrade());
 				addTableCell(table, FONT_REGULAR, section.getDescription());
@@ -317,7 +317,7 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "Grade");
 			addTableCell(table, FONT_BOLD, "Name");
 			addTableCell(table, FONT_BOLD, "Comment");
-			for (Tick tick : problem.getTicks()) {
+			for (ProblemTick tick : problem.getTicks()) {
 				addTableCell(table, FONT_REGULAR, tick.getDate());
 				Phrase grade = new Phrase(tick.getSuggestedGrade(), FONT_REGULAR);
 				appendStarIcons(grade, tick.getStars(), true);
@@ -336,7 +336,7 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "When");
 			addTableCell(table, FONT_BOLD, "Name");
 			addTableCell(table, FONT_BOLD, "Message");
-			for (Comment comment : problem.getComments()) {
+			for (ProblemComment comment : problem.getComments()) {
 				addTableCell(table, FONT_REGULAR, comment.getDate());
 				addTableCell(table, FONT_REGULAR, comment.getName());
 				String url = isValidUrl(comment.getMessage())? comment.getMessage() : null;
@@ -354,7 +354,7 @@ public class PdfGenerator implements AutoCloseable {
 			media.addAll(problem.getMedia());
 		}
 		if (problem.getSections() != null) {
-			for (Section s : problem.getSections()) {
+			for (ProblemSection s : problem.getSections()) {
 				if (s.getMedia() != null) {
 					media.addAll(s.getMedia());
 				}

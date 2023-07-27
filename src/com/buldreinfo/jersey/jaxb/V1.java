@@ -16,7 +16,7 @@ import javax.ws.rs.core.Response;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.model.app.Region;
+import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 
 
 /**
@@ -45,7 +45,7 @@ public class V1 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getRegions(@QueryParam("uniqueId") String uniqueId, @QueryParam("climbingNotBouldering") boolean climbingNotBouldering) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Collection<Region> res = c.getBuldreinfoRepo().getRegions(uniqueId, climbingNotBouldering);
+			Collection<V1Region> res = c.getBuldreinfoRepo().getRegions(uniqueId, climbingNotBouldering);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

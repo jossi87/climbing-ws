@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Problem {
-	public class Comment {
+	public class ProblemComment {
 		private final int id;
 		private final String date;
 		private final int idUser;
@@ -15,7 +15,7 @@ public class Problem {
 		private final boolean resolved;
 		private final List<Media> media;
 		private boolean editable = false;
-		public Comment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
+		public ProblemComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 			this.id = id;
 			this.date = date;
 			this.idUser = idUser;
@@ -60,13 +60,13 @@ public class Problem {
 			this.editable = editable;
 		}
 	}
-	public class Section {
+	public class ProblemSection {
 		private final int id;
 		private final int nr;
 		private final String description;
 		private final String grade;
 		final List<Media> media;
-		public Section(int id, int nr, String description, String grade, List<Media> media) {
+		public ProblemSection(int id, int nr, String description, String grade, List<Media> media) {
 			this.id = id;
 			this.nr = nr;
 			this.description = description;
@@ -89,7 +89,7 @@ public class Problem {
 			return nr;
 		}
 	}
-	public class Tick {
+	public class ProblemTick {
 		private List<TickRepeat> repeats;
 		private final int id;
 		private final int idUser;
@@ -100,7 +100,7 @@ public class Problem {
 		private final String comment;
 		private final double stars;
 		private final boolean writable;
-		public Tick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+		public ProblemTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 			this.id = id;
 			this.idUser = idUser;
 			this.picture = picture;
@@ -154,11 +154,11 @@ public class Problem {
 					+ ", writable=" + writable + ", repeats=" + repeats + "]";
 		}
 	}
-	public class Todo {
+	public class ProblemTodo {
 		private final int idUser;
 		private final String picture;
 		private final String name;
-		public Todo(int idUser, String picture, String name) {
+		public ProblemTodo(int idUser, String picture, String name) {
 			this.idUser = idUser;
 			this.picture = picture;
 			this.name = name;
@@ -212,12 +212,12 @@ public class Problem {
 	private final int numTicks;
 	private final double stars;
 	private final boolean ticked;
-	private List<Tick> ticks;
-	private List<Todo> todos;
-	private List<Comment> comments;
+	private List<ProblemTick> ticks;
+	private List<ProblemTodo> todos;
+	private List<ProblemComment> comments;
 	private final List<NewMedia> newMedia;
 	private final Type t;
-	private List<Section> sections;
+	private List<ProblemSection> sections;
 	private final boolean todo;
 	private final long hits;
 	private FaAid faAid;
@@ -283,11 +283,11 @@ public class Problem {
 		this.descent = descent;
 	}
 	
-	public Comment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
+	public ProblemComment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
-		Comment comment = new Comment(id, date, idUser, picture, name, message, danger, resolved, media);
+		ProblemComment comment = new ProblemComment(id, date, idUser, picture, name, message, danger, resolved, media);
 		comments.add(comment);
 		return comment;
 	}
@@ -296,14 +296,14 @@ public class Problem {
 		if (sections == null) {
 			sections = new ArrayList<>();
 		}
-		sections.add(new Section(id, nr, description, grade, media));
+		sections.add(new ProblemSection(id, nr, description, grade, media));
 	}
 	
-	public Tick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+	public ProblemTick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
-		Tick t = new Tick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable);
+		ProblemTick t = new ProblemTick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable);
 		ticks.add(t);
 		return t;
 	}
@@ -312,7 +312,7 @@ public class Problem {
 		if (todos == null) {
 			todos = new ArrayList<>();
 		}
-		todos.add(new Todo(idUser, picture, name));
+		todos.add(new ProblemTodo(idUser, picture, name));
 	}
 	
 	public String getAreaAccessClosed() {
@@ -343,7 +343,7 @@ public class Problem {
 		return comment;
 	}
 	
-	public List<Comment> getComments() {
+	public List<ProblemComment> getComments() {
 		return comments;
 	}
 	
@@ -419,7 +419,7 @@ public class Problem {
 		return routeLength;
 	}
 	
-	public List<Section> getSections() {
+	public List<ProblemSection> getSections() {
 		return sections;
 	}
 
@@ -475,11 +475,11 @@ public class Problem {
 		return t;
 	}
 
-	public List<Tick> getTicks() {
+	public List<ProblemTick> getTicks() {
 		return ticks;
 	}
 
-	public List<Todo> getTodos() {
+	public List<ProblemTodo> getTodos() {
 		return todos;
 	}
 	

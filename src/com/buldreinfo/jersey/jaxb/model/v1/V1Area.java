@@ -1,18 +1,18 @@
-package com.buldreinfo.jersey.jaxb.model.app;
+package com.buldreinfo.jersey.jaxb.model.v1;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Area {
+public class V1Area {
 	private final int regionId;
 	private final int id;
 	private final String name;
 	private final String comment;
 	private final double lat;
 	private final double lng;
-	private final List<Sector> sectors = new ArrayList<>();
+	private final List<V1Sector> sectors = new ArrayList<>();
 	
-	public Area(int regionId, int id, String name, String comment, double lat, double lng) {
+	public V1Area(int regionId, int id, String name, String comment, double lat, double lng) {
 		this.regionId = regionId;
 		this.id = id;
 		this.name = name;
@@ -45,7 +45,7 @@ public class Area {
 		return lng;
 	}
 
-	public List<Sector> getSectors() {
+	public List<V1Sector> getSectors() {
 		return sectors;
 	}
 }

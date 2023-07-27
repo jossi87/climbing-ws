@@ -5,12 +5,12 @@ import java.util.List;
 import java.util.Set;
 
 public class Activity {
-	public class Media {
+	public class ActivityMedia {
 		private final int id;
 		private final int crc32;
 		private final boolean isMovie;
 		private final String embedUrl;
-		public Media(int id, int crc32, boolean isMovie, String embedUrl) {
+		public ActivityMedia(int id, int crc32, boolean isMovie, String embedUrl) {
 			super();
 			this.id = id;
 			this.crc32 = crc32;
@@ -34,11 +34,11 @@ public class Activity {
 			return "Media [id=" + id + ", isMovie=" + isMovie + ", embedUrl=" + embedUrl + "]";
 		}
 	}
-	public class User {
+	public class ActivityUser {
 		private final int id;
 		private final String name;
 		private final String picture;
-		public User(int id, String name, String picture) {
+		public ActivityUser(int id, String name, String picture) {
 			super();
 			this.id = id;
 			this.name = name;
@@ -68,7 +68,7 @@ public class Activity {
 	private String grade;
 	private int problemRandomMediaId;
 	private int problemRandomMediaCrc32;
-	private List<Media> media;
+	private List<ActivityMedia> media;
 	private int stars;
 	private boolean repeat;
 	private int id;
@@ -76,7 +76,7 @@ public class Activity {
 	private String picture;
 	private String description;
 	private String message;
-	private List<User> users;
+	private List<ActivityUser> users;
 	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
@@ -91,7 +91,7 @@ public class Activity {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", picture));
+		this.users.add(new ActivityUser(userId>0? userId : 1049, name != null? name : "Unknown", picture));
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.problemRandomMediaCrc32 = problemRandomMediaCrc32;
@@ -100,7 +100,7 @@ public class Activity {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
-		this.media.add(new Media(id, crc32, isMovie, embedUrl));
+		this.media.add(new ActivityMedia(id, crc32, isMovie, embedUrl));
 		if (!isMovie) {
 			this.problemRandomMediaId = id;
 		}

@@ -61,7 +61,7 @@ import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Area.SectorOrder;
+import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
@@ -75,7 +75,7 @@ import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problem.Section;
+import com.buldreinfo.jersey.jaxb.model.Problem.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
@@ -85,7 +85,8 @@ import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Sector.ProblemOrder;
+import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblemOrder;
+import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -99,7 +100,6 @@ import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
-import com.buldreinfo.jersey.jaxb.model.app.Region;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
 import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
@@ -623,7 +623,7 @@ public class BuldreinfoRepository {
 							randomMediaId = x.get(0).getId();
 						}
 					}
-					Area.Sector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+					Area.AreaSector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, l.getLat(), l.getLng(), polygonCoords, polyline, randomMediaId, randomMediaCrc32);
 					for (SectorProblem sp : getSectorProblems(s, authUserId, as.getId())) {
 						as.getProblems().add(sp);
 					}
@@ -644,7 +644,7 @@ public class BuldreinfoRepository {
 					int numTicked = rst.getInt("num_ticked");
 					TypeNumTicked typeNumTicked = new TypeNumTicked(type, num, numTicked);
 					// Sector
-					Optional<Area.Sector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
+					Optional<Area.AreaSector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
 					if (optSector.isPresent()) {
 						optSector.get().getTypeNumTicked().add(typeNumTicked);
 					}
@@ -831,7 +831,7 @@ public class BuldreinfoRepository {
 
 	public Collection<Dangerous> getDangerous(int authUserId, Setup setup) throws SQLException {
 		Map<Integer, Dangerous> areasLookup = new LinkedHashMap<>();
-		Map<Integer, Dangerous.Sector> sectorLookup = new HashMap<>();
+		Map<Integer, Dangerous.DangerousSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message FROM ((((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin, u.firstname, u.lastname, g.post_time, g.message ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
@@ -851,7 +851,7 @@ public class BuldreinfoRepository {
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					Dangerous.Sector s = sectorLookup.get(sectorId);
+					Dangerous.DangerousSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -942,8 +942,8 @@ public class BuldreinfoRepository {
 					int grade = rst.getInt("grade");
 					String photographerJson = rst.getString("photographer");
 					String taggedJson = rst.getString("tagged");
-					Frontpage.RandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.RandomMedia.User.class);
-					List<Frontpage.RandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.RandomMedia.User>>(){}.getType());
+					Frontpage.FrontpageRandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.FrontpageRandomMedia.User.class);
+					List<Frontpage.FrontpageRandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.FrontpageRandomMedia.User>>(){}.getType());
 					res.setRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(setup, grade), photographer, tagged);
 				}
 			}
@@ -1080,9 +1080,9 @@ public class BuldreinfoRepository {
 		List<Integer> todoIdProblems = new ArrayList<>();
 		ProfileTodo todo = getProfileTodo(authUserId, s, authUserId);
 		if (todo != null) {
-			for (ProfileTodo.Area ta : todo.getAreas()) {
-				for (ProfileTodo.Sector ts : ta.getSectors()) {
-					for (ProfileTodo.Problem tp : ts.getProblems()) {
+			for (ProfileTodo.ProfileTodoArea ta : todo.getAreas()) {
+				for (ProfileTodo.ProfileTodoSector ts : ta.getSectors()) {
+					for (ProfileTodo.ProfileTodoProblem tp : ts.getProblems()) {
 						todoIdProblems.add(tp.getId());
 					}
 				}
@@ -1192,7 +1192,7 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
 		// Ascents
-		Map<Integer, Problem.Tick> tickLookup = new HashMap<>();
+		Map<Integer, Problem.ProblemTick> tickLookup = new HashMap<>();
 		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date DESC, t.id DESC";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, p.getId());
@@ -1207,7 +1207,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					int grade = rst.getInt("grade");
 					boolean writable = idUser == authUserId;
-					Problem.Tick t = p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s, grade), comment, stars, writable);
+					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s, grade), comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
@@ -1242,7 +1242,7 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time")) {
 			ps.setInt(1, p.getId());
 			try (ResultSet rst = ps.executeQuery()) {
-				Problem.Comment lastComment = null;
+				Problem.ProblemComment lastComment = null;
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
@@ -1311,7 +1311,7 @@ public class BuldreinfoRepository {
 	public List<ProblemArea> getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
-		Map<Integer, ProblemArea.Sector> sectorLookup = new HashMap<>();
+		Map<Integer, ProblemArea.ProblemAreaSector> sectorLookup = new HashMap<>();
 		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.latitude area_latitude, a.longitude area_longitude, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude problem_latitude, p.longitude problem_longitude, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
@@ -1346,7 +1346,7 @@ public class BuldreinfoRepository {
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProblemArea.Sector s = sectorLookup.get(sectorId);
+					ProblemArea.ProblemAreaSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -1715,9 +1715,9 @@ public class BuldreinfoRepository {
 		ProfileTodo res = new ProfileTodo();
 
 		// Build lists
-		Map<Integer, ProfileTodo.Area> areaLookup = new HashMap<>();
-		Map<Integer, ProfileTodo.Sector> sectorLookup = new HashMap<>();
-		Map<Integer, ProfileTodo.Problem> problemLookup = new HashMap<>();
+		Map<Integer, ProfileTodo.ProfileTodoArea> areaLookup = new HashMap<>();
+		Map<Integer, ProfileTodo.ProfileTodoSector> sectorLookup = new HashMap<>();
+		Map<Integer, ProfileTodo.ProfileTodoProblem> problemLookup = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.latitude problem_latitude, p.longitude problem_longitude, s.polygon_coords, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, a.latitude area_latitude, a.longitude area_longitude FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY r.url, t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin, p.latitude, p.longitude, s.polygon_coords, s.parking_latitude, s.parking_longitude, a.latitude, a.longitude ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
@@ -1727,7 +1727,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					ProfileTodo.Area a = areaLookup.get(areaId);
+					ProfileTodo.ProfileTodoArea a = areaLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
@@ -1738,7 +1738,7 @@ public class BuldreinfoRepository {
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProfileTodo.Sector s = sectorLookup.get(sectorId);
+					ProfileTodo.ProfileTodoSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -1776,7 +1776,7 @@ public class BuldreinfoRepository {
 							l = markerHelper.getLatLng(areaLatitude, areaLongitude);
 						}
 					}
-					ProfileTodo.Problem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade), l.getLat(), l.getLng());
+					ProfileTodo.ProfileTodoProblem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade), l.getLat(), l.getLng());
 					problemLookup.put(problemId, p);
 				}
 			}
@@ -1797,26 +1797,26 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		res.getAreas().sort(Comparator.comparing(ProfileTodo.Area::getName));
+		res.getAreas().sort(Comparator.comparing(ProfileTodo.ProfileTodoArea::getName));
 		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
 		return res;
 	}
 
-	public Collection<Region> getRegions(String uniqueId, boolean climbingNotBouldering) throws SQLException {
+	public Collection<V1Region> getRegions(String uniqueId, boolean climbingNotBouldering) throws SQLException {
 		final String regionTypeFilter = climbingNotBouldering? "rt.type_id!=1" : "rt.type_id=1";
 		final int idUser = upsertUserReturnId(uniqueId);
 		MarkerHelper markerHelper = new MarkerHelper();
-		Map<Integer, Region> regionMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Area> areaMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Sector> sectorMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.app.Problem> problemMap = new HashMap<>();
+		Map<Integer, V1Region> regionMap = new HashMap<>();
+		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Area> areaMap = new HashMap<>();
+		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Sector> sectorMap = new HashMap<>();
+		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Problem> problemMap = new HashMap<>();
 		// Regions
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE " + regionTypeFilter)) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					Region r = new Region(id, name);
+					V1Region r = new V1Region(id, name);
 					regionMap.put(r.getId(), r);
 				}
 			}
@@ -1827,13 +1827,13 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int regionId = rst.getInt("region_id");
-					Region r = regionMap.get(regionId);
+					V1Region r = regionMap.get(regionId);
 					if (r != null) {
 						int id = rst.getInt("id");
 						String name = rst.getString("name");
 						String comment = rst.getString("description");
 						LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-						com.buldreinfo.jersey.jaxb.model.app.Area a = new com.buldreinfo.jersey.jaxb.model.app.Area(regionId, id, name, comment, l.getLat(), l.getLng());
+						com.buldreinfo.jersey.jaxb.model.v1.V1Area a = new com.buldreinfo.jersey.jaxb.model.v1.V1Area(regionId, id, name, comment, l.getLat(), l.getLng());
 						r.getAreas().add(a);
 						areaMap.put(a.getId(), a);
 					}
@@ -1846,14 +1846,14 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
-					com.buldreinfo.jersey.jaxb.model.app.Area a = areaMap.get(areaId);
+					com.buldreinfo.jersey.jaxb.model.v1.V1Area a = areaMap.get(areaId);
 					if (a != null) {
 						int id = rst.getInt("id");
 						String name = rst.getString("name");
 						String comment = rst.getString("description");
 						LatLng l = markerHelper.getLatLng(rst.getDouble("parking_latitude"),
 								rst.getDouble("parking_longitude"));
-						com.buldreinfo.jersey.jaxb.model.app.Sector s = new com.buldreinfo.jersey.jaxb.model.app.Sector(areaId,
+						com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = new com.buldreinfo.jersey.jaxb.model.v1.V1Sector(areaId,
 								id, name, comment, l.getLat(), l.getLng());
 						a.getSectors().add(s);
 						sectorMap.put(s.getId(), s);
@@ -1867,7 +1867,7 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int sectorId = rst.getInt("sector_id");
-					com.buldreinfo.jersey.jaxb.model.app.Sector s = sectorMap.get(sectorId);
+					com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = sectorMap.get(sectorId);
 					if (s != null) {
 						int id = rst.getInt("id");
 						int nr = rst.getInt("nr");
@@ -1876,7 +1876,7 @@ public class BuldreinfoRepository {
 						int grade = rst.getInt("grade");
 						String fa = rst.getString("fa");
 						LatLng l = markerHelper.getLatLng(rst.getDouble("latitude"), rst.getDouble("longitude"));
-						com.buldreinfo.jersey.jaxb.model.app.Problem p = new com.buldreinfo.jersey.jaxb.model.app.Problem(
+						com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = new com.buldreinfo.jersey.jaxb.model.v1.V1Problem(
 								sectorId, id, nr, name, comment, grade, fa, l.getLat(), l.getLng());
 						s.getProblems().add(p);
 						problemMap.put(p.getId(), p);
@@ -1890,11 +1890,11 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int sectorId = rst.getInt("sector_id");
-					com.buldreinfo.jersey.jaxb.model.app.Sector s = sectorMap.get(sectorId);
+					com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = sectorMap.get(sectorId);
 					if (s != null) {
 						int id = rst.getInt("id");
 						boolean isMovie = rst.getBoolean("is_movie");
-						s.getMedia().add(new com.buldreinfo.jersey.jaxb.model.app.Media(id, isMovie, 0));
+						s.getMedia().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, 0));
 					}
 				}
 			}
@@ -1905,12 +1905,12 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int problemId = rst.getInt("problem_id");
-					com.buldreinfo.jersey.jaxb.model.app.Problem p = problemMap.get(problemId);
+					com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = problemMap.get(problemId);
 					if (p != null) {
 						int id = rst.getInt("id");
 						boolean isMovie = rst.getBoolean("is_movie");
 						int t = rst.getInt("t");
-						p.getMedia().add(new com.buldreinfo.jersey.jaxb.model.app.Media(id, isMovie, t));
+						p.getMedia().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, t));
 					}
 				}
 			}
@@ -2164,8 +2164,8 @@ public class BuldreinfoRepository {
 
 	public Todo getTodo(int authUserId, Setup setup, int idArea, int idSector) throws SQLException {
 		Todo res = new Todo();
-		Map<Integer, Todo.Sector> sectorLookup = new HashMap<>();
-		Map<Integer, Todo.Problem> problemLookup = new HashMap<>();
+		Map<Integer, Todo.TodoSector> sectorLookup = new HashMap<>();
+		Map<Integer, Todo.TodoProblem> problemLookup = new HashMap<>();
 		String condition = null;
 		int id = 0;
 		if (idSector > 0) {
@@ -2194,7 +2194,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					Todo.Sector s = sectorLookup.get(sectorId);
+					Todo.TodoSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorName = rst.getString("sector_name");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
@@ -2204,7 +2204,7 @@ public class BuldreinfoRepository {
 					}
 					// Problem
 					int problemId = rst.getInt("problem_id");
-					Todo.Problem p = problemLookup.get(problemId);
+					Todo.TodoProblem p = problemLookup.get(problemId);
 					if (p == null) {
 						int problemNr = rst.getInt("problem_nr");
 						String problemName = rst.getString("problem_name");
@@ -2738,7 +2738,7 @@ public class BuldreinfoRepository {
 
 			// Sector order
 			if (a.getSectorOrder() != null) {
-				for (SectorOrder x : a.getSectorOrder()) {
+				for (AreaSectorOrder x : a.getSectorOrder()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET sorting=? WHERE id=?")) {
 						ps.setInt(1, x.getSorting());
 						ps.setInt(2, x.getId());
@@ -2972,7 +2972,7 @@ public class BuldreinfoRepository {
 		}
 		if (p.getSections() != null && p.getSections().size() > 1) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade) VALUES (?, ?, ?, ?)")) {
-				for (Section section : p.getSections()) {
+				for (ProblemSection section : p.getSections()) {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.getNr());
 					ps.setString(3, trimString(section.getDescription()));
@@ -3065,7 +3065,7 @@ public class BuldreinfoRepository {
 
 			// Problem order
 			if (s.getProblemOrder() != null) {
-				for (ProblemOrder x : s.getProblemOrder()) {
+				for (SectorProblemOrder x : s.getProblemOrder()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
 						ps.setInt(1, x.getNr());
 						ps.setInt(2, x.getId());
@@ -3330,9 +3330,9 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
 			if (co.isDelete()) {
-				List<Problem.Comment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
+				List<Problem.ProblemComment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
 				Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.getIdProblem());
-				Problem.Comment lastComment = comments.get(comments.size()-1);
+				Problem.ProblemComment lastComment = comments.get(comments.size()-1);
 				Preconditions.checkArgument(co.getId() == lastComment.getId(), "Comment not in end of thread");
 				Preconditions.checkArgument(lastComment.isEditable(), "Comment not editable by " + authUserId);
 				try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM guestbook WHERE id=?")) {
