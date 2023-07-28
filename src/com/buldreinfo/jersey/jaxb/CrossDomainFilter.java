@@ -36,6 +36,9 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			if (from.equals("localhost:3000")) {
 				from = "http://localhost:3000";
 			}
+			else if (from.equals("localhost:8080")) {
+				from = "http://localhost:8080";
+			}
 			if (!from.startsWith("http")) {
 				from = "https://" + from;
 			}
@@ -48,6 +51,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 					LEGAL_ORIGINS.add("https://" + domain);
 				}
 				LEGAL_ORIGINS.add("http://localhost:3000");
+				LEGAL_ORIGINS.add("http://localhost:8080");
 			}
 			if (LEGAL_ORIGINS.contains(from)) {
 				cres.getHeaders().add("Access-Control-Allow-Origin", from);

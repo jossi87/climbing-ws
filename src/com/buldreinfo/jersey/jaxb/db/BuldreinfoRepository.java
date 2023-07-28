@@ -2063,7 +2063,7 @@ public class BuldreinfoRepository {
 
 	public List<Setup> getSetups() throws SQLException {
 		List<Setup> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(r.url,'https://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idRegion = rst.getInt("id_region");
