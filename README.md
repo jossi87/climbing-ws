@@ -36,7 +36,7 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 	- Choose "Eclipse IDE for Enterprise Java and Web Developers"
 	- "Checkout projects from Git" (https://github.com/jossi87/climbing-ws)
 	- Install Tomcat server: File -> New -> Other -> Tomcat v9.0 Server
-	- Edit buldreinfo.properties in "com.buldreinfo.jersey.jaxb.config". All values are required for the server to run, just add wathever you want to "auth0.secret"
+	- Edit buldreinfo.properties in "com.buldreinfo.jersey.jaxb.config" (all values are required for the server to run, just add wathever you want to "auth0.secret")
 	```
 	db.hostname=localhost
 	db.database=buldreinfo
@@ -46,7 +46,7 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 	```
 3. Run Project
 	Right click on "com.buldreinfo.jersey.jaxb" in Project Explorer and choose "Run as" -> "Run on server" to start web service.
-	You should now be able to access the server on:
+4. You should now be able to access the server on:
 	http://localhost:8080/com.buldreinfo.jersey.jaxb/v2/meta
 	http://localhost:8080/com.buldreinfo.jersey.jaxb/swagger.json
 	http://localhost:8080/com.buldreinfo.jersey.jaxb/application.wadl
