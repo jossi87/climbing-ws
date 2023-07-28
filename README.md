@@ -45,11 +45,11 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 	auth0.secret=WhateverYouWant
 	```
 3. Run Project
-	Right click on "com.buldreinfo.jersey.jaxb" in Project Explorer and choose "Run as" -> "Run on server" to start web service.
+	- Right click on "com.buldreinfo.jersey.jaxb" in Project Explorer and choose "Run as" -> "Run on server" to start web service.
 4. You should now be able to access the server on:
-	http://localhost:8080/com.buldreinfo.jersey.jaxb/v2/meta
-	http://localhost:8080/com.buldreinfo.jersey.jaxb/swagger.json
-	http://localhost:8080/com.buldreinfo.jersey.jaxb/application.wadl
+	- http://localhost:8080/com.buldreinfo.jersey.jaxb/v2/meta
+	- http://localhost:8080/com.buldreinfo.jersey.jaxb/swagger.json
+	- http://localhost:8080/com.buldreinfo.jersey.jaxb/application.wadl
 
 <!-- Contact -->
 ## :handshake: Contact
