@@ -117,6 +117,9 @@ public class Activity {
 	public int getId() {
 		return id;
 	}
+	public List<ActivityMedia> getMedia() {
+		return media;
+	}
 	public String getMessage() {
 		return message;
 	}
@@ -146,6 +149,9 @@ public class Activity {
 	}
 	public String getTimeAgo() {
 		return timeAgo;
+	}
+	public List<ActivityUser> getUsers() {
+		return users;
 	}
 	public boolean isProblemLockedAdmin() {
 		return problemLockedAdmin;
