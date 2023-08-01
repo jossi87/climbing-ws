@@ -4,25 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Sector {
-	public class SectorProblemOrder {
-		private final int id;
-		private final String name;
-		private final int nr;
-		public SectorProblemOrder(int id, String name, int nr) {
-			this.id = id;
-			this.name = name;
-			this.nr = nr;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getNr() {
-			return nr;
-		}
-	}
 	public class SectorJump {
 		private final int id;
 		private final boolean lockedAdmin;
@@ -45,6 +26,25 @@ public class Sector {
 		}
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
+		}
+	}
+	public class SectorProblemOrder {
+		private final int id;
+		private final String name;
+		private final int nr;
+		public SectorProblemOrder(int id, String name, int nr) {
+			this.id = id;
+			this.name = name;
+			this.nr = nr;
+		}
+		public int getId() {
+			return id;
+		}
+		public String getName() {
+			return name;
+		}
+		public int getNr() {
+			return nr;
 		}
 	}
 	
@@ -145,11 +145,11 @@ public class Sector {
 	public String getComment() {
 		return comment;
 	}
-
+	
 	public long getHits() {
 		return hits;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
@@ -181,13 +181,17 @@ public class Sector {
 	public String getPolyline() {
 		return polyline;
 	}
-
+	
 	public List<SectorProblemOrder> getProblemOrder() {
 		return problemOrder;
 	}
 
 	public List<SectorProblem> getProblems() {
 		return problems;
+	}
+
+	public List<SectorJump> getSectors() {
+		return sectors;
 	}
 	
 	public List<SectorJump> getSiblings() {
