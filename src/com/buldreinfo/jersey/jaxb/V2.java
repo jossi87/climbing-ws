@@ -1068,8 +1068,8 @@ public class V2 {
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
-			c.setSuccess();
 			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, p.getId(), false);
+			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
