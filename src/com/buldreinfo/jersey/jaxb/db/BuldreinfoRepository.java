@@ -4164,7 +4164,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name ORDER BY s.sorting")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name ORDER BY s.sorting, s.name")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, s.getAreaId());
 			try (ResultSet rst = ps.executeQuery()) {
