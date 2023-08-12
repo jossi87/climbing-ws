@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,31 +29,33 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
-	public final static Path root = Paths.get( "D:/gdrive/web/buldreinfo/buldreinfo_media");
-	private final static String LOCAL_LIB_WEBC_PATH = "D:/gdrive/web/buldreinfo/sw/libwebp-1.3.1-windows-x64/bin/cwebp.exe";
-	private final static String LOCAL_FFMPEG_PATH = "D:/gdrive/web/buldreinfo/sw/ffmpeg-2023-07-10-git-1c61c24f5f-full_build/bin/ffmpeg.exe";
-	private final static String LOCAL_YOUTUBE_DL_PATH = "D:/gdrive/web/buldreinfo/sw/youtube-dl/youtube-dl.exe";
+	public final static Path root = Paths.get( "G:/My Drive/web/buldreinfo/buldreinfo_media");
+	private final static String LOCAL_LIB_WEBC_PATH = "G:/My Drive/web/buldreinfo/sw/libwebp-1.3.1-windows-x64/bin/cwebp.exe";
+	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-07-10-git-1c61c24f5f-full_build/bin/ffmpeg.exe";
+	private final static String LOCAL_YOUTUBE_DL_PATH = "G:/My Drive/web/buldreinfo/sw/youtube-dl/youtube-dl.exe";
 
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			c.getConnection().setAutoCommit(true);
 			FixMedia service = new FixMedia();
+			List<Integer> newIdMedia = Lists.newArrayList();
 			// Add movie
-			//			final int idUploaderUserId = 1;			
-			//			Path src = Paths.get("C:/Users/joste/OneDrive/Skrivebord/new/.mp4");
-			//			int idPhotographerUserId = ;
-			//			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
-			//			idProblemMsMap.put(, 0l);
-			//			List<Integer> inPhoto = Lists.newArrayList();
-			//			service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto);
-			//			for (int idProblem : idProblemMsMap.keySet()) {
-			//				c.getBuldreinfoRepo().fillActivity(idProblem);
-			//			}
+			final int idUploaderUserId = 1;
+			Path src = Paths.get("C:/temp/.mp4"); // TODO
+			int idPhotographerUserId = 1; // TODO
+			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
+			idProblemMsMap.put(0, 0l); // TODO
+			List<Integer> inPhoto = Lists.newArrayList(); // TODO
+			newIdMedia.add(service.addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto));
+			for (int idProblem : idProblemMsMap.keySet()) {
+				c.getBuldreinfoRepo().fillActivity(idProblem);
+			}
 			// Create all formats and set checksum
-			List<String> warnings = service.fixMovies(c.getConnection());
+			List<String> warnings = service.fixMovies(c.getConnection(), newIdMedia);
 			for (String warning : warnings) {
 				logger.warn(warning);
 			}
@@ -65,7 +68,7 @@ public class FixMedia {
 	public FixMedia() {
 	}
 
-	public void addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
+	public int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
 		Preconditions.checkArgument(Files.exists(src), src.toString() + " does not exist");
 		Preconditions.checkArgument(idPhotographerUserId > 0, "Invalid idPhotographerUserId=" + idPhotographerUserId);
 		Preconditions.checkArgument(idUploaderUserId > 0, "Invalid idUploaderUserId=" + idUploaderUserId);
@@ -115,14 +118,20 @@ public class FixMedia {
 		Preconditions.checkArgument(Files.exists(dst.getParent().getParent()), dst.getParent().getParent().toString() + " does not exist");
 		Files.createDirectories(dst.getParent());
 		Files.copy(src, dst);
+		return idMedia;
 	}
 
-	private List<String> fixMovies(Connection c) throws Exception {
+	private List<String> fixMovies(Connection c, List<Integer> idMedia) throws Exception {
 		List<String> warnings = new ArrayList<>();
 		PreparedStatement ps = c.prepareStatement("SELECT id, width, height, suffix, is_movie, embed_url FROM media");
 		ResultSet rst = ps.executeQuery();
 		while (rst.next()) {
 			final int id = rst.getInt("id");
+			if (idMedia != null && !idMedia.isEmpty()) {
+				if (!idMedia.contains(id)) {
+					continue;
+				}
+			}
 			final int width = rst.getInt("width");
 			final int height = rst.getInt("height");
 			final String suffix = rst.getString("suffix");
