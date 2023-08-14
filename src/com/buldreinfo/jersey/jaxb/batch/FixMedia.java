@@ -219,10 +219,10 @@ public class FixMedia {
 							if (!Files.exists(webp) || Files.size(webp) == 0) {
 								logger.debug("Create " + webp);
 								Files.createDirectories(webp.getParent());
-								String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
-								Process process = Runtime.getRuntime().exec(cmd);
-								process.waitFor();
-								Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
+								String[] commands = {LOCAL_LIB_WEBC_PATH, jpg.toString(), "-o", webp.toString()};
+								Process p = new ProcessBuilder().inheritIO().command(commands).start();
+								p.waitFor();
+								Preconditions.checkArgument(Files.exists(webp), "WebP does not exist.");
 								logger.debug(webp.toString() + " saved");
 							}
 						}
