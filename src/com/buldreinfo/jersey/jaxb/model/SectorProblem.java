@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.model;
 
 public class SectorProblem {
 	private final int id;
+	private final String broken;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final int nr;
@@ -24,11 +25,12 @@ public class SectorProblem {
 	private final Type t;
 	private final boolean danger;
 	
-	public SectorProblem(int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
+	public SectorProblem(int id, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
 			int numPitches,
 			boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, boolean todo, Type t,
 			boolean danger) {
 		this.id = id;
+		this.broken = broken;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.nr = nr;
@@ -52,10 +54,14 @@ public class SectorProblem {
 		this.danger = danger;
 	}
 
+	public String getBroken() {
+		return broken;
+	}
+	
 	public String getComment() {
 		return comment;
 	}
-	
+
 	public String getFa() {
 		return fa;
 	}
@@ -67,7 +73,7 @@ public class SectorProblem {
 	public int getGradeNumber() {
 		return gradeNumber;
 	}
-
+	
 	public int getId() {
 		return id;
 	}

@@ -194,6 +194,7 @@ public class Problem {
 	private final int sectorIdProblemNext;
 	private final String canonical;
 	private final int id;
+	private final String broken;
 	private final boolean trash;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
@@ -230,7 +231,7 @@ public class Problem {
 	
 	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -253,6 +254,7 @@ public class Problem {
 		this.sectorIdProblemNext = sectorIdProblemNext;
 		this.canonical = canonical;
 		this.id = id;
+		this.broken = broken;
 		this.trash = trash;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
@@ -335,6 +337,10 @@ public class Problem {
 		return aspect;
 	}
 	
+	public String getBroken() {
+		return broken;
+	}
+	
 	public String getCanonical() {
 		return canonical;
 	}
@@ -370,11 +376,11 @@ public class Problem {
 	public String getGrade() {
 		return grade;
 	}
-	
+
 	public long getHits() {
 		return hits;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -402,11 +408,11 @@ public class Problem {
 	public int getNr() {
 		return nr;
 	}
-	
+
 	public int getNumTicks() {
 		return numTicks;
 	}
-
+	
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
@@ -418,11 +424,11 @@ public class Problem {
 	public String getRouteLength() {
 		return routeLength;
 	}
-	
+
 	public List<ProblemSection> getSections() {
 		return sections;
 	}
-
+	
 	public String getSectorAccessClosed() {
 		return sectorAccessClosed;
 	}
@@ -438,11 +444,11 @@ public class Problem {
 	public int getSectorIdProblemNext() {
 		return sectorIdProblemNext;
 	}
-	
+
 	public int getSectorIdProblemPrev() {
 		return sectorIdProblemPrev;
 	}
-
+	
 	public double getSectorLat() {
 		return sectorLat;
 	}
@@ -450,15 +456,15 @@ public class Problem {
 	public double getSectorLng() {
 		return sectorLng;
 	}
-	
+
 	public String getSectorName() {
 		return sectorName;
 	}
-
+	
 	public String getSectorPolygonCoords() {
 		return sectorPolygonCoords;
 	}
-	
+
 	public String getSectorPolyline() {
 		return sectorPolyline;
 	}
@@ -478,11 +484,11 @@ public class Problem {
 	public List<ProblemTick> getTicks() {
 		return ticks;
 	}
-
+	
 	public List<ProblemTodo> getTodos() {
 		return todos;
 	}
-	
+
 	public String getTrivia() {
 		return trivia;
 	}
@@ -490,11 +496,11 @@ public class Problem {
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
-
+	
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
-	
+
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
@@ -506,7 +512,7 @@ public class Problem {
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-
+	
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}
@@ -514,7 +520,7 @@ public class Problem {
 	public boolean isSectorLockedAdmin() {
 		return sectorLockedAdmin;
 	}
-	
+
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
@@ -522,7 +528,7 @@ public class Problem {
 	public boolean isTicked() {
 		return ticked;
 	}
-
+	
 	public boolean isTodo() {
 		return todo;
 	}

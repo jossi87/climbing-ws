@@ -7,6 +7,7 @@ public class ProblemArea {
 	public class ProblemAreaProblem {
 		private final int id;
 		private final String url;
+		private final String broken;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final int nr;
@@ -22,9 +23,10 @@ public class ProblemArea {
 		private final Type t;
 		private final int numPitches;
 		
-		public ProblemAreaProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+		public ProblemAreaProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
 			this.id = id;
 			this.url = url;
+			this.broken = broken;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 			this.nr = nr;
@@ -51,6 +53,10 @@ public class ProblemArea {
 		
 		public String getGrade() {
 			return grade;
+		}
+		
+		public String getBroken() {
+			return broken;
 		}
 
 		public int getId() {
@@ -126,8 +132,8 @@ public class ProblemArea {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public ProblemAreaProblem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
-			ProblemAreaProblem p = new ProblemAreaProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
+		public ProblemAreaProblem addProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+			ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
 			this.problems.add(p);
 			return p;
 		}
