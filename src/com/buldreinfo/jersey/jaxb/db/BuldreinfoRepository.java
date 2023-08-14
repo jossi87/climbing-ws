@@ -2712,7 +2712,11 @@ public class BuldreinfoRepository {
 	}
 
 	public void rotateMedia(int idRegion, int authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
-		ensureAdminWriteRegion(authUserId, idRegion);
+		// Rotate allowed for administrators + user who uploaded specific image
+		boolean uploadedByMe = getMedia(authUserId, idMedia).isUploadedByMe();
+		if (!uploadedByMe) {
+			ensureAdminWriteRegion(authUserId, idRegion);
+		}
 		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
 		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".webp");
 		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");

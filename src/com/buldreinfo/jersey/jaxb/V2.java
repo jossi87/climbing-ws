@@ -1238,7 +1238,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update media rotation")
+	@ApiOperation(value = "Update media rotation (allowed for administrators + user who uploaded specific image)")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
 	@PUT
 	@Path("/media/jpeg/rotate")
