@@ -4,6 +4,7 @@ import java.util.List;
 
 public class Media {
 	private final int id;
+	private final boolean uploadedByMe;
 	private final int crc32;
 	private final int pitch;
 	private final boolean trivia;
@@ -20,8 +21,9 @@ public class Media {
 	private final int enableMoveToIdSector;
 	private final int enableMoveToIdProblem;
 	
-	public Media(int id, int crc32, int pitch, boolean trivia, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
+	public Media(int id, boolean uploadedByMe, int crc32, int pitch, boolean trivia, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl) {
 		this.id = id;
+		this.uploadedByMe = uploadedByMe;
 		this.crc32 = crc32;
 		this.pitch = pitch;
 		this.trivia = trivia;
@@ -39,8 +41,9 @@ public class Media {
 		this.enableMoveToIdProblem = 0;
 	}
 
-	public Media(int id, int crc32, int pitch, boolean trivia, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) {
+	public Media(int id, boolean uploadedByMe, int crc32, int pitch, boolean trivia, int width, int height, int idType, String t, List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs, MediaMetadata mediaMetadata, String embedUrl, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) {
 		this.id = id;
+		this.uploadedByMe = uploadedByMe;
 		this.crc32 = crc32;
 		this.pitch = pitch;
 		this.trivia = trivia;
@@ -120,5 +123,9 @@ public class Media {
 	
 	public boolean isTrivia() {
 		return trivia;
+	}
+	
+	public boolean isUploadedByMe() {
+		return uploadedByMe;
 	}
 }

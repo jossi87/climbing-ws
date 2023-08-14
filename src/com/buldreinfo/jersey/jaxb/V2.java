@@ -357,13 +357,15 @@ public class V2 {
 	}
 
 	@ApiOperation(value = "Get Media by id", response = Media.class)
+	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMedia(@Context HttpServletRequest request,
 			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			Media res = c.getBuldreinfoRepo().getMedia(idMedia);
+			final int authUserId = getUserId(request);
+			Media res = c.getBuldreinfoRepo().getMedia(authUserId, idMedia);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
