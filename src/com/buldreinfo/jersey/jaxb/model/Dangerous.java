@@ -7,6 +7,7 @@ public class Dangerous {
 	public class DangerousProblem {
 		private final int id;
 		private final String url;
+		private final String broken;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final int nr;
@@ -16,9 +17,10 @@ public class Dangerous {
 		private final String postWhen;
 		private final String postTxt;
 		
-		public DangerousProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
+		public DangerousProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
 			this.id = id;
 			this.url = url;
+			this.broken = broken;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 			this.nr = nr;
@@ -29,8 +31,36 @@ public class Dangerous {
 			this.postTxt = postTxt;
 		}
 		
+		public String getBroken() {
+			return broken;
+		}
+		
+		public String getGrade() {
+			return grade;
+		}
+		
 		public int getId() {
 			return id;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public int getNr() {
+			return nr;
+		}
+		
+		public String getPostBy() {
+			return postBy;
+		}
+		
+		public String getPostTxt() {
+			return postTxt;
+		}
+		
+		public String getPostWhen() {
+			return postWhen;
 		}
 		
 		public String getUrl() {
@@ -40,33 +70,9 @@ public class Dangerous {
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
-		
+
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
-		}
-		
-		public int getNr() {
-			return nr;
-		}
-		
-		public String getName() {
-			return name;
-		}
-		
-		public String getGrade() {
-			return grade;
-		}
-		
-		public String getPostBy() {
-			return postBy;
-		}
-		
-		public String getPostWhen() {
-			return postWhen;
-		}
-
-		public String getPostTxt() {
-			return postTxt;
 		}
 	}
 	
@@ -86,8 +92,8 @@ public class Dangerous {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public DangerousProblem addProblem(int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
-			DangerousProblem p = new DangerousProblem(id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, postBy, postWhen, postTxt);
+		public DangerousProblem addProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, String postBy, String postWhen, String postTxt) {
+			DangerousProblem p = new DangerousProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, grade, postBy, postWhen, postTxt);
 			this.problems.add(p);
 			return p;
 		}
