@@ -2891,7 +2891,7 @@ public class BuldreinfoRepository {
 				} else {
 					ps.setNull(8, Types.DOUBLE);
 				}
-				ps.setString(9, p.getBroken());
+				ps.setString(9, trimString(p.getBroken()));
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.isLockedSuperadmin());
 				ps.setInt(12, p.getNr());
