@@ -118,16 +118,18 @@ public class ProblemArea {
 		private final String name;
 		private final double lat;
 		private final double lng;
+		private final String polygonCoords;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, double lat, double lng, String polygonCoords, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
 			this.lat = lat;
 			this.lng = lng;
+			this.polygonCoords = polygonCoords;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
@@ -148,6 +150,10 @@ public class ProblemArea {
 		
 		public double getLng() {
 			return lng;
+		}
+		
+		public String getPolygonCoords() {
+			return polygonCoords;
 		}
 		
 		public String getName() {
@@ -190,8 +196,8 @@ public class ProblemArea {
 		this.lockedSuperadmin = lockedSuperadmin;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, lat, lng, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, double lat, double lng, String polygonCoords, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, lat, lng, polygonCoords, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
