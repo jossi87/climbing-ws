@@ -5,7 +5,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -173,20 +172,8 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			Response response = null;
 			if (id > 0) {
-				try {
-					Collection<Area> areas = Collections.singleton(c.getBuldreinfoRepo().getArea(setup, authUserId, id));
-					response = Response.ok().entity(areas).build();
-				} catch (Exception e) {
-					// Area not found, see if it's visible on a different domain
-					Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
-					if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-						response = Response.temporaryRedirect(new URI(res.getRedirectUrl())).build();
-					}
-					else {
-						logger.fatal(e.getMessage(), e);
-						throw new RuntimeException(e.getMessage(), e);
-					}
-				}
+				Collection<Area> areas = Collections.singleton(c.getBuldreinfoRepo().getArea(setup, authUserId, id));
+				response = Response.ok().entity(areas).build();
 			}
 			else {
 				Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());

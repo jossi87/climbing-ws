@@ -135,6 +135,7 @@ public class Area {
 		}
 	}
 	
+	private final String redirectUrl;
 	private final int regionId;
 	private final String canonical;
 	private final int id;
@@ -159,7 +160,8 @@ public class Area {
 	private final long hits;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 	
-	public Area(int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, String name, String comment, double lat, double lng, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+		this.redirectUrl = redirectUrl;
 		this.regionId = regionId;
 		this.canonical = canonical;
 		this.id = id;
@@ -189,6 +191,10 @@ public class Area {
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;
+	}
+	
+	public String getRedirectUrl() {
+		return redirectUrl;
 	}
 
 	public String getAccessClosed() {

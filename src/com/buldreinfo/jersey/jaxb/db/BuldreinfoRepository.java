@@ -593,8 +593,15 @@ public class BuldreinfoRepository {
 							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
 						}
 					}
-					a = new Area(regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, name, comment, l.getLat(), l.getLng(), -1, -1, media, triviaMedia, null, hits);
+					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, name, comment, l.getLat(), l.getLng(), -1, -1, media, triviaMedia, null, hits);
 				}
+			}
+		}
+		if (a == null) {
+			// Area not found, see if it's visible on a different domain
+			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(reqId, 0, 0);
+			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
+				return new Area(res.getRedirectUrl(), -1, null, -1, false, false, false, false, null, null, false, null, null, 0, 0, 0, 0, null, null, null, 0);
 			}
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
@@ -701,7 +708,7 @@ public class BuldreinfoRepository {
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					int hits = rst.getInt("hits");
-					res.add(new Area(idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, null, hits));
+					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, name, comment, l.getLat(), l.getLng(), numSectors, numProblems, null, null, null, hits));
 				}
 			}
 		}
