@@ -180,9 +180,7 @@ public class V2 {
 					// Area not found, see if it's visible on a different domain
 					Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(id, 0, 0);
 					if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-						response = Response.temporaryRedirect(new URI(res.getRedirectUrl()))
-								.header("Access-Control-Allow-Origin", "https://sorlandet.brattelinjer.no")
-								.build();
+						response = Response.temporaryRedirect(new URI(res.getRedirectUrl())).build();
 					}
 					else {
 						logger.fatal(e.getMessage(), e);

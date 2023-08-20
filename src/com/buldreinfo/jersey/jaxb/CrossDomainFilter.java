@@ -54,9 +54,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				LEGAL_ORIGINS.add("http://localhost:8080");
 			}
 			if (LEGAL_ORIGINS.contains(from)) {
-				if (!cres.getHeaders().containsKey("Access-Control-Allow-Origin")) {
-					cres.getHeaders().add("Access-Control-Allow-Origin", from);
-				}
+				cres.getHeaders().add("Access-Control-Allow-Origin", from);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
 				cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
