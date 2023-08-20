@@ -173,6 +173,7 @@ public class Problem {
 			return picture;
 		}
 	}
+	private final String redirectUrl;
 	private final int areaId;
 	private final boolean areaLockedAdmin;
 	private final boolean areaLockedSuperadmin;
@@ -229,10 +230,11 @@ public class Problem {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed,
+	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
 			double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
+		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
 		this.areaLockedSuperadmin = areaLockedSuperadmin;
@@ -376,11 +378,11 @@ public class Problem {
 	public String getGrade() {
 		return grade;
 	}
-
+	
 	public long getHits() {
 		return hits;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
@@ -408,13 +410,17 @@ public class Problem {
 	public int getNr() {
 		return nr;
 	}
-
+	
 	public int getNumTicks() {
 		return numTicks;
 	}
-	
+
 	public String getOriginalGrade() {
 		return originalGrade;
+	}
+	
+	public String getRedirectUrl() {
+		return redirectUrl;
 	}
 	
 	public String getRock() {

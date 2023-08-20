@@ -48,6 +48,7 @@ public class Sector {
 		}
 	}
 	
+	private final String redirectUrl;
 	private final boolean orderByGrade;
 	private final int areaId;
 	private final boolean areaLockedAdmin;
@@ -77,7 +78,8 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -190,6 +192,10 @@ public class Sector {
 		return problems;
 	}
 
+	public String getRedirectUrl() {
+		return redirectUrl;
+	}
+	
 	public List<SectorJump> getSectors() {
 		return sectors;
 	}
@@ -209,11 +215,11 @@ public class Sector {
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
-	
+
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
-
+	
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}

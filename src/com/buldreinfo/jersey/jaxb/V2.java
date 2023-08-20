@@ -32,8 +32,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
@@ -99,7 +97,6 @@ import io.swagger.annotations.ApiParam;
 public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	private final static AuthHelper auth = new AuthHelper();
-	private static Logger logger = LogManager.getLogger();
 
 	public V2() {
 	}
@@ -413,15 +410,8 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			Response response = null;
-			try {
-				Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, showHiddenMedia);
-				response = Response.ok().entity(res).build();
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, id);
-				response = Response.ok().entity(res).build();
-			}
+			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, showHiddenMedia);
+			Response response = Response.ok().entity(res).build();
 			c.setSuccess();
 			return response;
 		} catch (Exception e) {
@@ -637,15 +627,8 @@ public class V2 {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
 			final boolean orderByGrade = setup.isBouldering();
-			Response response = null;
-			try {
-				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
-				response = Response.ok().entity(s).build();
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
-				Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, id, 0);
-				response = Response.ok().entity(res).build();
-			}
+			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			Response response = Response.ok().entity(s).build();
 			c.setSuccess();
 			return response;
 		} catch (Exception e) {
@@ -1277,7 +1260,7 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
+
 	private String getHtml(Setup setup, String url, String title, String description, int mediaId, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
@@ -1299,7 +1282,7 @@ public class V2 {
 				"</head></html>";
 		return html;
 	}
-	
+
 	private int getUserId(HttpServletRequest request) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta());

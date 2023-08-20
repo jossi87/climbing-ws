@@ -1190,7 +1190,7 @@ public class BuldreinfoRepository {
 						}
 					}
 
-					p = new Problem(areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed,
+					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorL.getLat(), sectorL.getLng(), sectorPolygonCoords, sectorPolyline,
 							sectorIdProblemPrev, sectorIdProblemNext,
@@ -1202,6 +1202,14 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		if (p == null) {
+			// Poblem not found, see if it's visible on a different domain
+			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, reqId);
+			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
+				return new Problem(res.getRedirectUrl(), 0, false, false, null, null, null, false, 0, false, false, null, null, null, 0, 0, null, null, 0, 0, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, 0, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
+			}
+		}
+		
 		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
 		// Ascents
 		Map<Integer, Problem.ProblemTick> tickLookup = new HashMap<>();
@@ -4192,10 +4200,18 @@ public class BuldreinfoRepository {
 					if (media != null && media.isEmpty()) {
 						media = null;
 					}
-					s = new Sector(orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, l.getLat(), l.getLng(), polygonCoords, polyline, media, triviaMedia, null, hits);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, l.getLat(), l.getLng(), polygonCoords, polyline, media, triviaMedia, null, hits);
 				}
 			}
 		}
+		if (s == null) {
+			// Sector not found, see if it's visible on a different domain
+			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, reqId, 0);
+			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
+				return new Sector(res.getRedirectUrl(), false, 0, false, false, null, null, false, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, 0);
+			}
+		}
+		
 		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name ORDER BY s.sorting, s.name")) {
 			ps.setInt(1, authUserId);
