@@ -128,14 +128,18 @@ public class Dangerous {
 	private final String name;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
+	private final int sunFromHour;
+	private final int sunToHour;
 	private final List<DangerousSector> sectors = new ArrayList<>();
 	
-	public Dangerous(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+	public Dangerous(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour) {
 		this.id = id;
 		this.url = url;
 		this.name = name;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
+		this.sunFromHour = sunFromHour;
+		this.sunToHour = sunToHour;
 	}
 	
 	public DangerousSector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
@@ -156,6 +160,14 @@ public class Dangerous {
 		return sectors;
 	}
 
+	public int getSunFromHour() {
+		return sunFromHour;
+	}
+	
+	public int getSunToHour() {
+		return sunToHour;
+	}
+	
 	public String getUrl() {
 		return url;
 	}
