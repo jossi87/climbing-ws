@@ -56,6 +56,8 @@ public class Sector {
 	private final String areaAccessInfo;
 	private final String areaAccessClosed;
 	private final boolean areaNoDogsAllowed;
+	private final int areaSunFromHour;
+	private final int areaSunToHour;
 	private final String areaName;
 	private final String canonical;
 	private final int id;
@@ -78,7 +80,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -87,6 +89,8 @@ public class Sector {
 		this.areaAccessInfo = areaAccessInfo;
 		this.areaAccessClosed = areaAccessClosed;
 		this.areaNoDogsAllowed = areaNoDogsAllowed;
+		this.areaSunFromHour = areaSunFromHour;
+		this.areaSunToHour = areaSunToHour;
 		this.areaName = areaName;
 		this.canonical = canonical;
 		this.id = id;
@@ -138,6 +142,14 @@ public class Sector {
 	
 	public String getAreaName() {
 		return areaName;
+	}
+	
+	public int getAreaSunFromHour() {
+		return areaSunFromHour;
+	}
+	
+	public int getAreaSunToHour() {
+		return areaSunToHour;
 	}
 	
 	public String getCanonical() {

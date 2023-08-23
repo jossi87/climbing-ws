@@ -181,6 +181,8 @@ public class Problem {
 	private final String areaAccessInfo;
 	private final String areaAccessClosed;
 	private final boolean areaNoDogsAllowed;
+	private final int areaSunFromHour;
+	private final int areaSunToHour;
 	private final int sectorId;
 	private final boolean sectorLockedAdmin;
 	private final boolean sectorLockedSuperadmin;
@@ -230,7 +232,7 @@ public class Problem {
 	private final String routeLength;
 	private final String descent;
 	
-	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed,
+	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
 			double sectorLat, double sectorLng, String sectorPolygonCoords, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
@@ -242,6 +244,8 @@ public class Problem {
 		this.areaAccessInfo = areaAccessInfo;
 		this.areaAccessClosed = areaAccessClosed;
 		this.areaNoDogsAllowed = areaNoDogsAllowed;
+		this.areaSunFromHour = areaSunFromHour;
+		this.areaSunToHour = areaSunToHour;
 		this.sectorId = sectorId;
 		this.sectorLockedAdmin = sectorLockedAdmin;
 		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
@@ -333,6 +337,14 @@ public class Problem {
 	
 	public String getAreaName() {
 		return areaName;
+	}
+	
+	public int getAreaSunFromHour() {
+		return areaSunFromHour;
+	}
+	
+	public int getAreaSunToHour() {
+		return areaSunToHour;
 	}
 	
 	public String getAspect() {
