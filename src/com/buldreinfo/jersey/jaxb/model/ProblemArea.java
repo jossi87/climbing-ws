@@ -43,6 +43,10 @@ public class ProblemArea {
 			this.numPitches = numPitches;
 		}
 		
+		public String getBroken() {
+			return broken;
+		}
+		
 		public String getDescription() {
 			return description;
 		}
@@ -53,10 +57,6 @@ public class ProblemArea {
 		
 		public String getGrade() {
 			return grade;
-		}
-		
-		public String getBroken() {
-			return broken;
 		}
 
 		public int getId() {
@@ -152,12 +152,12 @@ public class ProblemArea {
 			return lng;
 		}
 		
-		public String getPolygonCoords() {
-			return polygonCoords;
-		}
-		
 		public String getName() {
 			return name;
+		}
+		
+		public String getPolygonCoords() {
+			return polygonCoords;
 		}
 		
 		public List<ProblemAreaProblem> getProblems() {
@@ -184,9 +184,11 @@ public class ProblemArea {
 	private final double lng;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
+	private final int sunFromHour;
+	private final int sunToHour;
 	private final List<ProblemAreaSector> sectors = new ArrayList<>();
 	
-	public ProblemArea(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin) {
+	public ProblemArea(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour) {
 		this.id = id;
 		this.url = url;
 		this.name = name;
@@ -194,6 +196,8 @@ public class ProblemArea {
 		this.lng = lng;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
+		this.sunFromHour = sunFromHour;
+		this.sunToHour = sunToHour;
 	}
 	
 	public ProblemAreaSector addSector(int id, String url, String name, double lat, double lng, String polygonCoords, boolean lockedAdmin, boolean lockedSuperadmin) {
@@ -222,6 +226,14 @@ public class ProblemArea {
 		return sectors;
 	}
 
+	public int getSunFromHour() {
+		return sunFromHour;
+	}
+	
+	public int getSunToHour() {
+		return sunToHour;
+	}
+	
 	public String getUrl() {
 		return url;
 	}

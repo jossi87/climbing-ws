@@ -1338,7 +1338,7 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
 		Map<Integer, ProblemArea.ProblemAreaSector> sectorLookup = new HashMap<>();
-		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.latitude area_latitude, a.longitude area_longitude, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, s.polygon_coords sector_polygon_coords, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude problem_latitude, p.longitude problem_longitude, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
+		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.latitude area_latitude, a.longitude area_longitude, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.parking_latitude sector_latitude, s.parking_longitude sector_longitude, s.polygon_coords sector_polygon_coords, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude problem_latitude, p.longitude problem_longitude, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches"
@@ -1347,7 +1347,7 @@ public class BuldreinfoRepository {
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY r.url, a.id, a.name, a.latitude, a.longitude, a.locked_admin, a.locked_superadmin, s.sorting, s.id, s.name, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude, p.longitude, p.grade, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.name, a.latitude, a.longitude, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.parking_latitude, s.parking_longitude, s.polygon_coords, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude, p.longitude, p.grade, ty.id, ty.type, ty.subtype"
 				+ " ORDER BY a.name, s.sorting, s.name, p.nr";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
@@ -1367,7 +1367,9 @@ public class BuldreinfoRepository {
 						double areaLongitude = rst.getDouble("area_longitude");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = new ProblemArea(areaId, areaUrl, areaName, areaLatitude, areaLongitude, areaLockedAdmin, areaLockedSuperadmin);
+						int areaSunFromHour = rst.getInt("area_sun_from_hour");
+						int areaSunToHour = rst.getInt("area_sun_to_hour");
+						a = new ProblemArea(areaId, areaUrl, areaName, areaLatitude, areaLongitude, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour);
 						areaLookup.put(areaId, a);
 					}
 					// Sector
