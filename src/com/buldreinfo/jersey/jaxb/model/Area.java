@@ -18,13 +18,14 @@ public class Area {
 		private final double lat;
 		private final double lng;
 		private final String polygonCoords;
+		private final String wallDirection;
 		private final String polyline;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -37,6 +38,7 @@ public class Area {
 			this.lat = lat;
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
+			this.wallDirection = wallDirection;
 			this.polyline = polyline;
 			this.randomMediaId = randomMediaId;
 			this.randomMediaCrc32 = randomMediaCrc32;
@@ -65,7 +67,7 @@ public class Area {
 		public double getLat() {
 			return lat;
 		}
-
+		
 		public double getLng() {
 			return lng;
 		}
@@ -104,6 +106,10 @@ public class Area {
 
 		public List<TypeNumTicked> getTypeNumTicked() {
 			return typeNumTicked;
+		}
+
+		public String getWallDirection() {
+			return wallDirection;
 		}
 
 		public boolean isLockedAdmin() {
@@ -190,8 +196,8 @@ public class Area {
 		this.hits = hits;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, int randomMediaId, int randomMediaCrc32) {
-		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, polyline, randomMediaId, randomMediaCrc32);
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
+		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, wallDirection, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;

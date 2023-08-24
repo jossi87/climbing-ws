@@ -13,14 +13,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.stream.JsonReader;
 
 public class GeoHelper {
 	private static Logger logger = LogManager.getLogger();
-	public static String calculateWallDirection(String polygonCoords) {
-		if (Strings.isNullOrEmpty(polygonCoords)) {
+	public static String calculateWallDirection(Setup setup, String polygonCoords) {
+		if (!setup.isClimbing() || Strings.isNullOrEmpty(polygonCoords)) {
 			return null;
 		}
 		try {

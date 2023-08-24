@@ -58,6 +58,14 @@ public class Setup {
 		return "https://" + domain + suffix;
 	}
 
+	public boolean isBouldering() {
+		return gradeSystem.equals(Setup.GRADE_SYSTEM.BOULDER);
+	}
+
+	public boolean isClimbing() {
+		return gradeSystem.equals(Setup.GRADE_SYSTEM.CLIMBING);
+	}
+
 	public boolean isSetRobotsDenyAll() {
 		return setRobotsDenyAll;
 	}
@@ -86,14 +94,10 @@ public class Setup {
 		this.setRobotsDenyAll = true;
 		return this;
 	}
-
+	
 	public Setup setTitle(String title) {
 		this.title = title;
 		return this;
-	}
-
-	public boolean isBouldering() {
-		return gradeSystem.equals(Setup.GRADE_SYSTEM.BOULDER);
 	}
 
 	@Override
