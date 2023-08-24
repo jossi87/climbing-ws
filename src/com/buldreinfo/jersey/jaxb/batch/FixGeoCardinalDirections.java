@@ -13,17 +13,26 @@ import com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection.GeoCardinalDirect
 
 public class FixGeoCardinalDirections {
 	private static Logger logger = LogManager.getLogger();
-	
+
 	public static void main(String[] args) {
+		// TODO Use this data
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, s.polygon_coords FROM area a, sector s WHERE a.region_id=4 AND a.id=s.area_id AND s.polygon_coords IS NOT NULL AND a.name='Gloppedalen' ORDER BY a.name, s.name");
-					ResultSet rst = ps.executeQuery();) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, s.polygon_coords FROM area a, sector s WHERE a.region_id=4 AND a.id=s.area_id AND s.polygon_coords IS NOT NULL ORDER BY a.name, s.name");
+					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String areaName = rst.getString("area_name");
 					String sectorName = rst.getString("sector_name");
+					if (!areaName.equals("Gloppedalen")) {
+						continue;
+					}
 					String polygonCoords = rst.getString("polygon_coords");
-					GeoCardinalDirectionCalculator calc = new GeoCardinalDirectionCalculator(polygonCoords);
-					logger.debug("{} {}: {} - {}", areaName, sectorName, calc.getCardinalDirection(), calc.getVector());
+					String cardinalDirection = null;
+					try {
+						cardinalDirection = new GeoCardinalDirectionCalculator(polygonCoords, true).getCardinalDirection();
+					} catch (Exception e) {
+						// Ignore
+					}
+					logger.debug("{} {}: {}", areaName, sectorName, cardinalDirection);
 				}
 			}
 			c.setSuccess();

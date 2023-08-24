@@ -1,12 +1,12 @@
 package com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection;
-import java.util.HashMap;
-import java.util.Map;
 
 public class GeoPoint {
 	private final double latitude;
 	private final double longitude;
 	private final double elevation;
-	private final Map<GeoPoint, Double> neighbours = new HashMap<>();
+	private double distanceToCenter;
+	private double neighbourDistance = Double.MAX_VALUE;
+	private GeoPoint neighbourPoint;
 	
 	public GeoPoint(double latitude, double longitude, double elevation) {
 		this.latitude = latitude;
@@ -14,6 +14,14 @@ public class GeoPoint {
 		this.elevation = elevation;
 	}
 
+	public double getDistanceToCenter() {
+		return distanceToCenter;
+	}
+	
+	public double getElevation() {
+		return elevation;
+	}
+	
 	public double getLatitude() {
 		return latitude;
 	}
@@ -22,17 +30,25 @@ public class GeoPoint {
 		return longitude;
 	}
 
-	public double getElevation() {
-		return elevation;
+	public GeoPoint getNeighbourPoint() {
+		return neighbourPoint;
 	}
 	
-	public Map<GeoPoint, Double> getNeighbours() {
-		return neighbours;
+	public double getNeighbourDistance() {
+		return neighbourDistance;
+	}
+	
+	public void setDistanceToCenter(double distanceToCenter) {
+		this.distanceToCenter = distanceToCenter;
+	}
+	
+	public void setNeighbour(GeoPoint neighbourPoint, double neighbourDistance) {
+		this.neighbourPoint = neighbourPoint;
+		this.neighbourDistance = neighbourDistance;
 	}
 
 	@Override
 	public String toString() {
-		return "GeoPoint [latitude=" + latitude + ", longitude=" + longitude + ", elevation=" + elevation
-				+ ", neighbours=" + neighbours.size() + "]";
+		return latitude + "," + longitude + " (" + elevation + ")";
 	}
 }
