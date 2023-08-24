@@ -80,14 +80,16 @@ public class Dangerous {
 		private final int id;
 		private final String url;
 		private final String name;
+		private final String wallDirection;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<DangerousProblem> problems = new ArrayList<>();
 		
-		public DangerousSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public DangerousSector(int id, String url, String name, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
+			this.wallDirection = wallDirection;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
@@ -114,6 +116,10 @@ public class Dangerous {
 			return url;
 		}
 
+		public String getWallDirection() {
+			return wallDirection;
+		}
+		
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
@@ -142,8 +148,8 @@ public class Dangerous {
 		this.sunToHour = sunToHour;
 	}
 	
-	public DangerousSector addSector(int id, String url, String name, boolean lockedAdmin, boolean lockedSuperadmin) {
-		DangerousSector s = new DangerousSector(id, url, name, lockedAdmin, lockedSuperadmin);
+	public DangerousSector addSector(int id, String url, String name, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		DangerousSector s = new DangerousSector(id, url, name, wallDirection, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}

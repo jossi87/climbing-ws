@@ -14,30 +14,57 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.gson.stream.JsonReader;
 
-public class GeoCardinalDirectionCalculator {
+public class GeoHelper {
 	private static Logger logger = LogManager.getLogger();
+	public static String calculateWallDirection(String polygonCoords) {
+		if (Strings.isNullOrEmpty(polygonCoords)) {
+			return null;
+		}
+		try {
+			GeoHelper calc = new GeoHelper(polygonCoords);
+			return calc.getWallDirection();
+		} catch (Exception e) {
+			logger.warn(e.getMessage(), e);
+		}
+		return null;
+	}
 	private final List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
 	private GeoPoint firstPointHigh;
 	private GeoPoint secondPointLow;
 	private GeoPoint secondPointHigh;
-	private double bearing;
-	private long wallDirection;
-	private String cardinalDirection;
+	private double wallBearing;
+	private double wallPerpendicularBearing;
+	private long wallDirectionDegrees;
+	
+	private String wallDirection;
 
-	public GeoCardinalDirectionCalculator(String outline, boolean verbose) throws IOException {
+	public GeoHelper(String outline) throws IOException {
 		parseOutline(outline);
 		calculateDistanceToCenter();
 		calculateBoundingBox();
-		this.bearing = getBearing(firstPointLow, secondPointLow);
+		this.wallBearing = getBearing(firstPointLow, secondPointLow);
 		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
 		int degreesDelta = getPerpendicularDegrees();
 		if (degreesDelta == -90 || degreesDelta == 90) {
-			this.wallDirection = ((Math.round(bearing) + degreesDelta)+360) % 360;
-			this.cardinalDirection = convertFromDegreesToCardinalDirection(wallDirection);
+			this.wallDirectionDegrees = ((Math.round(wallBearing) + degreesDelta)+360) % 360;
+			this.wallDirection = convertFromDegreesToOrdinalName(wallDirectionDegrees);
 		}
+	}
+
+	public void debug() {
+		logger.debug("wallBearing={}, wallPerpendicularBearing={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
+						wallBearing, wallPerpendicularBearing,
+						firstPointLow, firstPointHigh, secondPointLow, secondPointHigh,
+						(firstPointLow.getLatitude() + "," + firstPointLow.getLongitude() + ";" + secondPointLow.getLatitude() + "," + secondPointLow.getLongitude()),
+						(firstPointHigh.getLatitude() + "," + firstPointHigh.getLongitude() + ";" + secondPointHigh.getLatitude() + "," + secondPointHigh.getLongitude()));
+	}
+
+	public String getWallDirection() {
+		return wallDirection;
 	}
 
 	private void calculateBoundingBox() {
@@ -82,6 +109,14 @@ public class GeoCardinalDirectionCalculator {
 			secondPointLow = g22;
 			secondPointHigh = g21;
 		}
+		// Validate that the bounding box is good enough to do calculations on
+		double distanceLowToHigh = (getDistance(firstPointLow.getLatitude(), firstPointLow.getLongitude(), firstPointHigh.getLatitude(), firstPointHigh.getLongitude()) +
+				getDistance(secondPointLow.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
+		double distanceFirstToSecond = (getDistance(firstPointHigh.getLatitude(), firstPointLow.getLongitude(), secondPointLow.getLatitude(), secondPointLow.getLongitude()) +
+				getDistance(firstPointHigh.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
+		if (distanceLowToHigh * 1.5 >= distanceFirstToSecond) {
+			throw new RuntimeException("Bounding box is not a rectangle, expecting minimum ratio 1.5:1");
+		}
 	}
 
 	private void calculateDistanceToCenter() {
@@ -97,23 +132,10 @@ public class GeoCardinalDirectionCalculator {
 		}
 	}
 
-	public String getCardinalDirection() {
-		return cardinalDirection;
-	}
-
-	private String convertFromDegreesToCardinalDirection(long bearing) {
-		if (bearing < 0 && bearing > -180) {
-			// Normalize to [0,360]
-			bearing = 360 + bearing;
-		}
-		if (bearing > 360 || bearing < -180) {
-			throw new RuntimeException("Invalid bearing: " + bearing);
-		}
-		String directions[] = {
-				"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-				"S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW", "N"};
-		String cardinal = directions[(int) Math.floor(((bearing + 11.25) % 360) / 22.5)];
-		return cardinal;
+	private String convertFromDegreesToOrdinalName(long bearing) {
+		String directions[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+		int num = Math.round(bearing * 8f / 360f) % 8;
+		return directions[num];
 	}
 
 	private long getBearing(GeoPoint g1, GeoPoint g2) {
@@ -138,21 +160,16 @@ public class GeoCardinalDirectionCalculator {
 		double distance = R * c * 1000; // convert to meters
 		return distance;
 	}
-
+	
 	private int getPerpendicularDegrees() {
 		// Use points with greatest elevation difference
-		double direction = (getBearing(firstPointHigh, firstPointLow) + getBearing(secondPointHigh, secondPointLow)) / 2.0;
-		logger.debug("bearing={}, direction={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
-				bearing, direction,
-				firstPointLow, firstPointHigh, secondPointLow, secondPointHigh,
-				(firstPointLow.getLatitude() + "," + firstPointLow.getLongitude() + ";" + secondPointLow.getLatitude() + "," + secondPointLow.getLongitude()),
-				(firstPointHigh.getLatitude() + "," + firstPointHigh.getLongitude() + ";" + secondPointHigh.getLatitude() + "," + secondPointHigh.getLongitude()));
-		if (direction > bearing) {
+		wallPerpendicularBearing = (getBearing(firstPointHigh, firstPointLow) + getBearing(secondPointHigh, secondPointLow)) / 2.0;
+		if (wallPerpendicularBearing > wallBearing) {
 			return 90;
 		}
 		return -90;
 	}
-	
+
 	private void parseOutline(String outline) throws IOException {
 		String locations = outline.replaceAll(";", "|");
 		double latitude = 0, longitude = 0, elevation = 0;

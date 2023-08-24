@@ -71,6 +71,7 @@ public class Sector {
 	private final double lat;
 	private final double lng;
 	private final String polygonCoords;
+	private final String wallDirection;
 	private final String polyline;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
@@ -80,7 +81,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -104,6 +105,7 @@ public class Sector {
 		this.lat = lat;
 		this.lng = lng;
 		this.polygonCoords = polygonCoords;
+		this.wallDirection = wallDirection;
 		this.polyline = polyline;
 		this.media = media;
 		this.triviaMedia = triviaMedia;
@@ -163,11 +165,11 @@ public class Sector {
 	public long getHits() {
 		return hits;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
-	
+
 	public double getLat() {
 		return lat;
 	}
@@ -199,7 +201,7 @@ public class Sector {
 	public List<SectorProblemOrder> getProblemOrder() {
 		return problemOrder;
 	}
-
+	
 	public List<SectorProblem> getProblems() {
 		return problems;
 	}
@@ -207,7 +209,7 @@ public class Sector {
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
-	
+
 	public List<SectorJump> getSectors() {
 		return sectors;
 	}
@@ -218,6 +220,10 @@ public class Sector {
 	
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
+	}
+	
+	public String getWallDirection() {
+		return wallDirection;
 	}
 	
 	public boolean isAreaLockedAdmin() {
