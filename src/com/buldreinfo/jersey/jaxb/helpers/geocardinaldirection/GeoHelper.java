@@ -133,7 +133,7 @@ public class GeoHelper {
 	}
 
 	private String convertFromDegreesToOrdinalName(long bearing) {
-		String directions[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+		String directions[] = { "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"};
 		int num = Math.round(bearing * 8f / 360f) % 8;
 		return directions[num];
 	}
