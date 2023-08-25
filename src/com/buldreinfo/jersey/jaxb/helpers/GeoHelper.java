@@ -193,7 +193,7 @@ public class GeoHelper {
 
 	private void calculateSunOffset() {
 		// Use points with greatest elevation difference
-		wallPerpendicularBearing = getAngleAverage(getBearing(firstPointHigh, firstPointLow), getBearing(secondPointHigh, secondPointLow));
+		wallPerpendicularBearing = getMeanAngle(getBearing(firstPointHigh, firstPointLow), getBearing(secondPointHigh, secondPointLow));
 		double diff = ((wallPerpendicularBearing - wallBearing + 360) % 360);
 		sunOffset = diff > 180? -90 : 90;
 	}
@@ -204,25 +204,13 @@ public class GeoHelper {
 		return directions[num];
 	}
 
-	private int getAngleAverage(int a, int b) {
-        a = a % 360;
-        b = b % 360;
-        int sum = a + b;
-        if (sum > 360 && sum < 540) {
-            sum = sum % 180;
-        }
-        return sum / 2;
-    }
-	
 	private int getBearing(GeoPoint g1, GeoPoint g2) {
 		double latitude1 = Math.toRadians(g1.getLatitude());
 		double latitude2 = Math.toRadians(g2.getLatitude());
 		double longDiff = Math.toRadians(g2.getLongitude()-g1.getLongitude());
 		double y = Math.sin(longDiff)*Math.cos(latitude2);
 		double x = (Math.cos(latitude1)*Math.sin(latitude2)) - (Math.sin(latitude1)*Math.cos(latitude2)*Math.cos(longDiff));
-		double brng = Math.toDegrees(Math.atan2(y, x));
-		int bearing = (int)Math.round(360 - ((brng + 360) % 360));
-		return bearing;
+		return (int)Math.round((Math.toDegrees(Math.atan2(y, x))+360)%360);
 	}
 	
 	private double getDistance(double lat1, double lng1, double lat2, double lng2) {
@@ -236,6 +224,19 @@ public class GeoHelper {
 		double distance = R * c * 1000; // convert to meters
 		return distance;
 	}
+	
+	private int getMeanAngle(double... anglesDeg) {
+        double x = 0.0;
+        double y = 0.0;
+        for (double angleD : anglesDeg) {
+            double angleR = Math.toRadians(angleD);
+            x += Math.cos(angleR);
+            y += Math.sin(angleR);
+        }
+        double avgR = Math.atan2(y / anglesDeg.length, x / anglesDeg.length);
+        int angle = (int)Math.round((Math.toDegrees(avgR)+360)%360);
+        return angle;
+    }
 	
 	private void parseOutline(String outline) throws IOException {
 		String locations = outline.replaceAll(";", "|");
