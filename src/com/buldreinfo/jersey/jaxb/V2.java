@@ -49,7 +49,6 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.GeoPoint;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -257,19 +256,20 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get elevation by outline", response = GeoPoint.class, responseContainer = "list")
+	@ApiOperation(value = "Get elevation by latitude and longitude", response = Integer.class)
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/elevation")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getElevation(@Context HttpServletRequest request,
-			@ApiParam(value = "outline", required = true) @QueryParam("outline") String outline) throws ExecutionException, IOException {
+			@ApiParam(value = "latitude", required = true) @QueryParam("latitude") double latitude,
+			@ApiParam(value = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId > 0, "Service requires logged in user");
-			List<GeoPoint> res = GeoHelper.calculateElevation(outline);
+			int elevation = GeoHelper.getElevation(latitude, longitude);
 			c.setSuccess();
-			return Response.ok().entity(res).build();
+			return Response.ok().entity(elevation).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
