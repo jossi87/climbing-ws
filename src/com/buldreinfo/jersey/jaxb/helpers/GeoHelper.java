@@ -97,14 +97,15 @@ public class GeoHelper {
 	private GeoPoint secondPointHigh;
 	private double wallBearing;
 	private double wallPerpendicularBearing;
+	private int sunOffset;
 	private long wallDirectionDegrees;
 
 	public GeoHelper() throws IOException {
 	}
 	
 	public void debug() {
-		logger.debug("wallBearing={}, wallPerpendicularBearing={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
-						wallBearing, wallPerpendicularBearing,
+		logger.debug("wallBearing={}, wallPerpendicularBearing={}, sunOffset={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
+						wallBearing, wallPerpendicularBearing, sunOffset,
 						firstPointLow, firstPointHigh, secondPointLow, secondPointHigh,
 						(firstPointLow.getLatitude() + "," + firstPointLow.getLongitude() + ";" + secondPointLow.getLatitude() + "," + secondPointLow.getLongitude()),
 						(firstPointHigh.getLatitude() + "," + firstPointHigh.getLongitude() + ";" + secondPointHigh.getLatitude() + "," + secondPointHigh.getLongitude()));
@@ -120,12 +121,9 @@ public class GeoHelper {
 		calculateBoundingBox();
 		this.wallBearing = getBearing(firstPointLow, secondPointLow);
 		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
-		int degreesDelta = getPerpendicularDegrees();
-		if (degreesDelta == -90 || degreesDelta == 90) {
-			this.wallDirectionDegrees = ((Math.round(wallBearing) + degreesDelta)+360) % 360;
-			return convertFromDegreesToOrdinalName(wallDirectionDegrees);
-		}
-		throw new RuntimeException("Could not calculate wall direction");
+		calculateSunOffset();
+		this.wallDirectionDegrees = ((Math.round(wallBearing) + sunOffset)+360) % 360;
+		return convertFromDegreesToOrdinalName(wallDirectionDegrees);
 	}
 	
 	private void calculateBoundingBox() {
@@ -222,13 +220,11 @@ public class GeoHelper {
 		return distance;
 	}
 	
-	private int getPerpendicularDegrees() {
+	private void calculateSunOffset() {
 		// Use points with greatest elevation difference
 		wallPerpendicularBearing = (getBearing(firstPointHigh, firstPointLow) + getBearing(secondPointHigh, secondPointLow)) / 2.0;
-		if (wallPerpendicularBearing > wallBearing) {
-			return 90;
-		}
-		return -90;
+		double diff = ((wallBearing + wallPerpendicularBearing + 360) % 360);
+		sunOffset = diff > 180? -90 : 90;
 	}
 	
 	private void parseOutline(String outline) throws IOException {
