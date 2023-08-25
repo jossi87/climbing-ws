@@ -27,10 +27,10 @@ public class FixWallDirections {
 					String wallDirection = null;
 					try {
 						GeoHelper calc = new GeoHelper();
-						// calc.debug();
 						wallDirection = calc.getWallDirection(polygonCoords);
+						calc.debug();
 					} catch (Exception e) {
-						// Ignore
+						logger.warn(e.getMessage(), e);
 					}
 					logger.debug("{} - {}: {}", areaName, sectorName, wallDirection);
 					if (wallDirection != null) {
