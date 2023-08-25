@@ -1,8 +1,9 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+
+import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
 
 public class Area {
 	public class AreaSector {
@@ -309,33 +310,7 @@ public class Area {
 
 	public void orderSectors() {
 		if (sectors != null) {
-			sectors.sort(new Comparator<AreaSector>() {
-				@Override
-				public int compare(AreaSector o1, AreaSector o2) {
-					return getName(o1).compareTo(getName(o2));
-				}
-				private String getName(AreaSector s) {
-					if (s.getSorting() > 0) {
-						return String.format("%04d", s.getSorting());
-					}
-					if (s.getName().toLowerCase().contains("vestre")) {
-						return s.getName().toLowerCase();
-					}
-					return s.getName().toLowerCase()
-							.replace("første", "1første")
-							.replace("sør", "1sør")
-							.replace("vest", "1vest")
-							.replace("venstre", "1venstre")
-							.replace("andre", "2andre")
-							.replace("midt", "2midt")
-							.replace("tredje", "3tredje")
-							.replace("hoved", "3hoved")
-							.replace("fjerde", "4fjerde")
-							.replace("høyre", "4høyre")
-							.replace("øst", "5øst")
-							.replace("nord", "6nord");
-				}
-			});
+			sectors.sort((AreaSector o1, AreaSector o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
 		}
 	}
 }

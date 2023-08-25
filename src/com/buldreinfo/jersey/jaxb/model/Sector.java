@@ -3,23 +3,30 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
+
 public class Sector {
 	public class SectorJump {
 		private final int id;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final String name;
-		public SectorJump(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
+		private final int sorting;
+		public SectorJump(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, int sorting) {
 			this.id = id;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 			this.name = name;
+			this.sorting = sorting;
 		}
 		public int getId() {
 			return id;
 		}
 		public String getName() {
 			return name;
+		}
+		public int getSorting() {
+			return sorting;
 		}
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
@@ -118,8 +125,8 @@ public class Sector {
 		this.problemOrder.add(new SectorProblemOrder(sp.getId(), sp.getName(), sp.getNr()));
 	}
 	
-	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name) {
-		this.sectors.add(new SectorJump(id, lockedAdmin, lockedSuperadmin, name));
+	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, int sorting) {
+		this.sectors.add(new SectorJump(id, lockedAdmin, lockedSuperadmin, name, sorting));
 	}
 	
 	public String getAccessClosed() {
@@ -233,11 +240,11 @@ public class Sector {
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
-
+	
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
-	
+
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
@@ -252,5 +259,11 @@ public class Sector {
 	
 	public boolean isTrash() {
 		return trash;
+	}
+	
+	public void orderSectors() {
+		if (sectors != null) {
+			sectors.sort((SectorJump o1, SectorJump o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
+		}
 	}
 }

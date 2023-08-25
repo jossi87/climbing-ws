@@ -3,6 +3,8 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
+
 public class ProblemArea {
 	public class ProblemAreaProblem {
 		private final int id;
@@ -116,6 +118,7 @@ public class ProblemArea {
 		private final int id;
 		private final String url;
 		private final String name;
+		private final int sorting;
 		private final double lat;
 		private final double lng;
 		private final String polygonCoords;
@@ -124,10 +127,11 @@ public class ProblemArea {
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
+			this.sorting = sorting;
 			this.lat = lat;
 			this.lng = lng;
 			this.polygonCoords = polygonCoords;
@@ -164,6 +168,10 @@ public class ProblemArea {
 		
 		public List<ProblemAreaProblem> getProblems() {
 			return problems;
+		}
+		
+		public int getSorting() {
+			return sorting;
 		}
 		
 		public String getUrl() {
@@ -206,8 +214,8 @@ public class ProblemArea {
 		this.sunToHour = sunToHour;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, lat, lng, polygonCoords, wallDirection, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, polygonCoords, wallDirection, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
@@ -231,11 +239,11 @@ public class ProblemArea {
 	public List<ProblemAreaSector> getSectors() {
 		return sectors;
 	}
-
+	
 	public int getSunFromHour() {
 		return sunFromHour;
 	}
-	
+
 	public int getSunToHour() {
 		return sunToHour;
 	}
@@ -243,12 +251,18 @@ public class ProblemArea {
 	public String getUrl() {
 		return url;
 	}
-
+	
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-	
+
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
+	}
+	
+	public void orderSectors() {
+		if (sectors != null) {
+			sectors.sort((ProblemAreaSector o1, ProblemAreaSector o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
+		}
 	}
 }
