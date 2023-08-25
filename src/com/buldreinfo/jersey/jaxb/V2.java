@@ -260,7 +260,7 @@ public class V2 {
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/elevation")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getElevation(@Context HttpServletRequest request,
 			@ApiParam(value = "latitude", required = true) @QueryParam("latitude") double latitude,
 			@ApiParam(value = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
