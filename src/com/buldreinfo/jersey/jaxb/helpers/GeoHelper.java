@@ -223,8 +223,9 @@ public class GeoHelper {
 	private void calculateSunOffset() {
 		// Use points with greatest elevation difference
 		wallPerpendicularBearing = (getBearing(firstPointHigh, firstPointLow) + getBearing(secondPointHigh, secondPointLow)) / 2.0;
-		double diff = ((wallPerpendicularBearing - wallBearing + 180) % 180);
-		sunOffset = diff > 180? 90 : -90;
+		double diff = ((wallPerpendicularBearing - wallBearing + 360) % 360);
+		System.err.println(diff);
+		sunOffset = diff > 180? -90 : 90;
 	}
 	
 	private void parseOutline(String outline) throws IOException {
