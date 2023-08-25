@@ -26,9 +26,9 @@ public class FixWallDirections {
 					String polygonCoords = rst.getString("polygon_coords");
 					String wallDirection = null;
 					try {
-						GeoHelper calc = new GeoHelper(polygonCoords);
+						GeoHelper calc = new GeoHelper();
 						// calc.debug();
-						wallDirection = calc.getWallDirection();
+						wallDirection = calc.getWallDirection(polygonCoords);
 					} catch (Exception e) {
 						// Ignore
 					}

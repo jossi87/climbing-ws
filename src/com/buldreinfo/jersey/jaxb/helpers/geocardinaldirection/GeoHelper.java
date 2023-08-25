@@ -25,14 +25,20 @@ public class GeoHelper {
 			return null;
 		}
 		try {
-			GeoHelper calc = new GeoHelper(polygonCoords);
-			return calc.getWallDirection();
+			GeoHelper calc = new GeoHelper();
+			return calc.getWallDirection(polygonCoords);
 		} catch (Exception e) {
 			logger.warn(e.getMessage(), e);
 		}
 		return null;
 	}
-	private final List<GeoPoint> geoPoints = new ArrayList<>();
+	public static double getElevation(double latitude, double longitude) throws IOException {
+		GeoHelper calc = new GeoHelper();
+		calc.parseOutline(latitude + ";" + longitude);
+		Preconditions.checkArgument(calc.getGeoPoints().size() == 1, "Could not fetch elevation from " + latitude + "," + longitude);
+		return calc.getGeoPoints().get(0).getElevation();
+	}
+	private List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
 	private GeoPoint firstPointHigh;
 	private GeoPoint secondPointLow;
@@ -40,22 +46,10 @@ public class GeoHelper {
 	private double wallBearing;
 	private double wallPerpendicularBearing;
 	private long wallDirectionDegrees;
-	
-	private String wallDirection;
 
-	public GeoHelper(String outline) throws IOException {
-		parseOutline(outline);
-		calculateDistanceToCenter();
-		calculateBoundingBox();
-		this.wallBearing = getBearing(firstPointLow, secondPointLow);
-		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
-		int degreesDelta = getPerpendicularDegrees();
-		if (degreesDelta == -90 || degreesDelta == 90) {
-			this.wallDirectionDegrees = ((Math.round(wallBearing) + degreesDelta)+360) % 360;
-			this.wallDirection = convertFromDegreesToOrdinalName(wallDirectionDegrees);
-		}
+	public GeoHelper() throws IOException {
 	}
-
+	
 	public void debug() {
 		logger.debug("wallBearing={}, wallPerpendicularBearing={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
 						wallBearing, wallPerpendicularBearing,
@@ -64,10 +58,24 @@ public class GeoHelper {
 						(firstPointHigh.getLatitude() + "," + firstPointHigh.getLongitude() + ";" + secondPointHigh.getLatitude() + "," + secondPointHigh.getLongitude()));
 	}
 
-	public String getWallDirection() {
-		return wallDirection;
+	public List<GeoPoint> getGeoPoints() {
+		return geoPoints;
 	}
 
+	public String getWallDirection(String outline) throws IOException {
+		parseOutline(outline);
+		calculateDistanceToCenter();
+		calculateBoundingBox();
+		this.wallBearing = getBearing(firstPointLow, secondPointLow);
+		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
+		int degreesDelta = getPerpendicularDegrees();
+		if (degreesDelta == -90 || degreesDelta == 90) {
+			this.wallDirectionDegrees = ((Math.round(wallBearing) + degreesDelta)+360) % 360;
+			return convertFromDegreesToOrdinalName(wallDirectionDegrees);
+		}
+		throw new RuntimeException("Could not calculate wall direction");
+	}
+	
 	private void calculateBoundingBox() {
 		// Find bounding box
 		List<GeoPoint> boundingBoxPoints = geoPoints
@@ -170,7 +178,7 @@ public class GeoHelper {
 		}
 		return -90;
 	}
-
+	
 	private void parseOutline(String outline) throws IOException {
 		String locations = outline.replaceAll(";", "|");
 		double latitude = 0, longitude = 0, elevation = 0;
