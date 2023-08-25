@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection;
+package com.buldreinfo.jersey.jaxb.helpers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -13,13 +13,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.model.GeoPoint;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.stream.JsonReader;
 
 public class GeoHelper {
 	private static Logger logger = LogManager.getLogger();
+	public static List<GeoPoint> calculateElevation(String outline) throws IOException {
+		GeoHelper calc = new GeoHelper();
+		calc.parseOutline(outline);
+		return calc.getGeoPoints();
+	}
 	public static String calculateWallDirection(Setup setup, String polygonCoords) {
 		if (!setup.isClimbing() || Strings.isNullOrEmpty(polygonCoords)) {
 			return null;
@@ -31,12 +36,6 @@ public class GeoHelper {
 			logger.warn(e.getMessage(), e);
 		}
 		return null;
-	}
-	public static double getElevation(double latitude, double longitude) throws IOException {
-		GeoHelper calc = new GeoHelper();
-		calc.parseOutline(latitude + ";" + longitude);
-		Preconditions.checkArgument(calc.getGeoPoints().size() == 1, "Could not fetch elevation from " + latitude + "," + longitude);
-		return calc.getGeoPoints().get(0).getElevation();
 	}
 	private List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
@@ -91,7 +90,7 @@ public class GeoHelper {
 				if (i != j) {
 					GeoPoint b = boundingBoxPoints.get(j);
 					double distance = getDistance(a.getLatitude(), a.getLongitude(), b.getLatitude(), b.getLongitude());
-					if (distance < a.getNeighbourDistance()) {
+					if (a.getNeighbourPoint() == null || distance < a.getNeighbourDistance()) {
 						a.setNeighbour(b, distance);
 					}
 				}

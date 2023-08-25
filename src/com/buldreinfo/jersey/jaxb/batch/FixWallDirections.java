@@ -8,8 +8,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection.GeoHelper;
 
 public class FixWallDirections {
 	private static Logger logger = LogManager.getLogger();

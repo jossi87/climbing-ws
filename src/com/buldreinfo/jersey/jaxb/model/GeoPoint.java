@@ -1,11 +1,11 @@
-package com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection;
+package com.buldreinfo.jersey.jaxb.model;
 
 public class GeoPoint {
 	private final double latitude;
 	private final double longitude;
 	private final double elevation;
 	private double distanceToCenter;
-	private double neighbourDistance = Double.MAX_VALUE;
+	private double neighbourDistance;
 	private GeoPoint neighbourPoint;
 	
 	public GeoPoint(double latitude, double longitude, double elevation) {

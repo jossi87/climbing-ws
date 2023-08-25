@@ -51,6 +51,7 @@ import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
+import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper;
@@ -58,7 +59,6 @@ import com.buldreinfo.jersey.jaxb.helpers.MarkerHelper.LatLng;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
-import com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;

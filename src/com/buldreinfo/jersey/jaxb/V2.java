@@ -39,16 +39,17 @@ import org.imgscalr.Scalr.Mode;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
+import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.helpers.geocardinaldirection.GeoHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.GeoPoint;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -256,20 +257,19 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get elevation by latitude and longitude", response = Double.class)
+	@ApiOperation(value = "Get elevation by outline", response = GeoPoint.class, responseContainer = "list")
 	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
 	@GET
 	@Path("/elevation")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getElevation(@Context HttpServletRequest request,
-			@ApiParam(value = "latitude", required = true) @QueryParam("latitude") double latitude,
-			@ApiParam(value = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
+			@ApiParam(value = "outline", required = true) @QueryParam("outline") String outline) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId > 0, "Service requires logged in user");
-			double elevation = GeoHelper.getElevation(latitude, longitude);
+			List<GeoPoint> res = GeoHelper.calculateElevation(outline);
 			c.setSuccess();
-			return Response.ok().entity(elevation).build();
+			return Response.ok().entity(res).build();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
