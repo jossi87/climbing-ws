@@ -15,7 +15,6 @@ public class FixWallDirections {
 	private static Logger logger = LogManager.getLogger();
 
 	public static void main(String[] args) {
-		// TODO Use this data
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.name area_name, s.name sector_name, s.id sector_id, s.polygon_coords FROM type t, region_type rt, area a, sector s WHERE t.group='Climbing' AND t.id=rt.type_id AND rt.region_id=a.region_id AND a.id=s.area_id AND s.polygon_coords IS NOT NULL AND s.wall_direction IS NULL GROUP BY a.name, s.name, s.id, s.polygon_coords ORDER BY a.name, s.name");
 					ResultSet rst = ps.executeQuery()) {
