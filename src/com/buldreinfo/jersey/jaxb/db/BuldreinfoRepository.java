@@ -3154,8 +3154,8 @@ public class BuldreinfoRepository {
 				ps.setBoolean(9, isLockedAdmin);
 				ps.setBoolean(10, s.isLockedSuperadmin());
 				ps.setString(11, trimString(s.getPolygonCoords()));
-				ps.setString(11, GeoHelper.calculateWallDirection(setup, s.getPolygonCoords()));
-				ps.setString(12, trimString(s.getPolyline()));
+				ps.setString(12, GeoHelper.calculateWallDirection(setup, s.getPolygonCoords()));
+				ps.setString(13, trimString(s.getPolyline()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
