@@ -5,59 +5,6 @@ import java.util.List;
 import java.util.Set;
 
 public class Activity {
-	public class ActivityMedia {
-		private final int id;
-		private final int crc32;
-		private final boolean isMovie;
-		private final String embedUrl;
-		public ActivityMedia(int id, int crc32, boolean isMovie, String embedUrl) {
-			super();
-			this.id = id;
-			this.crc32 = crc32;
-			this.isMovie = isMovie;
-			this.embedUrl = embedUrl;
-		}
-		public int getCrc32() {
-			return crc32;
-		}
-		public String getEmbedUrl() {
-			return embedUrl;
-		}
-		public int getId() {
-			return id;
-		}
-		public boolean isMovie() {
-			return isMovie;
-		}
-		@Override
-		public String toString() {
-			return "Media [id=" + id + ", isMovie=" + isMovie + ", embedUrl=" + embedUrl + "]";
-		}
-	}
-	public class ActivityUser {
-		private final int id;
-		private final String name;
-		private final String picture;
-		public ActivityUser(int id, String name, String picture) {
-			super();
-			this.id = id;
-			this.name = name;
-			this.picture = picture;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public String getPicture() {
-			return picture;
-		}
-		@Override
-		public String toString() {
-			return "User [id=" + id + ", name=" + name + ", picture=" + picture + "]";
-		}
-	}
 	private final Set<Integer> activityIds;
 	private final String timeAgo;
 	private final int problemId;
