@@ -607,7 +607,7 @@ public class V2 {
 		}
 	}
 
-	@Operation(summary = "Get profile todo", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get profile todo", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/todo")
