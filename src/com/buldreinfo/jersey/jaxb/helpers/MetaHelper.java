@@ -2,8 +2,6 @@ package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,6 +9,8 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 public class MetaHelper {
 	private static final Logger logger = LogManager.getLogger();

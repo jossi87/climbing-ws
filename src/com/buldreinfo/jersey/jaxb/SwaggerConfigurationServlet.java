@@ -1,13 +1,19 @@
 package com.buldreinfo.jersey.jaxb;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import io.swagger.jaxrs.config.BeanConfig;
+import io.swagger.v3.jaxrs2.integration.JaxrsOpenApiContextBuilder;
+import io.swagger.v3.oas.integration.OpenApiConfigurationException;
+import io.swagger.v3.oas.integration.SwaggerConfiguration;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
 
 /**
- * Creates https://brattelinjer.no/com.buldreinfo.jersey.jaxb/swagger.json
+ * Creates:
+ * - https://brattelinjer.no/com.buldreinfo.jersey.jaxb/openapi.json
+ * - http://localhost:8080/com.buldreinfo.jersey.jaxb/openapi.json
  */
 public class SwaggerConfigurationServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
@@ -15,13 +21,14 @@ public class SwaggerConfigurationServlet extends HttpServlet {
 	@Override
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
-		BeanConfig beanConfig = new BeanConfig();
-		beanConfig.setVersion("2.0.0");
-		beanConfig.setSchemes(new String[]{"https"});
-		beanConfig.setHost("brattelinjer.no");
-		beanConfig.setBasePath("/com.buldreinfo.jersey.jaxb");
-		beanConfig.setResourcePackage("com.buldreinfo.jersey.jaxb");
-		beanConfig.setScan(true);
-		beanConfig.setContact("https://github.com/jossi87");
+		SwaggerConfiguration oasConfig = new SwaggerConfiguration().resourcePackages(Stream.of("com.buldreinfo.jersey.jaxb").collect(Collectors.toSet()));
+		try {
+			new JaxrsOpenApiContextBuilder<>()
+	          .servletConfig(config)
+	          .openApiConfiguration(oasConfig)
+	          .buildContext(true);
+		} catch (OpenApiConfigurationException e) {
+			throw new ServletException(e.getMessage(), e);
+		}
 	}
 }

@@ -11,20 +11,17 @@
 		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
 		<init-param>
 			<param-name>jersey.config.server.provider.packages</param-name>
-			<param-value>
-				io.swagger.jaxrs.listing,
-				com.buldreinfo.jersey.jaxb
-			</param-value>
+			<param-value>io.swagger.v3.jaxrs2.integration.resources,com.buldreinfo.jersey.jaxb</param-value>
 		</init-param>
 		<init-param>
-			<param-name>javax.ws.rs.Application</param-name>
+			<param-name>jakarta.ws.rs.core.Application</param-name>
 			<param-value>com.buldreinfo.jersey.jaxb.BuldreinfoApplication</param-value>
 		</init-param>
 		<load-on-startup>1</load-on-startup>
 	</servlet>
 	
 	<servlet>
-        <servlet-name>SwaggerBootstrap</servlet-name>
+        <servlet-name>SwaggerConfigServlet</servlet-name>
         <servlet-class>com.buldreinfo.jersey.jaxb.SwaggerConfigurationServlet</servlet-class>
         <load-on-startup>2</load-on-startup>
     </servlet>

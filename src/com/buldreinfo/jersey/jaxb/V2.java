@@ -15,22 +15,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
@@ -84,16 +68,38 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.CacheControl;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 
 /**
  * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
  */
-@Api("/v2/")
+@Tag(name = "/v2/")
+@SecurityScheme(name = "Bearer Authentication", type = SecuritySchemeType.HTTP, bearerFormat = "jwt", scheme = "bearer")
 @Path("/v2/")
 public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -102,12 +108,12 @@ public class V2 {
 	public V2() {
 	}
 
-	@ApiOperation(value = "Move media to trash")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Move media to trash")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request,
-			@ApiParam(value = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(name = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(id > 0);
@@ -119,19 +125,19 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get activity feed", response = Activity.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get activity feed", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getActivity(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
-			@ApiParam(value = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
-			@ApiParam(value = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
-			@ApiParam(value = "Include comments", required = false) @QueryParam("comments") boolean comments,
-			@ApiParam(value = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
-			@ApiParam(value = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
+			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
+			@Parameter(name = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
+			@Parameter(name = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
+			@Parameter(name = "Include comments", required = false) @QueryParam("comments") boolean comments,
+			@Parameter(name = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
+			@Parameter(name = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -143,7 +149,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get administrators", response = Administrator.class, responseContainer = "list")
+	@Operation(summary = "Get administrators", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))})})
 	@GET
 	@Path("/administrators")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -158,13 +164,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get areas", response = Area.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get areas", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Area.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(name = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -184,13 +190,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get area PDF by id", response = Byte[].class)
+	@Operation(summary = "Get area PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@GET
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
 	public Response getAreasPdf(@Context final HttpServletRequest request,
-			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@ApiParam(value = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@Parameter(name = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
@@ -224,7 +230,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get webcams", response = Webcam.class, responseContainer = "list")
+	@Operation(summary = "Get webcams", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))})})
 	@GET
 	@Path("/webcams")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -239,8 +245,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get boulders/routes marked as dangerous", response = Dangerous.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Dangerous.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/dangerous")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -256,14 +262,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get elevation by latitude and longitude", response = Integer.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get elevation by latitude and longitude", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = Integer.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/elevation")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getElevation(@Context HttpServletRequest request,
-			@ApiParam(value = "latitude", required = true) @QueryParam("latitude") double latitude,
-			@ApiParam(value = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
+			@Parameter(name = "latitude", required = true) @QueryParam("latitude") double latitude,
+			@Parameter(name = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId > 0, "Service requires logged in user");
@@ -275,8 +281,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get frontpage", response = Frontpage.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get frontpage", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Frontpage.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -292,14 +298,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get grade distribution by Area Id or Sector Id", response = GradeDistribution.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getGradeDistribution(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -312,8 +318,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get graph (number of boulders/routes grouped by grade)", response = GradeDistribution.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/graph")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -332,14 +338,14 @@ public class V2 {
 	/**
 	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
 	 */
-	@ApiOperation(value = "Get media by id", response = Byte[].class, produces = "image/*")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
-			@ApiParam(value = "Media id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
-			@ApiParam(value = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
+			@Parameter(name = "Media id", required = true) @QueryParam("id") int id,
+			@Parameter(name = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(name = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			final String acceptHeader = request.getHeader("Accept");
@@ -366,14 +372,14 @@ public class V2 {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
 	}
-	
-	@ApiOperation(value = "Get Media by id", response = Media.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+
+	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMedia(@Context HttpServletRequest request,
-			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
+			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Media res = c.getBuldreinfoRepo().getMedia(authUserId, idMedia);
@@ -384,8 +390,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get metadata", response = Meta.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get metadata", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -401,8 +407,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get permissions", response = PermissionUser.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get permissions", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -418,14 +424,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problem by id", response = Problem.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get problem by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problem")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProblem(@Context HttpServletRequest request,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
+			@Parameter(name = "Problem id", required = true) @QueryParam("id") int id,
+			@Parameter(name = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -439,13 +445,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problem PDF by id", response = Byte[].class)
+	@Operation(summary = "Get problem PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@GET
 	@Path("/problem/pdf")
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request,
-			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@Parameter(name = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
@@ -473,8 +479,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems", response = ProblemArea.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get problems", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemArea.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -490,8 +496,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problems as Excel (xlsx)", response = Byte[].class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get problems as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problems/xlsx")
 	@Produces(MIME_TYPE_XLSX)
@@ -543,13 +549,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get profile by id", response = Profile.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get profile by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfile(@Context HttpServletRequest request,
-			@ApiParam(value = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
+			@Parameter(name = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -561,13 +567,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get profile media by id", response = ProfileMedia.class, responseContainer = "list")
+	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProfileMedia.class)))})})
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfilemedia(@Context HttpServletRequest request,
-			@ApiParam(value = "User id", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
+			@Parameter(name = "User id", required = true) @QueryParam("id") int id,
+			@Parameter(name = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -584,12 +590,12 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get profile statistics by id", response = ProfileStatistics.class)
+	@Operation(summary = "Get profile statistics by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))})})
 	@GET
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfileStatistics(@Context HttpServletRequest request,
-			@ApiParam(value = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(name = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -601,13 +607,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get profile todo", response = ProfileTodo.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get profile todo", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfileTodo(@Context HttpServletRequest request,
-			@ApiParam(value = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(name = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -619,7 +625,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get robots.txt", response = String.class)
+	@Operation(summary = "Get robots.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -635,13 +641,13 @@ public class V2 {
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
-	@ApiOperation(value = "Get sector by id", response = Sector.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get sector by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Sector.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@Context HttpServletRequest request,
-			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id
+			@Parameter(name = "Sector id", required = true) @QueryParam("id") int id
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -656,13 +662,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get sector PDF by id", response = Byte[].class)
+	@Operation(summary = "Get sector PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request,
-			@ApiParam(value = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@ApiParam(value = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@Parameter(name = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
@@ -691,7 +697,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get sitemap.txt", response = String.class)
+	@Operation(summary = "Get sitemap.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/sitemap.txt")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
@@ -706,13 +712,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get ticks (public ascents)", response = Ticks.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get ticks (public ascents)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Ticks.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/ticks")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTicks(@Context HttpServletRequest request,
-			@ApiParam(value = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
+			@Parameter(name = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -725,14 +731,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get todo on Area/Sector", response = Todo.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get todo on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Todo.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTodo(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -745,14 +751,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get top on Area/Sector", response = Top.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Top.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/top")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTop(@Context HttpServletRequest request, 
-			@ApiParam(value = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -764,8 +770,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get trash", response = Trash.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get trash", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Trash.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/trash")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -781,13 +787,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Search for user", response = UserSearch.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Search for user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UserSearch.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersSearch(@Context HttpServletRequest request,
-			@ApiParam(value = "Search keyword", required = true) @QueryParam("value") String value
+			@Parameter(name = "Search keyword", required = true) @QueryParam("value") String value
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -799,8 +805,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", response = Byte[].class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/ticks")
 	@Produces(MIME_TYPE_XLSX)
@@ -820,7 +826,7 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
@@ -851,11 +857,11 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get area by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/area/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @ApiParam(value = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(name = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -886,11 +892,11 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @ApiParam(value = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(name = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -925,11 +931,11 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", response = String.class)
+	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @ApiParam(value = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(name = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -958,8 +964,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update area (area must be provided as json on field \"json\" in multiPart)", response = Redirect.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/areas")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -978,8 +984,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update comment (comment must be provided as json on field \"json\" in multiPart)")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/comments")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -997,8 +1003,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update Media SVG")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update Media SVG")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, Media m) throws ExecutionException, IOException {
@@ -1013,8 +1019,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update user privilegies")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update user privilegies")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
@@ -1029,8 +1035,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update problem (problem must be provided as json on field \"json\" in multiPart)", response = Redirect.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1051,14 +1057,14 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", response = Problem.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postProblemsMedia(@Context HttpServletRequest request,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			@Parameter(name = "Problem id", required = true) @QueryParam("problemId") int problemId,
 			FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -1075,13 +1081,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update topo line on route/boulder (SVG on sector/problem-image)")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("problemId") int problemId,
-			@ApiParam(value = "Media id", required = true) @QueryParam("mediaId") int mediaId,
+			@Parameter(name = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			@Parameter(name = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -1097,8 +1103,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Search for area/sector/problem/user", response = Search.class, responseContainer = "list")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = false, dataType = "string", paramType = "header") })
+	@Operation(summary = "Search for area/sector/problem/user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -1116,8 +1122,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update sector (sector smust be provided as json on field \"json\" in multiPart)", response = Redirect.class)
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update sector (sector smust be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/sectors")
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
@@ -1138,8 +1144,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update tick (public ascent)")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update tick (public ascent)")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
@@ -1156,13 +1162,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update todo")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update todo")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/todo")
 	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postTodo(@Context HttpServletRequest request,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("idProblem") int idProblem
+			@Parameter(name = "Problem id", required = true) @QueryParam("idProblem") int idProblem
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -1174,13 +1180,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update visible regions")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update visible regions")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/user/regions")
 	public Response postUserRegions(@Context HttpServletRequest request,
-			@ApiParam(value = "Region id", required = true) @QueryParam("regionId") int regionId,
-			@ApiParam(value = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
+			@Parameter(name = "Region id", required = true) @QueryParam("regionId") int regionId,
+			@Parameter(name = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -1193,15 +1199,15 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update media location")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update media location")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media")
 	public Response putMedia(@Context HttpServletRequest request,
-			@ApiParam(value = "Move right", required = true) @QueryParam("id") int id,
-			@ApiParam(value = "Move left", required = true) @QueryParam("left") boolean left,
-			@ApiParam(value = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
-			@ApiParam(value = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
+			@Parameter(name = "Move right", required = true) @QueryParam("id") int id,
+			@Parameter(name = "Move left", required = true) @QueryParam("left") boolean left,
+			@Parameter(name = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
+			@Parameter(name = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
 			) throws ExecutionException, IOException {
 		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector == 0 && toIdProblem == 0) ||
@@ -1219,8 +1225,8 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update media info")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update media info")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/info")
 	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) throws ExecutionException, IOException {
@@ -1235,13 +1241,13 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Update media rotation (allowed for administrators + user who uploaded specific image)")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/jpeg/rotate")
 	public Response putMediaJpegRotate(@Context HttpServletRequest request,
-			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia,
-			@ApiParam(value = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
+			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia,
+			@Parameter(name = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -1254,15 +1260,15 @@ public class V2 {
 		}
 	}
 
-	@ApiOperation(value = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)")
-	@ApiImplicitParams({@ApiImplicitParam(name = "Authorization", value = "Authorization token", required = true, dataType = "string", paramType = "header") })
+	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)")
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/trash")
 	public Response putTrash(@Context HttpServletRequest request,
-			@ApiParam(value = "Area id", required = true) @QueryParam("idArea") int idArea,
-			@ApiParam(value = "Sector id", required = true) @QueryParam("idSector") int idSector,
-			@ApiParam(value = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
-			@ApiParam(value = "Media id", required = true) @QueryParam("idMedia") int idMedia
+			@Parameter(name = "Area id", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(name = "Sector id", required = true) @QueryParam("idSector") int idSector,
+			@Parameter(name = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
+			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia
 			) throws ExecutionException, IOException {
 		Preconditions.checkArgument(
 				(idArea > 0 && idSector == 0 && idProblem == 0) ||
