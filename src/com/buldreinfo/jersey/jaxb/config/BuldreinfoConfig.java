@@ -13,6 +13,7 @@ public class BuldreinfoConfig {
 	public final static String PROPERTY_KEY_DB_PASSWORD = "db.password";
 	public final static String PROPERTY_KEY_AUTH0_CLIENT_SECRET = "auth0.secret";
 	public final static String PROPERTY_KEY_GOOGLE_APIKEY = "google.apikey";
+	public final static String PROPERTY_KEY_VEGVESEN_AUTH = "vegvesen.auth";
 	private static BuldreinfoConfig config = null;
 	public static synchronized BuldreinfoConfig getConfig() {
 		BuldreinfoConfig result = config;

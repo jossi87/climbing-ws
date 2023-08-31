@@ -16,6 +16,7 @@ import javax.xml.stream.events.XMLEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -30,7 +31,7 @@ public class VegvesenParser {
 	public List<Webcam> getCameras() throws Exception {
 		URL url = new URL("https://www.vegvesen.no/ws/no/vegvesen/veg/trafikkpublikasjon/kamera/2/GetCCTVSiteTable");
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		String auth = "TjeDatexBuldreinfo:BZGOqBNXC2s9bAzTZjhA";
+		String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
 		byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
 		String authHeaderValue = "Basic " + new String(encodedAuth);
 		connection.setRequestProperty("Authorization", authHeaderValue);
