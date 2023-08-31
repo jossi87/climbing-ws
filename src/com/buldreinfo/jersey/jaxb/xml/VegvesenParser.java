@@ -46,7 +46,8 @@ public class VegvesenParser {
 	private List<Webcam> parseCameras(InputStream is) throws Exception {
 		List<Webcam> cameras = Lists.newArrayList();
 		XMLInputFactory inputFactory = XMLInputFactory.newInstance();
-		inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, true);
+		inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+		inputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
 		XMLEventReader eventReader = inputFactory.createXMLEventReader(is);
 		Webcam camera = null;
 		while (eventReader.hasNext()) {
