@@ -246,7 +246,7 @@ public class FixMedia {
 							logger.debug(jpg.toString() + " saved");
 
 							// IO WEBP
-							String cmd = "cmd /c " + LOCAL_LIB_WEBC_PATH + " \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"";
+							String[] cmd = new String[] { "\"" + LOCAL_LIB_WEBC_PATH + "\"", "\"" + jpg.toString() + "\"", "-o", "\"" + webp.toString() + "\""};
 							Process process = Runtime.getRuntime().exec(cmd);
 							process.waitFor();
 							Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + cmd);
