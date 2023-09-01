@@ -9,8 +9,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.Set;
-import java.util.TreeSet;
 
 import javax.imageio.ImageIO;
 
@@ -28,13 +26,13 @@ public class FixAvatars {
 	
 	public static void main(String[] args) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Path originalFolder = Paths.get("D:/gdrive/web/buldreinfo/buldreinfo_media/original/users");
-			final Path resizedFolder = Paths.get("D:/gdrive/web/buldreinfo/buldreinfo_media/web/users");
+			final Path originalFolder = Paths.get("G:/My Drive/web/buldreinfo/buldreinfo_media/original/users");
+			final Path resizedFolder = Paths.get("G:/My Drive/web/buldreinfo/buldreinfo_media/web/users");
 			Files.createDirectories(originalFolder.getParent());
 			Files.createDirectories(resizedFolder.getParent());
-			Set<String> missingFiles = new TreeSet<>();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL");
-					ResultSet rst = ps.executeQuery();) {
+			int counter = 0;
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL ORDER BY u.id DESC");
+					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String picture = rst.getString("picture");
@@ -48,7 +46,7 @@ public class FixAvatars {
 								logger.debug("Downloaded " + original.toString());
 							}
 						} catch (Exception e) {
-							missingFiles.add(original.toString());
+							logger.warn("Could not download {}, Files.exists(resized)={}", original.toString(), Files.exists(resized));
 						}
 					}
 					if (Files.exists(original) && !Files.exists(resized)) {
@@ -62,10 +60,10 @@ public class FixAvatars {
 						Preconditions.checkArgument(Files.exists(resized));
 						logger.debug("Created " + resized.toString());
 					}
+					if (++counter % 250 == 0) {
+						logger.debug("Done with {} users, id={}", counter, id);
+					}
 				}
-			}
-			for (String missingFile : missingFiles) {
-				logger.warn(missingFile);
 			}
 			c.setSuccess();
 		} catch (Exception e) {
