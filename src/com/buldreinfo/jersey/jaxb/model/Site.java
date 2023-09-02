@@ -1,17 +1,19 @@
 package com.buldreinfo.jersey.jaxb.model;
 
+import java.util.List;
+
 public class Site {
 	private final String group;
 	private final String name;
 	private final String url;
-	private final String polygonCoords;
+	private final List<Coordinate> outline;
 	private final boolean active;
 	
-	public Site(String group, String name, String url, String polygonCoords, boolean active) {
+	public Site(String group, String name, String url, List<Coordinate> outline, boolean active) {
 		this.group = group;
 		this.name = name;
 		this.url = url;
-		this.polygonCoords = polygonCoords;
+		this.outline = outline;
 		this.active = active;
 	}
 
@@ -23,8 +25,8 @@ public class Site {
 		return name;
 	}
 
-	public String getPolygonCoords() {
-		return polygonCoords;
+	public List<Coordinate> getOutline() {
+		return outline;
 	}
 
 	public String getUrl() {

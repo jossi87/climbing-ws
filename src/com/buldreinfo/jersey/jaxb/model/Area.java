@@ -18,7 +18,7 @@ public class Area {
 		private final String accessClosed;
 		private final double lat;
 		private final double lng;
-		private final String polygonCoords;
+		private final List<Coordinate> outline;
 		private final String wallDirection;
 		private final String polyline;
 		private final int randomMediaId;
@@ -26,7 +26,7 @@ public class Area {
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, List<Coordinate> outline, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -38,7 +38,7 @@ public class Area {
 			this.accessClosed = accessClosed;
 			this.lat = lat;
 			this.lng = lng;
-			this.polygonCoords = polygonCoords;
+			this.outline = outline;
 			this.wallDirection = wallDirection;
 			this.polyline = polyline;
 			this.randomMediaId = randomMediaId;
@@ -81,8 +81,8 @@ public class Area {
 			return numProblems;
 		}
 
-		public String getPolygonCoords() {
-			return polygonCoords;
+		public List<Coordinate> getOutline() {
+			return outline;
 		}
 
 		public String getPolyline() {
@@ -197,8 +197,8 @@ public class Area {
 		this.hits = hits;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
-		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, polygonCoords, wallDirection, polyline, randomMediaId, randomMediaCrc32);
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, List<Coordinate> outline, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
+		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, lat, lng, outline, wallDirection, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;

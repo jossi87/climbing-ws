@@ -121,20 +121,20 @@ public class ProblemArea {
 		private final int sorting;
 		private final double lat;
 		private final double lng;
-		private final String polygonCoords;
+		private final List<Coordinate> outline;
 		private final String wallDirection;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, List<Coordinate> outline, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
 			this.sorting = sorting;
 			this.lat = lat;
 			this.lng = lng;
-			this.polygonCoords = polygonCoords;
+			this.outline = outline;
 			this.wallDirection = wallDirection;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
@@ -162,8 +162,8 @@ public class ProblemArea {
 			return name;
 		}
 		
-		public String getPolygonCoords() {
-			return polygonCoords;
+		public List<Coordinate> getOutline() {
+			return outline;
 		}
 		
 		public List<ProblemAreaProblem> getProblems() {
@@ -214,8 +214,8 @@ public class ProblemArea {
 		this.sunToHour = sunToHour;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, String polygonCoords, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, polygonCoords, wallDirection, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, List<Coordinate> outline, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, outline, wallDirection, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}

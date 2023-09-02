@@ -77,7 +77,7 @@ public class Sector {
 	private final String accessClosed;
 	private final double lat;
 	private final double lng;
-	private final String polygonCoords;
+	private final List<Coordinate> outline;
 	private final String wallDirection;
 	private final String polyline;
 	private final List<Media> media;
@@ -88,7 +88,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, String polygonCoords, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, List<Coordinate> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -111,7 +111,7 @@ public class Sector {
 		this.accessClosed = accessClosed;
 		this.lat = lat;
 		this.lng = lng;
-		this.polygonCoords = polygonCoords;
+		this.outline = outline;
 		this.wallDirection = wallDirection;
 		this.polyline = polyline;
 		this.media = media;
@@ -197,8 +197,8 @@ public class Sector {
 		return newMedia;
 	}
 	
-	public String getPolygonCoords() {
-		return polygonCoords;
+	public List<Coordinate> getOutline() {
+		return outline;
 	}
 	
 	public String getPolyline() {

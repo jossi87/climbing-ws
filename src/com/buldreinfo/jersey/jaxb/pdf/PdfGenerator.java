@@ -28,6 +28,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Coordinate;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
@@ -516,7 +517,7 @@ public class PdfGenerator implements AutoCloseable {
 					polylines.add(sector.getPolyline());
 					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
 				}
-				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
 					String label = null;
 					if (useLegend) {
@@ -526,7 +527,17 @@ public class PdfGenerator implements AutoCloseable {
 					else {
 						label = name;
 					}
-					outlines.add(new Outline(label, sector.getPolygonCoords()));
+					String polygonCoords = null;
+					for (Coordinate coord : sector.getOutline()) {
+						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
+						if (polygonCoords == null) {
+							polygonCoords = latLng;
+						}
+						else {
+							polygonCoords += ";" + latLng;
+						}
+					}
+					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
 
@@ -578,9 +589,19 @@ public class PdfGenerator implements AutoCloseable {
 				polylines.add(sector.getPolyline());
 				distance = LeafletPrintGenerator.getDistance(sector.getPolyline());	
 			}
-			if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
-				outlines.add(new Outline(label, sector.getPolygonCoords()));
+				String polygonCoords = null;
+				for (Coordinate coord : sector.getOutline()) {
+					String latLng = coord.getLatitude() + ";" + coord.getLongitude();
+					if (polygonCoords == null) {
+						polygonCoords = latLng;
+					}
+					else {
+						polygonCoords += ";" + latLng;
+					}
+				}
+				outlines.add(new Outline(label, polygonCoords));
 			}
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
@@ -659,9 +680,19 @@ public class PdfGenerator implements AutoCloseable {
 					polylines.add(sector.getPolyline());
 					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
 				}
-				if (!Strings.isNullOrEmpty(sector.getPolygonCoords())) {
+				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
-					outlines.add(new Outline(label, sector.getPolygonCoords()));
+					String polygonCoords = null;
+					for (Coordinate coord : sector.getOutline()) {
+						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
+						if (polygonCoords == null) {
+							polygonCoords = latLng;
+						}
+						else {
+							polygonCoords += ";" + latLng;
+						}
+					}
+					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
 
