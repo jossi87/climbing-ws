@@ -3247,7 +3247,12 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		if (s.getOutline() != null && !s.getOutline().isEmpty()) {
+		if (s.getOutline() == null || s.getOutline().isEmpty()) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
+				ps.setInt(1, idSector);
+				ps.execute();
+			}
+		} else {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_outline WHERE sector_id=? AND sorting>?")) {
 				ps.setInt(1, idSector);
 				ps.setInt(2, s.getOutline().size());
