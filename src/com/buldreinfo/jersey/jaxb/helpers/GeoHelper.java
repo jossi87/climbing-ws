@@ -162,7 +162,6 @@ public class GeoHelper {
 		List<Coordinate> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinate(latitude, longitude));
 		GeoHelper.fillElevations(coordinates);
-		Preconditions.checkArgument(coordinates.get(0).getElevation() > 0, "Could not calculate elevation");
 		return (int)Math.round(coordinates.get(0).getElevation());
 	}
 	private List<GeoPoint> geoPoints = new ArrayList<>();
