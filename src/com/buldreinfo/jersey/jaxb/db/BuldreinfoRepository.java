@@ -1410,7 +1410,7 @@ public class BuldreinfoRepository {
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY r.url, a.id, a.name, a.latitude, a.longitude, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, s.parking_latitude, s.parking_longitude,, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude, p.longitude, p.grade, ty.id, ty.type, ty.subtype"
+				+ " GROUP BY r.url, a.id, a.name, a.latitude, a.longitude, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, s.parking_latitude, s.parking_longitude, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.latitude, p.longitude, p.grade, ty.id, ty.type, ty.subtype"
 				+ " ORDER BY a.name, s.sorting, s.name, p.nr";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId);
@@ -2262,7 +2262,7 @@ public class BuldreinfoRepository {
 					List<Coordinate> outline = new ArrayList<>();
 					if (!Strings.isNullOrEmpty(polygonCoords)) {
 						for (String latLng : polygonCoords.split(";")) {
-							String[] parts = latLng.split(";");
+							String[] parts = latLng.split(",");
 							double latitude = Double.parseDouble(parts[0]);
 							double longitude = Double.parseDouble(parts[1]);
 							outline.add(new Coordinate(latitude, longitude));
