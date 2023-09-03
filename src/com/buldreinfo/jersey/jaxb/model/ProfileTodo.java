@@ -78,11 +78,11 @@ public class ProfileTodo {
 		private final int nr;
 		private final String name;
 		private final String grade;
-		private final double lat;
-		private final double lng;
+		private double lat;
+		private double lng;
 		private List<ProfileTodoPartner> partners = new ArrayList<>();
 		
-		public ProfileTodoProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
+		public ProfileTodoProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
 			this.todoId = todoId;
 			this.id = id;
 			this.url = url;
@@ -91,8 +91,6 @@ public class ProfileTodo {
 			this.nr = nr;
 			this.name = name;
 			this.grade = grade;
-			this.lat = lat;
-			this.lng = lng;
 		}
 		
 		public ProfileTodoPartner addPartner(int id, String name) {
@@ -145,6 +143,11 @@ public class ProfileTodo {
 			return lockedSuperadmin;
 		}
 		
+		public void setLatLng(double lat, double lng) {
+			this.lat = lat;
+			this.lng = lng;
+		}
+		
 		public void setPartners(List<ProfileTodoPartner> partners) {
 			this.partners = partners;
 		}
@@ -166,8 +169,8 @@ public class ProfileTodo {
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public ProfileTodoProblem addProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade, double lat, double lng) {
-			ProfileTodoProblem p = new ProfileTodoProblem(todoId, id, url, lockedAdmin, lockedSuperadmin, nr, name, grade, lat, lng);
+		public ProfileTodoProblem addProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
+			ProfileTodoProblem p = new ProfileTodoProblem(todoId, id, url, lockedAdmin, lockedSuperadmin, nr, name, grade);
 			this.problems.add(p);
 			return p;
 		}

@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -12,6 +13,7 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.model.Coordinate;
+import com.google.common.collect.Lists;
 
 public class FixWallDirections {
 	private static Logger logger = LogManager.getLogger();
@@ -25,7 +27,7 @@ public class FixWallDirections {
 					String areaName = rst.getString("area_name");
 					int sectorId = rst.getInt("sector_id");
 					String sectorName = rst.getString("sector_name");
-					List<Coordinate> outline = c.getBuldreinfoRepo().getSectorOutline(sectorId);
+					List<Coordinate> outline = Lists.newArrayList(c.getBuldreinfoRepo().getSectorOutlines(Collections.singleton(sectorId)).get(sectorId));
 					String wallDirection = null;
 					try {
 						GeoHelper calc = new GeoHelper();

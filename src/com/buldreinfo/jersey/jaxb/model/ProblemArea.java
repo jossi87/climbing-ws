@@ -121,20 +121,19 @@ public class ProblemArea {
 		private final int sorting;
 		private final double lat;
 		private final double lng;
-		private final List<Coordinate> outline;
+		private List<Coordinate> outline;
 		private final String wallDirection;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, List<Coordinate> outline, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
 			this.sorting = sorting;
 			this.lat = lat;
 			this.lng = lng;
-			this.outline = outline;
 			this.wallDirection = wallDirection;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
@@ -177,7 +176,7 @@ public class ProblemArea {
 		public String getUrl() {
 			return url;
 		}
-
+		
 		public String getWallDirection() {
 			return wallDirection;
 		}
@@ -188,6 +187,10 @@ public class ProblemArea {
 
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
+		}
+
+		public void setOutline(List<Coordinate> outline) {
+			this.outline = outline;
 		}
 	}
 	
@@ -214,8 +217,8 @@ public class ProblemArea {
 		this.sunToHour = sunToHour;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, List<Coordinate> outline, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, outline, wallDirection, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, wallDirection, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
