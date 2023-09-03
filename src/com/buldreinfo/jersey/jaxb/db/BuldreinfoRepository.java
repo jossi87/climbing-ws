@@ -702,11 +702,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		// Fill sector outlines
-		Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
-		for (int idSector : idSectorOutline.keySet()) {
-			List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
-			sectorLookup.get(idSector).setOutline(outline);
+		if (!sectorLookup.isEmpty()) {
+			// Fill sector outlines
+			Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
+			for (int idSector : idSectorOutline.keySet()) {
+				List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
+				sectorLookup.get(idSector).setOutline(outline);
+			}
 		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type, COUNT(DISTINCT p.id) num, COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END")) {
 			ps.setInt(1, authUserId);
@@ -1406,7 +1408,8 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	public Map<Integer, LatLng> getProblemCoordinates(MarkerHelper markerHelper, Collection<Integer> idProblems) throws SQLException {
+	private Map<Integer, LatLng> getProblemCoordinates(MarkerHelper markerHelper, Collection<Integer> idProblems) throws SQLException {
+		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
 		Map<Integer, LatLng> res = new HashMap<>();
 		String in = ",?".repeat(idProblems.size()).substring(1);
 		String sqlStr = "SELECT p.id id_problem, CASE WHEN p.latitude IS NOT NULL AND p.latitude>0 THEN p.latitude WHEN c.id IS NOT NULL THEN c.latitude WHEN s.parking_latitude IS NOT NULL AND s.parking_latitude>0 THEN s.parking_latitude WHEN a.latitude IS NOT NULL AND a.latitude>0 THEN a.latitude END latitude, CASE WHEN p.latitude IS NOT NULL AND p.longitude>0 THEN p.longitude WHEN c.id IS NOT NULL THEN c.longitude WHEN s.parking_longitude IS NOT NULL AND s.parking_longitude>0 THEN s.parking_longitude WHEN a.longitude IS NOT NULL AND a.longitude>0 THEN a.longitude END longitude FROM ((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinate c ON so.coordinate_id=c.id) WHERE p.id IN (" + in + ")";
@@ -1505,11 +1508,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		// Fill sector outlines
-		Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
-		for (int idSector : idSectorOutline.keySet()) {
-			List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
-			sectorLookup.get(idSector).setOutline(outline);
+		if (!sectorLookup.isEmpty()) {
+			// Fill sector outlines
+			Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
+			for (int idSector : idSectorOutline.keySet()) {
+				List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
+				sectorLookup.get(idSector).setOutline(outline);
+			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		List<ProblemArea> res = Lists.newArrayList(areaLookup.values());
@@ -1797,11 +1802,13 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
-		// Fill coordinates
-		Map<Integer, LatLng> idProblemCoordinates = getProblemCoordinates(markerHelper, idProblemTickMap.keySet());
-		for (int idProblem : idProblemCoordinates.keySet()) {
-			MarkerHelper.LatLng latLng = idProblemCoordinates.get(idProblem);
-			idProblemTickMap.get(idProblem).setLatLng(latLng.getLat(), latLng.getLng());
+		if (!idProblemTickMap.isEmpty()) {
+			// Fill coordinates
+			Map<Integer, LatLng> idProblemCoordinates = getProblemCoordinates(markerHelper, idProblemTickMap.keySet());
+			for (int idProblem : idProblemCoordinates.keySet()) {
+				MarkerHelper.LatLng latLng = idProblemCoordinates.get(idProblem);
+				idProblemTickMap.get(idProblem).setLatLng(latLng.getLat(), latLng.getLng());
+			}
 		}
 		// Order ticks
 		res.getTicks().sort((t1, t2) -> -ComparisonChain
@@ -1882,11 +1889,13 @@ public class BuldreinfoRepository {
 					}
 				}
 			}
-			// Fill coordinates
-			Map<Integer, LatLng> idProblemCoordinates = getProblemCoordinates(markerHelper, problemLookup.keySet());
-			for (int idProblem : idProblemCoordinates.keySet()) {
-				MarkerHelper.LatLng latLng = idProblemCoordinates.get(idProblem);
-				problemLookup.get(idProblem).setLatLng(latLng.getLat(), latLng.getLng());
+			if (!problemLookup.isEmpty()) {
+				// Fill coordinates
+				Map<Integer, LatLng> idProblemCoordinates = getProblemCoordinates(markerHelper, problemLookup.keySet());
+				for (int idProblem : idProblemCoordinates.keySet()) {
+					MarkerHelper.LatLng latLng = idProblemCoordinates.get(idProblem);
+					problemLookup.get(idProblem).setLatLng(latLng.getLat(), latLng.getLng());
+				}
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
@@ -2154,6 +2163,7 @@ public class BuldreinfoRepository {
 	}
 	
 	public Multimap<Integer, Coordinate> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idProblems is empty");
 		Multimap<Integer, Coordinate> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
 		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation FROM sector_outline so, coordinate c WHERE so.sector_id IN (" + in + ") AND so.coordinate_id=c.id ORDER BY so.sorting";
