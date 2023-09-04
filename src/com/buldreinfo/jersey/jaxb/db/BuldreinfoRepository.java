@@ -189,7 +189,7 @@ public class BuldreinfoRepository {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
-			// Ensure coordinates exists in db
+			// Ensure coordinate exists in db
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinate (latitude, longitude) VALUES (?, ?)")) {
 				for (Coordinate coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
@@ -198,8 +198,32 @@ public class BuldreinfoRepository {
 				}
 				ps.executeBatch();
 			}
-			// Fetch missing id's and elevations
-			for (Coordinate coord : coordinates.stream().filter(x -> x.getId() == 0 || x.getElevation() == 0).collect(Collectors.toList())) {
+			// Fill missing elevations in db
+			List<Coordinate> coordinatesMissingElevation = new ArrayList<>();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, latitude, longitude, elevation FROM coordinate WHERE elevation IS NULL OR elevation=0")) {
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int id = rst.getInt("id");
+						double latitude = rst.getDouble("latitude");
+						double longitude = rst.getDouble("longitude");
+						double elevation = rst.getDouble("elevation");
+						coordinatesMissingElevation.add(new Coordinate(id, latitude, longitude, elevation));
+					}
+				}
+			}
+			if (!coordinatesMissingElevation.isEmpty()) {
+				GeoHelper.fillElevations(coordinatesMissingElevation);
+				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinate SET elevation=? WHERE id=?")) {
+					for (Coordinate coord : coordinatesMissingElevation) {
+						ps.setDouble(1, coord.getElevation());
+						ps.setDouble(2, coord.getId());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			// Fetch correct id's and elevation's (id can be wrong in coordinates - user might have changed latitude/longitude on existing id)
+			for (Coordinate coord : coordinates) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinate WHERE latitude=? AND longitude=?")) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
@@ -211,33 +235,6 @@ public class BuldreinfoRepository {
 							coord.setElevation(elevation);
 						}
 					}
-				}
-			}
-			// Fill missing elevations in db
-			List<Coordinate> coordinatesMissingElevation = new ArrayList<>();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM coordinate WHERE elevation IS NULL OR elevation=0")) {
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						double latitude = rst.getDouble("latitude");
-						double longitude = rst.getDouble("longitude");
-						coordinatesMissingElevation.add(new Coordinate(latitude, longitude));
-					}
-				}
-			}
-			if (!coordinatesMissingElevation.isEmpty()) {
-				GeoHelper.fillElevations(coordinatesMissingElevation);
-				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinate SET elevation=? WHERE latitude=? AND longitude=?")) {
-					for (Coordinate coord : coordinatesMissingElevation) {
-						ps.setDouble(1, coord.getElevation());
-						ps.setDouble(2, coord.getLatitude());
-						ps.setDouble(3, coord.getLongitude());
-						ps.addBatch();
-						coordinates
-						.stream()
-						.filter(x -> x.getLatitude() == coord.getLatitude() && x.getLongitude() == coord.getLongitude())
-						.forEach(x -> x.setElevation(coord.getElevation()));
-					}
-					ps.executeBatch();
 				}
 			}
 		}
