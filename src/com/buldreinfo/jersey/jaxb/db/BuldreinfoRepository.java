@@ -2234,7 +2234,7 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public Collection<Site> getSites(int currIdRegion) throws SQLException {
+	public List<Site> getSites(int currIdRegion) throws SQLException {
 		Map<Integer, Site> regionLookup = new LinkedHashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY t.group, r.name")) {
 			try (ResultSet rst = ps.executeQuery()) {
@@ -2256,7 +2256,7 @@ public class BuldreinfoRepository {
 				regionLookup.get(idRegion).setOutline(outline);
 			}
 		}
-		return regionLookup.values();
+		return Lists.newArrayList(regionLookup.values());
 	}
 
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {
