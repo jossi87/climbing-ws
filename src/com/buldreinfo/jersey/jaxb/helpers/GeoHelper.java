@@ -161,6 +161,7 @@ public class GeoHelper {
 	public static int getElevation(double latitude, double longitude) throws IOException {
 		List<Coordinate> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinate(latitude, longitude));
+		coordinates.get(0).roundCoordinatesToMaximum10digitsAfterComma();
 		GeoHelper.fillElevations(coordinates);
 		return (int)Math.round(coordinates.get(0).getElevation());
 	}

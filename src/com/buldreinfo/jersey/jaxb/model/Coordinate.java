@@ -45,7 +45,7 @@ public class Coordinate {
 		this.id = id;
 	}
 
-	public void roundCoordinatesToMaximum10dgitsAfterComma() {
+	public void roundCoordinatesToMaximum10digitsAfterComma() {
 		this.latitude = round(latitude, 10);
 		this.longitude = round(longitude, 10);
 	}

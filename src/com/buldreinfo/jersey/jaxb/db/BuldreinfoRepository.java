@@ -190,7 +190,7 @@ public class BuldreinfoRepository {
 	public void ensureCoordinatesInDbWithElevation(List<Coordinate> coordinates) throws SQLException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
-			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10dgitsAfterComma());
+			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
 			// Ensure coordinates exists in db
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinate (latitude, longitude) VALUES (?, ?)")) {
 				for (Coordinate coord : coordinates) {
