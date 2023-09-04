@@ -200,20 +200,22 @@ public class BuldreinfoRepository {
 				}
 				ps.executeBatch();
 			}
-			// Fetch missing id's
-			for (Coordinate coord : coordinates.stream().filter(x -> x.getId() == 0).collect(Collectors.toList())) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM coordinate WHERE latitude=? AND longitude=?")) {
+			// Fetch missing id's and elevations
+			for (Coordinate coord : coordinates.stream().filter(x -> x.getId() == 0 || x.getElevation() == 0).collect(Collectors.toList())) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinate WHERE latitude=? AND longitude=?")) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
 					try (ResultSet rst = ps.executeQuery()) {
 						while (rst.next()) {
 							int id = rst.getInt("id");
+							double elevation = rst.getDouble("elevation");
 							coord.setId(id);
+							coord.setElevation(elevation);
 						}
 					}
 				}
 			}
-			// Fill missing elevations
+			// Fill missing elevations in db
 			List<Coordinate> coordinatesMissingElevation = new ArrayList<>();
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT latitude, longitude FROM coordinate WHERE elevation IS NULL OR elevation=0")) {
 				try (ResultSet rst = ps.executeQuery()) {
