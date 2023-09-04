@@ -2236,7 +2236,7 @@ public class BuldreinfoRepository {
 
 	public List<Site> getSites(int currIdRegion) throws SQLException {
 		Map<Integer, Site> regionLookup = new LinkedHashMap<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY t.group, r.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url ORDER BY t.group, r.name")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idRegion = rst.getInt("region_id");
