@@ -13,7 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.buldreinfo.jersey.jaxb.model.Coordinate;
+import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.google.common.base.Preconditions;
 import com.google.gson.stream.JsonReader;
 
@@ -72,7 +72,7 @@ public class GeoHelper {
 	}
 
 	private static Logger logger = LogManager.getLogger();
-	public static String calculateWallDirection(Setup setup, List<Coordinate> outline) {
+	public static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty()) {
 			return null;
 		}
@@ -84,10 +84,10 @@ public class GeoHelper {
 		}
 		return null;
 	}
-	public static void fillElevations(List<Coordinate> coordinates) {
+	public static void fillElevations(List<Coordinates> coordinates) {
 		try {
 			String locations = null;
-			for (Coordinate coord : coordinates) {
+			for (Coordinates coord : coordinates) {
 				String latLng = coord.getLatitude() + "," + coord.getLongitude();
 				if (locations == null) {
 					locations = latLng;
@@ -159,8 +159,8 @@ public class GeoHelper {
 		}
 	}
 	public static int getElevation(double latitude, double longitude) throws IOException {
-		List<Coordinate> coordinates = new ArrayList<>();
-		coordinates.add(new Coordinate(latitude, longitude));
+		List<Coordinates> coordinates = new ArrayList<>();
+		coordinates.add(new Coordinates(latitude, longitude));
 		coordinates.get(0).roundCoordinatesToMaximum10digitsAfterComma();
 		GeoHelper.fillElevations(coordinates);
 		return (int)Math.round(coordinates.get(0).getElevation());
@@ -191,8 +191,8 @@ public class GeoHelper {
 		return geoPoints;
 	}
 
-	public String getWallDirection(List<Coordinate> outline) throws IOException {
-		for (Coordinate coord : outline) {
+	public String getWallDirection(List<Coordinates> outline) throws IOException {
+		for (Coordinates coord : outline) {
 			geoPoints.add(new GeoPoint(coord.getLatitude(), coord.getLongitude(), coord.getElevation()));
 		}
 		calculateDistanceToCenter();

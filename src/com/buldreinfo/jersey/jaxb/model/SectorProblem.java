@@ -16,7 +16,7 @@ public class SectorProblem {
 	private final boolean hasImages;
 	private final boolean hasMovies;
 	private final boolean hasTopo;
-	private final Coordinate coordinate;
+	private final Coordinates coordinates;
 	private final int numTicks;
 	private final double stars;
 	private final boolean ticked;
@@ -26,7 +26,7 @@ public class SectorProblem {
 	
 	public SectorProblem(int id, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
 			int numPitches,
-			boolean hasImages, boolean hasMovies, boolean hasTopo, Coordinate coordinate, int numTicks, double stars, boolean ticked, boolean todo, Type t,
+			boolean hasImages, boolean hasMovies, boolean hasTopo, Coordinates coordinates, int numTicks, double stars, boolean ticked, boolean todo, Type t,
 			boolean danger) {
 		this.id = id;
 		this.broken = broken;
@@ -43,7 +43,7 @@ public class SectorProblem {
 		this.hasImages = hasImages;
 		this.hasMovies = hasMovies;
 		this.hasTopo = hasTopo;
-		this.coordinate = coordinate;
+		this.coordinates = coordinates;
 		this.numTicks = numTicks;
 		this.stars = stars;
 		this.ticked = ticked;
@@ -60,8 +60,8 @@ public class SectorProblem {
 		return comment;
 	}
 
-	public Coordinate getCoordinate() {
-		return coordinate;
+	public Coordinates getCoordinates() {
+		return coordinates;
 	}
 
 	public String getFa() {

@@ -63,7 +63,7 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.Coordinate;
+import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
@@ -185,13 +185,13 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinate> coordinates) throws SQLException {
+	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
-			// Ensure coordinate exists in db
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinate (latitude, longitude) VALUES (?, ?)")) {
-				for (Coordinate coord : coordinates) {
+			// Ensure coordinates exists in db
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude) VALUES (?, ?)")) {
+				for (Coordinates coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
 					ps.addBatch();
@@ -199,22 +199,22 @@ public class BuldreinfoRepository {
 				ps.executeBatch();
 			}
 			// Fill missing elevations in db
-			List<Coordinate> coordinatesMissingElevation = new ArrayList<>();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, latitude, longitude, elevation FROM coordinate WHERE elevation IS NULL OR elevation=0")) {
+			List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, latitude, longitude, elevation FROM coordinates WHERE elevation IS NULL OR elevation=0")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						double latitude = rst.getDouble("latitude");
 						double longitude = rst.getDouble("longitude");
 						double elevation = rst.getDouble("elevation");
-						coordinatesMissingElevation.add(new Coordinate(id, latitude, longitude, elevation));
+						coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation));
 					}
 				}
 			}
 			if (!coordinatesMissingElevation.isEmpty()) {
 				GeoHelper.fillElevations(coordinatesMissingElevation);
-				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinate SET elevation=? WHERE id=?")) {
-					for (Coordinate coord : coordinatesMissingElevation) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinates SET elevation=? WHERE id=?")) {
+					for (Coordinates coord : coordinatesMissingElevation) {
 						ps.setDouble(1, coord.getElevation());
 						ps.setDouble(2, coord.getId());
 						ps.addBatch();
@@ -223,8 +223,8 @@ public class BuldreinfoRepository {
 				}
 			}
 			// Fetch correct id's and elevation's (id can be wrong in coordinates - user might have changed latitude/longitude on existing id)
-			for (Coordinate coord : coordinates) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinate WHERE latitude=? AND longitude=?")) {
+			for (Coordinates coord : coordinates) {
+				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinates WHERE latitude=? AND longitude=?")) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
 					try (ResultSet rst = ps.executeQuery()) {
@@ -622,7 +622,7 @@ public class BuldreinfoRepository {
 			ps.execute();
 		}
 		Area a = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinate_id, c.latitude, c.longitude, c.elevation, a.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinate c ON a.coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description, c.id, c.latitude, c.longitude, c.elevation, a.hits")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, a.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description, c.id, c.latitude, c.longitude, c.elevation, a.hits")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
 			ps.setInt(3, s.getIdRegion());
@@ -640,8 +640,8 @@ public class BuldreinfoRepository {
 					int sunToHour = rst.getInt("sun_to_hour");
 					String name = rst.getString("name");
 					String comment = rst.getString("description");
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate coordinate = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					int hits = rst.getInt("hits");
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
@@ -652,7 +652,7 @@ public class BuldreinfoRepository {
 							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
 						}
 					}
-					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinate, -1, -1, media, triviaMedia, null, hits);
+					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, hits);
 				}
 			}
 		}
@@ -665,7 +665,7 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
 		Map<Integer, Area.AreaSector> sectorLookup = new HashMap<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id coordinate_id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinate c ON s.parking_coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, c.id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline ORDER BY s.sorting, s.name")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id coordinates_id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, c.id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline ORDER BY s.sorting, s.name")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -678,8 +678,8 @@ public class BuldreinfoRepository {
 					String comment = rst.getString("description");
 					String accessInfo = rst.getString("access_info");
 					String accessClosed = rst.getString("access_closed");
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate parking = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					String wallDirection = rst.getString("wall_direction");
 					String polyline = rst.getString("polyline");
 					int randomMediaId = rst.getInt("media_id");
@@ -702,9 +702,9 @@ public class BuldreinfoRepository {
 		}
 		if (!sectorLookup.isEmpty()) {
 			// Fill sector outlines
-			Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
+			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
 			for (int idSector : idSectorOutline.keySet()) {
-				List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
+				List<Coordinates> outline = Lists.newArrayList(idSectorOutline.get(idSector));
 				sectorLookup.get(idSector).setOutline(outline);
 			}
 		}
@@ -748,7 +748,7 @@ public class BuldreinfoRepository {
 	public Collection<Area> getAreaList(int authUserId, int reqIdRegion) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinate_id, c.latitude, c.longitude, c.elevation, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinate c ON a.coordinate_id=c.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id, c.latitude, c.longitude, c.elevation, a.hits ORDER BY replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id, c.latitude, c.longitude, c.elevation, a.hits ORDER BY replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqIdRegion);
 			ps.setInt(3, reqIdRegion);
@@ -775,12 +775,12 @@ public class BuldreinfoRepository {
 							comment = comment.substring(0, ix);
 						}
 					}
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate coordinate = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					int hits = rst.getInt("hits");
-					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinate, numSectors, numProblems, null, null, null, hits));
+					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, hits));
 				}
 			}
 		}
@@ -965,7 +965,7 @@ public class BuldreinfoRepository {
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.coordinate_id IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id AND a.trash IS NULL) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id AND s.trash IS NULL) INNER JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id AND a.trash IS NULL) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id AND s.trash IS NULL) INNER JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
 			ps.setInt(3, setup.getIdRegion());
@@ -1175,13 +1175,13 @@ public class BuldreinfoRepository {
 			}
 		}
 		Problem p = null;
-		String sqlStr = "SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, sc.id sector_parking_coordinate_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, s.wall_direction sector_wall_direction, s.polyline sector_polyline, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
-				+ " ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade, p.grade original_grade, c.id coordinate_id, c.latitude, c.longitude, c.elevation,"
+		String sqlStr = "SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, s.wall_direction sector_wall_direction, s.polyline sector_polyline, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,"
+				+ " ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation,"
 				+ " group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"picture\":\"', CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END, '\"}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,"
 				+ " p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent"
-				+ " FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinate sc ON s.parking_coordinate_id=sc.id) LEFT JOIN coordinate c ON p.coordinate_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?"
+				+ " FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?"
 				+ " WHERE (?=0 OR rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?))"
 				+ "   AND p.id=?"
 				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
@@ -1214,9 +1214,9 @@ public class BuldreinfoRepository {
 					String sectorName = rst.getString("sector_name");
 					String sectorAccessInfo = rst.getString("sector_access_info");
 					String sectorAccessClosed = rst.getString("sector_access_closed");
-					int parkingIdCoordinate = rst.getInt("sector_parking_coordinate_id");
-					Coordinate sectorParking = parkingIdCoordinate == 0? null : new Coordinate(parkingIdCoordinate, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"));
-					List<Coordinate> sectorOutline = Lists.newArrayList(getSectorOutlines(Collections.singleton(sectorId)).get(sectorId));
+					int parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+					Coordinates sectorParking = parkingidCoordinates == 0? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"));
+					List<Coordinates> sectorOutline = Lists.newArrayList(getSectorOutlines(Collections.singleton(sectorId)).get(sectorId));
 					String sectorWallDirection = rst.getString("sector_wall_direction");
 					String sectorPolyline = rst.getString("sector_polyline");
 					String canonical = rst.getString("canonical");
@@ -1234,8 +1234,8 @@ public class BuldreinfoRepository {
 					String comment = rst.getString("description");
 					String faStr = rst.getString("fa");
 					List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>(){}.getType());
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate coordinate = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
@@ -1275,7 +1275,7 @@ public class BuldreinfoRepository {
 							sectorIdProblemPrev, sectorIdProblemNext,
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							GradeHelper.intToString(s, grade),
-							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, coordinate,
+							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
@@ -1411,11 +1411,11 @@ public class BuldreinfoRepository {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
 		Map<Integer, ProblemArea.ProblemAreaSector> sectorLookup = new HashMap<>();
-		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinate_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinate_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, s.wall_direction sector_wall_direction, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, c.id coordinate_id, c.latitude, c.longitude, c.elevation, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
+		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, s.wall_direction sector_wall_direction, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(t.grade) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
 				+ " MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches"
-				+ " FROM ((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinate ac ON a.coordinate_id=ac.id) LEFT JOIN coordinate sc ON s.parking_coordinate_id=sc.id) LEFT JOIN coordinate c ON p.coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
+				+ " FROM ((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)) LEFT JOIN problem_section ps ON p.id=ps.problem_id"
 				+ " WHERE (a.region_id=? OR ur.user_id IS NOT NULL)"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
@@ -1436,13 +1436,13 @@ public class BuldreinfoRepository {
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
-						int areaIdCoordinate = rst.getInt("area_coordinate_id");
-						Coordinate areaCoordinate = areaIdCoordinate == 0? null : new Coordinate(areaIdCoordinate, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"));
+						int areaidCoordinates = rst.getInt("area_coordinates_id");
+						Coordinates areaCoordinates = areaidCoordinates == 0? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"));
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new ProblemArea(areaId, areaUrl, areaName, areaCoordinate, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour);
+						a = new ProblemArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour);
 						areaLookup.put(areaId, a);
 					}
 					// Sector
@@ -1452,8 +1452,8 @@ public class BuldreinfoRepository {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
 						int sectorSorting = rst.getInt("sector_sorting");
-						int sectorParkingIdCoordinate = rst.getInt("sector_parking_coordinate_id");
-						Coordinate sectorParking = sectorParkingIdCoordinate == 0? null : new Coordinate(sectorParkingIdCoordinate, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"));
+						int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+						Coordinates sectorParking = sectorParkingidCoordinates == 0? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"));
 						String sectorWallDirection = rst.getString("sector_wall_direction");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
@@ -1469,8 +1469,8 @@ public class BuldreinfoRepository {
 					int nr = rst.getInt("nr");
 					String name = rst.getString("name");
 					String description = rst.getString("description");
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate coordinate = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					int grade = rst.getInt("grade");
 					String fa = rst.getString("fa");
 					int numTicks = rst.getInt("num_ticks");
@@ -1478,15 +1478,15 @@ public class BuldreinfoRepository {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinate, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
+					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
 				}
 			}
 		}
 		if (!sectorLookup.isEmpty()) {
 			// Fill sector outlines
-			Multimap<Integer, Coordinate> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
+			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
 			for (int idSector : idSectorOutline.keySet()) {
-				List<Coordinate> outline = Lists.newArrayList(idSectorOutline.get(idSector));
+				List<Coordinates> outline = Lists.newArrayList(idSectorOutline.get(idSector));
 				sectorLookup.get(idSector).setOutline(outline);
 			}
 		}
@@ -1777,10 +1777,10 @@ public class BuldreinfoRepository {
 		}
 		if (!idProblemTickMap.isEmpty()) {
 			// Fill coordinates
-			Map<Integer, Coordinate> idProblemCoordinates = getProblemCoordinates(idProblemTickMap.keySet());
+			Map<Integer, Coordinates> idProblemCoordinates = getProblemCoordinates(idProblemTickMap.keySet());
 			for (int idProblem : idProblemCoordinates.keySet()) {
-				Coordinate coordinate = idProblemCoordinates.get(idProblem);
-				idProblemTickMap.get(idProblem).setCoordinate(coordinate);
+				Coordinates coordinates = idProblemCoordinates.get(idProblem);
+				idProblemTickMap.get(idProblem).setCoordinates(coordinates);
 			}
 		}
 		// Order ticks
@@ -1863,10 +1863,10 @@ public class BuldreinfoRepository {
 			}
 			if (!problemLookup.isEmpty()) {
 				// Fill coordinates
-				Map<Integer, Coordinate> idProblemCoordinates = getProblemCoordinates(problemLookup.keySet());
+				Map<Integer, Coordinates> idProblemCoordinates = getProblemCoordinates(problemLookup.keySet());
 				for (int idProblem : idProblemCoordinates.keySet()) {
-					Coordinate coordinate = idProblemCoordinates.get(idProblem);
-					problemLookup.get(idProblem).setCoordinate(coordinate);
+					Coordinates coordinates = idProblemCoordinates.get(idProblem);
+					problemLookup.get(idProblem).setCoordinates(coordinates);
 				}
 			}
 		}
@@ -1895,7 +1895,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Areas
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.name, a.description, c.latitude, c.longitude FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinate c ON a.coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.region_id, a.id, a.name, a.description, c.latitude, c.longitude")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.region_id, a.id, a.name, a.description, c.latitude, c.longitude FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.region_id, a.id, a.name, a.description, c.latitude, c.longitude")) {
 			ps.setInt(1, idUser);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -1915,7 +1915,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Sectors
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.area_id, s.id, s.name, s.description, c.latitude, c.longitude FROM ((((sector s INNER JOIN area a ON a.id=s.area_id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinate c ON s.parking_coordinate_id=c.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.area_id, s.id, s.name, s.description, c.latitude, c.longitude")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.area_id, s.id, s.name, s.description, c.latitude, c.longitude FROM ((((sector s INNER JOIN area a ON a.id=s.area_id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.area_id, s.id, s.name, s.description, c.latitude, c.longitude")) {
 			ps.setInt(1, idUser);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -1935,7 +1935,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Problems
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.sector_id, p.id, p.nr, p.name, p.description, p.grade, TRIM(CONCAT(IFNULL(p.fa_date,''), ' ', GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) ORDER BY u.firstname SEPARATOR ', '))) fa, c.latitude, c.longitude FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN coordinate c ON p.coordinate_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY p.sector_id, p.id, p.nr, p.name, p.description, p.grade, p.fa_date, c.latitude, c.longitude")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT p.sector_id, p.id, p.nr, p.name, p.description, p.grade, TRIM(CONCAT(IFNULL(p.fa_date,''), ' ', GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) ORDER BY u.firstname SEPARATOR ', '))) fa, c.latitude, c.longitude FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY p.sector_id, p.id, p.nr, p.name, p.description, p.grade, p.fa_date, c.latitude, c.longitude")) {
 			ps.setInt(1, idUser);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -2133,11 +2133,11 @@ public class BuldreinfoRepository {
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
 	
-	public Multimap<Integer, Coordinate> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
+	public Multimap<Integer, Coordinates> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinate> res = ArrayListMultimap.create();
+		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
-		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation FROM sector_outline so, coordinate c WHERE so.sector_id IN (" + in + ") AND so.coordinate_id=c.id ORDER BY so.sorting";
+		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation FROM sector_outline so, coordinates c WHERE so.sector_id IN (" + in + ") AND so.coordinates_id=c.id ORDER BY so.sorting";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			int parameterIndex = 1;
 			for (int idSector : idSectors) {
@@ -2150,7 +2150,7 @@ public class BuldreinfoRepository {
 					double latitude = rst.getDouble("latitude");
 					double longitude = rst.getDouble("longitude");
 					double elevation = rst.getDouble("elevation");
-					res.put(idSector, new Coordinate(id, latitude, longitude, elevation));
+					res.put(idSector, new Coordinates(id, latitude, longitude, elevation));
 				}
 			}
 		}
@@ -2244,9 +2244,9 @@ public class BuldreinfoRepository {
 		}
 		if (!regionLookup.isEmpty()) {
 			// Fill region outlines
-			Multimap<Integer, Coordinate> idRegionOutline = getRegionOutlines(regionLookup.keySet());
+			Multimap<Integer, Coordinates> idRegionOutline = getRegionOutlines(regionLookup.keySet());
 			for (int idRegion : idRegionOutline.keySet()) {
-				List<Coordinate> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
+				List<Coordinates> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
 				regionLookup.get(idRegion).setOutline(outline);
 			}
 		}
@@ -2848,22 +2848,22 @@ public class BuldreinfoRepository {
 		int idArea = -1;
 		final boolean isLockedAdmin = a.isLockedSuperadmin()? false : a.isLockedAdmin();
 		boolean setPermissionRecursive = false;
-		if (a.getCoordinate() != null) {
-			if (a.getCoordinate().getLatitude() == 0 || a.getCoordinate().getLongitude() == 0) {
-				a.setCoordinate(null);
+		if (a.getCoordinates() != null) {
+			if (a.getCoordinates().getLatitude() == 0 || a.getCoordinates().getLongitude() == 0) {
+				a.setCoordinates(null);
 			}
 			else {
-				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.getCoordinate()));
+				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.getCoordinates()));
 			}
 		}
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(authUserId, a.getId());
 			Area currArea = getArea(s, authUserId, a.getId());
 			setPermissionRecursive = currArea.isLockedAdmin() != isLockedAdmin || currArea.isLockedSuperadmin() != a.isLockedSuperadmin();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, coordinate_id=?, locked_admin=?, locked_superadmin=?, for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE area SET name=?, description=?, coordinates_id=?, locked_admin=?, locked_superadmin=?, for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?")) {
 				ps.setString(1, trimString(a.getName()));
 				ps.setString(2, trimString(a.getComment()));
-				setNullablePositiveInteger(ps, 3, a.getCoordinate() == null? 0 : a.getCoordinate().getId());
+				setNullablePositiveInteger(ps, 3, a.getCoordinates() == null? 0 : a.getCoordinates().getId());
 				ps.setBoolean(4, isLockedAdmin);
 				ps.setBoolean(5, a.isLockedSuperadmin());
 				ps.setBoolean(6, a.isForDevelopers());
@@ -2912,12 +2912,12 @@ public class BuldreinfoRepository {
 				}
 			}
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinate_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getIdRegion());
 				ps.setString(3, trimString(a.getName()));
 				ps.setString(4, trimString(a.getComment()));
-				setNullablePositiveInteger(ps, 5, a.getCoordinate() == null? 0 : a.getCoordinate().getId());
+				setNullablePositiveInteger(ps, 5, a.getCoordinates() == null? 0 : a.getCoordinates().getId());
 				ps.setBoolean(6, isLockedAdmin);
 				ps.setBoolean(7, a.isLockedSuperadmin());
 				ps.setBoolean(8, a.isForDevelopers());
@@ -2957,23 +2957,23 @@ public class BuldreinfoRepository {
 		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
 		int idProblem = -1;
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
-		if (p.getCoordinate() != null) {
-			if (p.getCoordinate().getLatitude() == 0 || p.getCoordinate().getLongitude() == 0) {
-				p.setCoordinate(null);
+		if (p.getCoordinates() != null) {
+			if (p.getCoordinates().getLatitude() == 0 || p.getCoordinates().getLongitude() == 0) {
+				p.setCoordinates(null);
 			}
 			else {
-				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.getCoordinate()));
+				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.getCoordinates()));
 			}
 		}
 		if (p.getId() > 0) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinate_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId);
 				ps.setString(2, trimString(p.getName()));
 				ps.setString(3, trimString(p.getRock()));
 				ps.setString(4, trimString(p.getComment()));
 				ps.setInt(5, GradeHelper.stringToInt(s, p.getOriginalGrade()));
 				ps.setDate(6, dt);
-				setNullablePositiveInteger(ps, 7, p.getCoordinate() == null? 0 : p.getCoordinate().getId());
+				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(8, trimString(p.getBroken()));
 				ps.setBoolean(9, isLockedAdmin);
 				ps.setBoolean(10, p.isLockedSuperadmin());
@@ -2994,7 +2994,7 @@ public class BuldreinfoRepository {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, coordinate_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, trimString(p.getName()));
@@ -3002,7 +3002,7 @@ public class BuldreinfoRepository {
 				ps.setString(5, trimString(p.getComment()));
 				ps.setInt(6, GradeHelper.stringToInt(s, p.getOriginalGrade()));
 				ps.setDate(7, dt);
-				setNullablePositiveInteger(ps, 8, p.getCoordinate() == null? 0 : p.getCoordinate().getId());
+				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(9, p.getBroken());
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.isLockedSuperadmin());
@@ -3155,7 +3155,7 @@ public class BuldreinfoRepository {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		boolean setPermissionRecursive = false;
-		List<Coordinate> allCoordinates = new ArrayList<>();
+		List<Coordinates> allCoordinates = new ArrayList<>();
 		if (s.getOutline() != null && !s.getOutline().isEmpty()) {
 			allCoordinates.addAll(s.getOutline());
 		}
@@ -3172,7 +3172,7 @@ public class BuldreinfoRepository {
 		if (s.getId() > 0) {
 			Sector currSector = getSector(authUserId, false, setup, s.getId());
 			setPermissionRecursive = currSector.isLockedAdmin() != isLockedAdmin || currSector.isLockedSuperadmin() != s.isLockedSuperadmin();
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.parking_coordinate_id=?, s.locked_admin=?, s.locked_superadmin=?, s.wall_direction=?, s.polyline=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.wall_direction=?, s.polyline=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
 				ps.setString(1, trimString(s.getName()));
 				ps.setString(2, trimString(s.getComment()));
 				ps.setString(3, trimString(s.getAccessInfo()));
@@ -3225,7 +3225,7 @@ public class BuldreinfoRepository {
 			}
 		} else {
 			ensureAdminWriteArea(authUserId, s.getAreaId());
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_coordinate_id, locked_admin, locked_superadmin, wall_direction, polyline, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, wall_direction, polyline, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getAreaId());
 				ps.setString(3, s.getName());
@@ -3258,9 +3258,9 @@ public class BuldreinfoRepository {
 				ps.setInt(2, s.getOutline().size());
 				ps.execute();
 			}
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_outline (sector_id, coordinate_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinate_id=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
 				int sorting = 0;
-				for (Coordinate coord : s.getOutline()) {
+				for (Coordinates coord : s.getOutline()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
@@ -4200,11 +4200,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private Map<Integer, Coordinate> getProblemCoordinates(Collection<Integer> idProblems) throws SQLException {
+	private Map<Integer, Coordinates> getProblemCoordinates(Collection<Integer> idProblems) throws SQLException {
 		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
-		Map<Integer, Coordinate> res = new HashMap<>();
+		Map<Integer, Coordinates> res = new HashMap<>();
 		String in = ",?".repeat(idProblems.size()).substring(1);
-		String sqlStr = "SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinate_id, COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN coordinate ac ON a.coordinate_id=ac.id) LEFT JOIN coordinate sc ON s.parking_coordinate_id=sc.id) LEFT JOIN coordinate pc ON p.coordinate_id=pc.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinate c ON so.coordinate_id=c.id) WHERE p.id IN (" + in + ")";
+		String sqlStr = "SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates pc ON p.coordinates_id=pc.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinates c ON so.coordinates_id=c.id) WHERE p.id IN (" + in + ")";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			int parameterIndex = 1;
 			for (int idSector : idProblems) {
@@ -4213,9 +4213,9 @@ public class BuldreinfoRepository {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idProblem = rst.getInt("id_problem");
-					int idCoordinate = rst.getInt("coordinate_id");
-					if (idCoordinate > 0) {
-						res.put(idProblem, new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation")));
+					int idCoordinates = rst.getInt("coordinates_id");
+					if (idCoordinates > 0) {
+						res.put(idProblem, new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation")));
 					}
 				}
 			}
@@ -4224,11 +4224,11 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	private Multimap<Integer, Coordinate> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
+	private Multimap<Integer, Coordinates> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
 		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
-		Multimap<Integer, Coordinate> res = ArrayListMultimap.create();
+		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idRegions.size()).substring(1);
-		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation FROM region_outline ro, coordinate c WHERE ro.region_id IN (" + in + ") AND ro.coordinate_id=c.id ORDER BY ro.sorting";
+		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation FROM region_outline ro, coordinates c WHERE ro.region_id IN (" + in + ") AND ro.coordinates_id=c.id ORDER BY ro.sorting";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			int parameterIndex = 1;
 			for (int idSector : idRegions) {
@@ -4241,7 +4241,7 @@ public class BuldreinfoRepository {
 					double latitude = rst.getDouble("latitude");
 					double longitude = rst.getDouble("longitude");
 					double elevation = rst.getDouble("elevation");
-					res.put(idRegion, new Coordinate(id, latitude, longitude, elevation));
+					res.put(idRegion, new Coordinates(id, latitude, longitude, elevation));
 				}
 			}
 		}
@@ -4258,7 +4258,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		Sector s = null;
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id coordinate_id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, s.hits FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinate c ON s.parking_coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, s.hits")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id coordinates_id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, s.hits FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id, c.latitude, c.longitude, c.elevation, s.wall_direction, s.polyline, s.hits")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, reqId);
 			ps.setInt(3, setup.getIdRegion());
@@ -4280,9 +4280,9 @@ public class BuldreinfoRepository {
 					String comment = rst.getString("description");
 					String accessInfo = rst.getString("access_info");
 					String accessClosed = rst.getString("access_closed");
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate parking = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
-					List<Coordinate> sectorOutline = Lists.newArrayList(getSectorOutlines(Collections.singleton(reqId)).get(reqId));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					List<Coordinates> sectorOutline = Lists.newArrayList(getSectorOutlines(Collections.singleton(reqId)).get(reqId));
 					String wallDirection = rst.getString("wall_direction");
 					String polyline = rst.getString("polyline");
 					int hits = rst.getInt("hits");
@@ -4344,7 +4344,7 @@ public class BuldreinfoRepository {
 		if (!setup.isBouldering()) {
 			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(sectorId);
 		}
-		String sqlStr = "SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinate_id, c.latitude, c.longitude, c.elevation,"
+		String sqlStr = "SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(t.grade),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation,"
 				+ " COUNT(DISTINCT ps.id) num_pitches,"
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,"
 				+ " COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,"
@@ -4355,7 +4355,7 @@ public class BuldreinfoRepository {
 				+ " CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,"
 				+ " ty.id type_id, ty.type, ty.subtype,"
 				+ " danger.danger"
-				+ " FROM ((((((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinate c ON p.coordinate_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN (media_problem mp LEFT JOIN media m ON (mp.media_id=m.id AND mp.trivia=0 AND m.deleted_user_id IS NULL)) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo ON (p.id=todo.problem_id AND todo.user_id=?)) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN svg ON p.id=svg.problem_id"
+				+ " FROM ((((((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN (media_problem mp LEFT JOIN media m ON (mp.media_id=m.id AND mp.trivia=0 AND m.deleted_user_id IS NULL)) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo ON (p.id=todo.problem_id AND todo.user_id=?)) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN svg ON p.id=svg.problem_id"
 				+ " WHERE p.sector_id=?"
 				+ "   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
 				+ " GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.grade, c.id, c.latitude, c.longitude, c.elevation, todo.id, ty.id, ty.type, ty.subtype, danger.danger"
@@ -4374,8 +4374,8 @@ public class BuldreinfoRepository {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int nr = rst.getInt("nr");
 					int grade = rst.getInt("grade");
-					int idCoordinate = rst.getInt("coordinate_id");
-					Coordinate coordinate = idCoordinate == 0? null : new Coordinate(idCoordinate, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					String name = rst.getString("name");
 					String rock = rst.getString("rock");
 					String comment = rst.getString("description");
@@ -4393,7 +4393,7 @@ public class BuldreinfoRepository {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinate, numTicks, stars, ticked, todo, t, danger));
+					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}

@@ -12,7 +12,7 @@ import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.model.Coordinate;
+import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.google.common.collect.Lists;
 
 public class FixWallDirections {
@@ -27,7 +27,7 @@ public class FixWallDirections {
 					String areaName = rst.getString("area_name");
 					int sectorId = rst.getInt("sector_id");
 					String sectorName = rst.getString("sector_name");
-					List<Coordinate> outline = Lists.newArrayList(c.getBuldreinfoRepo().getSectorOutlines(Collections.singleton(sectorId)).get(sectorId));
+					List<Coordinates> outline = Lists.newArrayList(c.getBuldreinfoRepo().getSectorOutlines(Collections.singleton(sectorId)).get(sectorId));
 					String wallDirection = null;
 					try {
 						GeoHelper calc = new GeoHelper();

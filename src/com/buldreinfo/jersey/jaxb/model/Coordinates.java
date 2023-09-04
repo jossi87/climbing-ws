@@ -3,18 +3,18 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-public class Coordinate {
+public class Coordinates {
 	private int id;
 	private double latitude;
 	private double longitude;
 	private double elevation;
 	
-	public Coordinate(double latitude, double longitude) {
+	public Coordinates(double latitude, double longitude) {
 		this.latitude = latitude;
 		this.longitude = longitude;
 	}
 	
-	public Coordinate(int id, double latitude, double longitude, double elevation) {
+	public Coordinates(int id, double latitude, double longitude, double elevation) {
 		this.id = id;
 		this.latitude = latitude;
 		this.longitude = longitude;
@@ -59,7 +59,7 @@ public class Coordinate {
 
 	@Override
 	public String toString() {
-		return "Coordinate [id=" + id + ", latitude=" + latitude + ", longitude=" + longitude + ", elevation="
+		return "Coordinates [id=" + id + ", latitude=" + latitude + ", longitude=" + longitude + ", elevation="
 				+ elevation + "]";
 	}
 }

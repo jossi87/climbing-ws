@@ -6,7 +6,7 @@ public class Site {
 	private final String group;
 	private final String name;
 	private final String url;
-	private List<Coordinate> outline;
+	private List<Coordinates> outline;
 	private final boolean active;
 	
 	public Site(String group, String name, String url, boolean active) {
@@ -24,7 +24,7 @@ public class Site {
 		return name;
 	}
 
-	public List<Coordinate> getOutline() {
+	public List<Coordinates> getOutline() {
 		return outline;
 	}
 
@@ -36,7 +36,7 @@ public class Site {
 		return active;
 	}
 
-	public void setOutline(List<Coordinate> outline) {
+	public void setOutline(List<Coordinates> outline) {
 		this.outline = outline;
 	}
 }

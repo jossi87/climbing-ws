@@ -78,7 +78,7 @@ public class ProfileTodo {
 		private final int nr;
 		private final String name;
 		private final String grade;
-		private Coordinate coordinate;
+		private Coordinates coordinates;
 		private List<ProfileTodoPartner> partners = new ArrayList<>();
 		
 		public ProfileTodoProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
@@ -98,8 +98,8 @@ public class ProfileTodo {
 			return res;
 		}
 		
-		public Coordinate getCoordinate() {
-			return coordinate;
+		public Coordinates getCoordinates() {
+			return coordinates;
 		}
 		
 		public String getGrade() {
@@ -138,8 +138,8 @@ public class ProfileTodo {
 			return lockedSuperadmin;
 		}
 		
-		public void setCoordinate(Coordinate coordinate) {
-			this.coordinate = coordinate;
+		public void setCoordinates(Coordinates coordinates) {
+			this.coordinates = coordinates;
 		}
 		
 		public void setPartners(List<ProfileTodoPartner> partners) {

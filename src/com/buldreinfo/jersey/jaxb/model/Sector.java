@@ -75,8 +75,8 @@ public class Sector {
 	private final String comment;
 	private final String accessInfo;
 	private final String accessClosed;
-	private Coordinate parking;
-	private final List<Coordinate> outline;
+	private Coordinates parking;
+	private final List<Coordinates> outline;
 	private final String wallDirection;
 	private final String polyline;
 	private final List<Media> media;
@@ -87,7 +87,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinate parking, List<Coordinate> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -187,11 +187,11 @@ public class Sector {
 		return newMedia;
 	}
 	
-	public List<Coordinate> getOutline() {
+	public List<Coordinates> getOutline() {
 		return outline;
 	}
 	
-	public Coordinate getParking() {
+	public Coordinates getParking() {
 		return parking;
 	}
 	
@@ -261,7 +261,7 @@ public class Sector {
 		}
 	}
 	
-	public void setParking(Coordinate parking) {
+	public void setParking(Coordinates parking) {
 		this.parking = parking;
 	}
 }

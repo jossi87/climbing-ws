@@ -16,8 +16,8 @@ public class Area {
 		private final String comment;
 		private final String accessInfo;
 		private final String accessClosed;
-		private final Coordinate parking;
-		private List<Coordinate> outline;
+		private final Coordinates parking;
+		private List<Coordinates> outline;
 		private final String wallDirection;
 		private final String polyline;
 		private final int randomMediaId;
@@ -25,7 +25,7 @@ public class Area {
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinate parking, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -70,11 +70,11 @@ public class Area {
 			return numProblems;
 		}
 
-		public List<Coordinate> getOutline() {
+		public List<Coordinates> getOutline() {
 			return outline;
 		}
 		
-		public Coordinate getParking() {
+		public Coordinates getParking() {
 			return parking;
 		}
 
@@ -114,7 +114,7 @@ public class Area {
 			return lockedSuperadmin;
 		}
 
-		public void setOutline(List<Coordinate> outline) {
+		public void setOutline(List<Coordinates> outline) {
 			this.outline = outline;
 		}
 	}
@@ -154,7 +154,7 @@ public class Area {
 	private final int sunToHour;
 	private final String name;
 	private final String comment;
-	private Coordinate coordinate;
+	private Coordinates coordinates;
 	private final int numSectors;
 	private final int numProblems;
 	private final List<AreaSector> sectors;
@@ -165,7 +165,7 @@ public class Area {
 	private final long hits;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinate coordinate, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.regionId = regionId;
 		this.canonical = canonical;
@@ -181,7 +181,7 @@ public class Area {
 		this.sunToHour = sunToHour;
 		this.name = name;
 		this.comment = comment;
-		this.coordinate = coordinate;
+		this.coordinates = coordinates;
 		this.numSectors = numSectors;
 		this.numProblems = numProblems;
 		this.sectors = numSectors == -1? new ArrayList<>() : null;
@@ -192,7 +192,7 @@ public class Area {
 		this.hits = hits;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinate parking, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, String wallDirection, String polyline, int randomMediaId, int randomMediaCrc32) {
 		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, wallDirection, polyline, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
@@ -215,8 +215,8 @@ public class Area {
 		return comment;
 	}
 	
-	public Coordinate getCoordinate() {
-		return coordinate;
+	public Coordinates getCoordinates() {
+		return coordinates;
 	}
 
 	public long getHits() {
@@ -305,7 +305,7 @@ public class Area {
 		}
 	}
 
-	public void setCoordinate(Coordinate coordinate) {
-		this.coordinate = coordinate;
+	public void setCoordinates(Coordinates coordinates) {
+		this.coordinates = coordinates;
 	}
 }

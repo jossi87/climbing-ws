@@ -28,7 +28,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Coordinate;
+import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
@@ -501,8 +501,8 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (area.getCoordinate() != null && area.getCoordinate().getLatitude() > 0 && area.getCoordinate().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.getCoordinate().getLatitude(), area.getCoordinate().getLongitude());
+			if (area.getCoordinates() != null && area.getCoordinates().getLatitude() > 0 && area.getCoordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.getCoordinates().getLatitude(), area.getCoordinates().getLongitude());
 			}
 			int defaultZoom = 14;
 
@@ -528,7 +528,7 @@ public class PdfGenerator implements AutoCloseable {
 						label = name;
 					}
 					String polygonCoords = null;
-					for (Coordinate coord : sector.getOutline()) {
+					for (Coordinates coord : sector.getOutline()) {
 						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
 						if (polygonCoords == null) {
 							polygonCoords = latLng;
@@ -566,23 +566,23 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (problem.getCoordinate() != null && problem.getCoordinate().getLatitude() > 0 && problem.getCoordinate().getLongitude() > 0) {
-				defaultCenter = new LatLng(problem.getCoordinate().getLatitude(), problem.getCoordinate().getLongitude());
+			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude());
 			}
 			else if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
 				defaultCenter = new LatLng(sector.getParking().getLatitude(), sector.getParking().getLongitude());
 			}
-			else if (area.getCoordinate() != null && area.getCoordinate().getLatitude() > 0 && area.getCoordinate().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.getCoordinate().getLatitude(), area.getCoordinate().getLongitude());
+			else if (area.getCoordinates() != null && area.getCoordinates().getLatitude() > 0 && area.getCoordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.getCoordinates().getLatitude(), area.getCoordinates().getLongitude());
 			}
 			int defaultZoom = 15;
 
 			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
 				markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 			}
-			if (problem.getCoordinate() != null && problem.getCoordinate().getLatitude() > 0 && problem.getCoordinate().getLongitude() > 0) {
+			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
 				String name = removeIllegalChars(problem.getName());
-				markers.add(new Marker(problem.getCoordinate().getLatitude(), problem.getCoordinate().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
+				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
 			}
 			String distance = null;
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -592,7 +592,7 @@ public class PdfGenerator implements AutoCloseable {
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
 				String polygonCoords = null;
-				for (Coordinate coord : sector.getOutline()) {
+				for (Coordinates coord : sector.getOutline()) {
 					String latLng = coord.getLatitude() + ";" + coord.getLongitude();
 					if (polygonCoords == null) {
 						polygonCoords = latLng;
@@ -654,7 +654,7 @@ public class PdfGenerator implements AutoCloseable {
 			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.getProblems()) {
-				if (p.getCoordinate() != null && p.getCoordinate().getLatitude() > 0 && p.getCoordinate().getLongitude() > 0) {
+				if (p.getCoordinates() != null && p.getCoordinates().getLatitude() > 0 && p.getCoordinates().getLongitude() > 0) {
 					if (p.getRock() != null) {
 						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
 					}
@@ -669,7 +669,7 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
 			}
 			for (SectorProblem p : problemsWithoutRock) {
-				markers.add(new Marker(p.getCoordinate().getLatitude(), p.getCoordinate().getLongitude(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
+				markers.add(new Marker(p.getCoordinates().getLatitude(), p.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
 				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
@@ -683,7 +683,7 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
 					String polygonCoords = null;
-					for (Coordinate coord : sector.getOutline()) {
+					for (Coordinates coord : sector.getOutline()) {
 						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
 						if (polygonCoords == null) {
 							polygonCoords = latLng;

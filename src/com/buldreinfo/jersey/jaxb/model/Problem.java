@@ -189,8 +189,8 @@ public class Problem {
 	private final String sectorName;
 	private final String sectorAccessInfo;
 	private final String sectorAccessClosed;
-	private final Coordinate sectorParking;
-	private final List<Coordinate> sectorOutline;
+	private final Coordinates sectorParking;
+	private final List<Coordinates> sectorOutline;
 	private final String sectorWallDirection;
 	private final String sectorPolyline;
 	private final int sectorIdProblemPrev;
@@ -210,7 +210,7 @@ public class Problem {
 	private final String faDate;
 	private final String faDateHr;
 	private final List<FaUser> fa;
-	private Coordinate coordinate;
+	private Coordinates coordinates;
 	private final List<Media> media;
 	private final int numTicks;
 	private final double stars;
@@ -233,7 +233,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			Coordinate sectorParking, List<Coordinate> sectorOutline, String sectorWallDirection, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinate coordinate, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -272,7 +272,7 @@ public class Problem {
 		this.faDate = faDate;
 		this.faDateHr = faDateHr;
 		this.fa = fa;
-		this.coordinate = coordinate;
+		this.coordinates = coordinates;
 		this.media = media;
 		this.numTicks = numTics;
 		this.stars = stars;
@@ -365,8 +365,8 @@ public class Problem {
 		return comments;
 	}
 	
-	public Coordinate getCoordinate() {
-		return coordinate;
+	public Coordinates getCoordinates() {
+		return coordinates;
 	}
 	
 	public String getDescent() {
@@ -465,11 +465,11 @@ public class Problem {
 		return sectorName;
 	}
 
-	public List<Coordinate> getSectorOutline() {
+	public List<Coordinates> getSectorOutline() {
 		return sectorOutline;
 	}
 	
-	public Coordinate getSectorParking() {
+	public Coordinates getSectorParking() {
 		return sectorParking;
 	}
 
@@ -549,8 +549,8 @@ public class Problem {
 		return trash;
 	}
 
-	public void setCoordinate(Coordinate coordinate) {
-		this.coordinate = coordinate;
+	public void setCoordinates(Coordinates coordinates) {
+		this.coordinates = coordinates;
 	}
 	
 	public void setFaAid(FaAid faAid) {
