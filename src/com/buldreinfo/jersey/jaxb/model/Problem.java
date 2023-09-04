@@ -210,7 +210,7 @@ public class Problem {
 	private final String faDate;
 	private final String faDateHr;
 	private final List<FaUser> fa;
-	private final Coordinate coordinate;
+	private Coordinate coordinate;
 	private final List<Media> media;
 	private final int numTicks;
 	private final double stars;
@@ -396,11 +396,11 @@ public class Problem {
 	public long getHits() {
 		return hits;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
-	
+
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -424,11 +424,11 @@ public class Problem {
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-
+	
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
-	
+
 	public String getRock() {
 		return rock;
 	}
@@ -440,11 +440,11 @@ public class Problem {
 	public List<ProblemSection> getSections() {
 		return sections;
 	}
-
+	
 	public String getSectorAccessClosed() {
 		return sectorAccessClosed;
 	}
-	
+
 	public String getSectorAccessInfo() {
 		return sectorAccessInfo;
 	}
@@ -460,23 +460,23 @@ public class Problem {
 	public int getSectorIdProblemPrev() {
 		return sectorIdProblemPrev;
 	}
-
+	
 	public String getSectorName() {
 		return sectorName;
 	}
-	
+
 	public List<Coordinate> getSectorOutline() {
 		return sectorOutline;
 	}
-
+	
 	public Coordinate getSectorParking() {
 		return sectorParking;
 	}
-	
+
 	public String getSectorPolyline() {
 		return sectorPolyline;
 	}
-
+	
 	public String getSectorWallDirection() {
 		return sectorWallDirection;
 	}
@@ -496,11 +496,11 @@ public class Problem {
 	public List<ProblemTick> getTicks() {
 		return ticks;
 	}
-	
+
 	public List<ProblemTodo> getTodos() {
 		return todos;
 	}
-
+	
 	public String getTrivia() {
 		return trivia;
 	}
@@ -508,11 +508,11 @@ public class Problem {
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
-	
+
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
-
+	
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
@@ -524,7 +524,7 @@ public class Problem {
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-	
+
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}
@@ -532,7 +532,7 @@ public class Problem {
 	public boolean isSectorLockedAdmin() {
 		return sectorLockedAdmin;
 	}
-
+	
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
@@ -540,13 +540,17 @@ public class Problem {
 	public boolean isTicked() {
 		return ticked;
 	}
-	
+
 	public boolean isTodo() {
 		return todo;
 	}
-
+	
 	public boolean isTrash() {
 		return trash;
+	}
+
+	public void setCoordinate(Coordinate coordinate) {
+		this.coordinate = coordinate;
 	}
 	
 	public void setFaAid(FaAid faAid) {

@@ -75,7 +75,7 @@ public class Sector {
 	private final String comment;
 	private final String accessInfo;
 	private final String accessClosed;
-	private final Coordinate parking;
+	private Coordinate parking;
 	private final List<Coordinate> outline;
 	private final String wallDirection;
 	private final String polyline;
@@ -206,7 +206,7 @@ public class Sector {
 	public List<SectorProblem> getProblems() {
 		return problems;
 	}
-
+	
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
@@ -214,7 +214,7 @@ public class Sector {
 	public List<SectorJump> getSectors() {
 		return sectors;
 	}
-	
+
 	public List<SectorJump> getSiblings() {
 		return sectors;
 	}
@@ -238,11 +238,11 @@ public class Sector {
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
-
+	
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-	
+
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}
@@ -259,5 +259,9 @@ public class Sector {
 		if (sectors != null) {
 			sectors.sort((SectorJump o1, SectorJump o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
 		}
+	}
+	
+	public void setParking(Coordinate parking) {
+		this.parking = parking;
 	}
 }

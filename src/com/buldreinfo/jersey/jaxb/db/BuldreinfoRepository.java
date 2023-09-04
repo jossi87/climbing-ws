@@ -2852,7 +2852,12 @@ public class BuldreinfoRepository {
 		final boolean isLockedAdmin = a.isLockedSuperadmin()? false : a.isLockedAdmin();
 		boolean setPermissionRecursive = false;
 		if (a.getCoordinate() != null) {
-			ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.getCoordinate()));
+			if (a.getCoordinate().getLatitude() == 0 || a.getCoordinate().getLongitude() == 0) {
+				a.setCoordinate(null);
+			}
+			else {
+				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.getCoordinate()));
+			}
 		}
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(authUserId, a.getId());
@@ -2956,7 +2961,12 @@ public class BuldreinfoRepository {
 		int idProblem = -1;
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
 		if (p.getCoordinate() != null) {
-			ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.getCoordinate()));
+			if (p.getCoordinate().getLatitude() == 0 || p.getCoordinate().getLongitude() == 0) {
+				p.setCoordinate(null);
+			}
+			else {
+				ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.getCoordinate()));
+			}
 		}
 		if (p.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinate_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
@@ -3153,7 +3163,12 @@ public class BuldreinfoRepository {
 			allCoordinates.addAll(s.getOutline());
 		}
 		if (s.getParking() != null) {
-			allCoordinates.add(s.getParking());
+			if (s.getParking().getLatitude() == 0 || s.getParking().getLongitude() == 0) {
+				s.setParking(null);
+			}
+			else {
+				allCoordinates.add(s.getParking());
+			}
 		}
 		ensureCoordinatesInDbWithElevationAndId(allCoordinates);
 		// Sector

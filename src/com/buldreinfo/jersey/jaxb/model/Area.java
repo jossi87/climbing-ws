@@ -154,7 +154,7 @@ public class Area {
 	private final int sunToHour;
 	private final String name;
 	private final String comment;
-	private final Coordinate coordinate;
+	private Coordinate coordinate;
 	private final int numSectors;
 	private final int numProblems;
 	private final List<AreaSector> sectors;
@@ -214,7 +214,7 @@ public class Area {
 	public String getComment() {
 		return comment;
 	}
-
+	
 	public Coordinate getCoordinate() {
 		return coordinate;
 	}
@@ -303,5 +303,9 @@ public class Area {
 		if (sectors != null) {
 			sectors.sort((AreaSector o1, AreaSector o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
 		}
+	}
+
+	public void setCoordinate(Coordinate coordinate) {
+		this.coordinate = coordinate;
 	}
 }
