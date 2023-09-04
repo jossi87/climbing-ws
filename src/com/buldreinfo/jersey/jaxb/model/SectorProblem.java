@@ -16,8 +16,7 @@ public class SectorProblem {
 	private final boolean hasImages;
 	private final boolean hasMovies;
 	private final boolean hasTopo;
-	private final double lat;
-	private final double lng;
+	private final Coordinate coordinate;
 	private final int numTicks;
 	private final double stars;
 	private final boolean ticked;
@@ -27,7 +26,7 @@ public class SectorProblem {
 	
 	public SectorProblem(int id, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, int gradeNumber, String grade, String fa,
 			int numPitches,
-			boolean hasImages, boolean hasMovies, boolean hasTopo, double lat, double lng, int numTicks, double stars, boolean ticked, boolean todo, Type t,
+			boolean hasImages, boolean hasMovies, boolean hasTopo, Coordinate coordinate, int numTicks, double stars, boolean ticked, boolean todo, Type t,
 			boolean danger) {
 		this.id = id;
 		this.broken = broken;
@@ -44,8 +43,7 @@ public class SectorProblem {
 		this.hasImages = hasImages;
 		this.hasMovies = hasMovies;
 		this.hasTopo = hasTopo;
-		this.lat = lat;
-		this.lng = lng;
+		this.coordinate = coordinate;
 		this.numTicks = numTicks;
 		this.stars = stars;
 		this.ticked = ticked;
@@ -62,6 +60,10 @@ public class SectorProblem {
 		return comment;
 	}
 
+	public Coordinate getCoordinate() {
+		return coordinate;
+	}
+
 	public String getFa() {
 		return fa;
 	}
@@ -69,21 +71,13 @@ public class SectorProblem {
 	public String getGrade() {
 		return grade;
 	}
-
+	
 	public int getGradeNumber() {
 		return gradeNumber;
 	}
 	
 	public int getId() {
 		return id;
-	}
-	
-	public double getLat() {
-		return lat;
-	}
-	
-	public double getLng() {
-		return lng;
 	}
 	
 	public String getName() {

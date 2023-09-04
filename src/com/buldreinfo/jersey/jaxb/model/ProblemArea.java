@@ -15,8 +15,7 @@ public class ProblemArea {
 		private final int nr;
 		private final String name;
 		private final String description;
-		private final double lat;
-		private final double lng;
+		private final Coordinate coordinate;
 		private final String grade;
 		private final String fa;
 		private final int numTicks;
@@ -25,7 +24,7 @@ public class ProblemArea {
 		private final Type t;
 		private final int numPitches;
 		
-		public ProblemAreaProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+		public ProblemAreaProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, Coordinate coordinate, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
 			this.id = id;
 			this.url = url;
 			this.broken = broken;
@@ -34,8 +33,7 @@ public class ProblemArea {
 			this.nr = nr;
 			this.name = name;
 			this.description = description;
-			this.lat = lat;
-			this.lng = lng;
+			this.coordinate = coordinate;
 			this.grade = grade;
 			this.fa = fa;
 			this.numTicks = numTicks;
@@ -65,12 +63,8 @@ public class ProblemArea {
 			return id;
 		}
 
-		public double getLat() {
-			return lat;
-		}
-
-		public double getLng() {
-			return lng;
+		public Coordinate getCoordinate() {
+			return coordinate;
 		}
 
 		public String getName() {
@@ -119,28 +113,26 @@ public class ProblemArea {
 		private final String url;
 		private final String name;
 		private final int sorting;
-		private final double lat;
-		private final double lng;
+		private final Coordinate parking;
 		private List<Coordinate> outline;
 		private final String wallDirection;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, int sorting, double lat, double lng, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, int sorting, Coordinate parking, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
 			this.sorting = sorting;
-			this.lat = lat;
-			this.lng = lng;
+			this.parking = parking;
 			this.wallDirection = wallDirection;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
 
-		public ProblemAreaProblem addProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, double lat, double lng, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
-			ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lat, lng, grade, fa, numTicks, stars, ticked, t, numPitches);
+		public ProblemAreaProblem addProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, Coordinate coordinate, String grade, String fa, int numTicks, double stars, boolean ticked, Type t, int numPitches) {
+			ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinate, grade, fa, numTicks, stars, ticked, t, numPitches);
 			this.problems.add(p);
 			return p;
 		}
@@ -149,12 +141,8 @@ public class ProblemArea {
 			return id;
 		}
 		
-		public double getLat() {
-			return lat;
-		}
-		
-		public double getLng() {
-			return lng;
+		public Coordinate getParking() {
+			return parking;
 		}
 		
 		public String getName() {
@@ -197,28 +185,26 @@ public class ProblemArea {
 	private final int id;
 	private final String url;
 	private final String name;
-	private final double lat;
-	private final double lng;
+	private final Coordinate coordinate;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final int sunFromHour;
 	private final int sunToHour;
 	private final List<ProblemAreaSector> sectors = new ArrayList<>();
 	
-	public ProblemArea(int id, String url, String name, double lat, double lng, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour) {
+	public ProblemArea(int id, String url, String name, Coordinate coordinate, boolean lockedAdmin, boolean lockedSuperadmin, int sunFromHour, int sunToHour) {
 		this.id = id;
 		this.url = url;
 		this.name = name;
-		this.lat = lat;
-		this.lng = lng;
+		this.coordinate = coordinate;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.sunFromHour = sunFromHour;
 		this.sunToHour = sunToHour;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, int sorting, double lat, double lng, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, lat, lng, wallDirection, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, int sorting, Coordinate parking, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, parking, wallDirection, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}
@@ -227,12 +213,8 @@ public class ProblemArea {
 		return id;
 	}
 	
-	public double getLat() {
-		return lat;
-	}
-	
-	public double getLng() {
-		return lng;
+	public Coordinate getCoordinate() {
+		return coordinate;
 	}
 	
 	public String getName() {

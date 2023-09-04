@@ -501,16 +501,16 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (area.getLat() > 0 && area.getLng() > 0) {
-				defaultCenter = new LatLng(area.getLat(), area.getLng());
+			if (area.getCoordinate() != null && area.getCoordinate().getLatitude() > 0 && area.getCoordinate().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.getCoordinate().getLatitude(), area.getCoordinate().getLongitude());
 			}
 			int defaultZoom = 14;
 
 			boolean useLegend = sectors.size()>1;
 			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
-				if (sector.getLat() > 0 && sector.getLng() > 0) {
-					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
+				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
+					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -566,23 +566,23 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<String> polylines = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (problem.getLat() > 0 && problem.getLng() > 0) {
-				defaultCenter = new LatLng(problem.getLat(), problem.getLng());
+			if (problem.getCoordinate() != null && problem.getCoordinate().getLatitude() > 0 && problem.getCoordinate().getLongitude() > 0) {
+				defaultCenter = new LatLng(problem.getCoordinate().getLatitude(), problem.getCoordinate().getLongitude());
 			}
-			else if (sector.getLat() > 0 && sector.getLng() > 0) {
-				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
+			else if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
+				defaultCenter = new LatLng(sector.getParking().getLatitude(), sector.getParking().getLongitude());
 			}
-			else if (area.getLat() > 0 && area.getLng() > 0) {
-				defaultCenter = new LatLng(area.getLat(), area.getLng());
+			else if (area.getCoordinate() != null && area.getCoordinate().getLatitude() > 0 && area.getCoordinate().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.getCoordinate().getLatitude(), area.getCoordinate().getLongitude());
 			}
 			int defaultZoom = 15;
 
-			if (sector.getLat() > 0 && sector.getLng() > 0) {
-				markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
+			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
+				markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 			}
-			if (problem.getLat() > 0 && problem.getLng() > 0) {
+			if (problem.getCoordinate() != null && problem.getCoordinate().getLatitude() > 0 && problem.getCoordinate().getLongitude() > 0) {
 				String name = removeIllegalChars(problem.getName());
-				markers.add(new Marker(problem.getLat(), problem.getLng(), Marker.ICON_TYPE.DEFAULT, name));
+				markers.add(new Marker(problem.getCoordinate().getLatitude(), problem.getCoordinate().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
 			}
 			String distance = null;
 			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
@@ -645,8 +645,8 @@ public class PdfGenerator implements AutoCloseable {
 			List<String> polylines = new ArrayList<>();
 			List<Marker> markers = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (sector.getLat() > 0 && sector.getLng() > 0) {
-				defaultCenter = new LatLng(sector.getLat(), sector.getLng());
+			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
+				defaultCenter = new LatLng(sector.getParking().getLatitude(), sector.getParking().getLongitude());
 			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
@@ -654,7 +654,7 @@ public class PdfGenerator implements AutoCloseable {
 			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.getProblems()) {
-				if (p.getLat() > 0 && p.getLng() > 0) {
+				if (p.getCoordinate() != null && p.getCoordinate().getLatitude() > 0 && p.getCoordinate().getLongitude() > 0) {
 					if (p.getRock() != null) {
 						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
 					}
@@ -669,11 +669,11 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
 			}
 			for (SectorProblem p : problemsWithoutRock) {
-				markers.add(new Marker(p.getLat(), p.getLng(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
+				markers.add(new Marker(p.getCoordinate().getLatitude(), p.getCoordinate().getLongitude(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
-				if (sector.getLat() > 0 && sector.getLng() > 0) {
-					markers.add(new Marker(sector.getLat(), sector.getLng(), Marker.ICON_TYPE.PARKING, null));
+				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
+					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
 				if (!Strings.isNullOrEmpty(sector.getPolyline())) {

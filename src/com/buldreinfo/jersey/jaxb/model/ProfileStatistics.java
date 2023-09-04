@@ -27,8 +27,7 @@ public class ProfileStatistics {
 		private final boolean fa;
 		private final String grade;
 		private final int gradeNumber;
-		private double lat;
-		private double lng;
+		private Coordinate coordinate;
 		
 		public ProfileStatisticsTick(String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
 				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches,
@@ -65,6 +64,10 @@ public class ProfileStatistics {
 			return comment;
 		}
 		
+		public Coordinate getCoordinate() {
+			return coordinate;
+		}
+
 		public String getDate() {
 			return date;
 		}
@@ -80,7 +83,7 @@ public class ProfileStatistics {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
@@ -88,17 +91,9 @@ public class ProfileStatistics {
 		public int getIdProblem() {
 			return idProblem;
 		}
-		
+
 		public int getIdTickRepeat() {
 			return idTickRepeat;
-		}
-
-		public double getLat() {
-			return lat;
-		}
-
-		public double getLng() {
-			return lng;
 		}
 
 		public String getName() {
@@ -153,9 +148,8 @@ public class ProfileStatistics {
 			return sectorLockedSuperadmin;
 		}
 
-		public void setLatLng(double lat, double lng) {
-			this.lat = lat;
-			this.lng = lng;
+		public void setCoordinate(Coordinate coordinate) {
+			this.coordinate = coordinate;
 		}
 
 		public void setNum(int num) {

@@ -189,8 +189,7 @@ public class Problem {
 	private final String sectorName;
 	private final String sectorAccessInfo;
 	private final String sectorAccessClosed;
-	private final double sectorLat;
-	private final double sectorLng;
+	private final Coordinate sectorParking;
 	private final List<Coordinate> sectorOutline;
 	private final String sectorWallDirection;
 	private final String sectorPolyline;
@@ -211,8 +210,7 @@ public class Problem {
 	private final String faDate;
 	private final String faDateHr;
 	private final List<FaUser> fa;
-	private final double lat;
-	private final double lng;
+	private final Coordinate coordinate;
 	private final List<Media> media;
 	private final int numTicks;
 	private final double stars;
@@ -235,7 +233,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			double sectorLat, double sectorLng, List<Coordinate> sectorOutline, String sectorWallDirection, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, double lat, double lng, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinate sectorParking, List<Coordinate> sectorOutline, String sectorWallDirection, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinate coordinate, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -253,8 +251,7 @@ public class Problem {
 		this.sectorName = sectorName;
 		this.sectorAccessInfo = sectorAccessInfo;
 		this.sectorAccessClosed = sectorAccessClosed;
-		this.sectorLat = sectorLat;
-		this.sectorLng = sectorLng;
+		this.sectorParking = sectorParking;
 		this.sectorOutline = sectorOutline;
 		this.sectorWallDirection = sectorWallDirection;
 		this.sectorPolyline = sectorPolyline;
@@ -275,8 +272,7 @@ public class Problem {
 		this.faDate = faDate;
 		this.faDateHr = faDateHr;
 		this.fa = fa;
-		this.lat = lat;
-		this.lng = lng;
+		this.coordinate = coordinate;
 		this.media = media;
 		this.numTicks = numTics;
 		this.stars = stars;
@@ -369,6 +365,10 @@ public class Problem {
 		return comments;
 	}
 	
+	public Coordinate getCoordinate() {
+		return coordinate;
+	}
+	
 	public String getDescent() {
 		return descent;
 	}
@@ -396,17 +396,9 @@ public class Problem {
 	public long getHits() {
 		return hits;
 	}
-	
+
 	public int getId() {
 		return id;
-	}
-
-	public double getLat() {
-		return lat;
-	}
-	
-	public double getLng() {
-		return lng;
 	}
 	
 	public List<Media> getMedia() {
@@ -469,20 +461,16 @@ public class Problem {
 		return sectorIdProblemPrev;
 	}
 
-	public double getSectorLat() {
-		return sectorLat;
-	}
-	
-	public double getSectorLng() {
-		return sectorLng;
-	}
-	
 	public String getSectorName() {
 		return sectorName;
 	}
-
+	
 	public List<Coordinate> getSectorOutline() {
 		return sectorOutline;
+	}
+
+	public Coordinate getSectorParking() {
+		return sectorParking;
 	}
 	
 	public String getSectorPolyline() {

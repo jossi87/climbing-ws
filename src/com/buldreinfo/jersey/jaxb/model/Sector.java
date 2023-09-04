@@ -75,8 +75,7 @@ public class Sector {
 	private final String comment;
 	private final String accessInfo;
 	private final String accessClosed;
-	private final double lat;
-	private final double lng;
+	private final Coordinate parking;
 	private final List<Coordinate> outline;
 	private final String wallDirection;
 	private final String polyline;
@@ -88,7 +87,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, double lat, double lng, List<Coordinate> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinate parking, List<Coordinate> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -109,8 +108,7 @@ public class Sector {
 		this.comment = comment;
 		this.accessInfo = accessInfo;
 		this.accessClosed = accessClosed;
-		this.lat = lat;
-		this.lng = lng;
+		this.parking = parking;
 		this.outline = outline;
 		this.wallDirection = wallDirection;
 		this.polyline = polyline;
@@ -177,14 +175,6 @@ public class Sector {
 		return id;
 	}
 
-	public double getLat() {
-		return lat;
-	}
-	
-	public double getLng() {
-		return lng;
-	}
-	
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -199,6 +189,10 @@ public class Sector {
 	
 	public List<Coordinate> getOutline() {
 		return outline;
+	}
+	
+	public Coordinate getParking() {
+		return parking;
 	}
 	
 	public String getPolyline() {
