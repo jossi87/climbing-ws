@@ -6,14 +6,13 @@ public class Site {
 	private final String group;
 	private final String name;
 	private final String url;
-	private final List<Coordinate> outline;
+	private List<Coordinate> outline;
 	private final boolean active;
 	
-	public Site(String group, String name, String url, List<Coordinate> outline, boolean active) {
+	public Site(String group, String name, String url, boolean active) {
 		this.group = group;
 		this.name = name;
 		this.url = url;
-		this.outline = outline;
 		this.active = active;
 	}
 
@@ -32,8 +31,12 @@ public class Site {
 	public String getUrl() {
 		return url;
 	}
-
+	
 	public boolean isActive() {
 		return active;
+	}
+
+	public void setOutline(List<Coordinate> outline) {
+		this.outline = outline;
 	}
 }

@@ -1410,31 +1410,6 @@ public class BuldreinfoRepository {
 		return p;
 	}
 
-	private Map<Integer, LatLng> getProblemCoordinates(MarkerHelper markerHelper, Collection<Integer> idProblems) throws SQLException {
-		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
-		Map<Integer, LatLng> res = new HashMap<>();
-		String in = ",?".repeat(idProblems.size()).substring(1);
-		String sqlStr = "SELECT p.id id_problem, CASE WHEN p.latitude IS NOT NULL AND p.latitude>0 THEN p.latitude WHEN c.id IS NOT NULL THEN c.latitude WHEN s.parking_latitude IS NOT NULL AND s.parking_latitude>0 THEN s.parking_latitude WHEN a.latitude IS NOT NULL AND a.latitude>0 THEN a.latitude END latitude, CASE WHEN p.latitude IS NOT NULL AND p.longitude>0 THEN p.longitude WHEN c.id IS NOT NULL THEN c.longitude WHEN s.parking_longitude IS NOT NULL AND s.parking_longitude>0 THEN s.parking_longitude WHEN a.longitude IS NOT NULL AND a.longitude>0 THEN a.longitude END longitude FROM ((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinate c ON so.coordinate_id=c.id) WHERE p.id IN (" + in + ")";
-		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idProblems) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idProblem = rst.getInt("id_problem");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					if (latitude > 0 && longitude > 0) {
-						res.put(idProblem, markerHelper.getLatLng(latitude, longitude));
-					}
-				}
-			}
-		}
-		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
-		return res;
-	}
-
 	public List<ProblemArea> getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
@@ -2158,14 +2133,14 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public Sector getSector(int authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
 		final boolean updateHits = true;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
 	
 	public Multimap<Integer, Coordinate> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
-		Preconditions.checkArgument(!idSectors.isEmpty(), "idProblems is empty");
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinate> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
 		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation FROM sector_outline so, coordinate c WHERE so.sector_id IN (" + in + ") AND so.coordinate_id=c.id ORDER BY so.sorting";
@@ -2188,7 +2163,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}", idSectors.size(), res.size());
 		return res;
 	}
-
+	
 	public List<Setup> getSetups() throws SQLException {
 		List<Setup> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
@@ -2221,7 +2196,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSetups() - res.size()={}", res.size());
 		return res;
 	}
-
+	
 	public String getSitemapTxt(Setup setup) throws SQLException {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
@@ -2259,8 +2234,8 @@ public class BuldreinfoRepository {
 		return Joiner.on("\r\n").join(urls);
 	}
 
-	public List<Site> getSites(int currIdRegion) throws SQLException {
-		List<Site> res = new ArrayList<>();
+	public Collection<Site> getSites(int currIdRegion) throws SQLException {
+		Map<Integer, Site> regionLookup = new LinkedHashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id region_id, t.group, r.name, r.url, r.polygon_coords FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url, r.polygon_coords ORDER BY t.group, r.name")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -2268,23 +2243,20 @@ public class BuldreinfoRepository {
 					String group = rst.getString("group");
 					String name = rst.getString("name");
 					String url = rst.getString("url");
-					String polygonCoords = rst.getString("polygon_coords");
-					// TODO Move polygon_coords to new table (connected to Coordinates)
-					List<Coordinate> outline = new ArrayList<>();
-					if (!Strings.isNullOrEmpty(polygonCoords)) {
-						for (String latLng : polygonCoords.split(";")) {
-							String[] parts = latLng.split(",");
-							double latitude = Double.parseDouble(parts[0]);
-							double longitude = Double.parseDouble(parts[1]);
-							outline.add(new Coordinate(latitude, longitude));
-						}
-					}
 					boolean active = idRegion == currIdRegion;
-					res.add(new Site(group, name, url, outline, active));
+					regionLookup.put(idRegion, new Site(group, name, url, active));
 				}
 			}
 		}
-		return res;
+		if (!regionLookup.isEmpty()) {
+			// Fill region outlines
+			Multimap<Integer, Coordinate> idRegionOutline = getRegionOutlines(regionLookup.keySet());
+			for (int idRegion : idRegionOutline.keySet()) {
+				List<Coordinate> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
+				regionLookup.get(idRegion).setOutline(outline);
+			}
+		}
+		return regionLookup.values();
 	}
 
 	public Ticks getTicks(int authUserId, Setup setup, int page) throws SQLException {
@@ -4233,6 +4205,56 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		return res;
+	}
+
+	private Map<Integer, LatLng> getProblemCoordinates(MarkerHelper markerHelper, Collection<Integer> idProblems) throws SQLException {
+		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
+		Map<Integer, LatLng> res = new HashMap<>();
+		String in = ",?".repeat(idProblems.size()).substring(1);
+		String sqlStr = "SELECT p.id id_problem, CASE WHEN p.latitude IS NOT NULL AND p.latitude>0 THEN p.latitude WHEN c.id IS NOT NULL THEN c.latitude WHEN s.parking_latitude IS NOT NULL AND s.parking_latitude>0 THEN s.parking_latitude WHEN a.latitude IS NOT NULL AND a.latitude>0 THEN a.latitude END latitude, CASE WHEN p.latitude IS NOT NULL AND p.longitude>0 THEN p.longitude WHEN c.id IS NOT NULL THEN c.longitude WHEN s.parking_longitude IS NOT NULL AND s.parking_longitude>0 THEN s.parking_longitude WHEN a.longitude IS NOT NULL AND a.longitude>0 THEN a.longitude END longitude FROM ((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinate c ON so.coordinate_id=c.id) WHERE p.id IN (" + in + ")";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idProblems) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idProblem = rst.getInt("id_problem");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					if (latitude > 0 && longitude > 0) {
+						res.put(idProblem, markerHelper.getLatLng(latitude, longitude));
+					}
+				}
+			}
+		}
+		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
+		return res;
+	}
+
+	private Multimap<Integer, Coordinate> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
+		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
+		Multimap<Integer, Coordinate> res = ArrayListMultimap.create();
+		String in = ",?".repeat(idRegions.size()).substring(1);
+		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation FROM region_outline ro, coordinate c WHERE ro.region_id IN (" + in + ") AND ro.coordinate_id=c.id ORDER BY ro.sorting";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idRegions) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idRegion = rst.getInt("id_region");
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					res.put(idRegion, new Coordinate(id, latitude, longitude, elevation));
+				}
+			}
+		}
+		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
 		return res;
 	}
 
