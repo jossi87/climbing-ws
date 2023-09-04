@@ -3256,6 +3256,8 @@ public class BuldreinfoRepository {
 				}
 			}
 		}
+		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
+		// Outline
 		if (s.getOutline() == null || s.getOutline().isEmpty()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
 				ps.setInt(1, idSector);
@@ -3281,9 +3283,6 @@ public class BuldreinfoRepository {
 				ps.executeBatch();
 			}
 		}
-		if (idSector == -1) {
-			throw new SQLException("idSector == -1");
-		}
 		// New media
 		if (s.getNewMedia() != null) {
 			for (NewMedia m : s.getNewMedia()) {
@@ -3294,10 +3293,13 @@ public class BuldreinfoRepository {
 				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
+		Redirect res = null;
 		if (s.isTrash()) {
-			return new Redirect(null, s.getAreaId(), 0, 0);
+			res = new Redirect(null, s.getAreaId(), 0, 0);
 		}
-		return new Redirect(null, 0, idSector, 0);
+		res = new Redirect(null, 0, idSector, 0);
+		logger.debug("setSector() - res={}", res);
+		return res;
 	}
 
 	public void setTick(int authUserId, Setup setup, Tick t) throws SQLException, ParseException {
