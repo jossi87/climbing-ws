@@ -3258,6 +3258,7 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
 		// Outline
+		logger.debug("outline={}", s.getOutline());
 		if (s.getOutline() == null || s.getOutline().isEmpty()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
 				ps.setInt(1, idSector);

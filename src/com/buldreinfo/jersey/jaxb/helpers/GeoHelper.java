@@ -80,7 +80,7 @@ public class GeoHelper {
 			GeoHelper calc = new GeoHelper();
 			return calc.getWallDirection(outline);
 		} catch (Exception e) {
-			logger.warn(e.getMessage(), e);
+			logger.warn(e.getMessage());
 		}
 		return null;
 	}
