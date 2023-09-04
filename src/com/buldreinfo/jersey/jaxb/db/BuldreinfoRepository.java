@@ -3258,7 +3258,6 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
 		// Outline
-		logger.debug("outline={}", s.getOutline());
 		if (s.getOutline() == null || s.getOutline().isEmpty()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
 				ps.setInt(1, idSector);
@@ -3270,7 +3269,7 @@ public class BuldreinfoRepository {
 				ps.setInt(2, s.getOutline().size());
 				ps.execute();
 			}
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_outline (sector_id, coordinate_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinate_id=?, sorting=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_outline (sector_id, coordinate_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinate_id=?")) {
 				int sorting = 0;
 				for (Coordinate coord : s.getOutline()) {
 					sorting++;
@@ -3278,7 +3277,6 @@ public class BuldreinfoRepository {
 					ps.setInt(2, coord.getId());
 					ps.setInt(3, sorting);
 					ps.setInt(4, coord.getId());
-					ps.setInt(5, sorting);
 					ps.addBatch();
 				}
 				ps.executeBatch();
