@@ -3139,6 +3139,9 @@ public class BuldreinfoRepository {
 		if (s.getOutline() != null && !s.getOutline().isEmpty()) {
 			allCoordinates.addAll(s.getOutline());
 		}
+		if (s.getApproach() != null && !s.getApproach().isEmpty()) {
+			allCoordinates.addAll(s.getApproach());
+		}
 		if (s.getParking() != null) {
 			if (s.getParking().getLatitude() == 0 || s.getParking().getLongitude() == 0) {
 				s.setParking(null);
