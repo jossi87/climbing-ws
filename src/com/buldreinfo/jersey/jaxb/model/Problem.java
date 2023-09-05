@@ -192,7 +192,7 @@ public class Problem {
 	private final Coordinates sectorParking;
 	private final List<Coordinates> sectorOutline;
 	private final String sectorWallDirection;
-	private final String sectorPolyline;
+	private final List<Coordinates> sectorApproach;
 	private final int sectorIdProblemPrev;
 	private final int sectorIdProblemNext;
 	private final String canonical;
@@ -233,7 +233,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, String sectorPolyline, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, List<Coordinates> sectorApproach, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -254,7 +254,7 @@ public class Problem {
 		this.sectorParking = sectorParking;
 		this.sectorOutline = sectorOutline;
 		this.sectorWallDirection = sectorWallDirection;
-		this.sectorPolyline = sectorPolyline;
+		this.sectorApproach = sectorApproach;
 		this.sectorIdProblemPrev = sectorIdProblemPrev;
 		this.sectorIdProblemNext = sectorIdProblemNext;
 		this.canonical = canonical;
@@ -449,6 +449,10 @@ public class Problem {
 		return sectorAccessInfo;
 	}
 	
+	public List<Coordinates> getSectorApproach() {
+		return sectorApproach;
+	}
+	
 	public int getSectorId() {
 		return sectorId;
 	}
@@ -460,27 +464,23 @@ public class Problem {
 	public int getSectorIdProblemPrev() {
 		return sectorIdProblemPrev;
 	}
-	
+
 	public String getSectorName() {
 		return sectorName;
 	}
-
+	
 	public List<Coordinates> getSectorOutline() {
 		return sectorOutline;
 	}
-	
+
 	public Coordinates getSectorParking() {
 		return sectorParking;
-	}
-
-	public String getSectorPolyline() {
-		return sectorPolyline;
 	}
 	
 	public String getSectorWallDirection() {
 		return sectorWallDirection;
 	}
-
+	
 	public double getStars() {
 		return stars;
 	}
@@ -500,11 +500,11 @@ public class Problem {
 	public List<ProblemTodo> getTodos() {
 		return todos;
 	}
-	
+
 	public String getTrivia() {
 		return trivia;
 	}
-
+	
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
@@ -512,11 +512,11 @@ public class Problem {
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
-	
+
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
-
+	
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
@@ -528,7 +528,7 @@ public class Problem {
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}
-	
+
 	public boolean isSectorLockedAdmin() {
 		return sectorLockedAdmin;
 	}
@@ -536,7 +536,7 @@ public class Problem {
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
-
+	
 	public boolean isTicked() {
 		return ticked;
 	}
@@ -544,15 +544,15 @@ public class Problem {
 	public boolean isTodo() {
 		return todo;
 	}
-	
+
 	public boolean isTrash() {
 		return trash;
 	}
-
+	
 	public void setCoordinates(Coordinates coordinates) {
 		this.coordinates = coordinates;
 	}
-	
+
 	public void setFaAid(FaAid faAid) {
 		this.faAid = faAid;
 	}

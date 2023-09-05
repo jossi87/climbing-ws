@@ -78,7 +78,7 @@ public class Sector {
 	private Coordinates parking;
 	private final List<Coordinates> outline;
 	private final String wallDirection;
-	private final String polyline;
+	private final List<Coordinates> approach;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<SectorJump> sectors = new ArrayList<>();
@@ -87,7 +87,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, String polyline, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, List<Coordinates> approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -111,7 +111,7 @@ public class Sector {
 		this.parking = parking;
 		this.outline = outline;
 		this.wallDirection = wallDirection;
-		this.polyline = polyline;
+		this.approach = approach;
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
@@ -133,6 +133,10 @@ public class Sector {
 	
 	public String getAccessInfo() {
 		return accessInfo;
+	}
+	
+	public List<Coordinates> getApproach() {
+		return approach;
 	}
 	
 	public String getAreaAccessClosed() {
@@ -170,11 +174,11 @@ public class Sector {
 	public long getHits() {
 		return hits;
 	}
-	
+
 	public int getId() {
 		return id;
 	}
-
+	
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -193,10 +197,6 @@ public class Sector {
 	
 	public Coordinates getParking() {
 		return parking;
-	}
-	
-	public String getPolyline() {
-		return polyline;
 	}
 	
 	public List<SectorProblemOrder> getProblemOrder() {

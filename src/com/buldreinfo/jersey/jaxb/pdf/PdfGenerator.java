@@ -494,6 +494,10 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		return name;
 	}
+	
+	private String convertFromApproachToPolyline(List<Coordinates> approach) {
+		return approach.stream().map(a -> a.getLatitude() + "," + a.getLongitude()).collect(Collectors.joining(";"));
+	}
 
 	private void writeMapArea(Area area, List<Sector> sectors) {
 		try {
@@ -513,9 +517,10 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
-				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-					polylines.add(sector.getPolyline());
-					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
+				if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach());
+					polylines.add(polyline);
+					distance = LeafletPrintGenerator.getDistance(polyline);
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -585,9 +590,10 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
 			}
 			String distance = null;
-			if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-				polylines.add(sector.getPolyline());
-				distance = LeafletPrintGenerator.getDistance(sector.getPolyline());	
+			if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
+				String polyline = convertFromApproachToPolyline(sector.getApproach());
+				polylines.add(polyline);
+				distance = LeafletPrintGenerator.getDistance(polyline);	
 			}
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -676,9 +682,10 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
-				if (!Strings.isNullOrEmpty(sector.getPolyline())) {
-					polylines.add(sector.getPolyline());
-					distance = LeafletPrintGenerator.getDistance(sector.getPolyline());
+				if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach());
+					polylines.add(polyline);
+					distance = LeafletPrintGenerator.getDistance(polyline);
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
