@@ -201,7 +201,7 @@ public class BuldreinfoRepository {
 		}
 		// Fill missing elevations in db
 		List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, latitude, longitude, elevation FROM coordinates WHERE elevation IS NULL OR elevation=0")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, latitude, longitude, elevation FROM coordinates WHERE elevation IS NULL")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -213,14 +213,18 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (!coordinatesMissingElevation.isEmpty()) {
-			GeoHelper.fillElevations(coordinatesMissingElevation);
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinates SET elevation=? WHERE id=?")) {
-				for (Coordinates coord : coordinatesMissingElevation) {
-					ps.setDouble(1, coord.getElevation());
-					ps.setDouble(2, coord.getId());
-					ps.addBatch();
+			try {
+				GeoHelper.fillElevations(coordinatesMissingElevation);
+				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinates SET elevation=? WHERE id=?")) {
+					for (Coordinates coord : coordinatesMissingElevation) {
+						ps.setDouble(1, coord.getElevation());
+						ps.setDouble(2, coord.getId());
+						ps.addBatch();
+					}
+					ps.executeBatch();
 				}
-				ps.executeBatch();
+			} catch (IOException e) {
+				logger.warn(e.getMessage(), e);
 			}
 		}
 		if (coordinates != null && !coordinates.isEmpty()) {
