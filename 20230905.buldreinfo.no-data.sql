@@ -45,7 +45,7 @@ CREATE TABLE `activity` (
   CONSTRAINT `problem_id_fk` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `tick_repeat_id_fk` FOREIGN KEY (`tick_repeat_id`) REFERENCES `tick_repeat` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=762288 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=762985 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -86,33 +86,33 @@ CREATE TABLE `area` (
   `no_dogs_allowed` int NOT NULL DEFAULT '0',
   `sun_from_hour` int DEFAULT NULL,
   `sun_to_hour` int DEFAULT NULL,
-  `coordinate_id` int DEFAULT NULL,
+  `coordinates_id` int DEFAULT NULL,
   `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `hits` int DEFAULT '0',
   `for_developers` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `area_region_id_idx` (`region_id`),
-  KEY `area_coordinate_id_idx` (`coordinate_id`),
-  CONSTRAINT `area_coordinate_id` FOREIGN KEY (`coordinate_id`) REFERENCES `coordinate` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  KEY `area_coordinates_id_idx` (`coordinates_id`),
+  CONSTRAINT `area_coordinates_id` FOREIGN KEY (`coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
   CONSTRAINT `area_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3396 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3397 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `coordinate`
+-- Table structure for table `coordinates`
 --
 
-DROP TABLE IF EXISTS `coordinate`;
+DROP TABLE IF EXISTS `coordinates`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `coordinate` (
+CREATE TABLE `coordinates` (
   `id` int NOT NULL AUTO_INCREMENT,
   `latitude` decimal(12,10) NOT NULL,
   `longitude` decimal(12,10) NOT NULL,
   `elevation` decimal(6,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `coordinate_lat_lng_unique` (`latitude`,`longitude`)
-) ENGINE=InnoDB AUTO_INCREMENT=15193 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `coordinates_lat_lng_unique` (`latitude`,`longitude`)
+) ENGINE=InnoDB AUTO_INCREMENT=48951 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -239,7 +239,7 @@ CREATE TABLE `media` (
   CONSTRAINT `media_deleted_user_id` FOREIGN KEY (`deleted_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_photographer_user_id` FOREIGN KEY (`photographer_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_uploader_user_id` FOREIGN KEY (`uploader_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=33132 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33139 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -260,7 +260,7 @@ CREATE TABLE `media_area` (
   KEY `media_area_area_id_idx` (`area_id`),
   CONSTRAINT `media_area_area_id` FOREIGN KEY (`area_id`) REFERENCES `area` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_area_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=363 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=364 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -302,7 +302,7 @@ CREATE TABLE `media_problem` (
   KEY `media_problem_problem_id_idx` (`problem_id`),
   CONSTRAINT `media_problem_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_problem_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=19944 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19950 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -323,7 +323,7 @@ CREATE TABLE `media_sector` (
   KEY `media_sector_sector_id_idx` (`sector_id`),
   CONSTRAINT `media_sector_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `media_sector_sector_id` FOREIGN KEY (`sector_id`) REFERENCES `sector` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11846 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11852 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -344,7 +344,7 @@ CREATE TABLE `media_svg` (
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `media_svg_media_id_idx` (`media_id`),
   CONSTRAINT `media_svg_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=333 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=335 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -384,9 +384,7 @@ CREATE TABLE `problem` (
   `rock` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `description` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `nr` int NOT NULL,
-  `coordinate_id` int DEFAULT NULL,
-  `latitude` decimal(12,10) DEFAULT NULL,
-  `longitude` decimal(12,10) DEFAULT NULL,
+  `coordinates_id` int DEFAULT NULL,
   `grade` int DEFAULT NULL,
   `fa_date` date DEFAULT NULL,
   `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -401,11 +399,11 @@ CREATE TABLE `problem` (
   PRIMARY KEY (`id`),
   KEY `problem_sector_id_idx` (`sector_id`),
   KEY `problem_type_id_idx` (`type_id`),
-  KEY `problem_coordinate_id_idx` (`coordinate_id`),
-  CONSTRAINT `problem_coordinate_id` FOREIGN KEY (`coordinate_id`) REFERENCES `coordinate` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  KEY `problem_coordinates_id_idx` (`coordinates_id`),
+  CONSTRAINT `problem_coordinates_id` FOREIGN KEY (`coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE SET NULL ON UPDATE SET NULL,
   CONSTRAINT `problem_sector_id` FOREIGN KEY (`sector_id`) REFERENCES `sector` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `problem_type_id` FOREIGN KEY (`type_id`) REFERENCES `type` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=18226 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18253 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -424,7 +422,7 @@ CREATE TABLE `problem_section` (
   PRIMARY KEY (`id`),
   KEY `problem_subsection_problem_id_idx` (`problem_id`),
   CONSTRAINT `problem_subsection_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=14615 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14639 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -459,14 +457,14 @@ DROP TABLE IF EXISTS `region_outline`;
 CREATE TABLE `region_outline` (
   `id` int NOT NULL AUTO_INCREMENT,
   `region_id` int NOT NULL,
-  `coordinate_id` int NOT NULL,
+  `coordinates_id` int NOT NULL,
   `sorting` int NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `region_outline_unique_region_id_coordinate_id` (`region_id`,`coordinate_id`),
+  UNIQUE KEY `region_outline_unique_region_id_coordinate_id` (`region_id`,`coordinates_id`),
   UNIQUE KEY `region_outline_unique_region_id_sorting` (`region_id`,`sorting`),
   KEY `region_outline_region_id_fk_idx` (`region_id`),
-  KEY `region_outline_coordinate_id_idx` (`coordinate_id`),
-  CONSTRAINT `region_outline_coordinate_id` FOREIGN KEY (`coordinate_id`) REFERENCES `coordinate` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  KEY `region_outline_coordinates_id_idx` (`coordinates_id`),
+  CONSTRAINT `region_outline_coordinates_id` FOREIGN KEY (`coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `region_outline_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=7646 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -507,18 +505,39 @@ CREATE TABLE `sector` (
   `description` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `access_info` varchar(4000) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `access_closed` varchar(4000) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `parking_coordinate_id` int DEFAULT NULL,
+  `parking_coordinates_id` int DEFAULT NULL,
   `wall_direction` varchar(32) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `polyline` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `hits` int DEFAULT '0',
   `sorting` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `sector_area_id_idx` (`area_id`),
-  KEY `sector_parking_coordinate_id_fk_idx` (`parking_coordinate_id`),
+  KEY `sector_parking_coordinates_id_fk_idx` (`parking_coordinates_id`),
   CONSTRAINT `sector_area_id` FOREIGN KEY (`area_id`) REFERENCES `area` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `sector_parking_coordinate_id` FOREIGN KEY (`parking_coordinate_id`) REFERENCES `coordinate` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4556 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `sector_parking_coordinates_id` FOREIGN KEY (`parking_coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=4557 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sector_approach`
+--
+
+DROP TABLE IF EXISTS `sector_approach`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sector_approach` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `sector_id` int NOT NULL,
+  `coordinates_id` int NOT NULL,
+  `sorting` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `sector_approach_unique_sector_id_coordinates_id` (`sector_id`,`coordinates_id`) /*!80000 INVISIBLE */,
+  UNIQUE KEY `sector_approach_unique_sector_id_sorting` (`sector_id`,`sorting`),
+  KEY `sector_approach_sector_id_fk_idx` (`sector_id`),
+  KEY `sector_approach_coordinates_id_idx` (`coordinates_id`),
+  CONSTRAINT `sector_approach_coordinates_id` FOREIGN KEY (`coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `sector_approach_sector_id` FOREIGN KEY (`sector_id`) REFERENCES `sector` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=25032 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -531,16 +550,16 @@ DROP TABLE IF EXISTS `sector_outline`;
 CREATE TABLE `sector_outline` (
   `id` int NOT NULL AUTO_INCREMENT,
   `sector_id` int NOT NULL,
-  `coordinate_id` int NOT NULL,
+  `coordinates_id` int NOT NULL,
   `sorting` int NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `sector_outline_unique_sector_id_coordinate_id` (`sector_id`,`coordinate_id`) /*!80000 INVISIBLE */,
+  UNIQUE KEY `sector_outline_unique_sector_id_coordinates_id` (`sector_id`,`coordinates_id`) /*!80000 INVISIBLE */,
   UNIQUE KEY `sector_outline_unique_sector_id_sorting` (`sector_id`,`sorting`),
   KEY `sector_outline_sector_id_fk_idx` (`sector_id`),
-  KEY `sector_outline_coordinate_id_idx` (`coordinate_id`),
-  CONSTRAINT `sector_outline_coordinate_id` FOREIGN KEY (`coordinate_id`) REFERENCES `coordinate` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  KEY `sector_outline_coordinates_id_idx` (`coordinates_id`),
+  CONSTRAINT `sector_outline_coordinates_id` FOREIGN KEY (`coordinates_id`) REFERENCES `coordinates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `sector_outline_sector_id` FOREIGN KEY (`sector_id`) REFERENCES `sector` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7524 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7631 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -564,7 +583,7 @@ CREATE TABLE `svg` (
   KEY `svg_problem_id_idx` (`problem_id`),
   CONSTRAINT `svg_media_id` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `svg_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10954 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10983 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -589,7 +608,7 @@ CREATE TABLE `tick` (
   KEY `tick_user_id_idx` (`user_id`),
   CONSTRAINT `tick_problem_id` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `tick_user_id` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=44489 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=44519 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -628,7 +647,7 @@ CREATE TABLE `todo` (
   KEY `todo_fk2_idx` (`problem_id`),
   CONSTRAINT `todo_fk1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `todo_fk2` FOREIGN KEY (`problem_id`) REFERENCES `problem` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9698 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9700 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -661,7 +680,7 @@ CREATE TABLE `user` (
   `picture` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_unique_name` (`firstname`,`lastname`)
-) ENGINE=InnoDB AUTO_INCREMENT=6500 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6504 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -698,7 +717,7 @@ CREATE TABLE `user_login` (
   KEY `user_login_region_id_idx` (`region_id`),
   CONSTRAINT `user_login_region_id` FOREIGN KEY (`region_id`) REFERENCES `region` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `user_login_user_id` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=235487 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=235989 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -750,4 +769,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-09-04 14:39:33
+-- Dump completed on 2023-09-05 10:49:50
