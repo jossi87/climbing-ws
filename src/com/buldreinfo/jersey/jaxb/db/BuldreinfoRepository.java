@@ -186,17 +186,19 @@ public class BuldreinfoRepository {
 	}
 
 	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException {
-		if (coordinates != null && !coordinates.isEmpty()) {
-			// First round coordinates to 10 digits (to match database type)
-			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
-			// Ensure coordinates exists in db
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude) VALUES (?, ?)")) {
-				for (Coordinates coord : coordinates) {
-					ps.setDouble(1, coord.getLatitude());
-					ps.setDouble(2, coord.getLongitude());
-					ps.addBatch();
+		if (coordinates != null) {
+			if (!coordinates.isEmpty()) {
+				// First round coordinates to 10 digits (to match database type)
+				coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
+				// Ensure coordinates exists in db
+				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude) VALUES (?, ?)")) {
+					for (Coordinates coord : coordinates) {
+						ps.setDouble(1, coord.getLatitude());
+						ps.setDouble(2, coord.getLongitude());
+						ps.addBatch();
+					}
+					ps.executeBatch();
 				}
-				ps.executeBatch();
 			}
 			// Fill missing elevations in db
 			List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
@@ -222,17 +224,19 @@ public class BuldreinfoRepository {
 					ps.executeBatch();
 				}
 			}
-			// Fetch correct id's and elevation's (id can be wrong in coordinates - user might have changed latitude/longitude on existing id)
-			for (Coordinates coord : coordinates) {
-				try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinates WHERE latitude=? AND longitude=?")) {
-					ps.setDouble(1, coord.getLatitude());
-					ps.setDouble(2, coord.getLongitude());
-					try (ResultSet rst = ps.executeQuery()) {
-						while (rst.next()) {
-							int id = rst.getInt("id");
-							double elevation = rst.getDouble("elevation");
-							coord.setId(id);
-							coord.setElevation(elevation);
+			if (!coordinates.isEmpty()) {
+				// Fetch correct id's and elevation's (id can be wrong in coordinates - user might have changed latitude/longitude on existing id)
+				for (Coordinates coord : coordinates) {
+					try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, elevation FROM coordinates WHERE latitude=? AND longitude=?")) {
+						ps.setDouble(1, coord.getLatitude());
+						ps.setDouble(2, coord.getLongitude());
+						try (ResultSet rst = ps.executeQuery()) {
+							while (rst.next()) {
+								int id = rst.getInt("id");
+								double elevation = rst.getDouble("elevation");
+								coord.setId(id);
+								coord.setElevation(elevation);
+							}
 						}
 					}
 				}
@@ -2137,7 +2141,7 @@ public class BuldreinfoRepository {
 		final boolean updateHits = true;
 		return getSector(authUserId, orderByGrade, setup, reqId, updateHits);
 	}
-	
+
 	public List<Setup> getSetups() throws SQLException {
 		List<Setup> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
@@ -2170,7 +2174,7 @@ public class BuldreinfoRepository {
 		logger.debug("getSetups() - res.size()={}", res.size());
 		return res;
 	}
-	
+
 	public String getSitemapTxt(Setup setup) throws SQLException {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls

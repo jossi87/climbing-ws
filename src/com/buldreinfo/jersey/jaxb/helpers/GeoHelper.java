@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.gson.stream.JsonReader;
 
 public class GeoHelper {
@@ -84,78 +85,80 @@ public class GeoHelper {
 		}
 		return null;
 	}
-	public static void fillElevations(List<Coordinates> coordinates) {
-		try {
-			String locations = null;
-			for (Coordinates coord : coordinates) {
-				String latLng = coord.getLatitude() + "," + coord.getLongitude();
-				if (locations == null) {
-					locations = latLng;
-				}
-				else {
-					locations += "|" + latLng;
-				}
-			}
-			double latitude = 0, longitude = 0, elevation = 0;
-			String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
-			URL url = new URL(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey));
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			int responseCode = connection.getResponseCode();
-			Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);
-			try (InputStream is = connection.getInputStream();
-					InputStreamReader isr = new InputStreamReader(is);
-					JsonReader jsonReader = new JsonReader(isr)) {
-				jsonReader.beginObject();
-				while (jsonReader.hasNext()) {
-					String field = jsonReader.nextName();
-					if (field.equals("results")) {
-						jsonReader.beginArray();
-						while (jsonReader.hasNext()) {
-							jsonReader.beginObject();
-							while (jsonReader.hasNext()) {
-								field = jsonReader.nextName();
-								if (field.equals("elevation")) {
-									elevation = jsonReader.nextDouble();
-								}
-								else if (field.equals("location")) {
-									jsonReader.beginObject();
-									while (jsonReader.hasNext()) {
-										field = jsonReader.nextName();
-										if (field.equals("lat")) {
-											latitude = jsonReader.nextDouble();
-										}
-										else if (field.equals("lng")) {
-											longitude = jsonReader.nextDouble();
-										}
-										else {
-											jsonReader.skipValue();
-										}
-									}
-									jsonReader.endObject();
-								}
-								else {
-									jsonReader.skipValue();
-								}
-							}
-							final double lat = latitude;
-							final double lng = longitude;
-							final double el = elevation;
-							coordinates
-							.stream()
-							.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
-							.forEach(x -> x.setElevation(el));
-							jsonReader.endObject();
-						}
-						jsonReader.endArray();
-					} else {
-						jsonReader.skipValue();
+	public static void fillElevations(List<Coordinates> allCoordinates) {
+		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
+			try {
+				String locations = null;
+				for (Coordinates coord : coordinates) {
+					String latLng = coord.getLatitude() + "," + coord.getLongitude();
+					if (locations == null) {
+						locations = latLng;
 					}
-
+					else {
+						locations += "|" + latLng;
+					}
 				}
-				jsonReader.endObject();
+				double latitude = 0, longitude = 0, elevation = 0;
+				String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
+				URL url = new URL(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey));
+				HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+				int responseCode = connection.getResponseCode();
+				Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);
+				try (InputStream is = connection.getInputStream();
+						InputStreamReader isr = new InputStreamReader(is);
+						JsonReader jsonReader = new JsonReader(isr)) {
+					jsonReader.beginObject();
+					while (jsonReader.hasNext()) {
+						String field = jsonReader.nextName();
+						if (field.equals("results")) {
+							jsonReader.beginArray();
+							while (jsonReader.hasNext()) {
+								jsonReader.beginObject();
+								while (jsonReader.hasNext()) {
+									field = jsonReader.nextName();
+									if (field.equals("elevation")) {
+										elevation = jsonReader.nextDouble();
+									}
+									else if (field.equals("location")) {
+										jsonReader.beginObject();
+										while (jsonReader.hasNext()) {
+											field = jsonReader.nextName();
+											if (field.equals("lat")) {
+												latitude = jsonReader.nextDouble();
+											}
+											else if (field.equals("lng")) {
+												longitude = jsonReader.nextDouble();
+											}
+											else {
+												jsonReader.skipValue();
+											}
+										}
+										jsonReader.endObject();
+									}
+									else {
+										jsonReader.skipValue();
+									}
+								}
+								final double lat = latitude;
+								final double lng = longitude;
+								final double el = elevation;
+								coordinates
+								.stream()
+								.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
+								.forEach(x -> x.setElevation(el));
+								jsonReader.endObject();
+							}
+							jsonReader.endArray();
+						} else {
+							jsonReader.skipValue();
+						}
+
+					}
+					jsonReader.endObject();
+				}
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
 			}
-		} catch (Exception e) {
-			logger.warn(e.getMessage(), e);
 		}
 	}
 	public static int getElevation(double latitude, double longitude) throws IOException {
