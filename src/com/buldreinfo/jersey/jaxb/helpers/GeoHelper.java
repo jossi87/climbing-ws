@@ -73,7 +73,7 @@ public class GeoHelper {
 
 	private static Logger logger = LogManager.getLogger();
 	public static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
-		if (!setup.isClimbing() || outline == null || outline.isEmpty()) {
+		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
 			return null;
 		}
 		try {
