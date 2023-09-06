@@ -8,6 +8,7 @@ public class Coordinates {
 	private double latitude;
 	private double longitude;
 	private double elevation;
+	private double distance;
 	
 	public Coordinates(double latitude, double longitude) {
 		this.latitude = latitude;
@@ -56,10 +57,18 @@ public class Coordinates {
 	    bd = bd.setScale(places, RoundingMode.HALF_UP);
 	    return bd.doubleValue();
 	}
+	
+	public double getDistance() {
+		return distance;
+	}
+	
+	public void setDistance(double distance) {
+		this.distance = distance;
+	}
 
 	@Override
 	public String toString() {
 		return "Coordinates [id=" + id + ", latitude=" + latitude + ", longitude=" + longitude + ", elevation="
-				+ elevation + "]";
+				+ elevation + ", distance=" + distance + "]";
 	}
 }

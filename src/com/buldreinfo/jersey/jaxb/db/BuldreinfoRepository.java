@@ -4359,6 +4359,7 @@ public class BuldreinfoRepository {
 	}
 
 	private Multimap<Integer, Coordinates> getSectorApproaches(Collection<Integer> idSectors) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
@@ -4369,17 +4370,26 @@ public class BuldreinfoRepository {
 				ps.setInt(parameterIndex++, idSector);
 			}
 			try (ResultSet rst = ps.executeQuery()) {
+				int prevIdSector = 0;
+				Coordinates prevCoord = null;
 				while (rst.next()) {
 					int idSector = rst.getInt("id_sector");
+					if (prevIdSector != idSector) {
+						prevIdSector = idSector;
+						prevCoord = null;
+					}
 					int id = rst.getInt("id");
 					double latitude = rst.getDouble("latitude");
 					double longitude = rst.getDouble("longitude");
 					double elevation = rst.getDouble("elevation");
-					res.put(idSector, new Coordinates(id, latitude, longitude, elevation));
+					double distance = prevCoord != null? prevCoord.getDistance() + GeoHelper.getDistance(prevCoord.getLatitude(), latitude, prevCoord.getLongitude(), longitude, 0, 0) : 0;
+					prevCoord = new Coordinates(id, latitude, longitude, elevation);
+					prevCoord.setDistance(distance);
+					res.put(idSector, prevCoord);
 				}
 			}
 		}
-		logger.debug("getSectorApproaches(idSectors.size()={}) - res.size()={}", idSectors.size(), res.size());
+		logger.debug("getSectorApproaches(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
 		return res;
 	}
 
