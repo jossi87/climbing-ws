@@ -77,6 +77,7 @@ import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Problem.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.Problem.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -1352,7 +1353,6 @@ public class BuldreinfoRepository {
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved FROM guestbook g, user u WHERE g.problem_id=? AND g.user_id=u.id ORDER BY g.post_time DESC")) {
 			ps.setInt(1, p.getId());
 			try (ResultSet rst = ps.executeQuery()) {
-				Problem.ProblemComment lastComment = null;
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
@@ -1363,11 +1363,12 @@ public class BuldreinfoRepository {
 					boolean danger = rst.getBoolean("danger");
 					boolean resolved = rst.getBoolean("resolved");
 					List<Media> media = getMediaGuestbook(authUserId, id);
-					lastComment = p.addComment(id, date, idUser, picture, name, message, danger, resolved, media);
+					p.addComment(id, date, idUser, picture, name, message, danger, resolved, media);
 				}
 				// Enable editing on last comment in thread if it is written by authenticated user
-				if (lastComment != null && lastComment.getIdUser() == authUserId) {
-					lastComment.setEditable(true);
+				Optional<ProblemComment> lastComment = p.getComments().stream().max(Comparator.comparing(ProblemComment::getId).reversed());
+				if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId) {
+					lastComment.get().setEditable(true);
 				}
 			}
 		}
@@ -3488,12 +3489,15 @@ public class BuldreinfoRepository {
 	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
+			List<Problem.ProblemComment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
+			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.getIdProblem());
+			boolean commentIsEditableByUser = comments
+					.stream()
+					.filter(x -> x.getId() == co.getId() && x.getIdUser() == authUserId && x.isEditable())
+					.findAny()
+					.isPresent();
+			Preconditions.checkArgument(commentIsEditableByUser, "Comment not editable by " + authUserId);
 			if (co.isDelete()) {
-				List<Problem.ProblemComment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
-				Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.getIdProblem());
-				Problem.ProblemComment lastComment = comments.get(comments.size()-1);
-				Preconditions.checkArgument(co.getId() == lastComment.getId(), "Comment not in end of thread");
-				Preconditions.checkArgument(lastComment.isEditable(), "Comment not editable by " + authUserId);
 				try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM guestbook WHERE id=?")) {
 					ps.setInt(1, co.getId());
 					ps.execute();
