@@ -21,6 +21,21 @@ public class GlobalFunctions {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String MEDIA_ROOT_PRODUCTION = "/mnt/buldreinfo/media";
 
+	public static void ensureFileReadableForAllUsers(Path p) {
+		try {
+			Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
+			String[] commands = {"chmod", "755", p.toString()};
+			Process process = new ProcessBuilder().inheritIO().command(commands).start();
+			process.waitFor();
+		} catch (Exception e) {
+			logger.warn(e.getMessage(), e);
+		}
+	}
+	
+	public static int getCrc32(Path p) throws IOException {
+		return com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt();
+	}
+	
 	public static String getFilename(String purpose, String ext) {
 		purpose = removeIllegalCharacters(purpose);
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
@@ -54,10 +69,6 @@ public class GlobalFunctions {
 	
 	public static Path getPathTemp() throws IOException {
 		return getPathRoot().resolve("temp");
-	}
-	
-	public static int getCrc32(Path p) throws IOException {
-		return com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt();
 	}
 	
 	public static Path getPathWebUsers() throws IOException {

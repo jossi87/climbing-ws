@@ -3895,6 +3895,7 @@ public class BuldreinfoRepository {
 			try (InputStream in = new URL(url).openStream()) {
 				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 				in.close();
+				GlobalFunctions.ensureFileReadableForAllUsers(original);
 				// Resize avatar
 				Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
 				Files.createDirectories(resized.getParent());
@@ -3907,6 +3908,7 @@ public class BuldreinfoRepository {
 				bScaled.flush();
 				bScaled = null;
 				Preconditions.checkArgument(Files.exists(resized));
+				GlobalFunctions.ensureFileReadableForAllUsers(resized);
 				return true;
 			}
 		} catch (Exception e) {
