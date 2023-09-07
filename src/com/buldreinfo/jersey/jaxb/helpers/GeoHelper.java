@@ -177,6 +177,25 @@ public class GeoHelper {
 		GeoHelper.fillElevations(coordinates);
 		return (int)Math.round(coordinates.get(0).getElevation());
 	}
+	public static long calculateHikingDurationInMinutes(List<Coordinates> approach) {
+		final double e = -3.5; // Exponential growth factor in Tobler's function
+		final double a = 0.05; // Slope offset with max speed. 5% down hill will result in max speed -2.86 degrees
+		final double c = 1 / Math.exp(e * a); // Horizontal speed to max speed factor: Vmax=C*Vflat
+		final int maxLimit = 3; // >30% incline / >40% decline
+		double totalCalculatedDistance = 0;
+		for (int i = 1; i < approach.size(); i++) {
+			Coordinates prevCoord = approach.get(i-1);
+			Coordinates coord = approach.get(i);
+			double elevation = coord.getElevation()-prevCoord.getElevation();
+			double distance = coord.getDistance()-prevCoord.getDistance();
+			double distanceMultiplier = 1.0 / (c * Math.exp(e * Math.abs(elevation / distance + a)));
+			totalCalculatedDistance += (Math.min(maxLimit, distanceMultiplier) * distance);
+		}
+		double meterPerSecond = 1.5;
+		double durationSeconds = totalCalculatedDistance / meterPerSecond;
+		long durationMinutes = Math.round(durationSeconds / 60.0);
+		return durationMinutes;
+	}
 	private List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
 	private GeoPoint firstPointHigh;

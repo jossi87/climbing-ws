@@ -78,7 +78,7 @@ public class Sector {
 	private Coordinates parking;
 	private final List<Coordinates> outline;
 	private final String wallDirection;
-	private final List<Coordinates> approach;
+	private final Approach approach;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<SectorJump> sectors = new ArrayList<>();
@@ -87,7 +87,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, List<Coordinates> approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, Approach approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -135,7 +135,7 @@ public class Sector {
 		return accessInfo;
 	}
 	
-	public List<Coordinates> getApproach() {
+	public Approach getApproach() {
 		return approach;
 	}
 	

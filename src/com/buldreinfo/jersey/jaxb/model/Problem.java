@@ -192,7 +192,7 @@ public class Problem {
 	private final Coordinates sectorParking;
 	private final List<Coordinates> sectorOutline;
 	private final String sectorWallDirection;
-	private final List<Coordinates> sectorApproach;
+	private final Approach sectorApproach;
 	private final int sectorIdProblemPrev;
 	private final int sectorIdProblemNext;
 	private final String canonical;
@@ -233,7 +233,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, List<Coordinates> sectorApproach, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, Approach sectorApproach, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -449,7 +449,7 @@ public class Problem {
 		return sectorAccessInfo;
 	}
 	
-	public List<Coordinates> getSectorApproach() {
+	public Approach getSectorApproach() {
 		return sectorApproach;
 	}
 	

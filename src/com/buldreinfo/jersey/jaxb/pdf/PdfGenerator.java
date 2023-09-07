@@ -517,8 +517,8 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
-				if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach());
+				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 					polylines.add(polyline);
 					distance = LeafletPrintGenerator.getDistance(polyline);
 				}
@@ -590,8 +590,8 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
 			}
 			String distance = null;
-			if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
-				String polyline = convertFromApproachToPolyline(sector.getApproach());
+			if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
+				String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 				polylines.add(polyline);
 				distance = LeafletPrintGenerator.getDistance(polyline);	
 			}
@@ -682,8 +682,8 @@ public class PdfGenerator implements AutoCloseable {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
 				}
 				String distance = null;
-				if (sector.getApproach() != null && !sector.getApproach().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach());
+				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 					polylines.add(polyline);
 					distance = LeafletPrintGenerator.getDistance(polyline);
 				}

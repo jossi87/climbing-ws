@@ -60,6 +60,7 @@ import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
+import com.buldreinfo.jersey.jaxb.model.Approach;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
@@ -713,10 +714,9 @@ public class BuldreinfoRepository {
 				sectorLookup.get(idSector).setOutline(outline);
 			}
 			// Fill sector approaches
-			Multimap<Integer, Coordinates> idSectorApproach = getSectorApproaches(sectorLookup.keySet());
+			Map<Integer, Approach> idSectorApproach = getSectorApproaches(sectorLookup.keySet());
 			for (int idSector : idSectorApproach.keySet()) {
-				List<Coordinates> approach = Lists.newArrayList(idSectorApproach.get(idSector));
-				sectorLookup.get(idSector).setApproach(approach);
+				sectorLookup.get(idSector).setApproach(idSectorApproach.get(idSector));
 			}
 		}
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type, COUNT(DISTINCT p.id) num, COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END")) {
@@ -1229,7 +1229,7 @@ public class BuldreinfoRepository {
 					Coordinates sectorParking = parkingidCoordinates == 0? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"));
 					List<Coordinates> sectorOutline = getSectorOutline(sectorId);
 					String sectorWallDirection = rst.getString("sector_wall_direction");
-					List<Coordinates> sectorApproach = getSectorApproach(sectorId);
+					Approach sectorApproach = getSectorApproaches(Collections.singleton(sectorId)).getOrDefault(sectorId, null);
 					String canonical = rst.getString("canonical");
 					int id = rst.getInt("id");
 					String broken = rst.getString("broken");
@@ -3145,8 +3145,8 @@ public class BuldreinfoRepository {
 		if (s.getOutline() != null && !s.getOutline().isEmpty()) {
 			allCoordinates.addAll(s.getOutline());
 		}
-		if (s.getApproach() != null && !s.getApproach().isEmpty()) {
-			allCoordinates.addAll(s.getApproach());
+		if (s.getApproach() != null && s.getApproach().getCoordinates() != null && !s.getApproach().getCoordinates().isEmpty()) {
+			allCoordinates.addAll(s.getApproach().getCoordinates());
 		}
 		if (s.getParking() != null) {
 			if (s.getParking().getLatitude() == 0 || s.getParking().getLongitude() == 0) {
@@ -3259,7 +3259,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Approach
-		if (s.getApproach() == null || s.getApproach().isEmpty()) {
+		if (s.getApproach() == null || s.getApproach().getCoordinates() == null || s.getApproach().getCoordinates().isEmpty()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_approach WHERE sector_id=?")) {
 				ps.setInt(1, idSector);
 				ps.execute();
@@ -3267,12 +3267,12 @@ public class BuldreinfoRepository {
 		} else {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_approach WHERE sector_id=? AND sorting>?")) {
 				ps.setInt(1, idSector);
-				ps.setInt(2, s.getApproach().size());
+				ps.setInt(2, s.getApproach().getCoordinates().size());
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
 				int sorting = 0;
-				for (Coordinates coord : s.getApproach()) {
+				for (Coordinates coord : s.getApproach().getCoordinates()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
@@ -4297,7 +4297,7 @@ public class BuldreinfoRepository {
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"));
 					List<Coordinates> sectorOutline = getSectorOutline(reqId);
-					List<Coordinates> sectorApproach = getSectorApproach(reqId);
+					Approach sectorApproach = getSectorApproaches(Collections.singleton(reqId)).getOrDefault(reqId, null);
 					String wallDirection = rst.getString("wall_direction");
 					int hits = rst.getInt("hits");
 					List<Media> media = null;
@@ -4352,18 +4352,11 @@ public class BuldreinfoRepository {
 		return s;
 	}
 
-	private List<Coordinates> getSectorApproach(int idSector) throws SQLException {
-		Multimap<Integer, Coordinates> idSectorApproach = getSectorApproaches(Collections.singleton(idSector));
-		if (idSectorApproach == null || idSectorApproach.isEmpty()) {
-			return null;
-		}
-		return Lists.newArrayList(idSectorApproach.get(idSector));
-	}
-
-	private Multimap<Integer, Coordinates> getSectorApproaches(Collection<Integer> idSectors) throws SQLException {
+	private Map<Integer, Approach> getSectorApproaches(Collection<Integer> idSectors) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, Approach> res = new HashMap<>();
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
+		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
 		String sqlStr = "SELECT sa.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation FROM sector_approach sa, coordinates c WHERE sa.sector_id IN (" + in + ") AND sa.coordinates_id=c.id ORDER BY sa.sector_id, sa.sorting";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
@@ -4387,9 +4380,13 @@ public class BuldreinfoRepository {
 					double distance = prevCoord != null? prevCoord.getDistance() + GeoHelper.getDistance(prevCoord.getLatitude(), latitude, prevCoord.getLongitude(), longitude, 0, 0) : 0;
 					prevCoord = new Coordinates(id, latitude, longitude, elevation);
 					prevCoord.setDistance(distance);
-					res.put(idSector, prevCoord);
+					idSectorCoordinates.put(idSector, prevCoord);
 				}
 			}
+		}
+		for (int idSector : idSectorCoordinates.keySet()) {
+			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
+			res.put(idSector, new Approach(coordinates));
 		}
 		logger.debug("getSectorApproaches(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
 		return res;

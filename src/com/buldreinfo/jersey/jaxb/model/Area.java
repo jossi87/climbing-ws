@@ -19,7 +19,7 @@ public class Area {
 		private final Coordinates parking;
 		private List<Coordinates> outline;
 		private final String wallDirection;
-		private List<Coordinates> approach;
+		private Approach approach;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
 		private final List<SectorProblem> problems = new ArrayList<>();
@@ -49,7 +49,7 @@ public class Area {
 			return accessInfo;
 		}
 
-		public List<Coordinates> getApproach() {
+		public Approach getApproach() {
 			return approach;
 		}
 
@@ -113,7 +113,7 @@ public class Area {
 			return lockedSuperadmin;
 		}
 
-		public void setApproach(List<Coordinates> approach) {
+		public void setApproach(Approach approach) {
 			this.approach = approach;
 		}
 
