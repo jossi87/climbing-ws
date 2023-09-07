@@ -1365,7 +1365,7 @@ public class BuldreinfoRepository {
 					List<Media> media = getMediaGuestbook(authUserId, id);
 					p.addComment(id, date, idUser, picture, name, message, danger, resolved, media);
 				}
-				if (p.getComment() != null && !p.getComment().isEmpty()) {
+				if (p.getComments() != null && !p.getComments().isEmpty()) {
 					// Enable editing on last comment in thread if it is written by authenticated user
 					Optional<ProblemComment> lastComment = p.getComments().stream().max(Comparator.comparing(ProblemComment::getId).reversed());
 					if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId) {
