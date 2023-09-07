@@ -1365,10 +1365,12 @@ public class BuldreinfoRepository {
 					List<Media> media = getMediaGuestbook(authUserId, id);
 					p.addComment(id, date, idUser, picture, name, message, danger, resolved, media);
 				}
-				// Enable editing on last comment in thread if it is written by authenticated user
-				Optional<ProblemComment> lastComment = p.getComments().stream().max(Comparator.comparing(ProblemComment::getId).reversed());
-				if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId) {
-					lastComment.get().setEditable(true);
+				if (p.getComment() != null && !p.getComment().isEmpty()) {
+					// Enable editing on last comment in thread if it is written by authenticated user
+					Optional<ProblemComment> lastComment = p.getComments().stream().max(Comparator.comparing(ProblemComment::getId).reversed());
+					if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId) {
+						lastComment.get().setEditable(true);
+					}
 				}
 			}
 		}
