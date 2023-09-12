@@ -1,0 +1,41 @@
+version: "3.8"
+
+volumes:
+  # Define a volume to store the database data persistently. This is helpful
+  # to avoid having to recreate the database from scratch every time you start.
+  # If the database neds to be reset, the whole volume can be dropped with:
+  #   docker volume rm climbing-ws_db-data
+  db-data:
+
+services:
+  # This is a simple shell to give simple access into the docker container
+  # network for debugging purposes (eg, to make sure that hostnames are being
+  # resolved correctly).
+  # shell:
+  #   container_name: shell
+  #   image: alpine:latest
+  #   tty: true
+
+  # The webserver container is so that developers don't have to install Tomcat
+  # and everything (ie, jdk) on their machine.
+  # TODO: Uncomment this when I figure out how to get this working.
+  # webserver:
+  #   container_name: webserver
+  #   image: tomcat:10.1
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+  #   ports:
+  #     - "8080:8080"
+
+  # The database container so that developers don't have to babysit a MySQL
+  # installation on their machine.
+  database:
+    container_name: database
+    image: mysql:8.1.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-brattelinjer}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
