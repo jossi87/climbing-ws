@@ -3749,7 +3749,10 @@ public class BuldreinfoRepository {
 			 * IO
 			 */
 			final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
-			Files.createDirectories(p.getParent());
+			if (!Files.exists(p.getParent())) {
+				Files.createDirectories(p.getParent());
+				GlobalFunctions.setPermission(p.getParent());
+			}
 			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 			if (isMovie) {
 				try (InputStream is = new URL(m.getEmbedThumbnailUrl()).openStream()){
@@ -3774,16 +3777,6 @@ public class BuldreinfoRepository {
 				}
 			}
 			else {
-				/**
-				 * To fix:
-				 * 2020.05.15 13:59:48,610 [http-nio-8080-exec-258] FATAL com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions:20 - /mnt/buldreinfo/media/temp/1589543988604_a.jpg: Read-only file system
-				 * 
-				 * Add the following to /lib/systemd/system/tomcat9.service
-				 * ReadWritePaths=/mnt/buldreinfo/media/
-				 * 
-				 * systemctl daemon-reload
-				 * service tomcat9 restart
-				 */
 				// Save as JPG
 				logger.debug("addNewMedia(name={}) - IO started", m.getName());
 				try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
@@ -3813,6 +3806,7 @@ public class BuldreinfoRepository {
 				logger.debug("addNewMedia(name={}) - Rotation done", m.getName());
 			}
 			Preconditions.checkArgument(Files.exists(p) && Files.size(p)>0, p.toString() + " does not exist (or is 0 byte)");
+			GlobalFunctions.setPermission(p);
 			// Create scaled jpg and webp + update crc32 and dimentions in db
 			createScaledImages(c, getDateTaken(p), idMedia, "jpg", setDateTakenWHAndChecksum);
 		}
@@ -3855,8 +3849,14 @@ public class BuldreinfoRepository {
 		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
 		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
-		Files.createDirectories(webp.getParent());
-		Files.createDirectories(jpg.getParent());
+		if (!Files.exists(webp.getParent())) {
+			Files.createDirectories(webp.getParent());
+			GlobalFunctions.setPermission(webp.getParent());
+		}
+		if (!Files.exists(jpg.getParent())) {
+			Files.createDirectories(jpg.getParent());
+			GlobalFunctions.setPermission(jpg.getParent());
+		}
 		Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
 		Preconditions.checkArgument(!Files.exists(webp), webp.toString() + " does already exist");
 		Preconditions.checkArgument(!Files.exists(jpg), jpg.toString() + " does already exist");
@@ -3871,12 +3871,14 @@ public class BuldreinfoRepository {
 		bScaled.flush();
 		bScaled = null;
 		Preconditions.checkArgument(Files.exists(jpg));
+		GlobalFunctions.setPermission(jpg);
 		logger.debug("createScaledImages(id={}) - scaled jpg saved", id);
 		// Scaled WebP
 		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"" };
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
 		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
+		GlobalFunctions.setPermission(webp);
 		logger.debug("createScaledImages(id={}) - scaled webp saved", id);
 		if (setDateTakenWHAndChecksum) {
 			/**
@@ -3897,11 +3899,14 @@ public class BuldreinfoRepository {
 	private boolean downloadUserImage(int userId, String url) throws IOException {
 		try {
 			Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
-			Files.createDirectories(original.getParent());
+			if (!Files.exists(original.getParent())) {
+				Files.createDirectories(original.getParent());
+				GlobalFunctions.setPermission(original.getParent());
+			}
 			try (InputStream in = new URL(url).openStream()) {
 				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 				in.close();
-				GlobalFunctions.ensureFileReadableForAllUsers(original);
+				GlobalFunctions.setPermission(original);
 				// Resize avatar
 				Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
 				Files.createDirectories(resized.getParent());
@@ -3914,7 +3919,7 @@ public class BuldreinfoRepository {
 				bScaled.flush();
 				bScaled = null;
 				Preconditions.checkArgument(Files.exists(resized));
-				GlobalFunctions.ensureFileReadableForAllUsers(resized);
+				GlobalFunctions.setPermission(resized);
 				return true;
 			}
 		} catch (Exception e) {
