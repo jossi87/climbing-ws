@@ -2362,20 +2362,20 @@ public class BuldreinfoRepository {
 				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.grade!=0 AND p.broken IS NULL)"
 				+ " SELECT y.user_id, y.name, y.picture, ROUND(SUM(y.sum)/x.sum*100,2) percentage"
 				+ " FROM ("
-				+ "  SELECT u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
+				+ "  SELECT 'tick' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
 				+ "  FROM area a, sector s, problem p, tick t, user u"
 				+ "  WHERE " + condition
 				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=t.problem_id AND t.user_id=u.id"
 				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
 				+ "  UNION"
-				+ "  SELECT u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
+				+ "  SELECT 'fa' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
 				+ "  FROM area a, sector s, problem p, fa f, user u"
 				+ "  WHERE " + condition
 				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id"
 				+ "    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)"
 				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
 				+ "  UNION"
-				+ "  SELECT u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
+				+ "  SELECT 'fa_aid' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') END picture, COUNT(p.id) sum"
 				+ "  FROM area a, sector s, problem p, fa_aid_user f, user u"
 				+ "  WHERE " + condition
 				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id"
