@@ -14,13 +14,13 @@ public class Svg {
 	private final String texts;
 	private final String anchors;
 	private final boolean primary;
-	private final boolean isTicked;
-	private final boolean isTodo;
-	private final boolean isDangerous;
+	private final boolean ticked;
+	private final boolean todo;
+	private final boolean dangerous;
 	
 	public Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, int problemGradeGroup, String problemSubtype,
-			int nr, String path, boolean hasAnchor, String texts, String anchors, boolean primary, boolean isTicked,
-			boolean isTodo, boolean isDangerous) {
+			int nr, String path, boolean hasAnchor, String texts, String anchors, boolean primary, boolean ticked,
+			boolean todo, boolean dangerous) {
 		this.delete = delete;
 		this.id = id;
 		this.problemId = problemId;
@@ -34,9 +34,9 @@ public class Svg {
 		this.texts = texts;
 		this.anchors = anchors;
 		this.primary = primary;
-		this.isTicked = isTicked;
-		this.isTodo = isTodo;
-		this.isDangerous = isDangerous;
+		this.ticked = ticked;
+		this.todo = todo;
+		this.dangerous = dangerous;
 	}
 
 	public String getAnchors() {
@@ -80,7 +80,7 @@ public class Svg {
 	}
 
 	public boolean isDangerous() {
-		return isDangerous;
+		return dangerous;
 	}
 
 	public boolean isDelete() {
@@ -96,10 +96,10 @@ public class Svg {
 	}
 
 	public boolean isTicked() {
-		return isTicked;
+		return ticked;
 	}
 
 	public boolean isTodo() {
-		return isTodo;
+		return todo;
 	}
 }
