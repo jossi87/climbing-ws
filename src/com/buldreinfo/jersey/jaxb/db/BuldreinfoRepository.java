@@ -192,7 +192,7 @@ public class BuldreinfoRepository {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
 			// Ensure coordinates exists in db
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO coordinates (latitude, longitude, coordinate, coordinate_source) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE coordinate=?, coordinate_source=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE elevation=?, elevation_source=?")) {
 				for (Coordinates coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
