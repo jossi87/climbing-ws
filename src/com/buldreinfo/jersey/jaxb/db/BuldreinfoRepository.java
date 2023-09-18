@@ -234,8 +234,8 @@ public class BuldreinfoRepository {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
 					for (Coordinates coord : coordinatesMissingElevation) {
 						ps.setDouble(1, coord.getElevation());
-						ps.setDouble(2, coord.getId());
-						ps.setString(3, coord.getElevationSource());
+						ps.setString(2, coord.getElevationSource());
+						ps.setDouble(3, coord.getId());
 						ps.addBatch();
 					}
 					ps.executeBatch();
