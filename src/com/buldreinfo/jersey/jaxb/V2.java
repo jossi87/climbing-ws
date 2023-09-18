@@ -581,6 +581,7 @@ public class V2 {
 			List<ProfileMedia> res = c.getBuldreinfoRepo().getProfileMediaProblem(authUserId, setup, id, captured);
 			if (captured) {
 				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedSector(authUserId, setup, id));
+				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedArea(authUserId, setup, id));
 				res.sort(Comparator.comparingInt(ProfileMedia::getId).reversed());
 			}
 			c.setSuccess();
