@@ -144,7 +144,7 @@ public class GeoHelper {
 							coordinates
 							.stream()
 							.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
-							.forEach(x -> x.setElevation(el));
+							.forEach(x -> x.setElevation(el, Coordinates.ELEVATION_SOURCE_GOOGLE));
 							jsonReader.endObject();
 						}
 						jsonReader.endArray();
