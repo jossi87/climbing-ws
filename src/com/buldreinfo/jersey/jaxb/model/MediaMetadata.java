@@ -23,7 +23,7 @@ public class MediaMetadata {
 			alt += " (" + description + ")";
 		}
 		if (!Strings.isNullOrEmpty(capturer)) {
-			alt += ", captured by: " + tagged;
+			alt += ", captured by: " + capturer;
 		}
 		if (!Strings.isNullOrEmpty(tagged)) {
 			alt += ", in photo: " + tagged;
