@@ -191,7 +191,7 @@ public class GeoHelper {
 			double distanceMultiplier = 1.0 / (c * Math.exp(e * Math.abs(elevation / distance + a)));
 			totalCalculatedDistance += (Math.min(maxLimit, distanceMultiplier) * distance);
 		}
-		double meterPerSecond = 1.42;
+		double meterPerSecond = 1.3; // Average hiking speed is between 1.2 and 1.4 m/s
 		double durationSeconds = totalCalculatedDistance / meterPerSecond;
 		long durationMinutes = Math.round(durationSeconds / 60.0);
 		return durationMinutes;
