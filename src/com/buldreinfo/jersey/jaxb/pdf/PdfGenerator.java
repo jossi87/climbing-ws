@@ -27,6 +27,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
+import com.buldreinfo.jersey.jaxb.model.Approach;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
@@ -520,7 +521,7 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
 					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 					polylines.add(polyline);
-					distance = LeafletPrintGenerator.getDistance(polyline);
+					distance = getDistance(sector.getApproach());
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -593,7 +594,7 @@ public class PdfGenerator implements AutoCloseable {
 			if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
 				String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 				polylines.add(polyline);
-				distance = LeafletPrintGenerator.getDistance(polyline);	
+				distance = getDistance(sector.getApproach());
 			}
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -644,6 +645,14 @@ public class PdfGenerator implements AutoCloseable {
 			logger.warn(e.getMessage(), e);
 		}
 	}
+	
+	private String getDistance(Approach a) {
+		long meter = a.getDistance();
+		if (meter > 1000) {
+			return meter/1000 + " km";
+		}
+		return meter + " meter";
+	}
 
 	private void writeMapSector(Sector sector) {
 		try {
@@ -685,7 +694,7 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
 					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
 					polylines.add(polyline);
-					distance = LeafletPrintGenerator.getDistance(polyline);
+					distance = getDistance(sector.getApproach());
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");

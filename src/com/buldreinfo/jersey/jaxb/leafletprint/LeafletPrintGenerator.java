@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
@@ -23,26 +22,6 @@ import com.google.gson.Gson;
 
 public class LeafletPrintGenerator {
 	private static Logger logger = LogManager.getLogger();
-	public static String getDistance(String polyline) {
-		double distance = 0;
-		double prevLat = 0;
-		double prevLng = 0;
-		for (String part : polyline.split(";")) {
-			String[] latLng = part.split(",");
-			double lat = Double.parseDouble(latLng[0]);
-			double lng = Double.parseDouble(latLng[1]);
-			if (prevLat > 0 && prevLng > 0) {
-				distance += GeoHelper.getDistance(prevLat, lat, prevLng, lng, 0, 0);
-			}
-			prevLat = lat;
-			prevLng = lng;
-		}
-		long meter = Math.round(distance);
-		if (meter > 1000) {
-			return meter/1000 + " km";
-		}
-		return meter + " meter";
-	}
 	public static LatLng getCenter(Collection<SectorProblem> problems) {
 		double x = 0.0;
 	    double y = 0.0;

@@ -4389,7 +4389,7 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
-		String sqlStr = "SELECT sa.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM sector_approach sa, coordinates c WHERE sa.sector_id IN (" + in + ") AND sa.coordinates_id=c.id ORDER BY sa.sector_id, sa.sorting";
+		String sqlStr = "SELECT sa.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by sa.sector_id order by sa.sorting), lag(latitude) over (partition by sa.sector_id order by sa.sorting))) m FROM sector_approach sa, coordinates c WHERE sa.sector_id IN (" + in + ") AND sa.coordinates_id=c.id ORDER BY sa.sector_id, sa.sorting";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			int parameterIndex = 1;
 			for (int idSector : idSectors) {
@@ -4397,22 +4397,22 @@ public class BuldreinfoRepository {
 			}
 			try (ResultSet rst = ps.executeQuery()) {
 				int prevIdSector = 0;
-				Coordinates prevCoord = null;
+				double distance = 0;
 				while (rst.next()) {
 					int idSector = rst.getInt("id_sector");
 					if (prevIdSector != idSector) {
 						prevIdSector = idSector;
-						prevCoord = null;
+						distance = 0;
 					}
 					int id = rst.getInt("id");
 					double latitude = rst.getDouble("latitude");
 					double longitude = rst.getDouble("longitude");
 					double elevation = rst.getDouble("elevation");
 					String elevationSource = rst.getString("elevation_source");
-					double distance = prevCoord != null? prevCoord.getDistance() + GeoHelper.getDistance(prevCoord.getLatitude(), latitude, prevCoord.getLongitude(), longitude, 0, 0) : 0;
-					prevCoord = new Coordinates(id, latitude, longitude, elevation, elevationSource);
-					prevCoord.setDistance(distance);
-					idSectorCoordinates.put(idSector, prevCoord);
+					distance += rst.getDouble("m");
+					Coordinates coords = new Coordinates(id, latitude, longitude, elevation, elevationSource);
+					coords.setDistance(distance);
+					idSectorCoordinates.put(idSector, coords);
 				}
 			}
 		}

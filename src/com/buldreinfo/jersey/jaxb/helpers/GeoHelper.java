@@ -157,6 +157,7 @@ public class GeoHelper {
 			}
 		}
 	}
+	@Deprecated // TODO Use st_distance_sphere in MySQL
 	public static double getDistance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {
 	    final int R = 6371; // Radius of the earth
 	    double latDistance = Math.toRadians(lat2 - lat1);
