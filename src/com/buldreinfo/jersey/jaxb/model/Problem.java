@@ -193,8 +193,8 @@ public class Problem {
 	private final List<Coordinates> sectorOutline;
 	private final String sectorWallDirection;
 	private final Approach sectorApproach;
-	private final int sectorIdProblemPrev;
-	private final int sectorIdProblemNext;
+	private final SectorProblem neighbourPrev;
+	private final SectorProblem neighbourNext;
 	private final String canonical;
 	private final int id;
 	private final String broken;
@@ -233,7 +233,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, Approach sectorApproach, int sectorIdProblemPrev, int sectorIdProblemNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, Approach sectorApproach, SectorProblem neighbourPrev, SectorProblem neighbourNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -255,8 +255,8 @@ public class Problem {
 		this.sectorOutline = sectorOutline;
 		this.sectorWallDirection = sectorWallDirection;
 		this.sectorApproach = sectorApproach;
-		this.sectorIdProblemPrev = sectorIdProblemPrev;
-		this.sectorIdProblemNext = sectorIdProblemNext;
+		this.neighbourPrev = neighbourPrev;
+		this.neighbourNext = neighbourNext;
 		this.canonical = canonical;
 		this.id = id;
 		this.broken = broken;
@@ -409,6 +409,14 @@ public class Problem {
 		return name;
 	}
 	
+	public SectorProblem getNeighbourNext() {
+		return neighbourNext;
+	}
+	
+	public SectorProblem getNeighbourPrev() {
+		return neighbourPrev;
+	}
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
@@ -420,7 +428,7 @@ public class Problem {
 	public int getNumTicks() {
 		return numTicks;
 	}
-	
+
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
@@ -428,7 +436,7 @@ public class Problem {
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
-
+	
 	public String getRock() {
 		return rock;
 	}
@@ -436,7 +444,7 @@ public class Problem {
 	public String getRouteLength() {
 		return routeLength;
 	}
-	
+
 	public List<ProblemSection> getSections() {
 		return sections;
 	}
@@ -444,7 +452,7 @@ public class Problem {
 	public String getSectorAccessClosed() {
 		return sectorAccessClosed;
 	}
-
+	
 	public String getSectorAccessInfo() {
 		return sectorAccessInfo;
 	}
@@ -455,14 +463,6 @@ public class Problem {
 	
 	public int getSectorId() {
 		return sectorId;
-	}
-	
-	public int getSectorIdProblemNext() {
-		return sectorIdProblemNext;
-	}
-	
-	public int getSectorIdProblemPrev() {
-		return sectorIdProblemPrev;
 	}
 
 	public String getSectorName() {

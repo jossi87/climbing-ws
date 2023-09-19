@@ -1283,15 +1283,15 @@ public class BuldreinfoRepository {
 					String routeLength = rst.getString("route_length");
 					String descent = rst.getString("descent");
 
-					int sectorIdProblemPrev = 0;
-					int sectorIdProblemNext = 0;
+					SectorProblem neighbourPrev = null;
+					SectorProblem neighbourNext = null;
 					List<SectorProblem> problems = getSectorProblems(s, authUserId, sectorId);
 					if (problems.size() > 1) {
 						for (int i = 0; i < problems.size(); i++) {
 							SectorProblem prob = problems.get(i);
 							if (prob.getId() == id) {
-								sectorIdProblemPrev = problems.get((i == 0? problems.size()-1 : i-1)).getId();
-								sectorIdProblemNext = problems.get((i == problems.size()-1? 0 : i+1)).getId();
+								neighbourPrev = problems.get((i == 0? problems.size()-1 : i-1));
+								neighbourNext = problems.get((i == problems.size()-1? 0 : i+1));
 							}
 						}
 					}
@@ -1299,7 +1299,7 @@ public class BuldreinfoRepository {
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorParking, sectorOutline, sectorWallDirection, sectorApproach,
-							sectorIdProblemPrev, sectorIdProblemNext,
+							neighbourPrev, neighbourNext,
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							GradeHelper.intToString(s, grade),
 							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, coordinates,
@@ -1312,7 +1312,7 @@ public class BuldreinfoRepository {
 			// Poblem not found, see if it's visible on a different domain
 			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, reqId);
 			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-				return new Problem(res.getRedirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, 0, 0, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
+				return new Problem(res.getRedirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
 			}
 		}
 
