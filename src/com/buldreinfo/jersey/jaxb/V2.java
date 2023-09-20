@@ -763,7 +763,8 @@ public class V2 {
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			Collection<Top> res = c.getBuldreinfoRepo().getTop(setup, idArea, idSector);
+			final int authUserId = getUserId(request);
+			Collection<Top> res = c.getBuldreinfoRepo().getTop(authUserId, setup, idArea, idSector);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {

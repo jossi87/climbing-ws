@@ -2370,7 +2370,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<Top> getTop(Setup s, int areaId, int sectorId) throws SQLException {
+	public List<Top> getTop(int authUserId, Setup s, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
 		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
 		String sqlStr = "WITH x AS ("
@@ -2417,7 +2417,8 @@ public class BuldreinfoRepository {
 					}
 					prevPercentage = percentage;
 					prevRank = rank;
-					res.add(new Top(rank, userId, name, picture, percentage));
+					boolean mine = authUserId == userId;
+					res.add(new Top(rank, userId, name, picture, percentage, mine));
 				}
 			}
 		}
