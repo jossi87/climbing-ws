@@ -497,16 +497,7 @@ public class PdfGenerator implements AutoCloseable {
 					else {
 						label = name;
 					}
-					String polygonCoords = null;
-					for (Coordinates coord : sector.getOutline()) {
-						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
-						if (polygonCoords == null) {
-							polygonCoords = latLng;
-						}
-						else {
-							polygonCoords += ";" + latLng;
-						}
-					}
+					String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
@@ -562,16 +553,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
-				String polygonCoords = null;
-				for (Coordinates coord : sector.getOutline()) {
-					String latLng = coord.getLatitude() + ";" + coord.getLongitude();
-					if (polygonCoords == null) {
-						polygonCoords = latLng;
-					}
-					else {
-						polygonCoords += ";" + latLng;
-					}
-				}
+				String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 				outlines.add(new Outline(label, polygonCoords));
 			}
 
@@ -662,16 +644,7 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
-					String polygonCoords = null;
-					for (Coordinates coord : sector.getOutline()) {
-						String latLng = coord.getLatitude() + ";" + coord.getLongitude();
-						if (polygonCoords == null) {
-							polygonCoords = latLng;
-						}
-						else {
-							polygonCoords += ";" + latLng;
-						}
-					}
+					String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
