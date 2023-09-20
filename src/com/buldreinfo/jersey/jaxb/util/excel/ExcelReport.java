@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -59,6 +60,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.buldreinfo.jersey.jaxb.function.SqlConsumer;
 import com.buldreinfo.jersey.jaxb.helpers.CellHelper;
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.CellHelper.ExcelError;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -348,7 +350,9 @@ public class ExcelReport implements AutoCloseable {
 			return;
 		}
 		// Otherwise, we have processors that assume a file in the file system - create that temporary file
-		Path temporary = Files.createTempFile("report", workbook instanceof XSSFWorkbook ? "xlsx" : "xlx");
+		String ext = workbook instanceof XSSFWorkbook ? "xlsx" : "xlx";
+		Path temporary = GlobalFunctions.getPathTemp().resolve("excel").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + "." + ext);
+		Files.createDirectories(temporary.getParent());
 		
 		// Use temporary file, and then write to the output stream
 		writeExcel(temporary);

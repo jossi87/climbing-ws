@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -20,6 +21,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.apache.batik.anim.dom.SVGDOMImplementation;
+import org.apache.batik.transcoder.SVGAbstractTranscoder;
 import org.apache.batik.transcoder.TranscoderException;
 import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
@@ -44,12 +46,14 @@ public class TopoGenerator {
 	private final static String COLOR_WHITE = "#FFFFFF";
 	
 	public static Path generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
-		Path dst = Files.createTempFile("topo", "jpg");
+		Path dst = GlobalFunctions.getPathTemp().resolve("topo").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".jpg");
+		Files.createDirectories(dst.getParent());
 		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (OutputStream os = new FileOutputStream(dst.toString())) {
 				TranscoderOutput to = new TranscoderOutput(os);
 				JPEGTranscoder t = new JPEGTranscoder();
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, true);
 				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 1f);
 				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, (float)width);
 				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, (float)height);
@@ -129,7 +133,7 @@ public class TopoGenerator {
 		parent.appendChild(g);
 	}
 
-	private static String generateDocument(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws TransformerException, IOException {
+	private static String generateDocument(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws TransformerException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 		Document doc = impl.createDocument(svgNS, "svg", null);
@@ -140,7 +144,7 @@ public class TopoGenerator {
 
 		// Image
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(mediaId / 100 * 100)).resolve(mediaId + ".jpg").toString();
+		String url = GlobalFunctions.getUrlJpgToImage(mediaId);
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "height", "100%");
