@@ -14,7 +14,6 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.common.base.Preconditions;
 import com.google.common.hash.Hashing;
 
 import jakarta.ws.rs.WebApplicationException;
@@ -37,8 +36,7 @@ public class GlobalFunctions {
 	public static Path getPathLeafletPrint() throws IOException {
 		Path res = Paths.get("/var/lib/jenkins/workspace/climbing-web/leaflet-puppeteer-print/index.js");
 		if (!Files.exists(res)) {
-			res = Paths.get("C:/git/buldreinfo-web/leaflet-puppeteer-print/index.js");
-			Preconditions.checkArgument(Files.exists(res), res.toString() + " does not exist");
+			throw new RuntimeException(res.toString() + " does not exists");
 		}
 		return res;
 	}
