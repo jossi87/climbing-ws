@@ -129,7 +129,7 @@ public class TopoGenerator {
 		parent.appendChild(g);
 	}
 
-	private static String generateDocument(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws TransformerException {
+	private static String generateDocument(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws TransformerException, IOException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 		Document doc = impl.createDocument(svgNS, "svg", null);
@@ -140,7 +140,7 @@ public class TopoGenerator {
 
 		// Image
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = GlobalFunctions.getUrlJpgToImage(mediaId);
+		String url = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(mediaId / 100 * 100)).resolve(mediaId + ".jpg").toString();
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "height", "100%");
