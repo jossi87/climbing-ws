@@ -1,5 +1,8 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
+import java.util.List;
+
+import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;
 
@@ -8,6 +11,7 @@ public class Setup {
 	private final String domain;
 	private int idRegion;
 	private GRADE_SYSTEM gradeSystem;
+	private List<CompassDirection> compassDirections;
 	private String title;
 	private String description;
 	private LatLng defaultCenter;
@@ -17,6 +21,10 @@ public class Setup {
 	public Setup(String domain, GRADE_SYSTEM gradeSystem) {
 		this.domain = domain;
 		this.gradeSystem = gradeSystem;
+	}
+
+	public List<CompassDirection> getCompassDirections() {
+		return compassDirections;
 	}
 
 	public LatLng getDefaultCenter() {
@@ -46,11 +54,11 @@ public class Setup {
 	public String getTitle() {
 		return title;
 	}
-
+	
 	public String getUrl() {
 		return "https://" + domain;
 	}
-	
+
 	public String getUrl(String suffix) {
 		if (Strings.isNullOrEmpty(suffix)) {
 			return "https://" + domain;
@@ -70,6 +78,11 @@ public class Setup {
 		return setRobotsDenyAll;
 	}
 
+	public Setup setCompassDirections(List<CompassDirection> compassDirections) {
+		this.compassDirections = compassDirections;
+		return this;
+	}
+
 	public Setup setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
@@ -79,7 +92,7 @@ public class Setup {
 		this.description = description;
 		return this;
 	}
-
+	
 	public Setup setIdRegion(int idRegion) {
 		this.idRegion = idRegion;
 		return this;

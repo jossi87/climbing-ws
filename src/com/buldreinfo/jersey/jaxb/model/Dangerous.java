@@ -80,16 +80,18 @@ public class Dangerous {
 		private final int id;
 		private final String url;
 		private final String name;
-		private final String wallDirection;
+		private final CompassDirection wallDirectionCalculated;
+		private final CompassDirection wallDirectionManual;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<DangerousProblem> problems = new ArrayList<>();
 		
-		public DangerousSector(int id, String url, String name, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public DangerousSector(int id, String url, String name, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
-			this.wallDirection = wallDirection;
+			this.wallDirectionCalculated = wallDirectionCalculated;
+			this.wallDirectionManual = wallDirectionManual;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
@@ -116,8 +118,12 @@ public class Dangerous {
 			return url;
 		}
 
-		public String getWallDirection() {
-			return wallDirection;
+		public CompassDirection getWallDirectionCalculated() {
+			return wallDirectionCalculated;
+		}
+		
+		public CompassDirection getWallDirectionManual() {
+			return wallDirectionManual;
 		}
 		
 		public boolean isLockedAdmin() {
@@ -148,8 +154,8 @@ public class Dangerous {
 		this.sunToHour = sunToHour;
 	}
 	
-	public DangerousSector addSector(int id, String url, String name, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		DangerousSector s = new DangerousSector(id, url, name, wallDirection, lockedAdmin, lockedSuperadmin);
+	public DangerousSector addSector(int id, String url, String name, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, boolean lockedAdmin, boolean lockedSuperadmin) {
+		DangerousSector s = new DangerousSector(id, url, name, wallDirectionCalculated, wallDirectionManual, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}

@@ -18,14 +18,15 @@ public class Area {
 		private final String accessClosed;
 		private final Coordinates parking;
 		private List<Coordinates> outline;
-		private final String wallDirection;
+		private final CompassDirection wallDirectionCalculated;
+		private final CompassDirection wallDirectionManual;
 		private Approach approach;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, String wallDirection, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, int randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -36,7 +37,8 @@ public class Area {
 			this.accessInfo = accessInfo;
 			this.accessClosed = accessClosed;
 			this.parking = parking;
-			this.wallDirection = wallDirection;
+			this.wallDirectionCalculated = wallDirectionCalculated;
+			this.wallDirectionManual = wallDirectionManual;
 			this.randomMediaId = randomMediaId;
 			this.randomMediaCrc32 = randomMediaCrc32;
 		}
@@ -101,8 +103,12 @@ public class Area {
 			return typeNumTicked;
 		}
 
-		public String getWallDirection() {
-			return wallDirection;
+		public CompassDirection getWallDirectionCalculated() {
+			return wallDirectionCalculated;
+		}
+		
+		public CompassDirection getWallDirectionManual() {
+			return wallDirectionManual;
 		}
 
 		public boolean isLockedAdmin() {
@@ -195,8 +201,8 @@ public class Area {
 		this.hits = hits;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, String wallDirection, int randomMediaId, int randomMediaCrc32) {
-		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, wallDirection, randomMediaId, randomMediaCrc32);
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, int randomMediaCrc32) {
+		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;

@@ -77,7 +77,8 @@ public class Sector {
 	private final String accessClosed;
 	private Coordinates parking;
 	private final List<Coordinates> outline;
-	private final String wallDirection;
+	private final CompassDirection wallDirectionCalculated;
+	private final CompassDirection wallDirectionManual;
 	private final Approach approach;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
@@ -87,7 +88,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, String wallDirection, Approach approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Approach approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -110,7 +111,8 @@ public class Sector {
 		this.accessClosed = accessClosed;
 		this.parking = parking;
 		this.outline = outline;
-		this.wallDirection = wallDirection;
+		this.wallDirectionCalculated = wallDirectionCalculated;
+		this.wallDirectionManual = wallDirectionManual;
 		this.approach = approach;
 		this.media = media;
 		this.triviaMedia = triviaMedia;
@@ -223,8 +225,12 @@ public class Sector {
 		return triviaMedia;
 	}
 	
-	public String getWallDirection() {
-		return wallDirection;
+	public CompassDirection getWallDirectionCalculated() {
+		return wallDirectionCalculated;
+	}
+	
+	public CompassDirection getWallDirectionManual() {
+		return wallDirectionManual;
 	}
 	
 	public boolean isAreaLockedAdmin() {

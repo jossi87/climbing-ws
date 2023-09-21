@@ -191,7 +191,8 @@ public class Problem {
 	private final String sectorAccessClosed;
 	private final Coordinates sectorParking;
 	private final List<Coordinates> sectorOutline;
-	private final String sectorWallDirection;
+	private final CompassDirection sectorWallDirectionCalculated;
+	private final CompassDirection sectorWallDirectionManual;
 	private final Approach sectorApproach;
 	private final SectorProblem neighbourPrev;
 	private final SectorProblem neighbourNext;
@@ -233,7 +234,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, String sectorWallDirection, Approach sectorApproach, SectorProblem neighbourPrev, SectorProblem neighbourNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Approach sectorApproach, SectorProblem neighbourPrev, SectorProblem neighbourNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<FaUser> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -253,7 +254,8 @@ public class Problem {
 		this.sectorAccessClosed = sectorAccessClosed;
 		this.sectorParking = sectorParking;
 		this.sectorOutline = sectorOutline;
-		this.sectorWallDirection = sectorWallDirection;
+		this.sectorWallDirectionCalculated = sectorWallDirectionCalculated;
+		this.sectorWallDirectionManual = sectorWallDirectionManual;
 		this.sectorApproach = sectorApproach;
 		this.neighbourPrev = neighbourPrev;
 		this.neighbourNext = neighbourNext;
@@ -477,8 +479,12 @@ public class Problem {
 		return sectorParking;
 	}
 	
-	public String getSectorWallDirection() {
-		return sectorWallDirection;
+	public CompassDirection getSectorWallDirectionCalculated() {
+		return sectorWallDirectionCalculated;
+	}
+	
+	public CompassDirection getSectorWallDirectionManual() {
+		return sectorWallDirectionManual;
 	}
 	
 	public double getStars() {

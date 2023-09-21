@@ -115,18 +115,20 @@ public class ProblemArea {
 		private final int sorting;
 		private final Coordinates parking;
 		private List<Coordinates> outline;
-		private final String wallDirection;
+		private final CompassDirection wallDirectionCalculated;
+		private final CompassDirection wallDirectionManual;
 		private final boolean lockedAdmin;
 		private final boolean lockedSuperadmin;
 		private final List<ProblemAreaProblem> problems = new ArrayList<>();
 		
-		public ProblemAreaSector(int id, String url, String name, int sorting, Coordinates parking, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
+		public ProblemAreaSector(int id, String url, String name, int sorting, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, boolean lockedAdmin, boolean lockedSuperadmin) {
 			this.id = id;
 			this.url = url;
 			this.name = name;
 			this.sorting = sorting;
 			this.parking = parking;
-			this.wallDirection = wallDirection;
+			this.wallDirectionCalculated = wallDirectionCalculated;
+			this.wallDirectionManual = wallDirectionManual;
 			this.lockedAdmin = lockedAdmin;
 			this.lockedSuperadmin = lockedSuperadmin;
 		}
@@ -165,8 +167,12 @@ public class ProblemArea {
 			return url;
 		}
 		
-		public String getWallDirection() {
-			return wallDirection;
+		public CompassDirection getWallDirectionCalculated() {
+			return wallDirectionCalculated;
+		}
+		
+		public CompassDirection getWallDirectionManual() {
+			return wallDirectionManual;
 		}
 
 		public boolean isLockedAdmin() {
@@ -203,8 +209,8 @@ public class ProblemArea {
 		this.sunToHour = sunToHour;
 	}
 	
-	public ProblemAreaSector addSector(int id, String url, String name, int sorting, Coordinates parking, String wallDirection, boolean lockedAdmin, boolean lockedSuperadmin) {
-		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, parking, wallDirection, lockedAdmin, lockedSuperadmin);
+	public ProblemAreaSector addSector(int id, String url, String name, int sorting, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, boolean lockedAdmin, boolean lockedSuperadmin) {
+		ProblemAreaSector s = new ProblemAreaSector(id, url, name, sorting, parking, wallDirectionCalculated, wallDirectionManual, lockedAdmin, lockedSuperadmin);
 		this.sectors.add(s);
 		return s;
 	}

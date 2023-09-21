@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -73,7 +74,14 @@ public class GeoHelper {
 	}
 
 	private static Logger logger = LogManager.getLogger();
-	public static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
+	public static CompassDirection calculateCompassDirection(Setup setup, List<Coordinates> outline) {
+		final String direction = calculateWallDirection(setup, outline);
+		if (direction == null) {
+			return null;
+		}
+		return setup.getCompassDirections().stream().filter(cd -> cd.getDirection().equals(direction)).findAny().get();
+	}
+	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
 			return null;
 		}

@@ -26,6 +26,7 @@ public class Meta {
 	private final String url;
 	private final List<Type> types;
 	private final List<Site> sites;
+	private final List<CompassDirection> compassDirections;
 
 	public Meta(DbConnection c, Setup setup, int authUserId) throws SQLException {
 		this.title = setup.getTitle();
@@ -66,6 +67,11 @@ public class Meta {
 		this.url = setup.getUrl();
 		this.types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
 		this.sites = c.getBuldreinfoRepo().getSites(setup.getIdRegion());
+		this.compassDirections = setup.getCompassDirections();
+	}
+	
+	public List<CompassDirection> getCompassDirections() {
+		return compassDirections;
 	}
 	
 	public LatLng getDefaultCenter() {
