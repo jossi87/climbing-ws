@@ -2147,10 +2147,8 @@ public class BuldreinfoRepository {
 		}
 		// Users
 		List<Search> users = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', id, '.jpg') END picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (firstname LIKE ? OR lastname LIKE ? OR CONCAT(firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT CASE WHEN picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', id, '.jpg') END picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE CONCAT('% ',?,'%') ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8")) {
 			ps.setString(1, search + "%");
-			ps.setString(2, search + "%");
-			ps.setString(3, search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String picture = rst.getString("picture");
@@ -2574,7 +2572,7 @@ public class BuldreinfoRepository {
 			throw new SQLException("User not logged in...");
 		}
 		List<UserSearch> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE REPLACE(CONCAT(' ',firstname, ' ', COALESCE(lastname,'')),' ','xxx') LIKE REPLACE(concat('%xxx',?,'%'),' ','xxx') ORDER BY firstname, lastname")) {
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE CONCAT(' %',?,'%') ORDER BY firstname, lastname")) {
 			ps.setString(1, value);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
