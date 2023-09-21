@@ -2575,7 +2575,7 @@ public class BuldreinfoRepository {
 		}
 		List<UserSearch> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE (CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE ?) ORDER BY firstname, lastname")) {
-			ps.setString(1, " %" + value + "%");
+			ps.setString(1, "% " + value + "%");
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
