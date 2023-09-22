@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
+
 public class Activity {
 	private final Set<Integer> activityIds;
 	private final String timeAgo;
@@ -13,6 +15,7 @@ public class Activity {
 	private final String problemName;
 	private final String problemSubtype;
 	private String grade;
+	private boolean noPersonalGrade;
 	private int problemRandomMediaId;
 	private int problemRandomMediaCrc32;
 	private List<ActivityMedia> media;
@@ -60,6 +63,9 @@ public class Activity {
 	}
 	public String getGrade() {
 		return grade;
+	}
+	public boolean isNoPersonalGrade() {
+		return noPersonalGrade;
 	}
 	public int getId() {
 		return id;
@@ -122,6 +128,11 @@ public class Activity {
 		this.picture = picture;
 		this.description = description;
 		this.stars = stars;
-		this.grade = personalGrade;
+		if (GradeConverter.NO_PERSONAL_GRADE.equals(personalGrade)) {
+			this.noPersonalGrade = true;
+		}
+		else {
+			this.grade = personalGrade;
+		}
 	}
 }
