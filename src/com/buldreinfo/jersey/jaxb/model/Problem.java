@@ -97,16 +97,18 @@ public class Problem {
 		private final String date;
 		private final String name;
 		private final String suggestedGrade;
+		private final boolean noPersonalGrade;
 		private final String comment;
 		private final double stars;
 		private final boolean writable;
-		public ProblemTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+		public ProblemTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
 			this.id = id;
 			this.idUser = idUser;
 			this.picture = picture;
 			this.date = date;
 			this.name = name;
 			this.suggestedGrade = suggestedGrade;
+			this.noPersonalGrade = noPersonalGrade;
 			this.comment = comment;
 			this.stars = stars;
 			this.writable = writable;
@@ -143,6 +145,9 @@ public class Problem {
 		}
 		public String getSuggestedGrade() {
 			return suggestedGrade;
+		}
+		public boolean isNoPersonalGrade() {
+			return noPersonalGrade;
 		}
 		public boolean isWritable() {
 			return writable;
@@ -307,11 +312,11 @@ public class Problem {
 		sections.add(new ProblemSection(id, nr, description, grade, media));
 	}
 	
-	public ProblemTick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, String comment, double stars, boolean writable) {
+	public ProblemTick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
-		ProblemTick t = new ProblemTick(id, idUser, picture, date, name, suggestedGrade, comment, stars, writable);
+		ProblemTick t = new ProblemTick(id, idUser, picture, date, name, suggestedGrade, noPersonalGrade, comment, stars, writable);
 		ticks.add(t);
 		return t;
 	}

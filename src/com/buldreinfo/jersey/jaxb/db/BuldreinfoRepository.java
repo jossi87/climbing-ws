@@ -1336,9 +1336,17 @@ public class BuldreinfoRepository {
 					String name = rst.getString("name");
 					String comment = rst.getString("comment");
 					double stars = rst.getDouble("stars");
-					int grade = rst.getInt("grade");
+					int idGrade = rst.getInt("grade");
+					String grade = null;
+					boolean noPersonalGrade = false;
+					if (idGrade == -1) {
+						noPersonalGrade = true;
+					}
+					else {
+						grade = s.getGradeConverter().getGradeFromIdGrade(idGrade);
+					}
 					boolean writable = idUser == authUserId;
-					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, s.getGradeConverter().getGradeFromIdGrade(grade), comment, stars, writable);
+					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, grade, noPersonalGrade, comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
@@ -3367,7 +3375,7 @@ public class BuldreinfoRepository {
 				ps.setInt(1, t.getIdProblem());
 				ps.setInt(2, authUserId);
 				ps.setDate(3, dt);
-				ps.setInt(4, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
+				ps.setInt(4, "-1".equals(t.getGrade())? -1 : setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
 				ps.setString(5, trimString(t.getComment()));
 				ps.setDouble(6, t.getStars());
 				ps.executeUpdate();
@@ -3382,7 +3390,7 @@ public class BuldreinfoRepository {
 		else if (t.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
-				ps.setInt(2, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
+				ps.setInt(2, "-1".equals(t.getGrade())? -1 : setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
 				ps.setString(3, trimString(t.getComment()));
 				ps.setDouble(4, t.getStars());
 				ps.setInt(5, t.getId());
