@@ -10,6 +10,7 @@ import com.google.common.base.Preconditions;
 
 public class GradeConverter {
 	public static final String NO_PERSONAL_GRADE = "No personal grade";
+	public static final int NO_PERSONAL_GRADE_ID = -1;
 	private final List<Grade> grades;
 	private final Map<Integer, String> idLookup = new LinkedHashMap<>();
 	private final Map<String, Integer> gradeLookup = new LinkedHashMap<>();
@@ -41,9 +42,9 @@ public class GradeConverter {
 	
 	public int getIdGradeFromGrade(String grade) {
 		Preconditions.checkNotNull(grade, "grade is null");
-		if (grade.equals("-1")) {
+		if (grade.equals(NO_PERSONAL_GRADE)) {
 			// No personal grade
-			return -1;
+			return NO_PERSONAL_GRADE_ID;
 		}
 		try {
 			return gradeLookup.get(grade);
