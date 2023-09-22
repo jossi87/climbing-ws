@@ -53,7 +53,7 @@ import org.imgscalr.Scalr.Rotation;
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
+import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
@@ -70,6 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -484,7 +485,7 @@ public class BuldreinfoRepository {
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String problemName = rst.getString("problem_name");
 					String problemSubtype = rst.getString("problem_subtype");
-					String grade = GradeHelper.intToString(setup, rst.getInt("grade"));
+					String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 					Set<Integer> activityIds = new HashSet<>();
 					String activities = rst.getString("activities");
 					for (String activity : activities.split(",")) {
@@ -522,7 +523,7 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
-						String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
+						String personalGrade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						a.setTick(false, userId, name, picture, description, stars, personalGrade);
 					}
 				}
@@ -543,7 +544,7 @@ public class BuldreinfoRepository {
 						String picture = rst.getString("picture");
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
-						String personalGrade = GradeHelper.intToString(setup, rst.getInt("grade"));
+						String personalGrade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						a.setTick(true, userId, name, picture, description, stars, personalGrade);
 					}
 				}
@@ -775,17 +776,6 @@ public class BuldreinfoRepository {
 		return a;
 	}
 	
-	private CompassDirection getCompassDirection(Setup s, int id) {
-		if (id == 0) {
-			return null;
-		}
-		return s.getCompassDirections()
-				.stream()
-				.filter(cd -> cd.getId() == id)
-				.findAny()
-				.get();
-	}
-
 	public Collection<Area> getAreaList(int authUserId, int reqIdRegion) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
@@ -908,20 +898,6 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<CompassDirection> getCompassDirections() throws SQLException {
-		List<CompassDirection> res = new ArrayList<>();
-		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String direction = rst.getString("direction");
-					res.add(new CompassDirection(id, direction));
-				}
-			}
-		}
-		return res;
-	}
-
 	public Collection<GradeDistribution> getContentGraph(int authUserId, Setup setup) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = "WITH x AS ("
@@ -1011,13 +987,13 @@ public class BuldreinfoRepository {
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, GradeHelper.intToString(setup, grade), postBy, postWhen, postTxt);
+					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.getGradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt);
 				}
 			}
 		}
 		return areasLookup.values();
 	}
-
+	
 	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Frontpage res = new Frontpage();
@@ -1084,7 +1060,7 @@ public class BuldreinfoRepository {
 					String taggedJson = rst.getString("tagged");
 					Frontpage.FrontpageRandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.FrontpageRandomMedia.User.class);
 					List<Frontpage.FrontpageRandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.FrontpageRandomMedia.User>>(){}.getType());
-					res.setRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, GradeHelper.intToString(setup, grade), photographer, tagged);
+					res.setRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.getGradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
 				}
 			}
 		}
@@ -1330,8 +1306,8 @@ public class BuldreinfoRepository {
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach,
 							neighbourPrev, neighbourNext,
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							GradeHelper.intToString(s, grade),
-							GradeHelper.intToString(s, originalGrade), faDate, faDateHr, fa, coordinates,
+							s.getGradeConverter().getGradeFromIdGrade(grade),
+							s.getGradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
@@ -1362,7 +1338,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					int grade = rst.getInt("grade");
 					boolean writable = idUser == authUserId;
-					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, GradeHelper.intToString(s, grade), comment, stars, writable);
+					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, s.getGradeConverter().getGradeFromIdGrade(grade), comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
@@ -1432,7 +1408,7 @@ public class BuldreinfoRepository {
 						sectionMedia = p.getMedia().stream().filter(x -> x.getPitch() == nr).collect(Collectors.toList());
 						p.getMedia().removeAll(sectionMedia);
 					}
-					p.addSection(id, nr, description, GradeHelper.intToString(s, grade), sectionMedia);
+					p.addSection(id, nr, description, s.getGradeConverter().getGradeFromIdGrade(grade), sectionMedia);
 				}
 			}
 		}
@@ -1537,7 +1513,7 @@ public class BuldreinfoRepository {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, GradeHelper.intToString(setup, grade), fa, numTicks, stars, ticked, t, numPitches);
+					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numTicks, stars, ticked, t, numPitches);
 				}
 			}
 		}
@@ -1754,7 +1730,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
+					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.getGradeConverter().getGradeFromIdGrade(grade), grade);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
@@ -1794,7 +1770,7 @@ public class BuldreinfoRepository {
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
-					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, GradeHelper.intToString(setup, grade), grade);
+					res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.getGradeConverter().getGradeFromIdGrade(grade), grade);
 				}
 			}
 		}
@@ -1831,7 +1807,7 @@ public class BuldreinfoRepository {
 						String date = rst.getString("date");
 						String dateHr = rst.getString("date_hr");
 						int grade = 0;
-						ProfileStatistics.ProfileStatisticsTick tick = res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, GradeHelper.intToString(setup, grade), grade);
+						ProfileStatistics.ProfileStatisticsTick tick = res.addTick(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.getGradeConverter().getGradeFromIdGrade(grade), grade);
 						idProblemTickMap.put(idProblem, tick);
 					}
 				}
@@ -1904,7 +1880,7 @@ public class BuldreinfoRepository {
 					int problemGrade = rst.getInt("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodo.ProfileTodoProblem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade));
+					ProfileTodo.ProfileTodoProblem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
 					problemLookup.put(problemId, p);
 				}
 			}
@@ -2141,7 +2117,7 @@ public class BuldreinfoRepository {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					problems.add(new Search(name + " [" + GradeHelper.intToString(setup, grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					problems.add(new Search(name + " [" + setup.getGradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -2214,13 +2190,15 @@ public class BuldreinfoRepository {
 					default: throw new RuntimeException("Invalid group: " + group);
 					}
 					List<CompassDirection> compassDirections = getCompassDirections();
+					GradeConverter gradeConverter = new GradeConverter(getGrades(gradeSystem));
 					res.add(new Setup(domain, gradeSystem)
 							.setIdRegion(idRegion)
 							.setTitle(title)
 							.setDescription(description)
 							.setLatLng(latitude, longitude)
 							.setDefaultZoom(defaultZoom)
-							.setCompassDirections(compassDirections));
+							.setCompassDirections(compassDirections)
+							.setGradeConverter(gradeConverter));
 				}
 			}
 		}
@@ -2327,7 +2305,7 @@ public class BuldreinfoRepository {
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String date = rst.getString("ts");
 					String name = rst.getString("name");
-					ticks.add(new PublicAscent(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, GradeHelper.intToString(setup, problemGrade), problemName, problemLockedAdmin, problemLockedSuperadmin, date, name));
+					ticks.add(new PublicAscent(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, setup.getGradeConverter().getGradeFromIdGrade(problemGrade), problemName, problemLockedAdmin, problemLockedSuperadmin, date, name));
 				}
 			}
 		}
@@ -2386,7 +2364,7 @@ public class BuldreinfoRepository {
 						int problemGrade = rst.getInt("problem_grade");
 						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-						p = s.addProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, GradeHelper.intToString(setup, problemGrade));
+						p = s.addProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
 						problemLookup.put(problemId, p);
 					}
 					// Partner
@@ -2530,7 +2508,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-	
+
 	public List<Type> getTypes(int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
@@ -2584,7 +2562,7 @@ public class BuldreinfoRepository {
 		}
 		return res;
 	}
-
+	
 	public byte[] getUserTicks(int authUserId) throws SQLException, IOException {
 		byte[] bytes;
 		try (ExcelReport report = new ExcelReport()) {
@@ -2612,7 +2590,8 @@ public class BuldreinfoRepository {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						String grade = GradeHelper.intToString(MetaHelper.getMeta().getSetup(regionId), rst.getInt("grade"));
+						Setup setup = MetaHelper.getMeta().getSetup(regionId);
+						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						SheetWriter writer = writers.get(type);
 						if (writer == null) {
 							writer = report.addSheet(type);
@@ -2665,7 +2644,8 @@ public class BuldreinfoRepository {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						String grade = GradeHelper.intToString(MetaHelper.getMeta().getSetup(regionId), rst.getInt("grade"));
+						Setup setup = MetaHelper.getMeta().getSetup(regionId);
+						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						SheetWriter writer = writers.get(type);
 						if (writer == null) {
 							writer = report.addSheet(type);
@@ -3007,7 +2987,7 @@ public class BuldreinfoRepository {
 				ps.setString(2, trimString(p.getName()));
 				ps.setString(3, trimString(p.getRock()));
 				ps.setString(4, trimString(p.getComment()));
-				ps.setInt(5, GradeHelper.stringToInt(s, p.getOriginalGrade()));
+				ps.setInt(5, s.getGradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setDate(6, dt);
 				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(8, trimString(p.getBroken()));
@@ -3036,7 +3016,7 @@ public class BuldreinfoRepository {
 				ps.setString(3, trimString(p.getName()));
 				ps.setString(4, trimString(p.getRock()));
 				ps.setString(5, trimString(p.getComment()));
-				ps.setInt(6, GradeHelper.stringToInt(s, p.getOriginalGrade()));
+				ps.setInt(6, s.getGradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setDate(7, dt);
 				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(9, p.getBroken());
@@ -3137,7 +3117,7 @@ public class BuldreinfoRepository {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.getNr());
 					ps.setString(3, trimString(section.getDescription()));
-					ps.setInt(4, GradeHelper.stringToInt(s, section.getGrade()));
+					ps.setInt(4, s.getGradeConverter().getIdGradeFromGrade(section.getGrade()));
 					ps.addBatch();
 				}
 				ps.executeBatch();
@@ -3383,7 +3363,7 @@ public class BuldreinfoRepository {
 				ps.setInt(1, t.getIdProblem());
 				ps.setInt(2, authUserId);
 				ps.setDate(3, dt);
-				ps.setInt(4, GradeHelper.stringToInt(setup, t.getGrade()));
+				ps.setInt(4, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
 				ps.setString(5, trimString(t.getComment()));
 				ps.setDouble(6, t.getStars());
 				ps.executeUpdate();
@@ -3397,7 +3377,7 @@ public class BuldreinfoRepository {
 		} else if (t.getId() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
-				ps.setInt(2, GradeHelper.stringToInt(setup, t.getGrade()));
+				ps.setInt(2, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
 				ps.setString(3, trimString(t.getComment()));
 				ps.setDouble(4, t.getStars());
 				ps.setInt(5, t.getId());
@@ -4039,6 +4019,31 @@ public class BuldreinfoRepository {
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
+	private CompassDirection getCompassDirection(Setup s, int id) {
+		if (id == 0) {
+			return null;
+		}
+		return s.getCompassDirections()
+				.stream()
+				.filter(cd -> cd.getId() == id)
+				.findAny()
+				.get();
+	}
+
+	private List<CompassDirection> getCompassDirections() throws SQLException {
+		List<CompassDirection> res = new ArrayList<>();
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String direction = rst.getString("direction");
+					res.add(new CompassDirection(id, direction));
+				}
+			}
+		}
+		return res;
+	}
+
 	private String getDateTaken(Path p) {
 		if (Files.exists(p) && p.getFileName().toString().toLowerCase().endsWith(".jpg")) {
 			try {
@@ -4083,6 +4088,21 @@ public class BuldreinfoRepository {
 					int idProblem = rst.getInt("id");
 					String fa = rst.getString("fa");
 					res.put(idProblem, fa);
+				}
+			}
+		}
+		return res;
+	}
+
+	private List<Grade> getGrades(GRADE_SYSTEM gradeSystem) throws SQLException {
+		List<Grade> res = new ArrayList<>(); 
+		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
+			ps.setString(1, gradeSystem.toString());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int gradeId = rst.getInt("grade_id");
+					String grade = rst.getString("grade");
+					res.add(new Grade(gradeId, grade));
 				}
 			}
 		}
@@ -4547,7 +4567,7 @@ public class BuldreinfoRepository {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, GradeHelper.intToString(setup, grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
+					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}

@@ -11,6 +11,7 @@ public class Setup {
 	private final String domain;
 	private int idRegion;
 	private GRADE_SYSTEM gradeSystem;
+	private GradeConverter gradeConverter;
 	private List<CompassDirection> compassDirections;
 	private String title;
 	private String description;
@@ -26,7 +27,7 @@ public class Setup {
 	public List<CompassDirection> getCompassDirections() {
 		return compassDirections;
 	}
-
+	
 	public LatLng getDefaultCenter() {
 		return defaultCenter;
 	}
@@ -41,6 +42,10 @@ public class Setup {
 
 	public String getDomain() {
 		return domain;
+	}
+
+	public GradeConverter getGradeConverter() {
+		return gradeConverter;
 	}
 
 	public GRADE_SYSTEM getGradeSystem() {
@@ -82,7 +87,7 @@ public class Setup {
 		this.compassDirections = compassDirections;
 		return this;
 	}
-
+	
 	public Setup setDefaultZoom(int defaultZoom) {
 		this.defaultZoom = defaultZoom;
 		return this;
@@ -90,6 +95,11 @@ public class Setup {
 
 	public Setup setDescription(String description) {
 		this.description = description;
+		return this;
+	}
+
+	public Setup setGradeConverter(GradeConverter gradeConverter) {
+		this.gradeConverter = gradeConverter;
 		return this;
 	}
 	

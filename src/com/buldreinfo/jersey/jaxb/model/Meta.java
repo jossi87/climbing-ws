@@ -3,12 +3,9 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.helpers.GradeHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 
@@ -52,12 +49,7 @@ public class Meta {
 		this.isAuthenticated = isAuthenticated;
 		this.isAdmin = isAdmin;
 		this.isSuperAdmin = isSuperAdmin;
-		List<Grade> grades = new ArrayList<>();
-		Map<Integer, String> lookup = GradeHelper.getGrades(setup);
-		for (int id : lookup.keySet()) {
-			grades.add(new Grade(id, lookup.get(id)));
-		}
-		this.grades = grades;
+		this.grades = setup.getGradeConverter().getGrades();
 		this.defaultZoom = setup.getDefaultZoom();
 		this.defaultCenter = setup.getDefaultCenter();
 		GRADE_SYSTEM gradeSystem = setup.getGradeSystem();
