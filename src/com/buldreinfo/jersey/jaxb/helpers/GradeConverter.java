@@ -22,6 +22,10 @@ public class GradeConverter {
 	}
 	
 	public String getGradeFromIdGrade(int idGrade) {
+		if (idGrade == -1) {
+			// User don't want to grade
+			return "No personal grade";
+		}
 		String res = idLookup.get(idGrade);
 		int i = idGrade;
 		while (res == null && i < Collections.max(idLookup.keySet())) {
@@ -36,6 +40,10 @@ public class GradeConverter {
 	
 	public int getIdGradeFromGrade(String grade) {
 		Preconditions.checkNotNull(grade, "grade is null");
+		if (grade.equals("-1")) {
+			// User don't want to grade
+			return -1;
+		}
 		try {
 			return gradeLookup.get(grade);
 		} catch (NullPointerException e) {
