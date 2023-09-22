@@ -16,4 +16,9 @@ public class Grade {
 	public String getGrade() {
 		return grade;
 	}
+
+	@Override
+	public String toString() {
+		return "Grade [id=" + id + ", grade=" + grade + "]";
+	}
 }
