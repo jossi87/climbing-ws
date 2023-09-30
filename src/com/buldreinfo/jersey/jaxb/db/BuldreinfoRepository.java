@@ -1297,6 +1297,14 @@ public class BuldreinfoRepository {
 							if (prob.getId() == id) {
 								neighbourPrev = problems.get((i == 0? problems.size()-1 : i-1));
 								neighbourNext = problems.get((i == problems.size()-1? 0 : i+1));
+								if (neighbourPrev.getId() == neighbourNext.getId()) {
+									if (nr < neighbourPrev.getNr()) {
+										neighbourPrev = null;
+									}
+									else {
+										neighbourNext = null;
+									}
+								}
 							}
 						}
 					}
