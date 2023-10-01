@@ -191,15 +191,15 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get area PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
 	public Response getAreasPdf(@Context final HttpServletRequest request,
-			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
 			@Parameter(name = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
+			final int authUserId = getUserId(request);
 			final Meta meta = new Meta(c, setup, authUserId);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
@@ -446,6 +446,7 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get problem PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problem/pdf")
 	@Produces("application/pdf")
@@ -454,7 +455,7 @@ public class V2 {
 			@Parameter(name = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
+			final int authUserId = getUserId(request);
 			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
@@ -664,6 +665,7 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get sector PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
@@ -672,7 +674,7 @@ public class V2 {
 			@Parameter(name = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta(), accessToken);
+			final int authUserId = getUserId(request);
 			final Meta meta = new Meta(c, setup, authUserId);
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
