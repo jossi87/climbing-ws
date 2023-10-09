@@ -19,7 +19,6 @@ import org.imgscalr.Scalr;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.google.common.base.Preconditions;
 
 public class FixAvatars {
 	private static Logger logger = LogManager.getLogger();
@@ -57,8 +56,6 @@ public class FixAvatars {
 						bOriginal = null;
 						bScaled.flush();
 						bScaled = null;
-						Preconditions.checkArgument(Files.exists(resized));
-						logger.debug("Created " + resized.toString());
 					}
 					if (++counter % 250 == 0) {
 						logger.debug("Done with {} users, id={}", counter, id);
