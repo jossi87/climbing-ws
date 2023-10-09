@@ -3916,7 +3916,7 @@ public class BuldreinfoRepository {
 		BufferedImage bOriginal = ImageIO.read(original.toFile());
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
-		BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
+		BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, 2560, 1440, Scalr.OP_ANTIALIAS);
 		ImageIO.write(bScaled, "jpg", jpg.toFile());
 		bOriginal.flush();
 		bOriginal = null;
@@ -3964,7 +3964,7 @@ public class BuldreinfoRepository {
 				Files.createDirectories(resized.getParent());
 				Files.deleteIfExists(resized);
 				BufferedImage bOriginal = ImageIO.read(original.toFile());
-				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
+				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
 				ImageIO.write(bScaled, "jpg", resized.toFile());
 				bOriginal.flush();
 				bOriginal = null;

@@ -51,7 +51,7 @@ public class FixAvatars {
 					}
 					if (Files.exists(original) && !Files.exists(resized)) {
 						BufferedImage bOriginal = ImageIO.read(original.toFile());
-						BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
+						BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
 						ImageIO.write(bScaled, "jpg", resized.toFile());
 						bOriginal.flush();
 						bOriginal = null;

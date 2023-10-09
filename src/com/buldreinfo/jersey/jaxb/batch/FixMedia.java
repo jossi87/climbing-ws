@@ -236,7 +236,7 @@ public class FixMedia {
 							BufferedImage bOriginal = ImageIO.read(original.toFile());
 							final int newWidth = bOriginal.getWidth();
 							final int newHeight = bOriginal.getHeight();
-							BufferedImage bScaled = Scalr.resize(bOriginal, 2560, 1440, Scalr.OP_ANTIALIAS);
+							BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, 2560, 1440, Scalr.OP_ANTIALIAS);
 							ImageIO.write(bScaled, "jpg", jpg.toFile());
 							bOriginal.flush();
 							bOriginal = null;
