@@ -108,7 +108,7 @@ public class FixMedia {
 											logger.debug("Create " + webm);
 											Files.deleteIfExists(webm);
 											Files.createDirectories(webm.getParent());
-											String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+											String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
 											Process p = new ProcessBuilder().inheritIO().command(commands).start();
 											p.waitFor();
 											// Set checksum
@@ -123,7 +123,7 @@ public class FixMedia {
 											logger.debug("Create " + mp4);
 											Files.deleteIfExists(mp4);
 											Files.createDirectories(mp4.getParent());
-											String[] commands = {LOCAL_FFMPEG_PATH, "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+											String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
 											Process p = new ProcessBuilder().inheritIO().command(commands).start();
 											p.waitFor();
 										}
@@ -132,7 +132,7 @@ public class FixMedia {
 											Files.createDirectories(jpg.getParent());
 											Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
 											Files.createDirectories(tmp.getParent());
-											String[] commands = {LOCAL_FFMPEG_PATH, "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+											String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
 											Process p = new ProcessBuilder().inheritIO().command(commands).start();
 											p.waitFor();
 											Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
