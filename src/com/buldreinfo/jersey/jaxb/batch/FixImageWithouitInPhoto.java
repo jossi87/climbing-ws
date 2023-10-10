@@ -31,7 +31,7 @@ public class FixImageWithouitInPhoto {
 					List<String> updates = new ArrayList<>();
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						final Path jpg = FixMedia.root.resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
+						final Path jpg = GlobalFunctions.getPathRoot().resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
 						Desktop.getDesktop().open(jpg.toFile());
 						int userId = getUser(id, c, scanner);
 						if (userId == END_SIGNAL) {

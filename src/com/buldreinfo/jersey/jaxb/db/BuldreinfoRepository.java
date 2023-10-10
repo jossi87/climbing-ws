@@ -1,19 +1,10 @@
 package com.buldreinfo.jersey.jaxb.db;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
 import java.awt.Point;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -39,16 +30,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.imgscalr.Scalr;
-import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
@@ -105,14 +91,9 @@ import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
-import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
-import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
 import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Metadata;
-import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -856,7 +837,7 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				if (downloadUserImage(authUserId, profile.getPicture())) {
+				if (GlobalFunctions.downloadUserImage(authUserId, profile.getPicture())) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.getPicture());
 						ps.setInt(2, authUserId);
@@ -2845,35 +2826,7 @@ public class BuldreinfoRepository {
 		if (!uploadedByMe) {
 			ensureAdminWriteRegion(authUserId, idRegion);
 		}
-		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
-		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".webp");
-		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
-		Preconditions.checkArgument(Files.exists(original), "Could not find " + original.toString());
-		Rotation r = null;
-		switch (degrees) {
-		case 90:
-			r = Rotation.CW_90;
-			break;
-		case 180:
-			r = Rotation.CW_180;
-			break;
-		case 270:
-			r = Rotation.CW_270;
-			break;
-		default:
-			throw GlobalFunctions.getWebApplicationExceptionBadRequest(new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)"));
-		}
-		BufferedImage bOriginal = ImageIO.read(original.toFile());
-		BufferedImage bRotated = Scalr.rotate(bOriginal, r, Scalr.OP_ANTIALIAS);
-		bOriginal.flush();
-		Files.delete(original);
-		ImageIO.write(bRotated, "jpg", original.toFile());
-		bRotated.flush();
-		// Create scaled jpg and webp + update crc32 and dimentions in db
-		boolean setDateTakenWHAndChecksum = true;
-		Files.deleteIfExists(webp);
-		Files.deleteIfExists(jpg);
-		createScaledImages(c, getDateTaken(original), idMedia, "jpg", setDateTakenWHAndChecksum);
+		GlobalFunctions.rotateMedia(c, idMedia, degrees);
 	}
 
 	public Redirect setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
@@ -3711,7 +3664,6 @@ public class BuldreinfoRepository {
 		boolean alreadyExistsInDb = false;
 		boolean isMovie = false;
 		String suffix = null;
-		boolean setDateTakenWHAndChecksum = true;
 		if (Strings.isNullOrEmpty(m.getName())) {
 			// Embed video url
 			Preconditions.checkNotNull(m.getEmbedThumbnailUrl(), "embedThumbnailUrl required");
@@ -3728,12 +3680,10 @@ public class BuldreinfoRepository {
 			}
 			suffix = "mp4";
 			isMovie = true;
-			setDateTakenWHAndChecksum = false;
 		}
 		else {
 			suffix = "jpg";
 			isMovie = false;
-			setDateTakenWHAndChecksum = true;
 		}
 
 		/**
@@ -3800,67 +3750,13 @@ public class BuldreinfoRepository {
 			/**
 			 * IO
 			 */
-			final Path p = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
-			if (!Files.exists(p.getParent())) {
-				Files.createDirectories(p.getParent());
-				GlobalFunctions.setPermission(p.getParent());
-			}
-			Preconditions.checkArgument(!Files.exists(p), p.toString() + " does already exist");
 			if (isMovie) {
-				try (InputStream is = new URL(m.getEmbedThumbnailUrl()).openStream()){
-					BufferedImage b = ImageIO.read(is);
-					Graphics g = b.getGraphics();
-					g.setFont(new Font("Arial", Font.BOLD, 40));
-					final String str = "VIDEO";
-					final int x = (b.getWidth()/2)-70;
-					final int y = (b.getHeight()/2)-20;
-					FontMetrics fm = g.getFontMetrics();
-					Rectangle2D rect = fm.getStringBounds(str, g);
-					g.setColor(Color.WHITE);
-					g.fillRect(x,
-							y - fm.getAscent(),
-							(int) rect.getWidth(),
-							(int) rect.getHeight());
-					g.setColor(Color.BLUE);
-					g.drawString(str, x, y);
-					g.dispose();
-					ImageIO.write(b, "jpg", p.toFile());
-					b.flush();
-				}
+				GlobalFunctions.downloadJpgFromEmbedVideo(idMedia, m.getEmbedVideoUrl());
 			}
 			else {
-				// Save as JPG
-				logger.debug("addNewMedia(name={}) - IO started", m.getName());
-				try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
-					if (m.getName().toLowerCase().endsWith("jpg")) {
-						Files.copy(is, p);
-					}
-					else {
-						BufferedImage src = ImageIO.read(is);
-						BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
-						dst.createGraphics().drawImage(src, 0, 0, Color.WHITE, null);
-						ImageIO.write(dst, "jpg", p.toFile());
-						src.flush();
-						dst.flush();
-					}
-				}
-				Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-				logger.debug("addNewMedia(name={}) - {} saved", m.getName(), p.toString());
-
-				// Rotate (if EXIF-rotated)
-				try (ThumbnailCreation creation = ThumbnailCreation.image(p.toFile())) {
-					ExifOrientation orientation = creation.getExifRotation();
-					if (orientation != null && orientation != ExifOrientation.HORIZONTAL_NORMAL) {
-						logger.info("Rotating " + p.toString() + " using " + orientation);
-						creation.rotate(orientation).preserveExif().saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
-					}
-				}
-				logger.debug("addNewMedia(name={}) - Rotation done", m.getName());
+				GlobalFunctions.downloadOriginalJpgFromImage(idMedia, m.getName(), multiPart);
 			}
-			Preconditions.checkArgument(Files.exists(p) && Files.size(p)>0, p.toString() + " does not exist (or is 0 byte)");
-			GlobalFunctions.setPermission(p);
-			// Create scaled jpg and webp + update crc32 and dimentions in db
-			createScaledImages(c, getDateTaken(p), idMedia, "jpg", setDateTakenWHAndChecksum);
+			GlobalFunctions.createWebImagesAndUpdateDb(c, idMedia);
 		}
 		return idMedia;
 	}
@@ -3891,93 +3787,9 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (picture != null) {
-			downloadUserImage(id, picture);
+			GlobalFunctions.downloadUserImage(id, picture);
 		}
 		return id;
-	}
-
-	private void createScaledImages(DbConnection c, String dateTaken, int id, String suffix, boolean setDateTakenWHAndChecksum) throws IOException, InterruptedException, SQLException {
-		logger.debug("createScaledImages(id={}) - initialized", id);
-		final Path original = GlobalFunctions.getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + "." + suffix);
-		final Path webp = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
-		final Path jpg = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
-		if (!Files.exists(webp.getParent())) {
-			Files.createDirectories(webp.getParent());
-			GlobalFunctions.setPermission(webp.getParent());
-		}
-		if (!Files.exists(jpg.getParent())) {
-			Files.createDirectories(jpg.getParent());
-			GlobalFunctions.setPermission(jpg.getParent());
-		}
-		Preconditions.checkArgument(Files.exists(original), original.toString() + " does not exist");
-		Preconditions.checkArgument(!Files.exists(webp), webp.toString() + " does already exist");
-		Preconditions.checkArgument(!Files.exists(jpg), jpg.toString() + " does already exist");
-		// Scaled JPG
-		BufferedImage bOriginal = ImageIO.read(original.toFile());
-		final int width = bOriginal.getWidth();
-		final int height = bOriginal.getHeight();
-		BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, 2560, 1440, Scalr.OP_ANTIALIAS);
-		ImageIO.write(bScaled, "jpg", jpg.toFile());
-		bOriginal.flush();
-		bOriginal = null;
-		bScaled.flush();
-		bScaled = null;
-		Preconditions.checkArgument(Files.exists(jpg));
-		GlobalFunctions.setPermission(jpg);
-		logger.debug("createScaledImages(id={}) - scaled jpg saved", id);
-		// Scaled WebP
-		String[] cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"" };
-		Process process = Runtime.getRuntime().exec(cmd);
-		process.waitFor();
-		Preconditions.checkArgument(Files.exists(webp), "WebP does not exist. Command=" + Lists.newArrayList(cmd));
-		GlobalFunctions.setPermission(webp);
-		logger.debug("createScaledImages(id={}) - scaled webp saved", id);
-		if (setDateTakenWHAndChecksum) {
-			/**
-			 * Final DB
-			 */
-			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?")) {
-				ps.setString(1, dateTaken);
-				ps.setInt(2, GlobalFunctions.getCrc32(webp));
-				ps.setInt(3, width);
-				ps.setInt(4, height);
-				ps.setInt(5, id);
-				ps.execute();
-			}
-			logger.debug("createScaledImages(id={}) - DB done", id);
-		}
-	}
-
-	private boolean downloadUserImage(int userId, String url) throws IOException {
-		try {
-			Path original = GlobalFunctions.getPathOriginalUsers().resolve(userId + ".jpg");
-			if (!Files.exists(original.getParent())) {
-				Files.createDirectories(original.getParent());
-				GlobalFunctions.setPermission(original.getParent());
-			}
-			try (InputStream in = new URL(url).openStream()) {
-				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
-				in.close();
-				GlobalFunctions.setPermission(original);
-				// Resize avatar
-				Path resized = GlobalFunctions.getPathWebUsers().resolve(userId + ".jpg");
-				Files.createDirectories(resized.getParent());
-				Files.deleteIfExists(resized);
-				BufferedImage bOriginal = ImageIO.read(original.toFile());
-				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-				ImageIO.write(bScaled, "jpg", resized.toFile());
-				bOriginal.flush();
-				bOriginal = null;
-				bScaled.flush();
-				bScaled = null;
-				Preconditions.checkArgument(Files.exists(resized));
-				GlobalFunctions.setPermission(resized);
-				return true;
-			}
-		} catch (Exception e) {
-			logger.fatal(e.getMessage(), e);
-			return false;
-		}
 	}
 
 	private void ensureAdminWriteArea(int authUserId, int areaId) throws SQLException {
@@ -4063,20 +3875,6 @@ public class BuldreinfoRepository {
 			}
 		}
 		return res;
-	}
-
-	private String getDateTaken(Path p) {
-		if (Files.exists(p) && p.getFileName().toString().toLowerCase().endsWith(".jpg")) {
-			try {
-				Metadata metadata = ImageMetadataReader.readMetadata(p.toFile());
-				ExifSubIFDDirectory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
-				java.util.Date date = directory.getDateOriginal(TimeZone.getDefault());
-				SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
-				return sdf.format(date.getTime());
-			} catch (Exception e) {
-			}
-		}
-		return null;
 	}
 
 	private int getExistingOrInsertUser(String name) throws SQLException, NoSuchAlgorithmException, IOException {
