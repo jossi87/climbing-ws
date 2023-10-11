@@ -35,7 +35,7 @@ import com.google.common.collect.Lists;
 
 public class FixMedia {
 	private static Logger logger = LogManager.getLogger();
-	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-07-10-git-1c61c24f5f-full_build/bin/ffmpeg.exe";
+	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-10-04-git-9078dc0c52-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
 	public static void main(String[] args) {
 		new FixMedia();
@@ -88,7 +88,7 @@ public class FixMedia {
 									// Try to download original video from embed url
 									if (!Files.exists(original)) {
 										Files.createDirectories(original.getParent());
-										String[] commands = {LOCAL_YT_DLP_PATH, embedUrl, "-o", original.toString()};
+										String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-o", original.toString()};
 										Process p = new ProcessBuilder().inheritIO().command(commands).start();
 										p.waitFor();
 										logger.debug("Embedded video " + embedUrl + " downloaded to " + original.toString());

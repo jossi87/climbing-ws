@@ -94,7 +94,7 @@ public class GlobalFunctions {
 			cmd = new String[] { "/bin/bash", "-c", "cwebp \"" + jpg.toString() + "\" -o \"" + webp.toString() + "\"" };
 		}
 		else {
-			cmd = new String[] { "\"G:/My Drive/web/buldreinfo/sw/libwebp-1.3.1-windows-x64/bin/cwebp.exe\"", "\"" + jpg.toString() + "\"", "-o", "\"" + webp.toString() + "\""};
+			cmd = new String[] { "\"G:/My Drive/web/buldreinfo/sw/libwebp-1.3.2-windows-x64/bin/cwebp.exe\"", "\"" + jpg.toString() + "\"", "-o", "\"" + webp.toString() + "\""};
 		}
 		Process process = Runtime.getRuntime().exec(cmd);
 		process.waitFor();
