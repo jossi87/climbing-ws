@@ -113,7 +113,7 @@ public class V2 {
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request,
-			@Parameter(name = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(description = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(id > 0);
@@ -131,13 +131,13 @@ public class V2 {
 	@Path("/activity")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getActivity(@Context HttpServletRequest request,
-			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
-			@Parameter(name = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
-			@Parameter(name = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
-			@Parameter(name = "Include comments", required = false) @QueryParam("comments") boolean comments,
-			@Parameter(name = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
-			@Parameter(name = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
+			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
+			@Parameter(description = "Filter on lower grade", required = false) @QueryParam("lowerGrade") int lowerGrade,
+			@Parameter(description = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
+			@Parameter(description = "Include comments", required = false) @QueryParam("comments") boolean comments,
+			@Parameter(description = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
+			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -170,7 +170,7 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getAreas(@Context HttpServletRequest request,
-			@Parameter(name = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -196,7 +196,7 @@ public class V2 {
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
 	public Response getAreasPdf(@Context final HttpServletRequest request,
-			@Parameter(name = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -268,8 +268,8 @@ public class V2 {
 	@Path("/elevation")
 	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
 	public Response getElevation(@Context HttpServletRequest request,
-			@Parameter(name = "latitude", required = true) @QueryParam("latitude") double latitude,
-			@Parameter(name = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
+			@Parameter(description = "latitude", required = true) @QueryParam("latitude") double latitude,
+			@Parameter(description = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(authUserId > 0, "Service requires logged in user");
@@ -304,8 +304,8 @@ public class V2 {
 	@Path("/grade/distribution")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getGradeDistribution(@Context HttpServletRequest request,
-			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -343,9 +343,9 @@ public class V2 {
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
-			@Parameter(name = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(name = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
-			@Parameter(name = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
+			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
 			final String acceptHeader = request.getHeader("Accept");
@@ -379,7 +379,7 @@ public class V2 {
 	@Path("/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getMedia(@Context HttpServletRequest request,
-			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
+			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
 			Media res = c.getBuldreinfoRepo().getMedia(authUserId, idMedia);
@@ -430,8 +430,8 @@ public class V2 {
 	@Path("/problem")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProblem(@Context HttpServletRequest request,
-			@Parameter(name = "Problem id", required = true) @QueryParam("id") int id,
-			@Parameter(name = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
+			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -451,8 +451,8 @@ public class V2 {
 	@Path("/problem/pdf")
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request,
-			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(name = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -556,7 +556,7 @@ public class V2 {
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfile(@Context HttpServletRequest request,
-			@Parameter(name = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
+			@Parameter(description = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -573,8 +573,8 @@ public class V2 {
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfilemedia(@Context HttpServletRequest request,
-			@Parameter(name = "User id", required = true) @QueryParam("id") int id,
-			@Parameter(name = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -597,7 +597,7 @@ public class V2 {
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfileStatistics(@Context HttpServletRequest request,
-			@Parameter(name = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -615,7 +615,7 @@ public class V2 {
 	@Path("/profile/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getProfileTodo(@Context HttpServletRequest request,
-			@Parameter(name = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -649,7 +649,7 @@ public class V2 {
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getSectors(@Context HttpServletRequest request,
-			@Parameter(name = "Sector id", required = true) @QueryParam("id") int id
+			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -670,8 +670,8 @@ public class V2 {
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request,
-			@Parameter(name = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(name = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
+			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
+			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -721,7 +721,7 @@ public class V2 {
 	@Path("/ticks")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTicks(@Context HttpServletRequest request,
-			@Parameter(name = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
+			@Parameter(description = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -740,8 +740,8 @@ public class V2 {
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTodo(@Context HttpServletRequest request,
-			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -760,8 +760,8 @@ public class V2 {
 	@Path("/top")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getTop(@Context HttpServletRequest request, 
-			@Parameter(name = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
-			@Parameter(name = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
+			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -797,7 +797,7 @@ public class V2 {
 	@Path("/users/search")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response getUsersSearch(@Context HttpServletRequest request,
-			@Parameter(name = "Search keyword", required = true) @QueryParam("value") String value
+			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -865,7 +865,7 @@ public class V2 {
 	@GET
 	@Path("/without-js/area/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(name = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -900,7 +900,7 @@ public class V2 {
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(name = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -939,7 +939,7 @@ public class V2 {
 	@GET
 	@Path("/without-js/sector/{id}")
 	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(name = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
@@ -1068,7 +1068,7 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postProblemsMedia(@Context HttpServletRequest request,
-			@Parameter(name = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
 			FormDataMultiPart multiPart) throws ExecutionException, IOException {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -1090,8 +1090,8 @@ public class V2 {
 	@POST
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request,
-			@Parameter(name = "Problem id", required = true) @QueryParam("problemId") int problemId,
-			@Parameter(name = "Media id", required = true) @QueryParam("mediaId") int mediaId,
+			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
+			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
@@ -1172,7 +1172,7 @@ public class V2 {
 	@Path("/todo")
 	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postTodo(@Context HttpServletRequest request,
-			@Parameter(name = "Problem id", required = true) @QueryParam("idProblem") int idProblem
+			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -1189,8 +1189,8 @@ public class V2 {
 	@POST
 	@Path("/user/regions")
 	public Response postUserRegions(@Context HttpServletRequest request,
-			@Parameter(name = "Region id", required = true) @QueryParam("regionId") int regionId,
-			@Parameter(name = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
+			@Parameter(description = "Region id", required = true) @QueryParam("regionId") int regionId,
+			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
@@ -1208,10 +1208,10 @@ public class V2 {
 	@PUT
 	@Path("/media")
 	public Response putMedia(@Context HttpServletRequest request,
-			@Parameter(name = "Move right", required = true) @QueryParam("id") int id,
-			@Parameter(name = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(name = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
-			@Parameter(name = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
+			@Parameter(description = "Move right", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
+			@Parameter(description = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
+			@Parameter(description = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
 			) throws ExecutionException, IOException {
 		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector == 0 && toIdProblem == 0) ||
@@ -1250,8 +1250,8 @@ public class V2 {
 	@PUT
 	@Path("/media/jpeg/rotate")
 	public Response putMediaJpegRotate(@Context HttpServletRequest request,
-			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia,
-			@Parameter(name = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
+			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia,
+			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
@@ -1269,10 +1269,10 @@ public class V2 {
 	@PUT
 	@Path("/trash")
 	public Response putTrash(@Context HttpServletRequest request,
-			@Parameter(name = "Area id", required = true) @QueryParam("idArea") int idArea,
-			@Parameter(name = "Sector id", required = true) @QueryParam("idSector") int idSector,
-			@Parameter(name = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
-			@Parameter(name = "Media id", required = true) @QueryParam("idMedia") int idMedia
+			@Parameter(description = "Area id", required = true) @QueryParam("idArea") int idArea,
+			@Parameter(description = "Sector id", required = true) @QueryParam("idSector") int idSector,
+			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
+			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia
 			) throws ExecutionException, IOException {
 		Preconditions.checkArgument(
 				(idArea > 0 && idSector == 0 && idProblem == 0) ||
