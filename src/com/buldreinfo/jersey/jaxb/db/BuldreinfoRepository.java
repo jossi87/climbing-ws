@@ -3303,7 +3303,9 @@ public class BuldreinfoRepository {
 		if (s.isTrash()) {
 			res = new Redirect(null, s.getAreaId(), 0, 0);
 		}
-		res = new Redirect(null, 0, idSector, 0);
+		else {
+			res = new Redirect(null, 0, idSector, 0);
+		}
 		logger.debug("setSector() - res={}", res);
 		return res;
 	}
