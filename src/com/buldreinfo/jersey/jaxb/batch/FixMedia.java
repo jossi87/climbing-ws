@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.helpers.JpgWriter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -143,7 +144,7 @@ public class FixMedia {
 										g.setColor(Color.BLUE);
 										g.drawString(str, x, y);
 										g.dispose();
-										ImageIO.write(b, "jpg", originalJpg.toFile());
+										JpgWriter.write(b, originalJpg);
 										Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 									}
 								}

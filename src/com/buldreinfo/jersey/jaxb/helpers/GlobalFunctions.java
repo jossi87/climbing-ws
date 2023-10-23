@@ -80,7 +80,7 @@ public class GlobalFunctions {
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
 		BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, 2560, 1440, Scalr.OP_ANTIALIAS);
-		ImageIO.write(bScaled, "jpg", jpg.toFile());
+		JpgWriter.write(bScaled, jpg);
 		bOriginal.flush();
 		bOriginal = null;
 		bScaled.flush();
@@ -159,7 +159,7 @@ public class GlobalFunctions {
 			g.setColor(Color.BLUE);
 			g.drawString(str, x, y);
 			g.dispose();
-			ImageIO.write(b, "jpg", p.toFile());
+			JpgWriter.write(b, p);
 			b.flush();
 			setFilePermission(p);
 		}
@@ -187,7 +187,7 @@ public class GlobalFunctions {
 				BufferedImage src = ImageIO.read(is);
 				BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
 				dst.createGraphics().drawImage(src, 0, 0, Color.WHITE, null);
-				ImageIO.write(dst, "jpg", p.toFile());
+				JpgWriter.write(dst, p);
 				src.flush();
 				dst.flush();
 			}
@@ -226,7 +226,7 @@ public class GlobalFunctions {
 				Files.deleteIfExists(resized);
 				BufferedImage bOriginal = ImageIO.read(original.toFile());
 				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-				ImageIO.write(bScaled, "jpg", resized.toFile());
+				JpgWriter.write(bScaled, resized);
 				bOriginal.flush();
 				bOriginal = null;
 				bScaled.flush();
@@ -314,7 +314,7 @@ public class GlobalFunctions {
 		BufferedImage bRotated = Scalr.rotate(bOriginal, r, Scalr.OP_ANTIALIAS);
 		bOriginal.flush();
 		Files.delete(original);
-		ImageIO.write(bRotated, "jpg", original.toFile());
+		JpgWriter.write(bRotated, original);
 		bRotated.flush();
 		createWebImagesAndUpdateDb(c, idMedia);
 	}
