@@ -179,8 +179,8 @@ public class BuldreinfoRepository {
 				for (Coordinates coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
-					// Use elevation from GPX if available, this has better quality compared with Google Elevation API
-					if (coord.getElevation() > 0 && coord.getElevationSource() != null && coord.getElevationSource().equals(Coordinates.ELEVATION_SOURCE_GPX)) {
+					// Use elevation from GPX/TCX if available, this has better quality compared to Google Elevation API
+					if (coord.getElevation() > 0 && coord.getElevationSource() != null && (coord.getElevationSource().equals(Coordinates.ELEVATION_SOURCE_GPX) || coord.getElevationSource().equals(Coordinates.ELEVATION_SOURCE_TCX))) {
 						ps.setDouble(3, coord.getElevation());
 						ps.setString(4, coord.getElevationSource());
 						ps.setDouble(5, coord.getElevation());

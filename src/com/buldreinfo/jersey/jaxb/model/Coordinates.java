@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 public class Coordinates {
 	public final static String ELEVATION_SOURCE_GOOGLE = "Google Elevation API";
 	public final static String ELEVATION_SOURCE_GPX = "GPX";
+	public final static String ELEVATION_SOURCE_TCX = "TCX";
 	private int id;
 	private double latitude;
 	private double longitude;
