@@ -175,22 +175,18 @@ public class BuldreinfoRepository {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
 			// Ensure coordinates exists in db
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE elevation=?, elevation_source=?")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")) {
 				for (Coordinates coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
 					// Use elevation from GPX/TCX if available, this has better quality compared to Google Elevation API
-					if (coord.getElevation() > 0 && coord.getElevationSource() != null && (coord.getElevationSource().equals(Coordinates.ELEVATION_SOURCE_GPX) || coord.getElevationSource().equals(Coordinates.ELEVATION_SOURCE_TCX))) {
+					if (coord.getElevationSource() != null) {
 						ps.setDouble(3, coord.getElevation());
 						ps.setString(4, coord.getElevationSource());
-						ps.setDouble(5, coord.getElevation());
-						ps.setString(6, coord.getElevationSource());
 					}
 					else {
 						ps.setNull(3, Types.DOUBLE);
 						ps.setNull(4, Types.VARCHAR);
-						ps.setNull(5, Types.DOUBLE);
-						ps.setNull(6, Types.VARCHAR);
 					}
 					ps.addBatch();
 				}
