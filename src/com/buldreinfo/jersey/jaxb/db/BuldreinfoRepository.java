@@ -175,7 +175,7 @@ public class BuldreinfoRepository {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
 			// Ensure coordinates exists in db
-			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")) {
 				for (Coordinates coord : coordinates) {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
