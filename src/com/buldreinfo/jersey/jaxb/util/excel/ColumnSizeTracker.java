@@ -193,7 +193,7 @@ public class ColumnSizeTracker {
 	 */
 	public double computeMaxWidth(Workbook workbook) {
 		double width = -1;
-		int defaultCharWidth = SheetUtil.getDefaultCharWidth(workbook);
+		float defaultCharWidth = SheetUtil.getDefaultCharWidthAsFloat(workbook);
 		
 		for (CellStyle style : deferredComputation.keySet()) {
 			String longestLine = deferredComputation.get(style);
@@ -227,7 +227,7 @@ public class ColumnSizeTracker {
      * @param str the text contained in the cell
      * @return the best fit cell width
      */
-    private static double getCellWidth(int defaultCharWidth, int colspan,
+    private static double getCellWidth(float defaultCharWidth, int colspan,
             CellStyle style, double minWidth, AttributedString str) {
         TextLayout layout = new TextLayout(str.getIterator(), fontRenderContext);
         final Rectangle2D bounds;
