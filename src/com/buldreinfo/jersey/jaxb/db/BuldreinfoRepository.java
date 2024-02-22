@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
@@ -123,7 +125,7 @@ public class BuldreinfoRepository {
 		this.c = c;
 	}
 
-	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public void addProblemMedia(int authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient permissions");
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
@@ -2819,7 +2821,7 @@ public class BuldreinfoRepository {
 		GlobalFunctions.rotateMedia(c, idMedia, degrees);
 	}
 
-	public Redirect setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Redirect setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId != -1, "Insufficient credentials");
 		Preconditions.checkArgument(s.getIdRegion() > 0, "Insufficient credentials");
 		ensureAdminWriteRegion(authUserId, s.getIdRegion());
@@ -2929,7 +2931,7 @@ public class BuldreinfoRepository {
 		return new Redirect(null, idArea, 0, 0);
 	}
 
-	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException {
+	public Redirect setProblem(int authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException, ImageReadException, ImageWriteException {
 		final boolean orderByGrade = s.isBouldering();
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
@@ -3129,7 +3131,7 @@ public class BuldreinfoRepository {
 		return new Redirect(null, 0, 0, idProblem);
 	}
 
-	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException {
+	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -3485,7 +3487,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId > 0);
 		if (co.getId() > 0) {
 			List<Problem.ProblemComment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
@@ -3645,7 +3647,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	private int addNewMedia(int idUser, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException {
+	private int addNewMedia(int idUser, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		int idMedia = -1;
 		logger.debug("addNewMedia(idUser={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", idUser, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
@@ -3742,13 +3744,14 @@ public class BuldreinfoRepository {
 			/**
 			 * IO
 			 */
+			String dateTaken = null;
 			if (isMovie) {
 				GlobalFunctions.downloadJpgFromEmbedVideo(idMedia, m.getEmbedVideoUrl());
 			}
 			else {
-				GlobalFunctions.downloadOriginalJpgFromImage(idMedia, m.getName(), multiPart);
+				dateTaken = GlobalFunctions.downloadOriginalJpgFromImage(idMedia, m.getName(), multiPart);
 			}
-			GlobalFunctions.createWebImagesAndUpdateDb(c, idMedia);
+			GlobalFunctions.createWebImagesAndUpdateDb(c, idMedia, dateTaken);
 		}
 		return idMedia;
 	}

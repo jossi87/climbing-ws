@@ -24,15 +24,16 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.TimeZone;
 
 import javax.imageio.ImageIO;
 
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,15 +42,12 @@ import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.thumbnailcreator.ExifOrientation;
-import com.buldreinfo.jersey.jaxb.thumbnailcreator.ThumbnailCreation;
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Metadata;
-import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
+import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -60,8 +58,8 @@ import jakarta.ws.rs.core.Response;
 public class GlobalFunctions {
 	private static final Logger logger = LogManager.getLogger();
 
-	public static void createWebImagesAndUpdateDb(DbConnection c, int id) throws IOException, InterruptedException, SQLException {
-		logger.debug("createWebImagesAndUpdateDb(id={}) - initialized", id);
+	public static void createWebImagesAndUpdateDb(DbConnection c, int id, String dateTaken) throws IOException, InterruptedException, SQLException {
+		logger.debug("createWebImagesAndUpdateDb(id={}, dateTaken={}) - initialized", id, dateTaken);
 		final Path originalJpg = getPathMediaOriginalJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 		final Path webp = getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 		final Path jpg = getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
@@ -84,14 +82,14 @@ public class GlobalFunctions {
 		final int width = bOriginal.getWidth();
 		final int height = bOriginal.getHeight();
 		BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, 2560, 1440, Scalr.OP_ANTIALIAS);
-		JpgWriter.write(bScaled, jpg);
+		ImageIOHelper.writeToPath(bScaled, jpg);
 		bOriginal.flush();
 		bOriginal = null;
 		bScaled.flush();
 		bScaled = null;
 		Preconditions.checkArgument(Files.exists(jpg));
 		setFilePermission(jpg);
-		logger.debug("createWebImagesAndUpdateDb(id={}) - scaled jpg saved", id);
+		logger.debug("createWebImagesAndUpdateDb(id={}, dateTaken={}) - scaled jpg saved", id, dateTaken);
 		// Scaled WebP
 		String[] cmd = null;
 		if (!SystemUtils.IS_OS_WINDOWS) {
@@ -106,12 +104,16 @@ public class GlobalFunctions {
 		setFilePermission(webp);
 		logger.debug("createWebImagesAndUpdateDb(id={}) - scaled webp saved", id);
 		// Update db
-		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?")) {
-			ps.setString(1, getDateTaken(originalJpg));
-			ps.setInt(2, getCrc32(Files.exists(webm)? webm : webp));
-			ps.setInt(3, width);
-			ps.setInt(4, height);
-			ps.setInt(5, id);
+		String sqlStr = dateTaken == null? "UPDATE media SET checksum=?, width=?, height=? WHERE id=?" : "UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			int ix = 0;
+			if (dateTaken != null) {
+				ps.setString(++ix, dateTaken);
+			}
+			ps.setInt(++ix, getCrc32(Files.exists(webm)? webm : webp));
+			ps.setInt(++ix, width);
+			ps.setInt(++ix, height);
+			ps.setInt(++ix, id);
 			ps.execute();
 		}
 		logger.debug("createWebImagesAndUpdateDb(id={}) - DB done", id);
@@ -167,7 +169,7 @@ public class GlobalFunctions {
 			g.setColor(Color.BLUE);
 			g.drawString(str, x, y);
 			g.dispose();
-			JpgWriter.write(b, p);
+			ImageIOHelper.writeToPath(b, p);
 			b.flush();
 			setFilePermission(p);
 		}
@@ -177,7 +179,7 @@ public class GlobalFunctions {
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 	}
 
-	public static void downloadOriginalJpgFromImage(int idMedia, String name, FormDataMultiPart multiPart) throws IOException {
+	public static String downloadOriginalJpgFromImage(int idMedia, String name, FormDataMultiPart multiPart) throws IOException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(idMedia > 0, "idMedia = 0");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name is null");
 		Preconditions.checkArgument(multiPart != null, "multiPart is null");
@@ -187,34 +189,27 @@ public class GlobalFunctions {
 			Files.createDirectories(p.getParent());
 			setFilePermission(p.getParent());
 		}
+		byte[] bytes = null;
 		try (InputStream is = multiPart.getField(name).getValueAs(InputStream.class)) {
 			if (name.toLowerCase().endsWith("jpg")) {
-				Files.copy(is, p);
+				bytes = ByteStreams.toByteArray(is);
 			}
 			else {
 				BufferedImage src = ImageIO.read(is);
 				BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
 				dst.createGraphics().drawImage(src, 0, 0, Color.WHITE, null);
-				JpgWriter.write(dst, p);
+				bytes = ImageIOHelper.writeToByteArray(dst);
 				src.flush();
 				dst.flush();
 			}
 		}
-		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-
-		// Rotate (if EXIF-rotated)
-		try (ThumbnailCreation creation = ThumbnailCreation.image(p.toFile())) {
-			ExifOrientation orientation = creation.getExifRotation();
-			if (orientation != null && orientation != ExifOrientation.HORIZONTAL_NORMAL) {
-				logger.info("Rotating " + p.toString() + " using " + orientation);
-				creation.rotate(orientation).preserveExif().saveTo(com.google.common.io.Files.asByteSink(p.toFile()));
-			}
-		}
-		
+		Preconditions.checkArgument(bytes != null && bytes.length > 0);
+		String dateTaken = ImageIOHelper.writeImageFileWithExif(bytes, p);
 		if (Files.exists(p) && Files.size(p) == 0) {
 			Files.delete(p);
 		}
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
+		return dateTaken;
 	}
 
 	public static boolean downloadUserImage(int userId, String url) throws IOException {
@@ -234,7 +229,7 @@ public class GlobalFunctions {
 				Files.deleteIfExists(resized);
 				BufferedImage bOriginal = ImageIO.read(original.toFile());
 				BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-				JpgWriter.write(bScaled, resized);
+				ImageIOHelper.writeToPath(bScaled, resized);
 				bOriginal.flush();
 				bOriginal = null;
 				bScaled.flush();
@@ -262,7 +257,7 @@ public class GlobalFunctions {
 		}
 		return res;
 	}
-	
+
 	public static Path getPathMediaWebJpg() throws IOException {
 		return getPathRoot().resolve("web/jpg");
 	}
@@ -270,7 +265,7 @@ public class GlobalFunctions {
 	public static Path getPathMediaWebWebp() throws IOException {
 		return getPathRoot().resolve("web/webp");
 	}
-	
+
 	public static Path getPathRoot() throws IOException {
 		Path root = null;
 		if (!SystemUtils.IS_OS_WINDOWS) {
@@ -322,49 +317,35 @@ public class GlobalFunctions {
 		BufferedImage bRotated = Scalr.rotate(bOriginal, r, Scalr.OP_ANTIALIAS);
 		bOriginal.flush();
 		Files.delete(original);
-		JpgWriter.write(bRotated, original);
+		ImageIOHelper.writeToPath(bRotated, original);
 		bRotated.flush();
-		createWebImagesAndUpdateDb(c, idMedia);
+		createWebImagesAndUpdateDb(c, idMedia, null);
 	}
 
 	private static int getCrc32(Path p) throws IOException {
 		return com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt();
 	}
 
-	private static String getDateTaken(Path p) {
-		if (Files.exists(p) && p.getFileName().toString().toLowerCase().endsWith(".jpg")) {
-			try {
-				Metadata metadata = ImageMetadataReader.readMetadata(p.toFile());
-				ExifSubIFDDirectory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
-				java.util.Date date = directory.getDateOriginal(TimeZone.getDefault());
-				SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
-				return sdf.format(date.getTime());
-			} catch (Exception e) {
-			}
-		}
-		return null;
-	}
-	
 	private static Path getPathMediaOriginalJpg() throws IOException {
 		return getPathRoot().resolve("original/jpg");
 	}
-	
+
 	private static Path getPathMediaWebWebm() throws IOException {
 		return getPathRoot().resolve("web/webm");
 	}
-	
+
 	private static Path getPathOriginalUsers() throws IOException {
 		return getPathRoot().resolve("original/users");
 	}
-	
+
 	private static Path getPathWebUsers() throws IOException {
 		return getPathRoot().resolve("web/users");
 	}
-	
+
 	private static String removeIllegalCharacters(String str) {
 		return str.trim().replaceAll("[\\\\/:*?\"<>|] ", "_");
 	}
-	
+
 	private static void setFilePermission(Path p) {
 		if (!SystemUtils.IS_OS_WINDOWS) {
 			try {

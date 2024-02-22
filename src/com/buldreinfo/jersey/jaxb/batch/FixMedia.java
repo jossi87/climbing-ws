@@ -30,7 +30,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.JpgWriter;
+import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -144,13 +144,13 @@ public class FixMedia {
 										g.setColor(Color.BLUE);
 										g.drawString(str, x, y);
 										g.dispose();
-										JpgWriter.write(b, originalJpg);
+										ImageIOHelper.writeToPath(b, originalJpg);
 										Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 									}
 								}
 							}
 							if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
-								GlobalFunctions.createWebImagesAndUpdateDb(c, id);
+								GlobalFunctions.createWebImagesAndUpdateDb(c, id, null);
 							}
 						} catch (Exception e) {
 							warnings.add("id=" + id + ", path=" + original.toString() + ": " + e.getMessage());

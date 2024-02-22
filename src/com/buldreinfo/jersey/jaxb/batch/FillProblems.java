@@ -7,6 +7,8 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.imaging.ImageReadException;
+import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -156,7 +158,7 @@ public class FillProblems {
 		return res;
 	}
 
-	private void insertProblem(DbConnection c, int idArea, int idSector, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ParseException {
+	private void insertProblem(DbConnection c, int idArea, int idSector, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ParseException, ImageReadException, ImageWriteException {
 		logger.debug("insert {}", d);
 		List<FaUser> fa = getFas(c, d.getFa());
 		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
@@ -169,7 +171,7 @@ public class FillProblems {
 		c.getBuldreinfoRepo().setProblem(AUTH_USER_ID, setup, p, null);
 	}
 
-	private int upsertArea(DbConnection c, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException {
+	private int upsertArea(DbConnection c, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		for (Area a : c.getBuldreinfoRepo().getAreaList(AUTH_USER_ID, REGION_ID)) {
 			if (a.getName().equals(d.getArea())) {
 				return a.getId();
@@ -180,7 +182,7 @@ public class FillProblems {
 		return r.getIdArea();
 	}
 
-	private int upsertSector(DbConnection c, int idArea, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException {
+	private int upsertSector(DbConnection c, int idArea, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Area a = Preconditions.checkNotNull(c.getBuldreinfoRepo().getArea(MetaHelper.getMeta().getSetup(REGION_ID), AUTH_USER_ID, idArea));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {

@@ -27,6 +27,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -361,11 +362,8 @@ public class V2 {
 				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
 				BufferedImage scaled = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
 				b.flush();
-				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-					ImageIO.write(scaled, "jpg", baos);
-					byte[] imageData = baos.toByteArray();
-					return Response.ok(imageData, mimeType).cacheControl(cc).build();
-				}
+				byte[] imageData = ImageIOHelper.writeToByteArray(scaled);
+				return Response.ok(imageData, mimeType).cacheControl(cc).build();
 			}
 			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
 		} catch (Exception e) {

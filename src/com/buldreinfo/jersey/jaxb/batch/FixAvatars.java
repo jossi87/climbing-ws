@@ -19,7 +19,7 @@ import org.imgscalr.Scalr;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.JpgWriter;
+import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
 
 public class FixAvatars {
 	private static Logger logger = LogManager.getLogger();
@@ -52,7 +52,7 @@ public class FixAvatars {
 					if (Files.exists(original) && !Files.exists(resized)) {
 						BufferedImage bOriginal = ImageIO.read(original.toFile());
 						BufferedImage bScaled = Scalr.resize(bOriginal, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-						JpgWriter.write(bScaled, resized);
+						ImageIOHelper.writeToPath(bScaled, resized);
 						bOriginal.flush();
 						bOriginal = null;
 						bScaled.flush();
