@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -107,7 +108,7 @@ public class GeoHelper {
 			}
 			double latitude = 0, longitude = 0, elevation = 0;
 			String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
-			URL url = new URL(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey));
+			URL url = URI.create(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey)).toURL();
 			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			int responseCode = connection.getResponseCode();
 			Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);

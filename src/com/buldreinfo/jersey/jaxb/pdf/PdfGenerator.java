@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -115,7 +116,7 @@ public class PdfGenerator implements AutoCloseable {
 	private Image imageStarFilled;
 	private Image imageStarHalf;
 	private Image imageStarEmpty;
-	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException, TransformerException {
+	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException {
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
 		writer.setStrictImageSequence(true);
@@ -446,7 +447,7 @@ public class PdfGenerator implements AutoCloseable {
 	private boolean isValidUrl(String url)  {
 		/* Try creating a valid URL */
 		try { 
-			new URL(url).toURI(); 
+			URI.create(url); 
 			return true; 
 		} catch (Exception e) { 
 			return false; 
@@ -672,7 +673,7 @@ public class PdfGenerator implements AutoCloseable {
 		Image img = null;
 		if ((mediaSvgs == null || mediaSvgs.isEmpty()) && (svgs == null || svgs.isEmpty())) {
 			if (mediaIdProcessed.add(mediaId)) {
-				URL url = new URL(GlobalFunctions.getUrlJpgToImage(mediaId));
+				URL url = URI.create(GlobalFunctions.getUrlJpgToImage(mediaId)).toURL();
 				img = Image.getInstance(url);
 			}
 		}

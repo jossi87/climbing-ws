@@ -11,7 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -129,7 +129,7 @@ public class GlobalFunctions {
 		}
 		else if (embedUrl.startsWith("https://player.vimeo.com/video/")) {
 			String id = embedUrl.replace("https://player.vimeo.com/video/", "");
-			HttpURLConnection conn = (HttpURLConnection) new URL("https://vimeo.com/api/v2/video/" + id + ".json").openConnection();
+			HttpURLConnection conn = (HttpURLConnection) URI.create("https://vimeo.com/api/v2/video/" + id + ".json").toURL().openConnection();
 			conn.setRequestMethod("GET");
 			conn.setDoOutput(true);
 			conn.connect();
@@ -142,7 +142,7 @@ public class GlobalFunctions {
 			}
 		}
 		Preconditions.checkArgument(imgUrl != null, "imgUrl is null");
-		try (InputStream is = new URL(imgUrl).openStream()){
+		try (InputStream is = URI.create(imgUrl).toURL().openStream()){
 			BufferedImage b = ImageIO.read(is);
 			Graphics g = b.getGraphics();
 			g.setFont(new Font("Arial", Font.BOLD, 40));
@@ -216,7 +216,7 @@ public class GlobalFunctions {
 				Files.createDirectories(original.getParent());
 				setFilePermission(original.getParent());
 			}
-			try (InputStream in = new URL(url).openStream()) {
+			try (InputStream in = URI.create(url).toURL().openStream()) {
 				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 				in.close();
 				setFilePermission(original);

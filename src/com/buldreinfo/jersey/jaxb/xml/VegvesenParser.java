@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.xml;
 
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -29,7 +30,7 @@ public class VegvesenParser {
 	}
 
 	public List<Webcam> getCameras() throws Exception {
-		URL url = new URL("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata");
+		URL url = URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata").toURL();
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 		String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
 		byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));

@@ -1,5 +1,5 @@
-<project xmlns="https://maven.apache.org/POM/4.0.0" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="https://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.buldreinfo.jersey.jaxb</groupId>
 	<artifactId>com.buldreinfo.jersey.jaxb</artifactId>
@@ -46,7 +46,6 @@
 				<version>3.4.0</version>
 				<configuration>
 					<warSourceDirectory>WebContent</warSourceDirectory>
-					<failOnMissingWebXml>false</failOnMissingWebXml>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -64,6 +63,12 @@
 		    <artifactId>jakarta.ws.rs-api</artifactId>
 		    <version>3.1.0</version>
 		</dependency>
+		<dependency>
+		    <groupId>jakarta.xml.bind</groupId>
+		    <artifactId>jakarta.xml.bind-api</artifactId>
+		    <version>4.0.1</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-dbcp2</artifactId>
@@ -89,16 +94,6 @@
 			<artifactId>jersey-media-multipart</artifactId>
 			<version>3.1.5</version>
 		</dependency>
-		<dependency>
-		    <groupId>javax.xml.bind</groupId>
-		    <artifactId>jaxb-api</artifactId>
-		    <version>2.3.1</version>
-		</dependency>
-		<dependency>
-		    <groupId>org.glassfish.jaxb</groupId>
-		    <artifactId>jaxb-runtime</artifactId>
-		    <version>4.0.4</version>
-		</dependency>
 		
 		<dependency>
 		    <groupId>io.swagger.core.v3</groupId>
@@ -110,7 +105,11 @@
 		    <artifactId>swagger-jaxrs2-servlet-initializer-jakarta</artifactId>
 		    <version>2.2.20</version>
 		</dependency>
-
+		<dependency>
+		    <groupId>jakarta.annotation</groupId>
+		    <artifactId>jakarta.annotation-api</artifactId>
+		    <version>3.0.0-M1</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.easymock</groupId>
@@ -136,11 +135,6 @@
 			<groupId>com.drewnoakes</groupId>
 			<artifactId>metadata-extractor</artifactId>
 			<version>2.19.0</version>
-		</dependency>
-		<dependency>
-			<groupId>javax.annotation</groupId>
-			<artifactId>javax.annotation-api</artifactId>
-			<version>1.3.2</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-codec</groupId>
@@ -224,11 +218,23 @@
 			<groupId>org.apache.xmlgraphics</groupId>
 			<artifactId>batik-transcoder</artifactId>
 			<version>1.17</version>
+			<exclusions>
+		        <exclusion>
+		            <groupId>xml-apis</groupId>
+		            <artifactId>xml-apis</artifactId>
+		        </exclusion>
+		    </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.xmlgraphics</groupId>
 			<artifactId>batik-codec</artifactId>
 			<version>1.17</version>
+			<exclusions>
+		        <exclusion>
+		            <groupId>xml-apis</groupId>
+		            <artifactId>xml-apis</artifactId>
+		        </exclusion>
+		    </exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.jfree</groupId>

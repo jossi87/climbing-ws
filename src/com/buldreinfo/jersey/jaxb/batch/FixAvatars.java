@@ -2,7 +2,7 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,7 +40,7 @@ public class FixAvatars {
 					Path resized = resizedFolder.resolve(id + ".jpg");
 					if (!Files.exists(original)) {
 						try {
-							try (InputStream in = new URL(picture).openStream()) {
+							try (InputStream in = URI.create(picture).toURL().openStream()) {
 								Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
 								in.close();
 								logger.debug("Downloaded " + original.toString());
