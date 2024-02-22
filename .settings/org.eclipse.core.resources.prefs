@@ -1,6 +1,6 @@
 eclipse.preferences.version=1
 encoding//src/com/buldreinfo/jersey/jaxb/batch/FillActivity.java=UTF-8
 encoding//src/com/buldreinfo/jersey/jaxb/batch/FillProblems.java=UTF-8
-encoding/<project>=Cp1252
-encoding/src=Cp1252
-encoding/test=Cp1252
+encoding/<project>=UTF-8
+encoding/src=UTF-8
+encoding/test=UTF-8
