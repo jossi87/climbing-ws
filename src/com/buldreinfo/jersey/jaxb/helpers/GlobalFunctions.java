@@ -12,6 +12,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -113,7 +117,7 @@ public class GlobalFunctions {
 		logger.debug("createWebImagesAndUpdateDb(id={}) - DB done", id);
 	}
 
-	public static void downloadJpgFromEmbedVideo(int idMedia, String embedUrl) throws IOException {
+	public static void downloadJpgFromEmbedVideo(int idMedia, String embedUrl) throws IOException, InterruptedException {
 		Preconditions.checkArgument(idMedia > 0, "idMedia = 0");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(embedUrl), "embedUrl is null");
 		final Path p = getPathMediaOriginalJpg().resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".jpg");
@@ -129,15 +133,19 @@ public class GlobalFunctions {
 		}
 		else if (embedUrl.startsWith("https://player.vimeo.com/video/")) {
 			String id = embedUrl.replace("https://player.vimeo.com/video/", "");
-			HttpURLConnection conn = (HttpURLConnection) URI.create("https://vimeo.com/api/v2/video/" + id + ".json").toURL().openConnection();
-			conn.setRequestMethod("GET");
-			conn.setDoOutput(true);
-			conn.connect();
-			try (InputStream is = conn.getInputStream()) {
-				try (Reader targetReader = new InputStreamReader(is, Charset.forName("UTF-8"))) {
-					JsonArray arr = new Gson().fromJson(targetReader, JsonArray.class);
-					JsonObject obj = arr.get(0).getAsJsonObject();
-					imgUrl = obj.get("thumbnail_large").getAsString();
+			try (HttpClient client = HttpClient.newHttpClient()) {
+				HttpRequest request = HttpRequest.newBuilder()
+						.uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
+						.GET()
+						.build();
+				HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+				Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
+				try (InputStream is = response.body()) {
+					try (Reader targetReader = new InputStreamReader(is, Charset.forName("UTF-8"))) {
+						JsonArray arr = new Gson().fromJson(targetReader, JsonArray.class);
+						JsonObject obj = arr.get(0).getAsJsonObject();
+						imgUrl = obj.get("thumbnail_large").getAsString();
+					}
 				}
 			}
 		}

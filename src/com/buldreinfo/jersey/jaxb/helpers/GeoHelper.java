@@ -4,7 +4,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -94,7 +97,7 @@ public class GeoHelper {
 		}
 		return null;
 	}
-	public static void fillElevations(List<Coordinates> allCoordinates) throws IOException {
+	public static void fillElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
 		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
 			String locations = null;
 			for (Coordinates coord : coordinates) {
@@ -107,80 +110,84 @@ public class GeoHelper {
 				}
 			}
 			double latitude = 0, longitude = 0, elevation = 0;
-			String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
-			URL url = URI.create(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey)).toURL();
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			int responseCode = connection.getResponseCode();
-			Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);
-			try (InputStream is = connection.getInputStream();
-					InputStreamReader isr = new InputStreamReader(is);
-					JsonReader jsonReader = new JsonReader(isr)) {
-				jsonReader.beginObject();
-				while (jsonReader.hasNext()) {
-					String field = jsonReader.nextName();
-					if (field.equals("results")) {
-						jsonReader.beginArray();
-						while (jsonReader.hasNext()) {
-							jsonReader.beginObject();
+			try (HttpClient client = HttpClient.newHttpClient()) {
+				String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
+				HttpRequest request = HttpRequest.newBuilder()
+						.uri(URI.create(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey)))
+						.GET()
+						.build();
+				HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+				Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
+				try (InputStream is = response.body();
+						InputStreamReader isr = new InputStreamReader(is);
+						JsonReader jsonReader = new JsonReader(isr)) {
+					jsonReader.beginObject();
+					while (jsonReader.hasNext()) {
+						String field = jsonReader.nextName();
+						if (field.equals("results")) {
+							jsonReader.beginArray();
 							while (jsonReader.hasNext()) {
-								field = jsonReader.nextName();
-								if (field.equals("elevation")) {
-									elevation = jsonReader.nextDouble();
-								}
-								else if (field.equals("location")) {
-									jsonReader.beginObject();
-									while (jsonReader.hasNext()) {
-										field = jsonReader.nextName();
-										if (field.equals("lat")) {
-											latitude = jsonReader.nextDouble();
-										}
-										else if (field.equals("lng")) {
-											longitude = jsonReader.nextDouble();
-										}
-										else {
-											jsonReader.skipValue();
-										}
+								jsonReader.beginObject();
+								while (jsonReader.hasNext()) {
+									field = jsonReader.nextName();
+									if (field.equals("elevation")) {
+										elevation = jsonReader.nextDouble();
 									}
-									jsonReader.endObject();
+									else if (field.equals("location")) {
+										jsonReader.beginObject();
+										while (jsonReader.hasNext()) {
+											field = jsonReader.nextName();
+											if (field.equals("lat")) {
+												latitude = jsonReader.nextDouble();
+											}
+											else if (field.equals("lng")) {
+												longitude = jsonReader.nextDouble();
+											}
+											else {
+												jsonReader.skipValue();
+											}
+										}
+										jsonReader.endObject();
+									}
+									else {
+										jsonReader.skipValue();
+									}
 								}
-								else {
-									jsonReader.skipValue();
-								}
+								final double lat = latitude;
+								final double lng = longitude;
+								final double el = elevation;
+								coordinates
+								.stream()
+								.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
+								.forEach(x -> x.setElevation(el, Coordinates.ELEVATION_SOURCE_GOOGLE));
+								jsonReader.endObject();
 							}
-							final double lat = latitude;
-							final double lng = longitude;
-							final double el = elevation;
-							coordinates
-							.stream()
-							.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
-							.forEach(x -> x.setElevation(el, Coordinates.ELEVATION_SOURCE_GOOGLE));
-							jsonReader.endObject();
+							jsonReader.endArray();
+						} else {
+							jsonReader.skipValue();
 						}
-						jsonReader.endArray();
-					} else {
-						jsonReader.skipValue();
-					}
 
+					}
+					jsonReader.endObject();
 				}
-				jsonReader.endObject();
 			}
 		}
 	}
 	@Deprecated // TODO Use st_distance_sphere in MySQL
 	public static double getDistance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {
-	    final int R = 6371; // Radius of the earth
-	    double latDistance = Math.toRadians(lat2 - lat1);
-	    double lonDistance = Math.toRadians(lon2 - lon1);
-	    double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-	            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-	            * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-	    double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-	    double distance = R * c * 1000; // convert to meters
-	    double height = el1 - el2;
-	    distance = Math.pow(distance, 2) + Math.pow(height, 2);
-	    return Math.sqrt(distance);
+		final int R = 6371; // Radius of the earth
+		double latDistance = Math.toRadians(lat2 - lat1);
+		double lonDistance = Math.toRadians(lon2 - lon1);
+		double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+				* Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+		double distance = R * c * 1000; // convert to meters
+		double height = el1 - el2;
+		distance = Math.pow(distance, 2) + Math.pow(height, 2);
+		return Math.sqrt(distance);
 	}
-	public static int getElevation(double latitude, double longitude) throws IOException {
+	public static int getElevation(double latitude, double longitude) throws IOException, InterruptedException {
 		List<Coordinates> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinates(latitude, longitude));
 		coordinates.get(0).roundCoordinatesToMaximum10digitsAfterComma();

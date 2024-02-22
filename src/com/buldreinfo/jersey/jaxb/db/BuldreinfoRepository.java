@@ -170,7 +170,7 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException {
+	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException, InterruptedException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());

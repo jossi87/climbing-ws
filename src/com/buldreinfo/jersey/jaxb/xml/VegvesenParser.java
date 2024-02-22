@@ -3,7 +3,10 @@ package com.buldreinfo.jersey.jaxb.xml;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -30,18 +33,21 @@ public class VegvesenParser {
 	}
 
 	public List<Webcam> getCameras() throws Exception {
-		URL url = URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata").toURL();
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
-		byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
-		String authHeaderValue = "Basic " + new String(encodedAuth);
-		connection.setRequestProperty("Authorization", authHeaderValue);
-
-		int responseCode = connection.getResponseCode();
-		Preconditions.checkArgument(responseCode == 200, "Invalid responseCode: " + responseCode);
-		List<Webcam> res = parseCameras(connection.getInputStream());
-		logger.debug("getCameras() - res.size()={}", res.size());
-		return res;
+		try (HttpClient client = HttpClient.newHttpClient()) {
+			String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"))
+					.header("Authorization", "Basic " + new String(Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8))))
+					.GET()
+					.build();
+			HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+			Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
+			try (InputStream is = response.body()) {
+				List<Webcam> res = parseCameras(is);
+				logger.debug("getCameras() - res.size()={}", res.size());
+				return res;		
+			}
+		}
 	}
 	
 	private List<Webcam> parseCameras(InputStream is) throws Exception {
