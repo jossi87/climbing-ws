@@ -12,8 +12,8 @@ public class SectorSort {
 
 	public static String parseName(String name) {
 		return name.toLowerCase()
-				.replace("første", "1første")
-				.replace("sør", "1sør")
+				.replace("fÃ¸rste", "1fÃ¸rste")
+				.replace("sÃ¸r", "1sÃ¸r")
 				.replace("vest", "1vest")
 				.replace("venstre", "1venstre")
 				.replace("andre", "2andre")
@@ -21,8 +21,8 @@ public class SectorSort {
 				.replace("tredje", "3tredje")
 				.replace("hoved", "3hoved")
 				.replace("fjerde", "4fjerde")
-				.replace("høyre", "4høyre")
-				.replace("øst", "5øst")
+				.replace("hÃ¸yre", "4hÃ¸yre")
+				.replace("Ã¸st", "5Ã¸st")
 				.replace("nord", "6nord");
 	}
 }

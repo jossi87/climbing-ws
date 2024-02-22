@@ -360,8 +360,8 @@ public class PdfGenerator implements AutoCloseable {
 		document.addTitle(title);
 		document.addSubject(title);
 		document.addKeywords(title);
-		document.addAuthor("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
-		document.addCreator("Jostein Øygarden (buldreinfo.com / brattelinjer.no");
+		document.addAuthor("Jostein Oeygarden (buldreinfo.com / brattelinjer.no");
+		document.addCreator("Jostein Oeygarden (buldreinfo.com / brattelinjer.no");
 	}
 
 	private void addTableCell(PdfPTable table, Font font, String str) {
@@ -456,7 +456,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private String removeIllegalChars(String name) {
 		if (name != null) {
-			return name.replaceAll("[^ÆØÅæøåa-zA-Z0-9]", " ");
+			return name.replaceAll("[^Ã†Ã˜Ã…Ã¦Ã¸Ã¥a-zA-Z0-9]", " ");
 		}
 		return name;
 	}
