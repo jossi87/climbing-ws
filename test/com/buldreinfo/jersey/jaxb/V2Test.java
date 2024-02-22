@@ -103,7 +103,7 @@ public class V2Test {
 	@Test
 	public void testGetProfile() throws Exception {
 		V2 tester = new V2();
-		// User: Jostein Ø
+		// User: Jostein
 		Response r = tester.getProfile(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Profile);
@@ -133,7 +133,7 @@ public class V2Test {
 	@Test
 	public void testGetTodo() throws Exception {
 		V2 tester = new V2();
-		// User: Jostein Ø
+		// User: Jostein
 		Response r = tester.getProfileTodo(getRequest(), 1);
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof ProfileTodo);
