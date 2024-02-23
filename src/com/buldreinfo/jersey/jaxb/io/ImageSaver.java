@@ -16,11 +16,15 @@ import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr;
 
 import com.google.common.base.Preconditions;
 
 public class ImageSaver {
+	private static Logger logger = LogManager.getLogger();
+	
 	protected static class ImageSaverBuilder {
 		private BufferedImage bufferedImage;
 		private Path pathOriginalJpg;
@@ -80,6 +84,7 @@ public class ImageSaver {
 						}
 						IOHelper.setFilePermission(builder.pathOriginalJpg);
 					} catch (IOException | ImageReadException | ImageWriteException e) {
+						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);
 					}
 				});
@@ -111,6 +116,7 @@ public class ImageSaver {
 						process.waitFor();
 						IOHelper.setFilePermission(builder.pathWebWebP);
 					} catch (IOException | InterruptedException e) {
+						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);
 					}
 				});
