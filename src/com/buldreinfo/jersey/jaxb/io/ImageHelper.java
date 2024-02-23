@@ -34,7 +34,7 @@ public class ImageHelper {
 		.withMetadata(exifReader.getOutputSet())
 		.withPathOriginalJpg(original)
 		.withPathWebJpg(IOHelper.getPathMediaWebJpg(idMedia))
-		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia).resolve(String.valueOf(idMedia / 100 * 100)).resolve(idMedia + ".webp"))
+		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
 		c.getBuldreinfoRepo().setMediaMetadata(idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
 	}
