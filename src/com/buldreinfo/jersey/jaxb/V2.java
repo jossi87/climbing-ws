@@ -27,7 +27,6 @@ import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -359,11 +358,14 @@ public class V2 {
 			cc.setNoTransform(false);
 			if (dimention != null) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				BufferedImage scaled = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
-				b.flush();
-				byte[] imageData = ImageIOHelper.writeToByteArray(scaled);
-				return Response.ok(imageData, mimeType).cacheControl(cc).build();
+				if (b.getWidth() > dimention.getX() && b.getHeight() > dimention.getY()) {
+					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
+				}
+				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+					ImageIO.write(b, "jpg", baos);
+					return Response.ok(baos.toByteArray(), mimeType).cacheControl(cc).build();
+				}
 			}
 			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
 		} catch (Exception e) {

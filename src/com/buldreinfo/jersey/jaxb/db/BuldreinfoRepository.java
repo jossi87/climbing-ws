@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.awt.Point;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
@@ -37,15 +38,17 @@ import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Approach;
@@ -104,6 +107,8 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.hash.Hashing;
+import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -134,6 +139,26 @@ public class BuldreinfoRepository {
 			addNewMedia(authUserId, p.getId(), m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
 		}
 		fillActivity(p.getId());
+	}
+	
+	public void setMediaMetadata(int idMedia, int height, int width, String dateTaken) throws SQLException, IOException {
+		Path webp = IOHelper.getPathMediaWebWebp(idMedia);
+		Path webm = IOHelper.getPathMediaWebWebm(idMedia);
+		Path p = Files.exists(webm)? webm : webp;
+		Preconditions.checkArgument(Files.exists(p));
+		String sqlStr = dateTaken == null? "UPDATE media SET checksum=?, width=?, height=? WHERE id=?" : "UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
+		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
+			int ix = 0;
+			if (dateTaken != null) {
+				ps.setString(++ix, dateTaken);
+			}
+			ps.setInt(++ix, com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt());
+			ps.setInt(++ix, width);
+			ps.setInt(++ix, height);
+			ps.setInt(++ix, idMedia);
+			ps.execute();
+		}
+		logger.debug("setMediaMetadata(idMedia={}, height={}, width={}, dateTaken={}) - success", idMedia, height, width, dateTaken);
 	}
 
 	public void deleteMedia(int authUserId, int id) throws SQLException {
@@ -835,12 +860,15 @@ public class BuldreinfoRepository {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
-				if (GlobalFunctions.downloadUserImage(authUserId, profile.getPicture())) {
+				try {
+					ImageHelper.saveAvatar(authUserId, profile.getPicture());
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.getPicture());
 						ps.setInt(2, authUserId);
 						ps.executeUpdate();
 					}
+				} catch (Exception e) {
+					logger.warn(e.getMessage(), e);
 				}
 			}
 		}
@@ -1091,9 +1119,9 @@ public class BuldreinfoRepository {
 	public Path getImage(boolean webP, int id) throws SQLException, IOException {
 		Path p = null;
 		if (webP) {
-			p = GlobalFunctions.getPathMediaWebWebp().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
+			p = IOHelper.getPathMediaWebWebp(id);
 		} else {
-			p = GlobalFunctions.getPathMediaWebJpg().resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
+			p = IOHelper.getPathMediaWebJpg(id);
 		}
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
@@ -2812,13 +2840,27 @@ public class BuldreinfoRepository {
 		}
 	}
 
-	public void rotateMedia(int idRegion, int authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
+	public void rotateMedia(int idRegion, int authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		// Rotate allowed for administrators + user who uploaded specific image
 		boolean uploadedByMe = getMedia(authUserId, idMedia).isUploadedByMe();
 		if (!uploadedByMe) {
 			ensureAdminWriteRegion(authUserId, idRegion);
 		}
-		GlobalFunctions.rotateMedia(c, idMedia, degrees);
+		Rotation r = null;
+		switch (degrees) {
+		case 90:
+			r = Rotation.CW_90;
+			break;
+		case 180:
+			r = Rotation.CW_180;
+			break;
+		case 270:
+			r = Rotation.CW_270;
+			break;
+		default:
+			throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
+		}
+		ImageHelper.rotateImage(c, idMedia, r);
 	}
 
 	public Redirect setArea(Setup s, int authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
@@ -3740,18 +3782,15 @@ public class BuldreinfoRepository {
 					ps.execute();
 				}
 			}
-
-			/**
-			 * IO
-			 */
-			String dateTaken = null;
 			if (isMovie) {
-				GlobalFunctions.downloadJpgFromEmbedVideo(idMedia, m.getEmbedVideoUrl());
+				ImageHelper.saveImageFromEmbedVideo(c, idMedia, m.getEmbedVideoUrl());
 			}
 			else {
-				dateTaken = GlobalFunctions.downloadOriginalJpgFromImage(idMedia, m.getName(), multiPart);
+				try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
+					byte[] bytes = ByteStreams.toByteArray(is);
+					ImageHelper.saveImage(c, idMedia, bytes);
+				}
 			}
-			GlobalFunctions.createWebImagesAndUpdateDb(c, idMedia, dateTaken);
 		}
 		return idMedia;
 	}
@@ -3782,7 +3821,11 @@ public class BuldreinfoRepository {
 			}
 		}
 		if (picture != null) {
-			GlobalFunctions.downloadUserImage(id, picture);
+			try {
+				ImageHelper.saveAvatar(id, picture);
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+			}
 		}
 		return id;
 	}

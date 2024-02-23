@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.google.common.base.Strings;
 
 public class FixImageWithouitInPhoto {
@@ -31,7 +32,7 @@ public class FixImageWithouitInPhoto {
 					List<String> updates = new ArrayList<>();
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						final Path jpg = GlobalFunctions.getPathRoot().resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
+						final Path jpg = IOHelper.getPathMediaWebJpg(id);
 						Desktop.getDesktop().open(jpg.toFile());
 						int userId = getUser(id, c, scanner);
 						if (userId == END_SIGNAL) {

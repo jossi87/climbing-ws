@@ -8,7 +8,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +30,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.SvgAnchor;
@@ -46,8 +46,8 @@ public class TopoGenerator {
 	private final static String COLOR_WHITE = "#FFFFFF";
 	
 	public static Path generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
-		Path dst = GlobalFunctions.getPathTemp().resolve("topo").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".jpg");
-		Files.createDirectories(dst.getParent());
+		Path dst = IOHelper.getPathTemp().resolve("topo").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".jpg");
+		IOHelper.createDirectories(dst.getParent());
 		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (OutputStream os = new FileOutputStream(dst.toString())) {

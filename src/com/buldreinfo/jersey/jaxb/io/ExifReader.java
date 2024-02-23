@@ -19,7 +19,6 @@ import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.imgscalr.Scalr.Rotation;
 
 public class ExifReader {
-	protected record Exif(Rotation rotation, TiffOutputSet outputSet, Date dateTaken) {}
 	private static final String EXIF_DATE_PATTERN = "yyyy:MM:dd HH:mm:ss";
 	private final Rotation rotation;
 	private final TiffOutputSet outputSet;
@@ -28,6 +27,7 @@ public class ExifReader {
 	protected ExifReader(byte[] bytes) throws IOException, ImageReadException, ImageWriteException, ParseException {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
+			// Read exif orientation and remove from metadata. Save rotated image instead of keeping exif orientation in file.
 			this.rotation = getExifOrientation(imageMetadata);
 			TiffOutputSet outputSet = imageMetadata.getOutputSet();
 			outputSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);

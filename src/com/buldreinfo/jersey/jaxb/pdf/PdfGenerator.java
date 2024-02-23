@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
@@ -153,8 +153,8 @@ public class PdfGenerator implements AutoCloseable {
 			table.setWidthPercentage(100);
 			boolean addDummyCell = false;
 			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-				Path png = GlobalFunctions.getPathTemp().resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-				Files.createDirectories(png.getParent());
+				Path png = IOHelper.getPathTemp().resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+				IOHelper.createDirectories(png.getParent());
 				GradeDistributionGenerator.write(png, gradeDistribution);
 				Image img = Image.getInstance(png.toString());
 				PdfPCell cell = new PdfPCell(img, true);

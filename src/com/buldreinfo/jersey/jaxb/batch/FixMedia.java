@@ -30,7 +30,8 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.ImageIOHelper;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -73,14 +74,12 @@ public class FixMedia {
 					final String suffix = rst.getString("suffix");
 					final boolean isMovie = rst.getBoolean("is_movie");
 					final String embedUrl = rst.getString("embed_url");
-					final String originalFolder = isMovie? "original/mp4" : "original/jpg";
-					final Path root = GlobalFunctions.getPathRoot();
-					final Path original = root.resolve(originalFolder).resolve(String.valueOf(id/100*100)).resolve(id + "." + suffix);
-					final Path originalJpg = root.resolve("original/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
-					final Path jpg = root.resolve("web/jpg").resolve(String.valueOf(id/100*100)).resolve(id + ".jpg");
-					final Path mp4 = root.resolve("web/mp4").resolve(String.valueOf(id/100*100)).resolve(id + ".mp4");
-					final Path webm = root.resolve("web/webm").resolve(String.valueOf(id/100*100)).resolve(id + ".webm");
-					final Path webp = root.resolve("web/webp").resolve(String.valueOf(id/100*100)).resolve(id + ".webp");
+					final Path original = isMovie? IOHelper.getPathMediaOriginalMp4(id) : IOHelper.getPathMediaOriginalJpg(id);
+					final Path originalJpg = IOHelper.getPathMediaOriginalJpg(id);
+					final Path jpg = IOHelper.getPathMediaWebJpg(id);
+					final Path mp4 = IOHelper.getPathMediaWebMp4(id);
+					final Path webm = IOHelper.getPathMediaWebWebm(id);
+					final Path webp = IOHelper.getPathMediaWebWebp(id);
 					executor.submit(() -> {
 						try {
 							if (isMovie) {
@@ -88,7 +87,7 @@ public class FixMedia {
 								if (embedUrl != null) {
 									// Try to download original video from embed url
 									if (!Files.exists(original)) {
-										Files.createDirectories(original.getParent());
+										IOHelper.createDirectories(original.getParent());
 										String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-o", original.toString()};
 										Process p = new ProcessBuilder().inheritIO().command(commands).start();
 										p.waitFor();
@@ -98,14 +97,14 @@ public class FixMedia {
 										}
 									}
 									if (!Files.exists(originalJpg)) {
-										GlobalFunctions.downloadJpgFromEmbedVideo(id, embedUrl);
+										ImageHelper.saveImageFromEmbedVideo(c, id, embedUrl);
 									}
 								}
 								else {
 									if (!Files.exists(webm) || Files.size(webm) == 0) {
 										logger.debug("Create " + webm);
 										Files.deleteIfExists(webm);
-										Files.createDirectories(webm.getParent());
+										IOHelper.createDirectories(webm.getParent());
 										String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
 										Process p = new ProcessBuilder().inheritIO().command(commands).start();
 										p.waitFor();
@@ -144,13 +143,13 @@ public class FixMedia {
 										g.setColor(Color.BLUE);
 										g.drawString(str, x, y);
 										g.dispose();
-										ImageIOHelper.writeToPath(b, originalJpg);
+										ImageHelper.saveImage(c, id, b);
 										Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 									}
 								}
 							}
 							if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
-								GlobalFunctions.createWebImagesAndUpdateDb(c, id, null);
+								throw new RuntimeException("Scaled versions dont exist, this is an error");
 							}
 						} catch (Exception e) {
 							warnings.add("id=" + id + ", path=" + original.toString() + ": " + e.getMessage());
@@ -214,8 +213,7 @@ public class FixMedia {
 		ps.close();
 		ps = null;
 		// IO
-		final Path root = GlobalFunctions.getPathRoot();
-		final Path dst = root.resolve("original/mp4").resolve(String.valueOf(idMedia/100*100)).resolve(idMedia + "." + suffix);
+		final Path dst = IOHelper.getPathMediaOriginalMp4(idMedia);
 		Preconditions.checkArgument(!Files.exists(dst), dst.toString() + " already exists");
 		Preconditions.checkArgument(Files.exists(dst.getParent().getParent()), dst.getParent().getParent().toString() + " does not exist");
 		Files.createDirectories(dst.getParent());

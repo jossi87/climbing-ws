@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
@@ -65,8 +66,8 @@ public class LeafletPrintGenerator {
 	}
 	
 	private static Path takeSnapshotWorker(Leaflet leaflet) throws IOException, InterruptedException {
-		Path png = GlobalFunctions.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-		Files.createDirectories(png.getParent());
+		Path png = IOHelper.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
+		IOHelper.createDirectories(png.getParent());
 		Path script = GlobalFunctions.getPathLeafletPrint();
 		Gson gson = new Gson();
 		String json = gson.toJson(leaflet);
