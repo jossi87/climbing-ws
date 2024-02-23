@@ -61,9 +61,9 @@ public class FixMedia {
 			//				c.getBuldreinfoRepo().fillActivity(idProblem);
 			//			}
 			// Create all formats and set checksum
-			String sqlStr = "SELECT id, width, height, suffix, is_movie, embed_url FROM media";
+			String sqlStr = "SELECT id, width, height, suffix, embed_url FROM media WHERE is_movie=1";
 			if (newIdMedia != null && !newIdMedia.isEmpty()) {
-				sqlStr += " WHERE id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
+				sqlStr += " AND id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
 			}
 			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
@@ -72,9 +72,8 @@ public class FixMedia {
 					final int width = rst.getInt("width");
 					final int height = rst.getInt("height");
 					final String suffix = rst.getString("suffix");
-					final boolean isMovie = rst.getBoolean("is_movie");
 					final String embedUrl = rst.getString("embed_url");
-					final Path original = isMovie? IOHelper.getPathMediaOriginalMp4(id) : IOHelper.getPathMediaOriginalJpg(id);
+					final Path originalMp4 = IOHelper.getPathMediaOriginalMp4(id);
 					final Path originalJpg = IOHelper.getPathMediaOriginalJpg(id);
 					final Path jpg = IOHelper.getPathMediaWebJpg(id);
 					final Path mp4 = IOHelper.getPathMediaWebMp4(id);
@@ -82,77 +81,74 @@ public class FixMedia {
 					final Path webp = IOHelper.getPathMediaWebWebp(id);
 					executor.submit(() -> {
 						try {
-							if (isMovie) {
-								Preconditions.checkNotNull(suffix, "suffix cannot be null");
-								if (embedUrl != null) {
-									// Try to download original video from embed url
-									if (!Files.exists(original)) {
-										IOHelper.createDirectories(original.getParent());
-										String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-o", original.toString()};
-										Process p = new ProcessBuilder().inheritIO().command(commands).start();
-										p.waitFor();
-										logger.debug("Embedded video " + embedUrl + " downloaded to " + original.toString());
-										if (!Files.exists(original) || Files.size(original) == 0) {
-											warnings.add(original.toString() + " does not exist (could not download " + embedUrl + ")");
-										}
-									}
-									if (!Files.exists(originalJpg)) {
-										ImageHelper.saveImageFromEmbedVideo(c, id, embedUrl);
+							Preconditions.checkNotNull(suffix, "suffix cannot be null");
+							if (embedUrl != null) {
+								// Try to download original video from embed url
+								if (!Files.exists(originalMp4)) {
+									IOHelper.createDirectories(originalMp4.getParent());
+									String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", originalMp4.toString()};
+									Process p = new ProcessBuilder().inheritIO().command(commands).start();
+									p.waitFor();
+									logger.debug("Embedded video " + embedUrl + " downloaded to " + originalMp4.toString());
+									if (!Files.exists(originalMp4) || Files.size(originalMp4) == 0) {
+										warnings.add(originalMp4.toString() + " does not exist (could not download " + embedUrl + ")");
 									}
 								}
-								else {
-									if (!Files.exists(webm) || Files.size(webm) == 0) {
-										logger.debug("Create " + webm);
-										Files.deleteIfExists(webm);
-										IOHelper.createDirectories(webm.getParent());
-										String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", original.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
-										Process p = new ProcessBuilder().inheritIO().command(commands).start();
-										p.waitFor();
-									}
-									if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-										Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
-										logger.debug("Create " + mp4);
-										Files.deleteIfExists(mp4);
-										Files.createDirectories(mp4.getParent());
-										String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-										Process p = new ProcessBuilder().inheritIO().command(commands).start();
-										p.waitFor();
-									}
-									if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-										Files.createDirectories(originalJpg.getParent());
-										Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
-										Files.createDirectories(tmp.getParent());
-										String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", original.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-										Process p = new ProcessBuilder().inheritIO().command(commands).start();
-										p.waitFor();
-										Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
+								if (!Files.exists(originalJpg)) {
+									ImageHelper.saveImageFromEmbedVideo(c, id, embedUrl);
+								}
+							}
+							else {
+								if (!Files.exists(webm) || Files.size(webm) == 0) {
+									Preconditions.checkArgument(Files.exists(originalMp4) && Files.size(originalMp4) > 0, originalMp4.toString() + " is required");
+									logger.debug("Create " + webm);
+									IOHelper.deleteIfExistsCreateParent(webm);
+									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+									Process p = new ProcessBuilder().inheritIO().command(commands).start();
+									p.waitFor();
+								}
+								if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+									Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
+									logger.debug("Create " + mp4);
+									IOHelper.deleteIfExistsCreateParent(mp4);
+									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+									Process p = new ProcessBuilder().inheritIO().command(commands).start();
+									p.waitFor();
+								}
+								if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
+									Files.createDirectories(originalJpg.getParent());
+									Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
+									Files.createDirectories(tmp.getParent());
+									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", originalMp4.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+									Process p = new ProcessBuilder().inheritIO().command(commands).start();
+									p.waitFor();
+									Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
 
-										BufferedImage b = ImageIO.read(tmp.toFile());
-										Graphics g = b.getGraphics();
-										g.setFont(new Font("Arial", Font.BOLD, 40));
-										final String str = "VIDEO";
-										final int x = (b.getWidth()/2)-70;
-										final int y = (b.getHeight()/2)-20;
-										FontMetrics fm = g.getFontMetrics();
-										Rectangle2D rect = fm.getStringBounds(str, g);
-										g.setColor(Color.WHITE);
-										g.fillRect(x,
-												y - fm.getAscent(),
-												(int) rect.getWidth(),
-												(int) rect.getHeight());
-										g.setColor(Color.BLUE);
-										g.drawString(str, x, y);
-										g.dispose();
-										ImageHelper.saveImage(c, id, b);
-										Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
-									}
+									BufferedImage b = ImageIO.read(tmp.toFile());
+									Graphics g = b.getGraphics();
+									g.setFont(new Font("Arial", Font.BOLD, 40));
+									final String str = "VIDEO";
+									final int x = (b.getWidth()/2)-70;
+									final int y = (b.getHeight()/2)-20;
+									FontMetrics fm = g.getFontMetrics();
+									Rectangle2D rect = fm.getStringBounds(str, g);
+									g.setColor(Color.WHITE);
+									g.fillRect(x,
+											y - fm.getAscent(),
+											(int) rect.getWidth(),
+											(int) rect.getHeight());
+									g.setColor(Color.BLUE);
+									g.drawString(str, x, y);
+									g.dispose();
+									ImageHelper.saveImage(c, id, b);
+									Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 								}
 							}
 							if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
 								throw new RuntimeException("Scaled versions dont exist, this is an error");
 							}
 						} catch (Exception e) {
-							warnings.add("id=" + id + ", path=" + original.toString() + ": " + e.getMessage());
+							warnings.add("id=" + id + ", originalMp4=" + originalMp4.toString() + ": " + e.getMessage());
 						}
 					});
 				}
@@ -162,10 +158,12 @@ public class FixMedia {
 			for (String warning : warnings) {
 				logger.warn(warning);
 			}
+			c.getConnection().setAutoCommit(false);
 			c.setSuccess();
 		} catch (Exception e) {
 			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
 		}
+		logger.debug("Done");
 	}
 
 	public int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {

@@ -24,10 +24,19 @@ public class IOHelper {
 		}
 	}
 	
+	public static void deleteIfExistsCreateParent(Path p) throws IOException {
+		if (Files.exists(p)) {
+			Files.delete(p);
+		}
+		else {
+			createDirectories(p.getParent());
+		}
+	}
+
 	public static Path getPathMediaOriginalJpg(int id) throws IOException {
 		return getPathRoot().resolve("original/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 	}
-
+	
 	public static Path getPathMediaOriginalMp4(int id) throws IOException {
 		return getPathRoot().resolve("original/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
 	}
@@ -37,9 +46,9 @@ public class IOHelper {
 	}
 	
 	public static Path getPathMediaWebMp4(int id) throws IOException {
-		return getPathRoot().resolve("web/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webm");
+		return getPathRoot().resolve("web/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
 	}
-	
+
 	public static Path getPathMediaWebWebm(int id) throws IOException {
 		return getPathRoot().resolve("web/webm").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webm");
 	}
@@ -51,7 +60,7 @@ public class IOHelper {
 	public static Path getPathTemp() throws IOException {
 		return getPathRoot().resolve("temp");
 	}
-
+	
 	private static Path getPathRoot() throws IOException {
 		Path root = null;
 		if (!SystemUtils.IS_OS_WINDOWS) {
@@ -62,15 +71,6 @@ public class IOHelper {
 		}
 		Preconditions.checkArgument(root != null && Files.exists(root), "Invalid root: " + root);
 		return root;
-	}
-	
-	protected static void deleteIfExistsCreateParent(Path p) throws IOException {
-		if (Files.exists(p)) {
-			Files.delete(p);
-		}
-		else {
-			createDirectories(p.getParent());
-		}
 	}
 
 	protected static Path getPathOriginalUsers(int id) throws IOException {
