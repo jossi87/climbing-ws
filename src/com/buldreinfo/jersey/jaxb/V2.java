@@ -33,7 +33,10 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
-import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
+import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -291,6 +294,73 @@ public class V2 {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
 			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@Operation(summary = "Get frontpage (num media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumMedia.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/num_media")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getFrontpageNumMedia(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final int authUserId = getUserId(request);
+			FrontpageNumMedia res = c.getBuldreinfoRepo().getFrontpageNumMedia(authUserId, setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@Operation(summary = "Get frontpage (num problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumProblems.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/num_problems")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getFrontpageNumProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final int authUserId = getUserId(request);
+			FrontpageNumProblems res = c.getBuldreinfoRepo().getFrontpageNumProblems(authUserId, setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@Operation(summary = "Get frontpage (num ticks)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumTicks.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/num_ticks")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getFrontpageNumTicks(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final int authUserId = getUserId(request);
+			FrontpageNumTicks res = c.getBuldreinfoRepo().getFrontpageNumTicks(authUserId, setup);
+			c.setSuccess();
+			return Response.ok().entity(res).build();
+		} catch (Exception e) {
+			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
+		}
+	}
+	
+	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageRandomMedia.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/random_media")
+	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) throws ExecutionException, IOException {
+		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			FrontpageRandomMedia res = c.getBuldreinfoRepo().getFrontpageRandomMedia(setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -838,22 +908,24 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = 0;
-			Frontpage f = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
+			FrontpageNumProblems frontpageNumProblems = c.getBuldreinfoRepo().getFrontpageNumProblems(authUserId, setup);
+			FrontpageNumMedia frontpageNumMedia = c.getBuldreinfoRepo().getFrontpageNumMedia(authUserId, setup);
+			FrontpageNumTicks frontpageNumTicks = c.getBuldreinfoRepo().getFrontpageNumTicks(authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = c.getBuldreinfoRepo().getFrontpageRandomMedia(setup);
 			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
 					setup.getDescription(),
-					f.getNumProblems(),
+					frontpageNumProblems.numProblems(),
 					(setup.isBouldering()? "boulders" : "routes"),
-					f.getNumTicks(),
-					f.getNumImages(),
-					f.getNumMovies());
-			FrontpageRandomMedia randomMedia = f.getRandomMedia();
+					frontpageNumTicks.numTicks(),
+					frontpageNumMedia.numImages(),
+					frontpageNumMedia.numMovies());
 			String html = getHtml(setup,
 					setup.getUrl(),
 					setup.getTitle(),
 					description,
-					(randomMedia == null? 0 : randomMedia.getIdMedia()),
-					(randomMedia == null? 0 : randomMedia.getWidth()),
-					(randomMedia == null? 0 : randomMedia.getHeight()));
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.height()));
 			c.setSuccess();
 			return Response.ok().entity(html).build();
 		} catch (Exception e) {

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia.User;
 
+@Deprecated
 public class Frontpage {
 	public class FrontpageRandomMedia {
 		public class User {
