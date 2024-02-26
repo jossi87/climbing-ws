@@ -22,7 +22,7 @@
 			filePattern="logs/$${date:yyyy-MM}/com.buldreinfo.jersey.jaxb.error-%d{MM-dd-yyyy}-%i.log.gz">
 			<PatternLayout
 				pattern="%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36}:%L - %msg%n"
-				charset="ISO-8859-1" />
+				charset="UTF-8" />
 			<Policies>
 				<SizeBasedTriggeringPolicy size="5 MB" />
 			</Policies>
