@@ -15,6 +15,7 @@ import com.auth0.net.Request;
 import com.auth0.net.Response;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -46,6 +47,7 @@ public class AuthHelper {
 			});
 
 	public int getUserId(DbConnection c, HttpServletRequest request, MetaHelper metaHelper, String accessToken) {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		try {
 			boolean update = cache.getIfPresent(accessToken) == null;
 			Auth0Profile profile = cache.get(accessToken);
@@ -62,9 +64,10 @@ public class AuthHelper {
 					ps.execute();
 				}
 			}
+			logger.warn("getUserId(accessToken={}) - userId={}, duration={}", accessToken, userId, stopwatch);
 			return userId;
 		} catch (Exception e) {
-			logger.warn("getUserId(accessToken={}) - authentication failed, login required", accessToken);
+			logger.warn("getUserId(accessToken={}) - authentication failed, login required - duration={}", accessToken, stopwatch);
 			return -1;
 		}
 	}
