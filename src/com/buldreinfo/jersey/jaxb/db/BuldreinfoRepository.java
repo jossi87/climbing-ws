@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.apache.commons.imaging.ImageReadException;
@@ -61,7 +60,6 @@ import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FaUser;
-import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
@@ -987,113 +985,6 @@ public class BuldreinfoRepository {
 		return areasLookup.values();
 	}
 
-	@Deprecated
-	public Frontpage getFrontpage(int authUserId, Setup setup) throws SQLException {
-		Stopwatch watch = Stopwatch.createStarted();
-		Frontpage res = new Frontpage();
-		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-			executor.submit(() -> {
-				Stopwatch stopwatch = Stopwatch.createStarted();
-				try {
-					try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id AND a.trash IS NULL) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id AND s.trash IS NULL) INNER JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
-						ps.setInt(1, authUserId);
-						ps.setInt(2, setup.getIdRegion());
-						ps.setInt(3, setup.getIdRegion());
-						try (ResultSet rst = ps.executeQuery()) {
-							while (rst.next()) {
-								res.setNumProblems(rst.getInt("num_problems"));
-								res.setNumProblemsWithCoordinates(rst.getInt("num_problems_with_coordinates"));
-								res.setNumProblemsWithTopo(rst.getInt("num_problems_with_topo"));
-							}
-						}
-					}
-				} catch (SQLException e) {
-					logger.warn(e.getMessage(), e);
-				}
-				logger.debug("getFrontPage(authUserId={}, setup={}) - num problems fetched in {}", authUserId, setup, stopwatch);
-			});
-			executor.submit(() -> {
-				Stopwatch stopwatch = Stopwatch.createStarted();
-				try {
-					try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL AND m.deleted_user_id IS NULL AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
-						ps.setInt(1, authUserId);
-						ps.setInt(2, setup.getIdRegion());
-						ps.setInt(3, setup.getIdRegion());
-						try (ResultSet rst = ps.executeQuery()) {
-							while (rst.next()) {
-								res.setNumImages(rst.getInt("num_images"));
-								res.setNumMovies(rst.getInt("num_movies"));
-							}
-						}
-					}
-				} catch (SQLException e) {
-					logger.warn(e.getMessage(), e);
-				}
-				logger.debug("getFrontPage(authUserId={}, setup={}) - num media fetched in {}", authUserId, setup, stopwatch);
-			});
-			executor.submit(() -> {
-				Stopwatch stopwatch = Stopwatch.createStarted();
-				try {
-					try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id AND p.trash IS NULL) INNER JOIN sector s ON p.sector_id=s.id AND s.trash IS NULL) INNER JOIN area a ON s.area_id=a.id AND a.trash IS NULL) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
-						ps.setInt(1, authUserId);
-						ps.setInt(2, setup.getIdRegion());
-						ps.setInt(3, setup.getIdRegion());
-						try (ResultSet rst = ps.executeQuery()) {
-							while (rst.next()) {
-								res.setNumTicks(rst.getInt("num_ticks"));
-							}
-						}
-					}
-				} catch (SQLException e) {
-					logger.warn(e.getMessage(), e);
-				}
-				logger.debug("getFrontPage(authUserId={}, setup={}) - num ticks fetched in {}", authUserId, setup, stopwatch);
-			});
-			executor.submit(() -> {
-				Stopwatch stopwatch = Stopwatch.createStarted();
-				try {
-					try (PreparedStatement ps = c.getConnection().prepareStatement("""
-							SELECT m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,
-							ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
-							CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\"}') photographer,
-							GROUP_CONCAT(DISTINCT CONCAT('{\"id\":', u2.id, ',\"name\":\"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname,''))), '\"}') SEPARATOR ', ') tagged
-							FROM ((((((((media m INNER JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)) INNER JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0) INNER JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0) INNER JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0) INNER JOIN region r ON a.region_id=r.id) INNER JOIN user u ON m.photographer_user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u2 ON mu.user_id=u2.id
-							WHERE r.id=? AND m.deleted_user_id IS NULL AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL AND a.access_closed IS NULL AND s.access_closed IS NULL
-							GROUP BY m.id, m.checksum, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname
-							ORDER BY rand() LIMIT 1
-							""")) {
-						ps.setInt(1, setup.getIdRegion());
-						try (ResultSet rst = ps.executeQuery()) {
-							while (rst.next()) {
-								int idMedia = rst.getInt("id_media");
-								int crc32 = rst.getInt("checksum");
-								int width = rst.getInt("width");
-								int height = rst.getInt("height");
-								int idArea = rst.getInt("id_area");
-								String area = rst.getString("area");
-								int idSector = rst.getInt("id_sector");
-								String sector = rst.getString("sector");
-								int idProblem = rst.getInt("id_problem");
-								String problem = rst.getString("problem");
-								int grade = rst.getInt("grade");
-								String photographerJson = rst.getString("photographer");
-								String taggedJson = rst.getString("tagged");
-								Frontpage.FrontpageRandomMedia.User photographer = photographerJson == null? null : gson.fromJson(photographerJson, Frontpage.FrontpageRandomMedia.User.class);
-								List<Frontpage.FrontpageRandomMedia.User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<Frontpage.FrontpageRandomMedia.User>>(){}.getType());
-								res.setRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.getGradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
-							}
-						}
-					}
-				} catch (SQLException e) {
-					logger.warn(e.getMessage(), e);
-				}
-				logger.debug("getFrontPage(authUserId={}, setup={}) - random media fetched in {}", authUserId, setup, stopwatch);
-			});
-		}
-		logger.debug("getFrontpage(authUserId={}, setup={}) - done in={}", authUserId, setup, watch);
-		return res;
-	}
-	
 	public FrontpageNumMedia getFrontpageNumMedia(int authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumMedia res = null;

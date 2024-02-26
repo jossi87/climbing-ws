@@ -9,7 +9,10 @@ import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
+import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
+import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemArea;
@@ -61,14 +64,46 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetFrontpage() throws Exception {
+	public void testGetFrontpageNumMedia() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.getFrontpage(getRequest());
+		Response r = tester.getFrontpageNumMedia(getRequest());
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		assertTrue(r.getEntity() instanceof Frontpage);
-		Frontpage f = (Frontpage)r.getEntity();
-		assertTrue(f.getNumImages()>0);
-		assertTrue(f.getRandomMedia() != null);
+		assertTrue(r.getEntity() instanceof FrontpageNumMedia);
+		FrontpageNumMedia f = (FrontpageNumMedia)r.getEntity();
+		assertTrue(f.numImages()>0);
+		assertTrue(f.numMovies()>0);
+	}
+	
+	@Test
+	public void testGetFrontpageNumProblems() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getFrontpageNumProblems(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof FrontpageNumProblems);
+		FrontpageNumProblems f = (FrontpageNumProblems)r.getEntity();
+		assertTrue(f.numProblems()>0);
+		assertTrue(f.numProblemsWithCoordinates()>0);
+		assertTrue(f.numProblemsWithTopo()>0);
+	}
+	
+	@Test
+	public void testGetFrontpageNumTicks() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getFrontpageNumTicks(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof FrontpageNumTicks);
+		FrontpageNumTicks f = (FrontpageNumTicks)r.getEntity();
+		assertTrue(f.numTicks()>0);
+	}
+	
+	@Test
+	public void testGetFrontpageRandomMedia() throws Exception {
+		V2 tester = new V2();
+		Response r = tester.getFrontpageRandomMedia(getRequest());
+		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		assertTrue(r.getEntity() instanceof FrontpageRandomMedia);
+		FrontpageRandomMedia f = (FrontpageRandomMedia)r.getEntity();
+		assertTrue(f != null);
 	}
 
 	@Test

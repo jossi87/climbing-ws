@@ -32,7 +32,6 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Dangerous;
-import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
@@ -284,23 +283,6 @@ public class V2 {
 		}
 	}
 
-	@Operation(summary = "Get frontpage", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Frontpage.class))})})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/frontpage")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpage(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Frontpage res = c.getBuldreinfoRepo().getFrontpage(authUserId, setup);
-			c.setSuccess();
-			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
-	}
-	
 	@Operation(summary = "Get frontpage (num media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumMedia.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
