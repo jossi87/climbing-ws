@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.helpers;
+package com.buldreinfo.jersey.jaxb.server;
 
 import java.util.Map;
 
@@ -11,7 +11,7 @@ public class Auth0Profile {
 	private final String lastname;
 	private final String picture;
 	
-	public Auth0Profile(Map<String, Object> values) {
+	protected Auth0Profile(Map<String, Object> values) {
 		this.email = Preconditions.checkNotNull((String)values.get("email"));
 		// Firstname
 		String firstname = (String) values.get("given_name");

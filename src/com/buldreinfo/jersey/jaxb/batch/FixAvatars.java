@@ -6,18 +6,16 @@ import java.sql.ResultSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
-import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.server.Server;
 
 public class FixAvatars {
 	private static Logger logger = LogManager.getLogger();
 
 	public static void main(String[] args) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		Server.runSql(c -> {
 			int counter = 0;
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL ORDER BY u.id DESC");
+			try (PreparedStatement ps = c.prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL ORDER BY u.id DESC");
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -28,9 +26,6 @@ public class FixAvatars {
 					}
 				}
 			}
-			c.setSuccess();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 }

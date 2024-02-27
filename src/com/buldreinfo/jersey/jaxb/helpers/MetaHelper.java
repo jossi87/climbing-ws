@@ -5,8 +5,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
-import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.server.Server;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -47,23 +46,15 @@ public class MetaHelper {
 	}
 
 	public List<Setup> getSetups() {
-		List<Setup> res = null;
 		long validMilliseconds = holder == null? 0 : holder.getValidMilliseconds();
 		if (validMilliseconds > 0) {
 			logger.debug("getSetups() - From cache, validMilliseconds={}", validMilliseconds);
-			res = holder.getSetups();
 		}
 		else {
 			Stopwatch stopwatch = Stopwatch.createStarted();
-			try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-				res = c.getBuldreinfoRepo().getSetups();
-				holder = new SetupHolder(res, System.currentTimeMillis());
-				c.setSuccess();
-			} catch (Exception e) {
-				throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-			}
+			Server.runSql(c -> holder = new SetupHolder(Server.getDao().getSetups(c), System.currentTimeMillis()));
 			logger.debug("getSetups() - Fetched new setups in {}", stopwatch);
 		}
-		return res;
+		return holder.getSetups();
 	}
 }

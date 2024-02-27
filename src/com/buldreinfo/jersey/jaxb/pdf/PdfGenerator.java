@@ -117,7 +117,7 @@ public class PdfGenerator implements AutoCloseable {
 	private Image imageStarFilled;
 	private Image imageStarHalf;
 	private Image imageStarEmpty;
-	public PdfGenerator(OutputStream output) throws DocumentException, IOException, TranscoderException {
+	public PdfGenerator(OutputStream output) {
 		this.document = new Document();
 		this.writer = PdfWriter.getInstance(document, output);
 		writer.setStrictImageSequence(true);
@@ -130,7 +130,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.close();		
 	}
 
-	public void writeArea(Meta meta, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
+	public void writeArea(Meta meta, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws IOException, DocumentException, TranscoderException, TransformerException {
 		Preconditions.checkArgument(area != null && !sectors.isEmpty());
 		String title = area.getName();
 		addMetaData(title);

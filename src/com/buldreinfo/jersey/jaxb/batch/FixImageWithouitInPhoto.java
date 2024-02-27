@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.awt.Desktop;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,10 +13,8 @@ import java.util.Scanner;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
-import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.server.Server;
 import com.google.common.base.Strings;
 
 public class FixImageWithouitInPhoto {
@@ -24,8 +23,8 @@ public class FixImageWithouitInPhoto {
 	private static final int MIN_MEDIA_ID = 25254; // TODO
 
 	public static void main(String[] args) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) AND m.id NOT IN (SELECT media_id FROM media_user) AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id")) {
+		Server.runSql(c -> {
+			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) AND m.id NOT IN (SELECT media_id FROM media_user) AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id")) {
 				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();
 						Scanner scanner = new Scanner(System.in)) {
@@ -34,7 +33,7 @@ public class FixImageWithouitInPhoto {
 						int id = rst.getInt("id");
 						final Path jpg = IOHelper.getPathMediaWebJpg(id);
 						Desktop.getDesktop().open(jpg.toFile());
-						int userId = getUser(id, c, scanner);
+						int userId = getUser(c, id, scanner);
 						if (userId == END_SIGNAL) {
 							break;
 						}
@@ -47,13 +46,10 @@ public class FixImageWithouitInPhoto {
 					}
 				}
 			}
-			c.setSuccess();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
-	private static int getUser(int id, DbConnection c, Scanner scanner) throws SQLException {
+	private static int getUser(Connection c, int id, Scanner scanner) throws SQLException {
 		int res = -1;
 		System.out.print(id + " - First part of name (stop loop with \"END\"): ");
 		String name = scanner.nextLine();
@@ -61,7 +57,7 @@ public class FixImageWithouitInPhoto {
 			if (name.equalsIgnoreCase("end")) {
 				return END_SIGNAL;
 			}
-			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM user WHERE concat(firstname,' ',lastname) LIKE ?")) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE concat(firstname,' ',lastname) LIKE ?")) {
 				ps.setString(1, name + "%");
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {

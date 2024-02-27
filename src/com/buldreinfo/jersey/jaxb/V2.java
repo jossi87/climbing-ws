@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,20 +10,18 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
 
-import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
-import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
-import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
@@ -62,6 +59,7 @@ import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
+import com.buldreinfo.jersey.jaxb.server.Server;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
 import com.google.common.base.Joiner;
@@ -90,7 +88,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -105,7 +102,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 @Path("/v2/")
 public class V2 {
 	private static final String MIME_TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-	private final static AuthHelper auth = new AuthHelper();
+	private static Logger logger = LogManager.getLogger();
 
 	public V2() {
 	}
@@ -114,24 +111,18 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
 	@Path("/media")
-	public Response deleteMedia(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().deleteMedia(authUserId, id);
-			c.setSuccess();
+	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Server.getDao().deleteMedia(c, authUserId, id);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get activity feed", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/activity")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getActivity(@Context HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector,
@@ -139,57 +130,46 @@ public class V2 {
 			@Parameter(description = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
 			@Parameter(description = "Include comments", required = false) @QueryParam("comments") boolean comments,
 			@Parameter(description = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
-			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<Activity> res = c.getBuldreinfoRepo().getActivity(authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media);
-			c.setSuccess();
+			List<Activity> res = Server.getDao().getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get administrators", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))})})
 	@GET
 	@Path("/administrators")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getAdministrators(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getAdministrators(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			List<Administrator> administrators = c.getBuldreinfoRepo().getAdministrators(setup.getIdRegion());
-			c.setSuccess();
+			List<Administrator> administrators = Server.getDao().getAdministrators(c, setup.getIdRegion());
 			return Response.ok().entity(administrators).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get areas", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Area.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/areas")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAreas(@Context HttpServletRequest request,
-			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Response response = null;
 			if (id > 0) {
-				Collection<Area> areas = Collections.singleton(c.getBuldreinfoRepo().getArea(setup, authUserId, id));
+				Collection<Area> areas = Collections.singleton(Server.getDao().getArea(c, setup, authUserId, id));
 				response = Response.ok().entity(areas).build();
 			}
 			else {
-				Collection<Area> areas = c.getBuldreinfoRepo().getAreaList(authUserId, setup.getIdRegion());
+				Collection<Area> areas = Server.getDao().getAreaList(c, authUserId, setup.getIdRegion());
 				response = Response.ok().entity(areas).build();
 			}
-			c.setSuccess();
 			return response;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get area PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
@@ -198,193 +178,153 @@ public class V2 {
 	@Path("/areas/pdf")
 	@Produces("application/pdf")
 	public Response getAreasPdf(@Context final HttpServletRequest request,
-			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) throws Throwable{
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			final Meta meta = Meta.from(c, setup, authUserId);
-			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
-			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
+			final Area area = Server.getDao().getArea(c, setup, authUserId, id);
+			final Collection<GradeDistribution> gradeDistribution = Server.getDao().getGradeDistribution(c, authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.AreaSector sector : area.getSectors()) {
-				Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, sector.getId());
+				Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, sector.getId());
 				sectors.add(s);
 			}
-			c.setSuccess();
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
-				public void write(OutputStream output) throws IOException, WebApplicationException {
-					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeArea(meta, area, gradeDistribution, sectors);
-						}
-					} catch (Throwable e) {
-						e.printStackTrace();
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
-					}	            	 
+				public void write(OutputStream output) {
+					try (PdfGenerator generator = new PdfGenerator(output)) {
+						generator.writeArea(meta, area, gradeDistribution, sectors);
+					} catch (Exception e) {
+						logger.error(e.getMessage(), e);
+						throw new RuntimeException(e.getMessage(), e);
+					}
 				}
 			};
 			String fn = GlobalFunctions.getFilename(area.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get webcams", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))})})
 	@GET
 	@Path("/webcams")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getCameras(@Context HttpServletRequest request) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponse(() -> {
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			List<Webcam> res = vegvesenPaser.getCameras();
-			c.setSuccess();
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = DangerousArea.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/dangerous")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getDangerous(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getDangerous(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<DangerousArea> res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
-			c.setSuccess();
+			Collection<DangerousArea> res = Server.getDao().getDangerous(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = Integer.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/elevation")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	@Produces(MediaType.TEXT_PLAIN)
 	public Response getElevation(@Context HttpServletRequest request,
 			@Parameter(description = "latitude", required = true) @QueryParam("latitude") double latitude,
-			@Parameter(description = "longitude", required = true) @QueryParam("longitude") double longitude) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(authUserId > 0, "Service requires logged in user");
+			@Parameter(description = "longitude", required = true) @QueryParam("longitude") double longitude) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Preconditions.checkArgument(authUserId.isPresent(), "Service requires logged in user");
 			int elevation = GeoHelper.getElevation(latitude, longitude);
-			c.setSuccess();
 			return Response.ok().entity(elevation).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get frontpage (num media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumMedia.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage/num_media")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpageNumMedia(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageNumMedia(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			FrontpageNumMedia res = c.getBuldreinfoRepo().getFrontpageNumMedia(authUserId, setup);
-			c.setSuccess();
+			FrontpageNumMedia res = Server.getDao().getFrontpageNumMedia(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 	
 	@Operation(summary = "Get frontpage (num problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumProblems.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage/num_problems")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpageNumProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageNumProblems(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			FrontpageNumProblems res = c.getBuldreinfoRepo().getFrontpageNumProblems(authUserId, setup);
-			c.setSuccess();
+			FrontpageNumProblems res = Server.getDao().getFrontpageNumProblems(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 	
 	@Operation(summary = "Get frontpage (num ticks)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumTicks.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage/num_ticks")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpageNumTicks(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageNumTicks(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			FrontpageNumTicks res = c.getBuldreinfoRepo().getFrontpageNumTicks(authUserId, setup);
-			c.setSuccess();
+			FrontpageNumTicks res = Server.getDao().getFrontpageNumTicks(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 	
 	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageRandomMedia.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage/random_media")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			FrontpageRandomMedia res = c.getBuldreinfoRepo().getFrontpageRandomMedia(setup);
-			c.setSuccess();
+			FrontpageRandomMedia res = Server.getDao().getFrontpageRandomMedia(c, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/grade/distribution")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getGradeDistribution(@Context HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, idArea, idSector);
-			c.setSuccess();
+			Collection<GradeDistribution> res = Server.getDao().getGradeDistribution(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/graph")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getGraph(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getGraph(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<GradeDistribution> res = c.getBuldreinfoRepo().getContentGraph(authUserId, setup);
-			c.setSuccess();
+			Collection<GradeDistribution> res = Server.getDao().getContentGraph(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	/**
@@ -397,14 +337,13 @@ public class V2 {
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
-			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final Point dimention = minDimention == 0? null : c.getBuldreinfoRepo().getMediaDimention(id);
+			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
+		return Server.buildResponseWithSql(c -> {
+			final Point dimention = minDimention == 0? null : Server.getDao().getMediaDimention(c, id);
 			final String acceptHeader = request.getHeader("Accept");
 			final boolean webP = dimention == null && acceptHeader != null && acceptHeader.contains("image/webp");
 			final String mimeType = webP? "image/webp" : "image/jpeg";
-			final java.nio.file.Path p = c.getBuldreinfoRepo().getImage(webP, id);
-			c.setSuccess();
+			final java.nio.file.Path p = Server.getDao().getImage(webP, id);
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
@@ -420,81 +359,63 @@ public class V2 {
 				}
 			}
 			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/media")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Media res = c.getBuldreinfoRepo().getMedia(authUserId, idMedia);
-			c.setSuccess();
+			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Media res = Server.getDao().getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get metadata", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/meta")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getMeta(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getMeta(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Meta res = Meta.from(c, setup, authUserId);
-			c.setSuccess();
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get permissions", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/permissions")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getPermissions(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getPermissions(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<PermissionUser> res = c.getBuldreinfoRepo().getPermissions(authUserId, setup.getIdRegion());
-			c.setSuccess();
+			List<PermissionUser> res = Server.getDao().getPermissions(c, authUserId, setup.getIdRegion());
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get problem by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problem")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblem(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, showHiddenMedia);
+			Problem res = Server.getDao().getProblem(c, authUserId, setup, id, showHiddenMedia);
 			Response response = Response.ok().entity(res).build();
-			c.setSuccess();
 			return response;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get problem PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
@@ -504,49 +425,39 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id) throws Throwable{
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			final Problem problem = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
-			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, problem.getAreaId());
-			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, problem.getSectorId());
-			c.setSuccess();
+			final Problem problem = Server.getDao().getProblem(c, authUserId, setup, id, false);
+			final Area area = Server.getDao().getArea(c, setup, authUserId, problem.getAreaId());
+			final Sector sector = Server.getDao().getSector(c, authUserId, false, setup, problem.getSectorId());
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
-				public void write(OutputStream output) throws IOException, WebApplicationException {
-					try {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeProblem(area, sector, problem);
-						}
-					} catch (Throwable e) {
-						e.printStackTrace();
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
-					}	            	 
+				public void write(OutputStream output) {
+					try (PdfGenerator generator = new PdfGenerator(output)) {
+						generator.writeProblem(area, sector, problem);
+					} catch (Exception e) {
+						logger.error(e.getMessage(), e);
+						throw new RuntimeException(e.getMessage(), e);
+					}
 				}
 			};
 			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get problems", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemArea.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problems")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getProblems(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getProblems(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<ProblemArea> res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
-			c.setSuccess();
+			List<ProblemArea> res = Server.getDao().getProblemsList(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get problems as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
@@ -554,11 +465,10 @@ public class V2 {
 	@GET
 	@Path("/problems/xlsx")
 	@Produces(MIME_TYPE_XLSX)
-	public Response getProblemsXlsx(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	public Response getProblemsXlsx(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<ProblemArea> res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
+			List<ProblemArea> res = Server.getDao().getProblemsList(c, authUserId, setup);
 			byte[] bytes;
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
@@ -592,97 +502,78 @@ public class V2 {
 					bytes = os.toByteArray();
 				}
 			}
-			c.setSuccess();
 			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get profile by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfile(@Context HttpServletRequest request,
-			@Parameter(description = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Profile res = c.getBuldreinfoRepo().getProfile(authUserId, setup, reqUserId);
-			c.setSuccess();
+			Profile res = Server.getDao().getProfile(c, authUserId, setup, reqUserId);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))})})
 	@GET
 	@Path("/profile/media")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfilemedia(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<Media> res = c.getBuldreinfoRepo().getProfileMediaProblem(authUserId, setup, id, captured);
+			List<Media> res = Server.getDao().getProfileMediaProblem(c, authUserId, setup, id, captured);
 			if (captured) {
-				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedSector(authUserId, setup, id));
-				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedArea(authUserId, setup, id));
+				res.addAll(Server.getDao().getProfileMediaCapturedSector(c, authUserId, setup, id));
+				res.addAll(Server.getDao().getProfileMediaCapturedArea(c, authUserId, setup, id));
 				res.sort(Comparator.comparingInt(Media::id).reversed());
 			}
-			c.setSuccess();
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get profile statistics by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))})})
 	@GET
 	@Path("/profile/statistics")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfileStatistics(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			ProfileStatistics res = c.getBuldreinfoRepo().getProfileStatistics(authUserId, setup, id);
-			c.setSuccess();
+			ProfileStatistics res = Server.getDao().getProfileStatistics(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get profile todo", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/todo")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfileTodo(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			ProfileTodo res = c.getBuldreinfoRepo().getProfileTodo(authUserId, setup, id);
-			c.setSuccess();
+			ProfileTodo res = Server.getDao().getProfileTodo(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get robots.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/robots.txt")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	@Produces(MediaType.TEXT_PLAIN)
 	public Response getRobotsTxt(@Context HttpServletRequest request) {
 		final Setup setup = MetaHelper.getMeta().getSetup(request);
 		if (setup.isSetRobotsDenyAll()) {
@@ -699,21 +590,17 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/sectors")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getSectors(@Context HttpServletRequest request,
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
 			Response response = Response.ok().entity(s).build();
-			c.setSuccess();
 			return response;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get sector PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
@@ -723,142 +610,113 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) throws Throwable{
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			final Meta meta = Meta.from(c, setup, authUserId);
-			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
-			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
-			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
-			c.setSuccess();
+			final Sector sector = Server.getDao().getSector(c, authUserId, false, setup, id);
+			final Collection<GradeDistribution> gradeDistribution = Server.getDao().getGradeDistribution(c, authUserId, setup, 0, id);
+			final Area area = Server.getDao().getArea(c, setup, authUserId, sector.getAreaId());
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
-				public void write(OutputStream output) throws IOException, WebApplicationException {
-					try {
+				public void write(OutputStream output) {
 						try (PdfGenerator generator = new PdfGenerator(output)) {
 							generator.writeArea(meta, area, gradeDistribution, Lists.newArrayList(sector));
+						} catch (Exception e) {
+							logger.error(e.getMessage(), e);
+							throw new RuntimeException(e.getMessage(), e);
 						}
-					} catch (Throwable e) {
-						e.printStackTrace();
-						throw GlobalFunctions.getWebApplicationExceptionInternalError(new Exception(e.getMessage()));
-					}	            	 
 				}
 			};
 			String fn = GlobalFunctions.getFilename(sector.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get sitemap.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/sitemap.txt")
-	@Produces(MediaType.TEXT_PLAIN + "; charset=utf-8")
+	@Produces(MediaType.TEXT_PLAIN)
 	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			String res = c.getBuldreinfoRepo().getSitemapTxt(setup);
-			c.setSuccess();
+			String res = Server.getDao().getSitemapTxt(c, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get ticks (public ascents)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Ticks.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/ticks")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTicks(@Context HttpServletRequest request,
 			@Parameter(description = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Ticks res = c.getBuldreinfoRepo().getTicks(authUserId, setup, page);
-			c.setSuccess();
+			Ticks res = Server.getDao().getTicks(c, authUserId, setup, page);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get todo on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Todo.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/todo")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTodo(@Context HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Todo res = c.getBuldreinfoRepo().getTodo(authUserId, setup, idArea, idSector);
-			c.setSuccess();
+			Todo res = Server.getDao().getTodo(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Top.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/top")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTop(@Context HttpServletRequest request, 
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			Collection<Top> res = c.getBuldreinfoRepo().getTop(authUserId, setup, idArea, idSector);
-			c.setSuccess();
+			Collection<Top> res = Server.getDao().getTop(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get trash", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Trash.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/trash")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response getTrash(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getTrash(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<Trash> res = c.getBuldreinfoRepo().getTrash(authUserId, setup);
-			c.setSuccess();
+			List<Trash> res = Server.getDao().getTrash(c, authUserId, setup);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Search for user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/search")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response getUsersSearch(@Context HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
-			c.setSuccess();
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			List<User> res = Server.getDao().getUserSearch(c, authUserId, value);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
@@ -866,34 +724,28 @@ public class V2 {
 	@GET
 	@Path("/users/ticks")
 	@Produces(MIME_TYPE_XLSX)
-	public Response getUsersTicks(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(authUserId>0, "User not logged in");
-			byte[] bytes = c.getBuldreinfoRepo().getUserTicks(authUserId);
-			c.setSuccess();
-
+	public Response getUsersTicks(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			byte[] bytes = Server.getDao().getUserTicks(c, authUserId);
 			String fn = GlobalFunctions.getFilename("Ticks", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJs(@Context HttpServletRequest request) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJs(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = 0;
-			FrontpageNumProblems frontpageNumProblems = c.getBuldreinfoRepo().getFrontpageNumProblems(authUserId, setup);
-			FrontpageNumMedia frontpageNumMedia = c.getBuldreinfoRepo().getFrontpageNumMedia(authUserId, setup);
-			FrontpageNumTicks frontpageNumTicks = c.getBuldreinfoRepo().getFrontpageNumTicks(authUserId, setup);
-			FrontpageRandomMedia frontpageRandomMedia = c.getBuldreinfoRepo().getFrontpageRandomMedia(setup);
+			final Optional<Integer> authUserId = Optional.empty();
+			FrontpageNumProblems frontpageNumProblems = Server.getDao().getFrontpageNumProblems(c, authUserId, setup);
+			FrontpageNumMedia frontpageNumMedia = Server.getDao().getFrontpageNumMedia(c, authUserId, setup);
+			FrontpageNumTicks frontpageNumTicks = Server.getDao().getFrontpageNumTicks(c, authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = Server.getDao().getFrontpageRandomMedia(c, setup);
 			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
 					setup.getDescription(),
 					frontpageNumProblems.numProblems(),
@@ -908,22 +760,19 @@ public class V2 {
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.height()));
-			c.setSuccess();
 			return Response.ok().entity(html).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/area/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = 0;
-			Area a = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
+			final Optional<Integer> authUserId = Optional.empty();
+			Area a = Server.getDao().getArea(c, setup, authUserId, id);
 			String description = null;
 			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
 					.stream()
@@ -943,22 +792,19 @@ public class V2 {
 					(m == null? 0 : m.id()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
-			c.setSuccess();
 			return Response.ok().entity(html).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/problem/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = 0;
-			Problem p = c.getBuldreinfoRepo().getProblem(authUserId, setup, id, false);
+			final Optional<Integer> authUserId = Optional.empty();
+			Problem p = Server.getDao().getProblem(c, authUserId, setup, id, false);
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
 			if (p.getFa() != null && !p.getFa().isEmpty()) {
@@ -982,23 +828,20 @@ public class V2 {
 					(m == null? 0 : m.id()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
-			c.setSuccess();
 			return Response.ok().entity(html).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/sector/{id}")
-	@Produces(MediaType.TEXT_HTML + "; charset=utf-8")
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) {
+		return Server.buildResponseWithSql(c -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = 0;
+			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
-			Sector s = c.getBuldreinfoRepo().getSector(authUserId, orderByGrade, setup, id);
+			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.isBouldering()? "Bouldering" : "Climbing"),
@@ -1015,128 +858,101 @@ public class V2 {
 					(m == null? 0 : m.id()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
-			c.setSuccess();
 			return Response.ok().entity(html).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/areas")
-	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
-			Redirect res = c.getBuldreinfoRepo().setArea(setup, authUserId, a, multiPart);
-			c.setSuccess();
+			Redirect res = Server.getDao().setArea(c, setup, authUserId, a, multiPart);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/comments")
-	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			c.getBuldreinfoRepo().upsertComment(authUserId, setup, co, multiPart);
-			c.setSuccess();
+			Server.getDao().upsertComment(c, authUserId, setup, co, multiPart);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update Media SVG")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/svg")
-	public Response postMediaSvg(@Context HttpServletRequest request, Media m) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().upsertMediaSvg(authUserId, setup, m);
-			c.setSuccess();
+			Server.getDao().upsertMediaSvg(c, authUserId, setup, m);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update user privilegies")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/permissions")
-	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().upsertPermissionUser(setup.getIdRegion(), authUserId, u);
-			c.setSuccess();
+			Server.getDao().upsertPermissionUser(c, setup.getIdRegion(), authUserId, u);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems")
-	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
-			Redirect res = c.getBuldreinfoRepo().setProblem(authUserId, setup, p, multiPart);
-			c.setSuccess();
+			Redirect res = Server.getDao().setProblem(c, authUserId, setup, p, multiPart);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems/media")
-	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProblemsMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
-			FormDataMultiPart multiPart) throws ExecutionException, IOException {
+			FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
-			c.getBuldreinfoRepo().addProblemMedia(authUserId, p, multiPart);
-			Problem res = c.getBuldreinfoRepo().getProblem(authUserId, setup, p.getId(), false);
-			c.setSuccess();
+			Server.getDao().addProblemMedia(c, authUserId, p, multiPart);
+			Problem res = Server.getDao().getProblem(c, authUserId, setup, p.getId(), false);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)")
@@ -1147,95 +963,74 @@ public class V2 {
 			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
 			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
-			c.getBuldreinfoRepo().upsertSvg(authUserId, problemId, mediaId, svg);
-			c.setSuccess();
+			Server.getDao().upsertSvg(c, authUserId, problemId, mediaId, svg);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Search for area/sector/problem/user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/search")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
 			Preconditions.checkNotNull(search, "Invalid search: " + search);
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			List<Search> res = c.getBuldreinfoRepo().getSearch(authUserId, setup, search);
-			c.setSuccess();
+			List<Search> res = Server.getDao().getSearch(c, authUserId, setup, search);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update sector (sector smust be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/sectors")
-	@Consumes(MediaType.MULTIPART_FORM_DATA + "; charset=utf-8")
-	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
-	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws ExecutionException, IOException {
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
-			Redirect res = c.getBuldreinfoRepo().setSector(authUserId, orderByGrade, setup, s, multiPart);
-			c.setSuccess();
+			Redirect res = Server.getDao().setSector(c, authUserId, orderByGrade, setup, s, multiPart);
 			return Response.ok().entity(res).build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update tick (public ascent)")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/ticks")
-	public Response postTicks(@Context HttpServletRequest request, Tick t) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+	public Response postTicks(@Context HttpServletRequest request, Tick t) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
 			Preconditions.checkArgument(t.idProblem() > 0);
-			Preconditions.checkArgument(authUserId != -1);
-			c.getBuldreinfoRepo().setTick(authUserId, setup, t);
-			c.setSuccess();
+			Server.getDao().setTick(c, authUserId, setup, t);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update todo")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/todo")
-	@Consumes(MediaType.APPLICATION_JSON + "; charset=utf-8")
+	@Consumes(MediaType.APPLICATION_JSON)
 	public Response postTodo(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().toggleTodo(authUserId, idProblem);
-			c.setSuccess();
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Server.getDao().toggleTodo(c, authUserId, idProblem);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update visible regions")
@@ -1245,16 +1040,11 @@ public class V2 {
 	public Response postUserRegions(@Context HttpServletRequest request,
 			@Parameter(description = "Region id", required = true) @QueryParam("regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
-			) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(authUserId != -1);
-			c.getBuldreinfoRepo().setUserRegion(authUserId, regionId, delete);
-			c.setSuccess();
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Server.getDao().setUserRegion(c, authUserId, regionId, delete);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update media location")
@@ -1266,37 +1056,28 @@ public class V2 {
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
 			@Parameter(description = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
 			@Parameter(description = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
-			) throws ExecutionException, IOException {
+			) {
 		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector == 0 && toIdProblem == 0) ||
 				(!left && toIdSector > 0 && toIdProblem == 0) ||
 				(!left && toIdSector == 0 && toIdProblem > 0),
 				"Invalid arguments");
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
-			c.getBuldreinfoRepo().moveMedia(authUserId, id, left, toIdSector, toIdProblem);
-			c.setSuccess();
+			Server.getDao().moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update media info")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/info")
-	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) throws ExecutionException, IOException {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(authUserId > 0);
-			c.getBuldreinfoRepo().updateMediaInfo(authUserId, m);
-			c.setSuccess();
+	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
+			Server.getDao().updateMediaInfo(c, authUserId, m);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)")
@@ -1307,15 +1088,11 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia,
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().rotateMedia(setup.getIdRegion(), authUserId, idMedia, degrees);
-			c.setSuccess();
+			Server.getDao().rotateMedia(c, setup.getIdRegion(), authUserId, idMedia, degrees);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)")
@@ -1327,22 +1104,18 @@ public class V2 {
 			@Parameter(description = "Sector id", required = true) @QueryParam("idSector") int idSector,
 			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia
-			) throws ExecutionException, IOException {
+			) {
 		Preconditions.checkArgument(
 				(idArea > 0 && idSector == 0 && idProblem == 0) ||
 				(idArea == 0 && idSector > 0 && idProblem == 0) ||
 				(idArea == 0 && idSector == 0 && idProblem > 0) ||
 				(idArea == 0 && idSector == 0 && idProblem == 0),
 				"Invalid arguments");
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
+		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
-			final int authUserId = getUserId(request);
-			c.getBuldreinfoRepo().trashRecover(setup, authUserId, idArea, idSector, idProblem, idMedia);
-			c.setSuccess();
+			Server.getDao().trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 	}
 
 	private String getHtml(Setup setup, String url, String title, String description, int mediaId, int mediaWidth, int mediaHeight) {
@@ -1365,15 +1138,5 @@ public class V2 {
 				ogImage +
 				"</head></html>";
 		return html;
-	}
-
-	private int getUserId(HttpServletRequest request) {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			final int authUserId = auth.getUserId(c, request, MetaHelper.getMeta());
-			c.setSuccess();
-			return authUserId;
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
 	}
 }

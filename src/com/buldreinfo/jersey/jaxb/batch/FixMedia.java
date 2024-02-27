@@ -27,11 +27,9 @@ import javax.imageio.ImageIO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
-import com.buldreinfo.jersey.jaxb.db.DbConnection;
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.server.Server;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -46,8 +44,7 @@ public class FixMedia {
 	private final List<String> warnings = new ArrayList<>();
 
 	public FixMedia() {
-		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			c.getConnection().setAutoCommit(true);
+		Server.runSql(c -> {
 			List<Integer> newIdMedia = Lists.newArrayList();
 			// Add movie
 			//			final int idUploaderUserId = 1;
@@ -65,7 +62,7 @@ public class FixMedia {
 			if (newIdMedia != null && !newIdMedia.isEmpty()) {
 				sqlStr += " AND id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
 			}
-			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
+			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					final int id = rst.getInt("id");
@@ -158,15 +155,12 @@ public class FixMedia {
 			for (String warning : warnings) {
 				logger.warn(warning);
 			}
-			c.getConnection().setAutoCommit(false);
-			c.setSuccess();
-		} catch (Exception e) {
-			throw GlobalFunctions.getWebApplicationExceptionInternalError(e);
-		}
+		});
 		logger.debug("Done");
 	}
 
-	public int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
+	@SuppressWarnings("unused")
+	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
 		Preconditions.checkArgument(Files.exists(src), src.toString() + " does not exist");
 		Preconditions.checkArgument(idPhotographerUserId > 0, "Invalid idPhotographerUserId=" + idPhotographerUserId);
 		Preconditions.checkArgument(idUploaderUserId > 0, "Invalid idUploaderUserId=" + idUploaderUserId);
