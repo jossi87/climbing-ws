@@ -18,20 +18,20 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
 		if (authUserId != -1) {
-			PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?");
-			ps.setInt(1, setup.getIdRegion());
-			ps.setInt(2, authUserId);
-			ResultSet rst = ps.executeQuery();
-			while (rst.next()) {
-				isAuthenticated = true;
-				isAdmin = rst.getBoolean("admin_write");
-				isSuperAdmin = rst.getBoolean("superadmin_write");
-				if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
-					isAdmin = true;
+			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
+				ps.setInt(1, setup.getIdRegion());
+				ps.setInt(2, authUserId);
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						isAuthenticated = true;
+						isAdmin = rst.getBoolean("admin_write");
+						isSuperAdmin = rst.getBoolean("superadmin_write");
+						if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
+							isAdmin = true;
+						}
+					}
 				}
 			}
-			rst.close();
-			ps.close();
 		}
 		List<Grade> grades = setup.getGradeConverter().getGrades();
 		int defaultZoom = setup.getDefaultZoom();
