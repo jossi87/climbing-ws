@@ -2692,12 +2692,15 @@ public class BuldreinfoRepository {
 					" WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
 					" GROUP BY r.id, ty.type, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date" + 
 					" ORDER BY ty.type, a.name, s.name, p.name";
-			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
-					ExcelSheet sheet = workbook.addSheet("First_AID_Ascent")) {
+			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 				ps.setInt(1, authUserId);
 				ps.setInt(2, authUserId);
+				ExcelSheet sheet = null;
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
+						if (sheet == null) {
+							sheet = workbook.addSheet("First_AID_Ascent");
+						}
 						String url = rst.getString("url");
 						String areaName = rst.getString("area_name");
 						String sectorName = rst.getString("sector_name");
@@ -2712,8 +2715,8 @@ public class BuldreinfoRepository {
 						sheet.writeString("DESCRIPTION", comment);
 						sheet.writeHyperlink("URL", url);
 					}
-					sheet.close();
 				}
+				sheet.close();
 			}
 			try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
 				workbook.write(os);
