@@ -2716,7 +2716,9 @@ public class BuldreinfoRepository {
 						sheet.writeHyperlink("URL", url);
 					}
 				}
-				sheet.close();
+				if (sheet != null) {
+					sheet.close();
+				}
 			}
 			try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
 				workbook.write(os);
