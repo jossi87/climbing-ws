@@ -2636,6 +2636,7 @@ public class BuldreinfoRepository {
 						sheet.writeString("DESCRIPTION", comment);
 						sheet.writeHyperlink("URL", url);
 					}
+					sheets.values().forEach(sheet -> sheet.close());
 				}
 			}
 			sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, t.stars, 0 fa, t.grade grade"
@@ -2683,6 +2684,7 @@ public class BuldreinfoRepository {
 						sheet.writeString("DESCRIPTION", comment);
 						sheet.writeHyperlink("URL", url);
 					}
+					sheets.values().forEach(sheet -> sheet.close());
 				}
 			}
 			sqlStr = "SELECT r.id region_id, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, aid.aid_description comment, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date" + 

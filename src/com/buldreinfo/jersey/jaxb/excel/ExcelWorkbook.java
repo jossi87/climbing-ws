@@ -2,19 +2,17 @@ package com.buldreinfo.jersey.jaxb.excel;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.HashSet;
-import java.util.Set;
 
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Hyperlink;
 import org.apache.poi.ss.usermodel.IndexedColors;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ExcelWorkbook implements AutoCloseable {
 	private final Workbook workbook;
-	private final Set<ExcelSheet> sheets = new HashSet<>();
 	private CellStyle headerStyle;
 	private CellStyle hyperlinkStyle;
 	private CellStyle dateStyle;
@@ -24,10 +22,7 @@ public class ExcelWorkbook implements AutoCloseable {
 	}
 
 	public ExcelSheet addSheet(String sheetName) {
-		Sheet sheet = workbook.createSheet(sheetName);
-		ExcelSheet writer = new ExcelSheet(this, sheet);
-		sheets.add(writer);
-		return writer;
+		return new ExcelSheet(this, workbook.createSheet(sheetName));
 	}
 
 	@Override
@@ -36,10 +31,17 @@ public class ExcelWorkbook implements AutoCloseable {
 	}
 
 	public void write(OutputStream stream) throws IOException {
-		sheets.forEach(sheet -> sheet.close());
 		workbook.write(stream);
 	}
 
+	protected CellStyle getDateStyle() {
+		if (dateStyle == null) {
+			dateStyle = workbook.createCellStyle();
+			dateStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("yyyy.mm.dd"));
+		}
+		return dateStyle;
+	}
+	
 	protected CellStyle getHeaderStyle() {
 		if (headerStyle == null) {
 			Font font = workbook.createFont();
@@ -50,12 +52,10 @@ public class ExcelWorkbook implements AutoCloseable {
 		return headerStyle;
 	}
 	
-	protected CellStyle getDateStyle() {
-		if (dateStyle == null) {
-			dateStyle = workbook.createCellStyle();
-			dateStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("yyyy.mm.dd"));
-		}
-		return dateStyle;
+	protected Hyperlink getHyperlink(String url) {
+		Hyperlink hyperlink = workbook.getCreationHelper().createHyperlink(HyperlinkType.URL);
+		hyperlink.setAddress(url);
+		return hyperlink;
 	}
 
 	protected CellStyle getHyperlinkStyle() {

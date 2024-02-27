@@ -1,18 +1,15 @@
 package com.buldreinfo.jersey.jaxb.excel;
 
-import java.io.Closeable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Hyperlink;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 
-public class ExcelSheet implements Closeable {
+public class ExcelSheet implements AutoCloseable {
 	private final ExcelWorkbook workbook;
 	private final Sheet sheet;
 	private final Row headerRow;
@@ -41,23 +38,21 @@ public class ExcelSheet implements Closeable {
 		this.rowIndex++;
 	}
 
-	public void writeDouble(String columnName, double value) {
-		Cell cell = getOrCreateCell(columnName);
-		cell.setCellValue(value);
-	}
-	
 	public void writeDate(String columnName, Date date) {
 		Cell cell = getOrCreateCell(columnName);
 		cell.setCellValue(date);
 		cell.setCellStyle(workbook.getDateStyle());
 	}
+	
+	public void writeDouble(String columnName, double value) {
+		Cell cell = getOrCreateCell(columnName);
+		cell.setCellValue(value);
+	}
 
 	public void writeHyperlink(String columnName, String url) {
 		Cell cell = getOrCreateCell(columnName);
-		Hyperlink hyperlink = cell.getSheet().getWorkbook().getCreationHelper().createHyperlink(HyperlinkType.URL);
-		hyperlink.setAddress(url);
 		cell.setCellValue(url);
-		cell.setHyperlink(hyperlink);
+		cell.setHyperlink(workbook.getHyperlink(url));
 		cell.setCellStyle(workbook.getHyperlinkStyle());
 	}
 	
