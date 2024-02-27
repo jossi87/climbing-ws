@@ -16,7 +16,8 @@ public class LinkInCell implements PdfPCellEvent {
     }
     
     public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
-        PdfWriter writer = canvases[0].getPdfWriter();
+        @SuppressWarnings("resource")
+		PdfWriter writer = canvases[0].getPdfWriter();
         PdfAction action = new PdfAction(url);
         PdfAnnotation link = PdfAnnotation.createLink(writer, position, PdfAnnotation.HIGHLIGHT_INVERT, action);
         writer.addAnnotation(link);
