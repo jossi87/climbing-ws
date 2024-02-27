@@ -29,8 +29,8 @@ public class LeafletPrintGenerator {
 	    double z = 0.0;
 
 	    for (SectorProblem p : problems) {
-	        double lat = p.getCoordinates().getLatitude() * Math.PI / 180;
-	        double lon = p.getCoordinates().getLongitude() * Math.PI / 180;
+	        double lat = p.coordinates().getLatitude() * Math.PI / 180;
+	        double lon = p.coordinates().getLongitude() * Math.PI / 180;
 
 	        double a = Math.cos(lat) * Math.cos(lon);
 	        double b = Math.cos(lat) * Math.sin(lon);

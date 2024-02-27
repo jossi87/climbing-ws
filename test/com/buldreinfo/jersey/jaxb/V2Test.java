@@ -143,7 +143,7 @@ public class V2Test {
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof Profile);
 		Profile u = (Profile)r.getEntity();
-		assertTrue(u.getFirstname() != null);
+		assertTrue(u.firstname() != null);
 	}
 
 	@Test
@@ -173,13 +173,13 @@ public class V2Test {
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof ProfileTodo);
 		ProfileTodo t = (ProfileTodo)r.getEntity();
-		assertTrue(!t.getAreas().isEmpty());
+		assertTrue(!t.areas().isEmpty());
 	}
 
 	@Test
 	public void testPostSearch() throws Exception {
 		V2 tester = new V2();
-		Response r = tester.postSearch(getRequest(), new SearchRequest(1, "Pan"));
+		Response r = tester.postSearch(getRequest(), new SearchRequest("Pan"));
 		assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		assertTrue(r.getEntity() instanceof List<?>);
 		@SuppressWarnings("unchecked")

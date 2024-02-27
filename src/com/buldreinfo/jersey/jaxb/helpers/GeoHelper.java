@@ -83,7 +83,7 @@ public class GeoHelper {
 		if (direction == null) {
 			return null;
 		}
-		return setup.getCompassDirections().stream().filter(cd -> cd.getDirection().equals(direction)).findAny().get();
+		return setup.getCompassDirections().stream().filter(cd -> cd.direction().equals(direction)).findAny().get();
 	}
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {

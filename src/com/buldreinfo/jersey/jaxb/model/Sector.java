@@ -6,55 +6,6 @@ import java.util.List;
 import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
 
 public class Sector {
-	public class SectorJump {
-		private final int id;
-		private final boolean lockedAdmin;
-		private final boolean lockedSuperadmin;
-		private final String name;
-		private final int sorting;
-		public SectorJump(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, int sorting) {
-			this.id = id;
-			this.lockedAdmin = lockedAdmin;
-			this.lockedSuperadmin = lockedSuperadmin;
-			this.name = name;
-			this.sorting = sorting;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getSorting() {
-			return sorting;
-		}
-		public boolean isLockedAdmin() {
-			return lockedAdmin;
-		}
-		public boolean isLockedSuperadmin() {
-			return lockedSuperadmin;
-		}
-	}
-	public class SectorProblemOrder {
-		private final int id;
-		private final String name;
-		private final int nr;
-		public SectorProblemOrder(int id, String name, int nr) {
-			this.id = id;
-			this.name = name;
-			this.nr = nr;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getNr() {
-			return nr;
-		}
-	}
-	
 	private final String redirectUrl;
 	private final boolean orderByGrade;
 	private final int areaId;
@@ -122,7 +73,7 @@ public class Sector {
 	
 	public void addProblem(SectorProblem sp) {
 		this.problems.add(sp);
-		this.problemOrder.add(new SectorProblemOrder(sp.getId(), sp.getName(), sp.getNr()));
+		this.problemOrder.add(new SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
 	}
 	
 	public void addSector(int id, boolean lockedAdmin, boolean lockedSuperadmin, String name, int sorting) {
@@ -263,7 +214,7 @@ public class Sector {
 	
 	public void orderSectors() {
 		if (sectors != null) {
-			sectors.sort((SectorJump o1, SectorJump o2) -> SectorSort.sortSector(o1.getSorting(), o1.getName(), o2.getSorting(), o2.getName()));
+			sectors.sort((SectorJump o1, SectorJump o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
 		}
 	}
 	

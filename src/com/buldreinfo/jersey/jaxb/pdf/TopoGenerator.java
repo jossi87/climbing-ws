@@ -32,6 +32,7 @@ import org.w3c.dom.Element;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
+import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.SvgAnchor;
 import com.buldreinfo.jersey.jaxb.model.SvgText;
@@ -115,11 +116,11 @@ public class TopoGenerator {
 	private static void addRappel(Document doc, int imgMax, Element parent, MediaSvgElement mediaSvg) {
 		final String strokeWidth = String.valueOf(0.0015*imgMax);
 		final double r = 0.005*imgMax;
-		final double x = mediaSvg.getRappelX();
-		final double y = mediaSvg.getRappelY();
+		final double x = mediaSvg.rappelX();
+		final double y = mediaSvg.rappelY();
 		Element g = doc.createElementNS(xmlns, "g");
 		g.setAttributeNS(null, "opacity", "0.9");
-		if (mediaSvg.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED)) {
+		if (mediaSvg.t().equals(MediaSvgElementType.RAPPEL_BOLTED)) {
 			addCircle(doc, g, "none", String.valueOf(x), String.valueOf(y), strokeWidth, String.valueOf(r));
 		}
 		else {
@@ -155,10 +156,10 @@ public class TopoGenerator {
 
 		if (mediaSvgs != null && !mediaSvgs.isEmpty()) {
 			for (MediaSvgElement mediaSvg : mediaSvgs) {
-				if (mediaSvg.getT().equals(MediaSvgElement.TYPE.PATH)) {
-					addPath(doc, imgMax, svgRoot, mediaSvg.getPath(), true, COLOR_WHITE);
+				if (mediaSvg.t().equals(MediaSvgElementType.PATH)) {
+					addPath(doc, imgMax, svgRoot, mediaSvg.path(), true, COLOR_WHITE);
 				}
-				else if (mediaSvg.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED) || mediaSvg.getT().equals(MediaSvgElement.TYPE.RAPPEL_NOT_BOLTED)) {
+				else if (mediaSvg.t().equals(MediaSvgElementType.RAPPEL_BOLTED) || mediaSvg.t().equals(MediaSvgElementType.RAPPEL_NOT_BOLTED)) {
 					addRappel(doc, imgMax, svgRoot, mediaSvg);
 				}
 			}
@@ -166,7 +167,7 @@ public class TopoGenerator {
 		if (svgs != null && !svgs.isEmpty()) {
 			List<Element> texts = Lists.newArrayList(); // Text always on top
 			for (Svg svg : svgs) {
-				List<String> parts = Lists.newArrayList(Splitter.on("L").omitEmptyStrings().trimResults().split(svg.getPath().replace("M", "L").replace("C", "L")));
+				List<String> parts = Lists.newArrayList(Splitter.on("L").omitEmptyStrings().trimResults().split(svg.path().replace("M", "L").replace("C", "L")));
 				float x0 = Float.parseFloat(parts.get(0).split(" ")[0]);
 				float y0 = Float.parseFloat(parts.get(0).split(" ")[1]);
 				String[] lastParts = parts.get(parts.size()-1).split(" ");
@@ -179,7 +180,7 @@ public class TopoGenerator {
 				float yMax = firstIsLowest? y1 : y0;
 				// Init colors
 				String groupColor = null;
-				switch (svg.getProblemGradeGroup()) {
+				switch (svg.problemGradeGroup()) {
 				case 0: groupColor = COLOR_WHITE; break;
 				case 1: groupColor = "#00FF00"; break;
 				case 2: groupColor = "#0000FF"; break;
@@ -189,19 +190,19 @@ public class TopoGenerator {
 				default: groupColor = "#000000"; break;
 				}
 				String textColor = COLOR_WHITE;
-				if (svg.isTicked()) {
+				if (svg.ticked()) {
 					textColor = "#21ba45";
 				}
-				else if (svg.isTodo()) {
+				else if (svg.todo()) {
 					textColor = "#659DBD";
 				}
-				else if (svg.isDangerous()) {
+				else if (svg.dangerous()) {
 					textColor = "#FF0000";
 				}
 				// Path
-				addPath(doc, imgMax, svgRoot, svg.getPath(), svg.isPrimary(), groupColor);
+				addPath(doc, imgMax, svgRoot, svg.path(), svg.primary(), groupColor);
 				// Anchor-circle
-				if (svg.isHasAnchor()) {
+				if (svg.hasAnchor()) {
 					addCircle(doc, svgRoot, "#000000", String.valueOf(xMax), String.valueOf(yMax), null, String.valueOf(0.005 * imgMax));
 					addCircle(doc, svgRoot, groupColor, String.valueOf(xMax), String.valueOf(yMax), null, String.valueOf(0.004 * imgMax));
 				}
@@ -223,30 +224,30 @@ public class TopoGenerator {
 				text.setAttributeNS(null, "x", String.valueOf(xMin));
 				text.setAttributeNS(null, "y", String.valueOf(yMin));
 				text.setAttributeNS(null, "dy", String.valueOf(r/3));
-				text.appendChild(doc.createTextNode(String.valueOf(svg.getNr())));
+				text.appendChild(doc.createTextNode(String.valueOf(svg.nr())));
 				texts.add(text);
 
 				Gson gson = new Gson();
 				// Texts
-				if (!Strings.isNullOrEmpty(svg.getTexts())) {
-					List<SvgText> svgTexts = gson.fromJson(svg.getTexts(), new TypeToken<ArrayList<SvgText>>(){}.getType());
+				if (!Strings.isNullOrEmpty(svg.texts())) {
+					List<SvgText> svgTexts = gson.fromJson(svg.texts(), new TypeToken<ArrayList<SvgText>>(){}.getType());
 					for (SvgText svgText : svgTexts) {
 						text = doc.createElementNS(xmlns, "text");
 						text.setAttributeNS(null, "style", "fill: #FF0000;");
-						text.setAttributeNS(null, "x", String.valueOf(svgText.getX()));
-						text.setAttributeNS(null, "y", String.valueOf(svgText.getY()));
+						text.setAttributeNS(null, "x", String.valueOf(svgText.x()));
+						text.setAttributeNS(null, "y", String.valueOf(svgText.y()));
 						text.setAttributeNS(null, "dy", ".3em");
 						text.setAttributeNS(null, "font-size", "5em");
-						text.appendChild(doc.createTextNode(svgText.getTxt()));
+						text.appendChild(doc.createTextNode(svgText.txt()));
 					}
 					texts.add(text);
 				}
 				// Anchors
-				if (!Strings.isNullOrEmpty(svg.getAnchors())) {
-					List<SvgAnchor> svgAnchors = gson.fromJson(svg.getAnchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
+				if (!Strings.isNullOrEmpty(svg.anchors())) {
+					List<SvgAnchor> svgAnchors = gson.fromJson(svg.anchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
 					for (SvgAnchor svgAnchor : svgAnchors) {
-						addCircle(doc, svgRoot, "#000000", String.valueOf(svgAnchor.getX()), String.valueOf(svgAnchor.getY()), null, String.valueOf(0.005 * imgMax));
-						addCircle(doc, svgRoot, groupColor, String.valueOf(svgAnchor.getX()), String.valueOf(svgAnchor.getY()), null, String.valueOf(0.004 * imgMax));
+						addCircle(doc, svgRoot, "#000000", String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.005 * imgMax));
+						addCircle(doc, svgRoot, groupColor, String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.004 * imgMax));
 					}
 				}
 			}

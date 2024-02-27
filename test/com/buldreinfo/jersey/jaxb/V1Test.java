@@ -34,7 +34,7 @@ public class V1Test {
 		for (Object o : res) {
 			assertTrue(o instanceof V1Region);
 			V1Region region = (V1Region)o;
-			numAreas += region.getAreas().size();
+			numAreas += region.areas().size();
 		}
 		return numAreas;
 	}

@@ -25,6 +25,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
@@ -32,19 +33,19 @@ import com.buldreinfo.jersey.jaxb.model.Approach;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
-import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problem.ProblemComment;
-import com.buldreinfo.jersey.jaxb.model.Problem.ProblemSection;
-import com.buldreinfo.jersey.jaxb.model.Problem.ProblemTick;
+import com.buldreinfo.jersey.jaxb.model.ProblemComment;
+import com.buldreinfo.jersey.jaxb.model.ProblemSection;
+import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -164,7 +165,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			if (area.getMedia() != null && !area.getMedia().isEmpty()) {
 				for (Media m : area.getMedia()) {
-					writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					writeMediaCell(table, 1, m.id(), m.width(), m.height(), m.mediaMetadata().description(), m.mediaSvgs(), m.svgs());
 					addDummyCell = !addDummyCell;
 				}
 			}
@@ -212,7 +213,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.add(paragraph);
 		paragraph = new Paragraph();
 		paragraph.add(new Chunk("Type: ", FONT_BOLD));
-		String type = problem.getT().getSubType() != null? problem.getT().getType() + " - " + problem.getT().getSubType() : problem.getT().getType();
+		String type = problem.getT().subType() != null? problem.getT().type() + " - " + problem.getT().subType() : problem.getT().type();
 		paragraph.add(new Chunk(type, FONT_REGULAR));
 		document.add(paragraph);
 		paragraph = new Paragraph();
@@ -223,24 +224,24 @@ public class PdfGenerator implements AutoCloseable {
 			FaAid faAid = problem.getFaAid();
 			paragraph = new Paragraph();
 			paragraph.add(new Chunk("First ascent (Aid): ", FONT_BOLD));
-			String faUsers = faAid.getUsers() == null || faAid.getUsers().isEmpty()? null : faAid.getUsers().stream().map(FaUser::getName).collect(Collectors.joining(", "));
-			if (!Strings.isNullOrEmpty(faUsers) && !Strings.isNullOrEmpty(faAid.getDateHr())) {
-				paragraph.add(new Chunk(faUsers + " (" + faAid.getDateHr() + "). ", FONT_REGULAR));
+			String faUsers = faAid.users() == null || faAid.users().isEmpty()? null : faAid.users().stream().map(User::name).collect(Collectors.joining(", "));
+			if (!Strings.isNullOrEmpty(faUsers) && !Strings.isNullOrEmpty(faAid.dateHr())) {
+				paragraph.add(new Chunk(faUsers + " (" + faAid.dateHr() + "). ", FONT_REGULAR));
 			}
 			else if (!Strings.isNullOrEmpty(faUsers)) {
 				paragraph.add(new Chunk(faUsers + ". ", FONT_REGULAR));
 			}
-			else if (!Strings.isNullOrEmpty(faAid.getDateHr())) {
-				paragraph.add(new Chunk(faAid.getDateHr() + ". ", FONT_REGULAR));
+			else if (!Strings.isNullOrEmpty(faAid.dateHr())) {
+				paragraph.add(new Chunk(faAid.dateHr() + ". ", FONT_REGULAR));
 			}
-			if (!Strings.isNullOrEmpty(faAid.getDescription())) {
-				paragraph.add(new Chunk(faAid.getDescription(), FONT_ITALIC));
+			if (!Strings.isNullOrEmpty(faAid.description())) {
+				paragraph.add(new Chunk(faAid.description(), FONT_ITALIC));
 			}
 			document.add(paragraph);
 		}
 		paragraph = new Paragraph();
 		paragraph.add(new Chunk(problem.getFaAid() != null? "First free ascent (FFA): ": "First ascent: ", FONT_BOLD));
-		String faUsers = problem.getFa() == null || problem.getFa().isEmpty()? null : problem.getFa().stream().map(FaUser::getName).collect(Collectors.joining(", "));
+		String faUsers = problem.getFa() == null || problem.getFa().isEmpty()? null : problem.getFa().stream().map(User::name).collect(Collectors.joining(", "));
 		if (!Strings.isNullOrEmpty(faUsers) && !Strings.isNullOrEmpty(problem.getFaDateHr())) {
 			paragraph.add(new Chunk(faUsers + " (" + problem.getFaDateHr() + "). ", FONT_REGULAR));
 		}
@@ -265,9 +266,9 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "Grade");
 			addTableCell(table, FONT_BOLD, "Description");
 			for (ProblemSection section : problem.getSections()) {
-				addTableCell(table, FONT_REGULAR, String.valueOf(section.getNr()));
-				addTableCell(table, FONT_REGULAR, section.getGrade());
-				addTableCell(table, FONT_REGULAR, section.getDescription());
+				addTableCell(table, FONT_REGULAR, String.valueOf(section.nr()));
+				addTableCell(table, FONT_REGULAR, section.grade());
+				addTableCell(table, FONT_REGULAR, section.description());
 			}
 			document.add(table);
 		}
@@ -319,8 +320,8 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		if (problem.getSections() != null) {
 			for (ProblemSection s : problem.getSections()) {
-				if (s.getMedia() != null) {
-					media.addAll(s.getMedia());
+				if (s.media() != null) {
+					media.addAll(s.media());
 				}
 			}
 		}
@@ -328,17 +329,17 @@ public class PdfGenerator implements AutoCloseable {
 			PdfPTable table = new PdfPTable(2);
 			table.setWidthPercentage(100);
 			for (Media m : media) {
-				List<Svg> svgs = m.getSvgs() == null? null : m.getSvgs().stream().filter(x -> x.getProblemId() == problem.getId()).collect(Collectors.toList());
-				String txt = m.getPitch() > 0? "Pitch " + m.getPitch() : null;
-				if (!Strings.isNullOrEmpty(m.getMediaMetadata().getDescription())) {
+				List<Svg> svgs = m.svgs() == null? null : m.svgs().stream().filter(x -> x.problemId() == problem.getId()).collect(Collectors.toList());
+				String txt = m.pitch() > 0? "Pitch " + m.pitch() : null;
+				if (!Strings.isNullOrEmpty(m.mediaMetadata().description())) {
 					if (txt != null) {
-						txt += " - " + m.getMediaMetadata().getDescription();
+						txt += " - " + m.mediaMetadata().description();
 					}
 					else {
-						txt = m.getMediaMetadata().getDescription();
+						txt = m.mediaMetadata().description();
 					}
 				}
-				writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), txt, m.getMediaSvgs(), svgs);
+				writeMediaCell(table, 1, m.id(), m.width(), m.height(), txt, m.mediaSvgs(), svgs);
 			}
 			if (media.size() > 1 && media.size() % 2 == 1) {
 				addDummyCell(table);
@@ -480,11 +481,11 @@ public class PdfGenerator implements AutoCloseable {
 			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
 				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
+					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
 				}
 				String distance = null;
-				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
+				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
 					polylines.add(polyline);
 					distance = getDistance(sector.getApproach());
 				}
@@ -540,15 +541,15 @@ public class PdfGenerator implements AutoCloseable {
 			int defaultZoom = 15;
 
 			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-				markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
+				markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
 			}
 			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
 				String name = removeIllegalChars(problem.getName());
-				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, name));
+				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), IconType.DEFAULT, name));
 			}
 			String distance = null;
-			if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
-				String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
+			if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
+				String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
 				polylines.add(polyline);
 				distance = getDistance(sector.getApproach());
 			}
@@ -570,7 +571,7 @@ public class PdfGenerator implements AutoCloseable {
 					table.addCell(cell);
 
 					// Also append photo map
-					markers = markers.stream().filter(m -> !m.getIconType().equals(Marker.ICON_TYPE.PARKING)).collect(Collectors.toList());
+					markers = markers.stream().filter(m -> !m.iconType().equals(IconType.PARKING)).collect(Collectors.toList());
 					if (!markers.isEmpty()) {
 						outlines.clear();
 						polylines.clear();
@@ -594,7 +595,7 @@ public class PdfGenerator implements AutoCloseable {
 	}
 	
 	private String getDistance(Approach a) {
-		long meter = a.getDistance();
+		long meter = a.distance();
 		if (meter > 1000) {
 			return meter/1000 + " km";
 		}
@@ -616,9 +617,9 @@ public class PdfGenerator implements AutoCloseable {
 			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.getProblems()) {
-				if (p.getCoordinates() != null && p.getCoordinates().getLatitude() > 0 && p.getCoordinates().getLongitude() > 0) {
-					if (p.getRock() != null) {
-						problemsWithCoordinatesGroupedByRock.put(p.getRock(), p);
+				if (p.coordinates() != null && p.coordinates().getLatitude() > 0 && p.coordinates().getLongitude() > 0) {
+					if (p.rock() != null) {
+						problemsWithCoordinatesGroupedByRock.put(p.rock(), p);
 					}
 					else {
 						problemsWithoutRock.add(p);
@@ -628,18 +629,18 @@ public class PdfGenerator implements AutoCloseable {
 			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
 				Collection<SectorProblem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
 				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
-				markers.add(new Marker(latLng.getLat(), latLng.getLng(), Marker.ICON_TYPE.ROCK, rock));
+				markers.add(new Marker(latLng.lat(), latLng.lng(), IconType.ROCK, rock));
 			}
 			for (SectorProblem p : problemsWithoutRock) {
-				markers.add(new Marker(p.getCoordinates().getLatitude(), p.getCoordinates().getLongitude(), Marker.ICON_TYPE.DEFAULT, String.valueOf(p.getNr())));
+				markers.add(new Marker(p.coordinates().getLatitude(), p.coordinates().getLongitude(), IconType.DEFAULT, String.valueOf(p.nr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
 				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), Marker.ICON_TYPE.PARKING, null));
+					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
 				}
 				String distance = null;
-				if (sector.getApproach() != null && sector.getApproach().getCoordinates() != null && !sector.getApproach().getCoordinates().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach().getCoordinates());
+				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
+					String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
 					polylines.add(polyline);
 					distance = getDistance(sector.getApproach());
 				}
@@ -719,41 +720,41 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "FA");
 			addTableCell(table, FONT_BOLD, "Note");
 			for (SectorProblem p : s.getProblems()) {
-				String description = Strings.emptyToNull(p.getComment());
-				if (!Strings.isNullOrEmpty(p.getRock())) {
+				String description = Strings.emptyToNull(p.comment());
+				if (!Strings.isNullOrEmpty(p.rock())) {
 					if (description == null) {
-						description = "Rock: " + p.getRock();
+						description = "Rock: " + p.rock();
 					}
 					else {
-						description = "Rock: " + p.getRock() + ". " + description;
+						description = "Rock: " + p.rock() + ". " + description;
 					}
 				}
-				if (!Strings.isNullOrEmpty(p.getBroken())) {
+				if (!Strings.isNullOrEmpty(p.broken())) {
 					if (description == null) {
-						description = p.getBroken();
+						description = p.broken();
 					}
 					else {
-						description = p.getBroken() + ". " + description;
+						description = p.broken() + ". " + description;
 					}
 				}
-				addTableCell(table, FONT_REGULAR, String.valueOf(p.getNr()), null, p.isTicked());
-				String url = meta.getUrl() + "/problem/" + p.getId();
-				addTableCell(table, FONT_REGULAR_LINK, p.getName(), url, p.isTicked());
-				addTableCell(table, FONT_REGULAR, p.getGrade(), null, p.isTicked());
+				addTableCell(table, FONT_REGULAR, String.valueOf(p.nr()), null, p.ticked());
+				String url = meta.url() + "/problem/" + p.id();
+				addTableCell(table, FONT_REGULAR_LINK, p.name(), url, p.ticked());
+				addTableCell(table, FONT_REGULAR, p.grade(), null, p.ticked());
 				if (showType) {
-					addTableCell(table, FONT_REGULAR, p.getT().getSubType(), null, p.isTicked());
+					addTableCell(table, FONT_REGULAR, p.t().subType(), null, p.ticked());
 				}
-				addTableCell(table, FONT_REGULAR, p.getFa(), null, p.isTicked());
+				addTableCell(table, FONT_REGULAR, p.fa(), null, p.ticked());
 				Phrase note = new Phrase();
-				if (p.getNumTicks() > 0) {
-					appendStarIcons(note, p.getStars(), false);
-					note.add(new Chunk(" " + p.getNumTicks() + " ascent" + (p.getNumTicks()==1? "" : "s"), FONT_REGULAR));
+				if (p.numTicks() > 0) {
+					appendStarIcons(note, p.stars(), false);
+					note.add(new Chunk(" " + p.numTicks() + " ascent" + (p.numTicks()==1? "" : "s"), FONT_REGULAR));
 				}
 				if (description != null) {
-					note.add(new Chunk((p.getNumTicks() > 0? " - " : "") + description, FONT_ITALIC));
+					note.add(new Chunk((p.numTicks() > 0? " - " : "") + description, FONT_ITALIC));
 				}
 				PdfPCell cell = new PdfPCell(note);
-				if (p.isTicked()) {
+				if (p.ticked()) {
 					cell.setBackgroundColor(Color.GREEN);
 				}
 				table.addCell(cell);
@@ -762,13 +763,13 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(table);
 			if (s.getMedia() != null) {
 				int columns = 1;
-				if (s.getMedia().stream().filter(m -> m.getSvgs() != null && m.getSvgs().size() > 5).findAny().isPresent()) {
+				if (s.getMedia().stream().filter(m -> m.svgs() != null && m.svgs().size() > 5).findAny().isPresent()) {
 					columns = 2;
 				}
 				table = new PdfPTable(columns);
 				table.setWidthPercentage(100);
 				for (Media m : s.getMedia()) {
-					writeMediaCell(table, 1, m.getId(), m.getWidth(), m.getHeight(), m.getMediaMetadata().getDescription(), m.getMediaSvgs(), m.getSvgs());
+					writeMediaCell(table, 1, m.id(), m.width(), m.height(), m.mediaMetadata().description(), m.mediaSvgs(), m.svgs());
 				}
 				if (columns == 2 && s.getMedia().size() % 2 == 1) {
 					addDummyCell(table);

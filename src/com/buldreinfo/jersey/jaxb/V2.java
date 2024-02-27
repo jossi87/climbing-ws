@@ -33,7 +33,7 @@ import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.Dangerous;
+import com.buldreinfo.jersey.jaxb.model.DangerousArea;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
@@ -45,8 +45,9 @@ import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemArea;
+import com.buldreinfo.jersey.jaxb.model.ProblemAreaProblem;
+import com.buldreinfo.jersey.jaxb.model.ProblemAreaSector;
 import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
@@ -59,7 +60,7 @@ import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
-import com.buldreinfo.jersey.jaxb.model.UserSearch;
+import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
@@ -201,7 +202,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			final Meta meta = new Meta(c, setup, authUserId);
+			final Meta meta = Meta.from(c, setup, authUserId);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
@@ -246,7 +247,7 @@ public class V2 {
 		}
 	}
 
-	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Dangerous.class)))})})
+	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = DangerousArea.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/dangerous")
@@ -255,7 +256,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			Collection<Dangerous> res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
+			Collection<DangerousArea> res = c.getBuldreinfoRepo().getDangerous(authUserId, setup);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -450,7 +451,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			Meta res = new Meta(c, setup, authUserId);
+			Meta res = Meta.from(c, setup, authUserId);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -562,26 +563,26 @@ public class V2 {
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
 					for (ProblemArea a : res) {
-						for (ProblemArea.ProblemAreaSector s : a.getSectors()) {
-							for (ProblemArea.ProblemAreaProblem p : s.getProblems()) {
+						for (ProblemAreaSector s : a.sectors()) {
+							for (ProblemAreaProblem p : s.problems()) {
 								sheet.incrementRow();
-								sheet.writeHyperlink("URL", p.getUrl());
-								sheet.writeString("AREA", a.getName());
-								sheet.writeString("SECTOR", s.getName());
-								sheet.writeInt("NR", p.getNr());
-								sheet.writeString("NAME", p.getName());
-								sheet.writeString("GRADE", p.getGrade());
-								String type = p.getT().getType();
-								if (p.getT().getSubType() != null) {
-									type += " (" + p.getT().getSubType() + ")";			
+								sheet.writeHyperlink("URL", p.url());
+								sheet.writeString("AREA", a.name());
+								sheet.writeString("SECTOR", s.name());
+								sheet.writeInt("NR", p.nr());
+								sheet.writeString("NAME", p.name());
+								sheet.writeString("GRADE", p.grade());
+								String type = p.t().type();
+								if (p.t().subType() != null) {
+									type += " (" + p.t().subType() + ")";			
 								}
 								sheet.writeString("TYPE", type);
 								if (!setup.isBouldering()) {
-									sheet.writeInt("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
+									sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
 								}
-								sheet.writeString("FA", p.getFa());
-								sheet.writeDouble("STARS", p.getStars());
-								sheet.writeString("DESCRIPTION", p.getDescription());
+								sheet.writeString("FA", p.fa());
+								sheet.writeDouble("STARS", p.stars());
+								sheet.writeString("DESCRIPTION", p.description());
 							}
 						}
 					}
@@ -619,7 +620,7 @@ public class V2 {
 		}
 	}
 
-	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProfileMedia.class)))})})
+	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))})})
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
@@ -630,11 +631,11 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			List<ProfileMedia> res = c.getBuldreinfoRepo().getProfileMediaProblem(authUserId, setup, id, captured);
+			List<Media> res = c.getBuldreinfoRepo().getProfileMediaProblem(authUserId, setup, id, captured);
 			if (captured) {
 				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedSector(authUserId, setup, id));
 				res.addAll(c.getBuldreinfoRepo().getProfileMediaCapturedArea(authUserId, setup, id));
-				res.sort(Comparator.comparingInt(ProfileMedia::getId).reversed());
+				res.sort(Comparator.comparingInt(Media::id).reversed());
 			}
 			c.setSuccess();
 			return Response.ok().entity(res).build();
@@ -726,7 +727,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			final Meta meta = new Meta(c, setup, authUserId);
+			final Meta meta = Meta.from(c, setup, authUserId);
 			final Sector sector = c.getBuldreinfoRepo().getSector(authUserId, false, setup, id);
 			final Collection<GradeDistribution> gradeDistribution = c.getBuldreinfoRepo().getGradeDistribution(authUserId, setup, 0, id);
 			final Area area = c.getBuldreinfoRepo().getArea(setup, authUserId, sector.getAreaId());
@@ -842,7 +843,7 @@ public class V2 {
 		}
 	}
 
-	@Operation(summary = "Search for user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UserSearch.class)))})})
+	@Operation(summary = "Search for user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/search")
@@ -852,7 +853,7 @@ public class V2 {
 			) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final int authUserId = getUserId(request);
-			List<UserSearch> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
+			List<User> res = c.getBuldreinfoRepo().getUserSearch(authUserId, value);
 			c.setSuccess();
 			return Response.ok().entity(res).build();
 		} catch (Exception e) {
@@ -939,9 +940,9 @@ public class V2 {
 					setup.getUrl("/area/" + a.getId()),
 					a.getName(),
 					description,
-					(m == null? 0 : m.getId()),
-					(m == null? 0 : m.getWidth()),
-					(m == null? 0 : m.getHeight()));
+					(m == null? 0 : m.id()),
+					(m == null? 0 : m.width()),
+					(m == null? 0 : m.height()));
 			c.setSuccess();
 			return Response.ok().entity(html).build();
 		} catch (Exception e) {
@@ -961,12 +962,12 @@ public class V2 {
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
 			if (p.getFa() != null && !p.getFa().isEmpty()) {
-				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.getName().trim()).collect(Collectors.toList()));
+				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.name().trim()).collect(Collectors.toList()));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
 			Media m = null;
 			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-				Optional<Media> optM = p.getMedia().stream().filter(x -> !x.isInherited()).findFirst();
+				Optional<Media> optM = p.getMedia().stream().filter(x -> !x.inherited()).findFirst();
 				if (optM.isPresent()) {
 					m = optM.get();
 				}
@@ -978,9 +979,9 @@ public class V2 {
 					setup.getUrl("/problem/" + p.getId()),
 					title,
 					description,
-					(m == null? 0 : m.getId()),
-					(m == null? 0 : m.getWidth()),
-					(m == null? 0 : m.getHeight()));
+					(m == null? 0 : m.id()),
+					(m == null? 0 : m.width()),
+					(m == null? 0 : m.height()));
 			c.setSuccess();
 			return Response.ok().entity(html).build();
 		} catch (Exception e) {
@@ -1011,9 +1012,9 @@ public class V2 {
 					setup.getUrl("/sector/" + s.getId()),
 					title,
 					description,
-					(m == null? 0 : m.getId()),
-					(m == null? 0 : m.getWidth()),
-					(m == null? 0 : m.getHeight()));
+					(m == null? 0 : m.id()),
+					(m == null? 0 : m.width()),
+					(m == null? 0 : m.height()));
 			c.setSuccess();
 			return Response.ok().entity(html).build();
 		} catch (Exception e) {
@@ -1167,7 +1168,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON + "; charset=utf-8")
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) throws ExecutionException, IOException {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
-			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.getValue()).trim());
+			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
 			Preconditions.checkNotNull(search, "Invalid search: " + search);
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
@@ -1209,7 +1210,7 @@ public class V2 {
 		try (DbConnection c = ConnectionPoolProvider.startTransaction()) {
 			final Setup setup = MetaHelper.getMeta().getSetup(request);
 			final int authUserId = getUserId(request);
-			Preconditions.checkArgument(t.getIdProblem() > 0);
+			Preconditions.checkArgument(t.idProblem() > 0);
 			Preconditions.checkArgument(authUserId != -1);
 			c.getBuldreinfoRepo().setTick(authUserId, setup, t);
 			c.setSuccess();

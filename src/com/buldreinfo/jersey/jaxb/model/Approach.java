@@ -4,17 +4,10 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 
-public class Approach {
-	private final List<Coordinates> coordinates;
-	private final double calculatedDurationInMinutes;
-	private final long distance;
-	private final long elevationGain;
-	private final long elevationLoss;
-
-	public Approach(List<Coordinates> coordinates) {
-		this.coordinates = coordinates;
-		this.calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(coordinates);
-		this.distance = Math.round(coordinates.get(coordinates.size()-1).getDistance());
+public record Approach(List<Coordinates> coordinates, double calculatedDurationInMinutes, long distance, long elevationGain, long elevationLoss) {
+	public static Approach from(List<Coordinates> coordinates) {
+		double calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(coordinates);
+		long distance = Math.round(coordinates.get(coordinates.size()-1).getDistance());
 		double gain = 0, loss = 0;
 		for (int i = 1; i < coordinates.size(); i++) {
 			double elevationDiff = coordinates.get(i).getElevation() - coordinates.get(i - 1).getElevation();
@@ -25,27 +18,8 @@ public class Approach {
 				loss -= elevationDiff;
 			}
 		}
-		this.elevationGain = Math.round(gain);
-		this.elevationLoss = Math.round(loss);
-	}
-
-	public long getElevationGain() {
-		return elevationGain;
-	}
-
-	public long getElevationLoss() {
-		return elevationLoss;
-	}
-
-	public List<Coordinates> getCoordinates() {
-		return coordinates;
-	}
-
-	public double getCalculatedDurationInMinutes() {
-		return calculatedDurationInMinutes;
-	}
-
-	public long getDistance() {
-		return distance;
+		long elevationGain = Math.round(gain);
+		long elevationLoss = Math.round(loss);
+		return new Approach(coordinates, calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
 	}
 }

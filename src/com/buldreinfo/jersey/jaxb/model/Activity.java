@@ -26,7 +26,7 @@ public class Activity {
 	private String picture;
 	private String description;
 	private String message;
-	private List<ActivityUser> users;
+	private List<User> users;
 	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
@@ -41,7 +41,7 @@ public class Activity {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
-		this.users.add(new ActivityUser(userId>0? userId : 1049, name != null? name : "Unknown", picture));
+		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", picture));
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.problemRandomMediaCrc32 = problemRandomMediaCrc32;
@@ -103,7 +103,7 @@ public class Activity {
 	public String getTimeAgo() {
 		return timeAgo;
 	}
-	public List<ActivityUser> getUsers() {
+	public List<User> getUsers() {
 		return users;
 	}
 	public boolean isProblemLockedAdmin() {

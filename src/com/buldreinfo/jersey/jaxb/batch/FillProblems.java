@@ -19,12 +19,11 @@ import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSector;
-import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Type;
-import com.buldreinfo.jersey.jaxb.model.UserSearch;
+import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -141,18 +140,18 @@ public class FillProblems {
 		}
 	}
 
-	private List<FaUser> getFas(DbConnection c, String fa) throws SQLException {
-		List<FaUser> res = new ArrayList<>();
+	private List<User> getFas(DbConnection c, String fa) throws SQLException {
+		List<User> res = new ArrayList<>();
 		if (!Strings.isNullOrEmpty(fa)) {
 			String splitter = fa.contains("&")? "&" : ",";
 			for (String user : fa.split(splitter)) {
 				user = user.trim();
 				int id = -1;
-				List<UserSearch> users = c.getBuldreinfoRepo().getUserSearch(AUTH_USER_ID, user);
+				List<User> users = c.getBuldreinfoRepo().getUserSearch(AUTH_USER_ID, user);
 				if (!users.isEmpty()) {
-					id = users.get(0).getId();
+					id = users.get(0).id();
 				}
-				res.add(new FaUser(id, user, null));
+				res.add(User.from(id, user));
 			}
 		}
 		return res;
@@ -160,8 +159,8 @@ public class FillProblems {
 
 	private void insertProblem(DbConnection c, int idArea, int idSector, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ParseException, ImageReadException, ImageWriteException {
 		logger.debug("insert {}", d);
-		List<FaUser> fa = getFas(c, d.getFa());
-		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.getId() == d.getTypeId()).findFirst().get();
+		List<User> fa = getFas(c, d.getFa());
+		Type t = c.getBuldreinfoRepo().getTypes(REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
 		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, null, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, null, null, -1, 0, false, null, t, false, 0, null, null, null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
@@ -179,7 +178,7 @@ public class FillProblems {
 		}
 		Area a = new Area(null, REGION_ID, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, 0);
 		Redirect r = c.getBuldreinfoRepo().setArea(MetaHelper.getMeta().getSetup(REGION_ID), AUTH_USER_ID, a, null);
-		return r.getIdArea();
+		return r.idArea();
 	}
 
 	private int upsertSector(DbConnection c, int idArea, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
@@ -191,6 +190,6 @@ public class FillProblems {
 		}
 		Sector s = new Sector(null, false, idArea, false, false, null, null, false, idArea, idArea, null, null, -1, false, false, false, d.getSector(), null, null, null, null, null, null, null, null, null, null, null, 0);
 		Redirect r = c.getBuldreinfoRepo().setSector(AUTH_USER_ID, false, MetaHelper.getMeta().getSetup(REGION_ID), s, null);
-		return r.getIdSector();
+		return r.idSector();
 	}
 }

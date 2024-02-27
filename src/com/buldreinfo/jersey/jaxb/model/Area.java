@@ -128,25 +128,7 @@ public class Area {
 		}
 	}
 
-	public class AreaSectorOrder {
-		private final int id;
-		private final String name;
-		private final int sorting;
-		public AreaSectorOrder(int id, String name, int sorting) {
-			this.id = id;
-			this.name = name;
-			this.sorting = sorting;
-		}
-		public int getId() {
-			return id;
-		}
-		public String getName() {
-			return name;
-		}
-		public int getSorting() {
-			return sorting;
-		}
-	}
+	public record AreaSectorOrder(int id, String name, int sorting) {}
 
 	private final String redirectUrl;
 	private final int regionId;

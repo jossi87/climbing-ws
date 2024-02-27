@@ -18,8 +18,8 @@ public class GradeConverter {
 	public GradeConverter(List<Grade> grades) {
 		this.grades = grades;
 		for (Grade g : grades) {
-			idLookup.put(g.getId(), g.getGrade());
-			gradeLookup.put(g.getGrade(), g.getId());
+			idLookup.put(g.id(), g.grade());
+			gradeLookup.put(g.grade(), g.id());
 		}
 	}
 	

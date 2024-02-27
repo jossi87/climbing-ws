@@ -1,39 +1,23 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public class Redirect {
-	private final int idArea;
-	private final int idSector;
-	private final String redirectUrl;
-	private final String destination;
-
-	public Redirect(String redirectUrl, int idArea, int idSector, int idProblem) {
-		this.idArea = idArea;
-		this.idSector = idSector;
-		this.redirectUrl = redirectUrl;
-		if (idArea > 0) {
-			this.destination = "/area/" + idArea;
-		} else if (idSector > 0) {
-			this.destination = "/sector/" + idSector;
-		} else if (idProblem > 0) {
-			this.destination = "/problem/" + idProblem;
-		} else {
-			this.destination = "/";
-		}
+public record Redirect(int idArea, int idSector, String redirectUrl, String destination) {
+	public static Redirect fromRedirectUrl(String redirectUrl) {
+		return new Redirect(0, 0, redirectUrl, null);
 	}
 	
-	public int getIdArea() {
-		return idArea;
+	public static Redirect fromRoot() {
+		return new Redirect(0, 0, null, "/");
 	}
 	
-	public int getIdSector() {
-		return idSector;
+	public static Redirect fromIdArea(int idArea) {
+		return new Redirect(idArea, 0, null, "/area/" + idArea);
 	}
-
-	public String getRedirectUrl() {
-		return redirectUrl;
+	
+	public static Redirect fromIdSector(int idSector) {
+		return new Redirect(0, idSector, null, "/sector/" + idSector);
 	}
-
-	public String getDestination() {
-		return destination;
+	
+	public static Redirect fromIdProblem(int idProblem) {
+		return new Redirect(0, 0, null, "/problem/" + idProblem);
 	}
 }

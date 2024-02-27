@@ -59,48 +59,56 @@ import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
-import com.buldreinfo.jersey.jaxb.model.Dangerous;
+import com.buldreinfo.jersey.jaxb.model.DangerousArea;
+import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
+import com.buldreinfo.jersey.jaxb.model.DangerousSector;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
-import com.buldreinfo.jersey.jaxb.model.FaUser;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMediaUser;
 import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
+import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.Problem.ProblemComment;
-import com.buldreinfo.jersey.jaxb.model.Problem.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemArea;
+import com.buldreinfo.jersey.jaxb.model.ProblemAreaProblem;
+import com.buldreinfo.jersey.jaxb.model.ProblemAreaSector;
+import com.buldreinfo.jersey.jaxb.model.ProblemComment;
+import com.buldreinfo.jersey.jaxb.model.ProblemSection;
+import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.ProfileMedia;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodoArea;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodoProblem;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodoSector;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
+import com.buldreinfo.jersey.jaxb.model.SectorProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.Site;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.TodoProblem;
+import com.buldreinfo.jersey.jaxb.model.TodoSector;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
+import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
-import com.buldreinfo.jersey.jaxb.model.UserSearch;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -139,7 +147,7 @@ public class BuldreinfoRepository {
 			final int idSector = 0;
 			final int idArea = 0;
 			final int idGuestbook = 0;
-			addNewMedia(authUserId, p.getId(), m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
+			addNewMedia(authUserId, p.getId(), m.pitch(), m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 		}
 		fillActivity(p.getId());
 	}
@@ -660,9 +668,9 @@ public class BuldreinfoRepository {
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaArea(authUserId, reqId, false);
 					if (allMedia != null && allMedia.size() > 0) {
-						media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
+						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
-							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
+							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
 					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, hits);
@@ -672,8 +680,8 @@ public class BuldreinfoRepository {
 		if (a == null) {
 			// Area not found, see if it's visible on a different domain
 			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(reqId, 0, 0);
-			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-				return new Area(res.getRedirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, 0);
+			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, 0);
 			}
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
@@ -702,7 +710,7 @@ public class BuldreinfoRepository {
 						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
 						List<Media> x = getMediaSector(s, authUserId, id, 0, inherited, 0, 0, showHiddenMedia);
 						if (!x.isEmpty()) {
-							randomMediaId = x.get(0).getId();
+							randomMediaId = x.get(0).id();
 						}
 					}
 					Area.AreaSector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaCrc32);
@@ -880,7 +888,7 @@ public class BuldreinfoRepository {
 			ps.setInt(1, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res = new Redirect(rst.getString("url"), 0, 0, 0);
+					res = Redirect.fromRedirectUrl(rst.getString("url"));
 				}
 			}
 		}
@@ -930,9 +938,9 @@ public class BuldreinfoRepository {
 		return res.values();
 	}
 
-	public Collection<Dangerous> getDangerous(int authUserId, Setup setup) throws SQLException {
-		Map<Integer, Dangerous> areasLookup = new LinkedHashMap<>();
-		Map<Integer, Dangerous.DangerousSector> sectorLookup = new HashMap<>();
+	public Collection<DangerousArea> getDangerous(int authUserId, Setup setup) throws SQLException {
+		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
+		Map<Integer, DangerousSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.broken problem_broken, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message FROM ((((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin, u.firstname, u.lastname, g.post_time, g.message ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
@@ -941,7 +949,7 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					Dangerous a = areasLookup.get(areaId);
+					DangerousArea a = areasLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
@@ -949,12 +957,12 @@ public class BuldreinfoRepository {
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new Dangerous(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour);
+						a = new DangerousArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 						areasLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					Dangerous.DangerousSector s = sectorLookup.get(sectorId);
+					DangerousSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -962,7 +970,8 @@ public class BuldreinfoRepository {
 						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin);
+						s = new DangerousSector(sectorId, sectorUrl, sectorName, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
@@ -977,7 +986,7 @@ public class BuldreinfoRepository {
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.getGradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt);
+					s.problems().add(new DangerousProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.getGradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
 				}
 			}
 		}
@@ -1070,8 +1079,8 @@ public class BuldreinfoRepository {
 					int grade = rst.getInt("grade");
 					String photographerJson = rst.getString("photographer");
 					String taggedJson = rst.getString("tagged");
-					FrontpageRandomMediaUser photographer = photographerJson == null? null : gson.fromJson(photographerJson, FrontpageRandomMediaUser.class);
-					List<FrontpageRandomMediaUser> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<FrontpageRandomMediaUser>>(){}.getType());
+					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
+					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<User>>(){}.getType());
 					res = new FrontpageRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.getGradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
 				}
 			}
@@ -1154,8 +1163,8 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, null);
 				}
 			}
 		}
@@ -1210,9 +1219,9 @@ public class BuldreinfoRepository {
 		List<Integer> todoIdProblems = new ArrayList<>();
 		ProfileTodo todo = getProfileTodo(authUserId, s, authUserId);
 		if (todo != null) {
-			for (ProfileTodo.ProfileTodoArea ta : todo.getAreas()) {
-				for (ProfileTodo.ProfileTodoSector ts : ta.getSectors()) {
-					for (ProfileTodo.ProfileTodoProblem tp : ts.getProblems()) {
+			for (ProfileTodoArea ta : todo.areas()) {
+				for (ProfileTodoSector ts : ta.sectors()) {
+					for (ProfileTodoProblem tp : ts.problems()) {
 						todoIdProblems.add(tp.getId());
 					}
 				}
@@ -1276,7 +1285,7 @@ public class BuldreinfoRepository {
 					String rock = rst.getString("rock");
 					String comment = rst.getString("description");
 					String faStr = rst.getString("fa");
-					List<FaUser> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<FaUser>>(){}.getType());
+					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<User>>(){}.getType());
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					int numTicks = rst.getInt("num_ticks");
@@ -1286,9 +1295,9 @@ public class BuldreinfoRepository {
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaProblem(s, authUserId, sectorId, id, showHiddenMedia);
 					if (allMedia != null && allMedia.size() > 0) {
-						media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
+						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
-							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
+							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
@@ -1305,11 +1314,11 @@ public class BuldreinfoRepository {
 					if (problems.size() > 1) {
 						for (int i = 0; i < problems.size(); i++) {
 							SectorProblem prob = problems.get(i);
-							if (prob.getId() == id) {
+							if (prob.id() == id) {
 								neighbourPrev = problems.get((i == 0? problems.size()-1 : i-1));
 								neighbourNext = problems.get((i == problems.size()-1? 0 : i+1));
-								if (neighbourPrev.getId() == neighbourNext.getId()) {
-									if (nr < neighbourPrev.getNr()) {
+								if (neighbourPrev.id() == neighbourNext.id()) {
+									if (nr < neighbourPrev.nr()) {
 										neighbourPrev = null;
 									}
 									else {
@@ -1335,14 +1344,14 @@ public class BuldreinfoRepository {
 		if (p == null) {
 			// Poblem not found, see if it's visible on a different domain
 			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, 0, reqId);
-			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-				return new Problem(res.getRedirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
+			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
 			}
 		}
 
 		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
 		// Ascents
-		Map<Integer, Problem.ProblemTick> tickLookup = new HashMap<>();
+		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
 		sqlStr = "SELECT t.id id_tick, u.id id_user, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade FROM tick t, user u WHERE t.problem_id=? AND t.user_id=u.id ORDER BY t.date DESC, t.id DESC";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, p.getId());
@@ -1365,7 +1374,7 @@ public class BuldreinfoRepository {
 						grade = s.getGradeConverter().getGradeFromIdGrade(idGrade);
 					}
 					boolean writable = idUser == authUserId;
-					Problem.ProblemTick t = p.addTick(id, idUser, picture, date, name, grade, noPersonalGrade, comment, stars, writable);
+					ProblemTick t = p.addTick(id, idUser, picture, date, name, grade, noPersonalGrade, comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
@@ -1432,7 +1441,7 @@ public class BuldreinfoRepository {
 					int grade = rst.getInt("grade");
 					List<Media> sectionMedia = new ArrayList<>();
 					if (p.getMedia() != null) {
-						sectionMedia = p.getMedia().stream().filter(x -> x.getPitch() == nr).collect(Collectors.toList());
+						sectionMedia = p.getMedia().stream().filter(x -> x.pitch() == nr).collect(Collectors.toList());
 						p.getMedia().removeAll(sectionMedia);
 					}
 					p.addSection(id, nr, description, s.getGradeConverter().getGradeFromIdGrade(grade), sectionMedia);
@@ -1450,15 +1459,15 @@ public class BuldreinfoRepository {
 						String aidDescription = rst.getString("aid_description");
 						FaAid faAid = p.getFaAid();
 						if (faAid == null) {
-							faAid = new FaAid(p.getId(), aidDate, aidDateHr, aidDescription);
+							faAid = new FaAid(p.getId(), aidDate, aidDateHr, aidDescription, new ArrayList<>());
 							p.setFaAid(faAid);
 						}
 						int userId = rst.getInt("id");
 						if (userId != 0) {
 							String userName = rst.getString("name");
 							String picture = rst.getString("picture");
-							FaUser user = new FaUser(userId, userName, picture);
-							faAid.getUsers().add(user);
+							User user = User.from(userId, userName, picture);
+							faAid.users().add(user);
 						}
 					}
 				}
@@ -1471,7 +1480,7 @@ public class BuldreinfoRepository {
 	public List<ProblemArea> getProblemsList(int authUserId, Setup setup) throws IOException, SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
-		Map<Integer, ProblemArea.ProblemAreaSector> sectorLookup = new HashMap<>();
+		Map<Integer, ProblemAreaSector> sectorLookup = new HashMap<>();
 		String sqlStr = "SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,"
 				+ " group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,"
 				+ " COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,"
@@ -1503,12 +1512,12 @@ public class BuldreinfoRepository {
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new ProblemArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour);
+						a = new ProblemArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 						areaLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProblemArea.ProblemAreaSector s = sectorLookup.get(sectorId);
+					ProblemAreaSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -1519,7 +1528,8 @@ public class BuldreinfoRepository {
 						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin);
+						s = new ProblemAreaSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
@@ -1540,7 +1550,8 @@ public class BuldreinfoRepository {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					s.addProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numTicks, stars, ticked, t, numPitches);
+					ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numTicks, stars, ticked, t, numPitches);
+					s.problems().add(p);
 				}
 			}
 		}
@@ -1548,13 +1559,12 @@ public class BuldreinfoRepository {
 			// Fill sector outlines
 			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(sectorLookup.keySet());
 			for (int idSector : idSectorOutline.keySet()) {
-				List<Coordinates> outline = Lists.newArrayList(idSectorOutline.get(idSector));
-				sectorLookup.get(idSector).setOutline(outline);
+				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		List<ProblemArea> res = Lists.newArrayList(areaLookup.values());
-		res.sort(Comparator.comparing(ProblemArea::getName));
+		res.sort(Comparator.comparing(ProblemArea::name));
 		res.forEach(a -> a.orderSectors());
 		logger.debug("getProblemsList(authUserId={}, setup={}) - res.size()={} - duration={}", authUserId, setup, res.size(), stopwatch);
 		return res;
@@ -1579,9 +1589,9 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<ProfileMedia> getProfileMediaCapturedArea(int authUserId, Setup setup, int reqId) throws SQLException {
+	public List<Media> getProfileMediaCapturedArea(int authUserId, Setup setup, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, MAX(a.name) location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(a.id) area_id FROM ((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_area ma ON m.id=ma.media_id) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
-		List<ProfileMedia> res = new ArrayList<>();
+		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -1605,9 +1615,9 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					int areaId = rst.getInt("area_id");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/area/" + areaId;
-					ProfileMedia m = new ProfileMedia(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1615,9 +1625,9 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<ProfileMedia> getProfileMediaCapturedSector(int authUserId, Setup setup, int reqId) throws SQLException {
+	public List<Media> getProfileMediaCapturedSector(int authUserId, Setup setup, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(s.id) sector_id  FROM (((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_sector ms ON m.id=ms.media_id) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
-		List<ProfileMedia> res = new ArrayList<>();
+		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -1641,9 +1651,9 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					int sectorId = rst.getInt("sector_id");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/sector/" + sectorId;
-					ProfileMedia m = new ProfileMedia(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1651,7 +1661,7 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<ProfileMedia> getProfileMediaProblem(int authUserId, Setup setup, int reqId, boolean captured) throws SQLException {
+	public List<Media> getProfileMediaProblem(int authUserId, Setup setup, int reqId, boolean captured) throws SQLException {
 		String sqlStr = null;
 		if (captured) {
 			sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id  FROM ((((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
@@ -1659,7 +1669,7 @@ public class BuldreinfoRepository {
 		else {
 			sqlStr = "SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged, m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC";
 		}
-		List<ProfileMedia> res = new ArrayList<>();
+		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId);
@@ -1683,9 +1693,9 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					int problemId = rst.getInt("problem_id");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/problem/" + problemId;
-					ProfileMedia m = new ProfileMedia(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1860,12 +1870,12 @@ public class BuldreinfoRepository {
 
 	public ProfileTodo getProfileTodo(int authUserId, Setup setup, int reqId) throws SQLException {
 		final int userId = reqId > 0? reqId : authUserId;
-		ProfileTodo res = new ProfileTodo();
+		ProfileTodo res = new ProfileTodo(new ArrayList<>());
 
 		// Build lists
-		Map<Integer, ProfileTodo.ProfileTodoArea> areaLookup = new HashMap<>();
-		Map<Integer, ProfileTodo.ProfileTodoSector> sectorLookup = new HashMap<>();
-		Map<Integer, ProfileTodo.ProfileTodoProblem> problemLookup = new HashMap<>();
+		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
+		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
+		Map<Integer, ProfileTodoProblem> problemLookup = new HashMap<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY r.url, t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId);
 			ps.setInt(2, setup.getIdRegion());
@@ -1875,24 +1885,26 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Area
 					int areaId = rst.getInt("area_id");
-					ProfileTodo.ProfileTodoArea a = areaLookup.get(areaId);
+					ProfileTodoArea a = areaLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = res.addArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin);
+						a = new ProfileTodoArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin, new ArrayList<>());
+						res.areas().add(a);
 						areaLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProfileTodo.ProfileTodoSector s = sectorLookup.get(sectorId);
+					ProfileTodoSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = a.addSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						s = new ProfileTodoSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
@@ -1904,7 +1916,8 @@ public class BuldreinfoRepository {
 					int problemGrade = rst.getInt("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodo.ProfileTodoProblem p = s.addProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
+					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
+					s.problems().add(p);
 					problemLookup.put(problemId, p);
 				}
 			}
@@ -1919,7 +1932,7 @@ public class BuldreinfoRepository {
 						int problemId = rst.getInt("problem_id");
 						int id = rst.getInt("id");
 						String name = rst.getString("name");
-						problemLookup.get(problemId).addPartner(id, name);
+						problemLookup.get(problemId).getPartners().add(User.from(id, name));
 					}
 				}
 			}
@@ -1933,7 +1946,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		res.getAreas().sort(Comparator.comparing(ProfileTodo.ProfileTodoArea::getName));
+		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
 		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
 		return res;
 	}
@@ -1951,8 +1964,8 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					V1Region r = new V1Region(id, name);
-					regionMap.put(r.getId(), r);
+					V1Region r = new V1Region(id, name, new ArrayList<>());
+					regionMap.put(r.id(), r);
 				}
 			}
 		}
@@ -1969,9 +1982,9 @@ public class BuldreinfoRepository {
 						String comment = rst.getString("description");
 						double latitude = rst.getDouble("latitude");
 						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Area a = new com.buldreinfo.jersey.jaxb.model.v1.V1Area(regionId, id, name, comment, latitude, longitude);
-						r.getAreas().add(a);
-						areaMap.put(a.getId(), a);
+						com.buldreinfo.jersey.jaxb.model.v1.V1Area a = new com.buldreinfo.jersey.jaxb.model.v1.V1Area(regionId, id, name, comment, latitude, longitude, new ArrayList<>());
+						r.areas().add(a);
+						areaMap.put(a.id(), a);
 					}
 				}
 			}
@@ -1989,9 +2002,9 @@ public class BuldreinfoRepository {
 						String comment = rst.getString("description");
 						double latitude = rst.getDouble("latitude");
 						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = new com.buldreinfo.jersey.jaxb.model.v1.V1Sector(areaId, id, name, comment, latitude, longitude);
-						a.getSectors().add(s);
-						sectorMap.put(s.getId(), s);
+						com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = new com.buldreinfo.jersey.jaxb.model.v1.V1Sector(areaId, id, name, comment, latitude, longitude, new ArrayList<>(), new ArrayList<>());
+						a.sectors().add(s);
+						sectorMap.put(s.id(), s);
 					}
 				}
 			}
@@ -2012,9 +2025,9 @@ public class BuldreinfoRepository {
 						String fa = rst.getString("fa");
 						double latitude = rst.getDouble("latitude");
 						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = new com.buldreinfo.jersey.jaxb.model.v1.V1Problem(sectorId, id, nr, name, comment, grade, fa, latitude, longitude);
-						s.getProblems().add(p);
-						problemMap.put(p.getId(), p);
+						com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = new com.buldreinfo.jersey.jaxb.model.v1.V1Problem(sectorId, id, nr, name, comment, grade, fa, latitude, longitude, new ArrayList<>());
+						s.problems().add(p);
+						problemMap.put(p.id(), p);
 					}
 				}
 			}
@@ -2029,7 +2042,7 @@ public class BuldreinfoRepository {
 					if (s != null) {
 						int id = rst.getInt("id");
 						boolean isMovie = rst.getBoolean("is_movie");
-						s.getMedia().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, 0));
+						s.media().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, 0));
 					}
 				}
 			}
@@ -2045,7 +2058,7 @@ public class BuldreinfoRepository {
 						int id = rst.getInt("id");
 						boolean isMovie = rst.getBoolean("is_movie");
 						int t = rst.getInt("t");
-						p.getMedia().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, t));
+						p.media().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, t));
 					}
 				}
 			}
@@ -2277,7 +2290,7 @@ public class BuldreinfoRepository {
 					String name = rst.getString("name");
 					String url = rst.getString("url");
 					boolean active = idRegion == currIdRegion;
-					regionLookup.put(idRegion, new Site(group, name, url, active));
+					regionLookup.put(idRegion, new Site(group, name, url, active, new ArrayList<>()));
 				}
 			}
 		}
@@ -2286,7 +2299,7 @@ public class BuldreinfoRepository {
 			Multimap<Integer, Coordinates> idRegionOutline = getRegionOutlines(regionLookup.keySet());
 			for (int idRegion : idRegionOutline.keySet()) {
 				List<Coordinates> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
-				regionLookup.get(idRegion).setOutline(outline);
+				regionLookup.get(idRegion).outline().addAll(outline);
 			}
 		}
 		return Lists.newArrayList(regionLookup.values());
@@ -2340,9 +2353,9 @@ public class BuldreinfoRepository {
 	}
 
 	public Todo getTodo(int authUserId, Setup setup, int idArea, int idSector) throws SQLException {
-		Todo res = new Todo();
-		Map<Integer, Todo.TodoSector> sectorLookup = new HashMap<>();
-		Map<Integer, Todo.TodoProblem> problemLookup = new HashMap<>();
+		Todo res = new Todo(new ArrayList<>());
+		Map<Integer, TodoSector> sectorLookup = new HashMap<>();
+		Map<Integer, TodoProblem> problemLookup = new HashMap<>();
 		String condition = null;
 		int id = 0;
 		if (idSector > 0) {
@@ -2371,30 +2384,32 @@ public class BuldreinfoRepository {
 				while (rst.next()) {
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					Todo.TodoSector s = sectorLookup.get(sectorId);
+					TodoSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorName = rst.getString("sector_name");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = res.addSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin);
+						s = new TodoSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						res.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
 					int problemId = rst.getInt("problem_id");
-					Todo.TodoProblem p = problemLookup.get(problemId);
+					TodoProblem p = problemLookup.get(problemId);
 					if (p == null) {
 						int problemNr = rst.getInt("problem_nr");
 						String problemName = rst.getString("problem_name");
 						int problemGrade = rst.getInt("problem_grade");
 						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-						p = s.addProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
+						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade), new ArrayList<>());
+						s.problems().add(p);
 						problemLookup.put(problemId, p);
 					}
 					// Partner
 					int userId = rst.getInt("user_id");
 					String userName = rst.getString("user_name");
-					p.addPartner(userId, userName);
+					p.partners().add(User.from(userId, userName));
 				}
 			}
 		}
@@ -2569,18 +2584,18 @@ public class BuldreinfoRepository {
 		return res;
 	}
 
-	public List<UserSearch> getUserSearch(int authUserId, String value) throws SQLException {
+	public List<User> getUserSearch(int authUserId, String value) throws SQLException {
 		if (authUserId == -1) {
 			throw new SQLException("User not logged in...");
 		}
-		List<UserSearch> res = new ArrayList<>();
+		List<User> res = new ArrayList<>();
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE CONCAT(' %',?,'%') ORDER BY firstname, lastname")) {
 			ps.setString(1, value);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					res.add(new UserSearch(id, name));
+					res.add(User.from(id, name));
 				}
 			}
 		}
@@ -2839,7 +2854,7 @@ public class BuldreinfoRepository {
 
 	public void rotateMedia(int idRegion, int authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		// Rotate allowed for administrators + user who uploaded specific image
-		boolean uploadedByMe = getMedia(authUserId, idMedia).isUploadedByMe();
+		boolean uploadedByMe = getMedia(authUserId, idMedia).uploadedByMe();
 		if (!uploadedByMe) {
 			ensureAdminWriteRegion(authUserId, idRegion);
 		}
@@ -2902,8 +2917,8 @@ public class BuldreinfoRepository {
 			if (a.getSectorOrder() != null) {
 				for (AreaSectorOrder x : a.getSectorOrder()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE sector SET sorting=? WHERE id=?")) {
-						ps.setInt(1, x.getSorting());
-						ps.setInt(2, x.getId());
+						ps.setInt(1, x.sorting());
+						ps.setInt(2, x.id());
 						ps.execute();
 					}
 				}
@@ -2961,13 +2976,13 @@ public class BuldreinfoRepository {
 				final int pitch = 0;
 				final int idSector = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
+				addNewMedia(authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		if (a.isTrash()) {
-			return new Redirect(null, 0, 0, 0);
+			return Redirect.fromRoot();
 		}
-		return new Redirect(null, idArea, 0, 0);
+		return Redirect.fromIdArea(idArea);
 	}
 
 	public void setMediaMetadata(int idMedia, int height, int width, String dateTaken) throws SQLException, IOException {
@@ -3017,7 +3032,7 @@ public class BuldreinfoRepository {
 				ps.setBoolean(9, isLockedAdmin);
 				ps.setBoolean(10, p.isLockedSuperadmin());
 				ps.setInt(11, p.getNr());
-				ps.setInt(12, p.getT().getId());
+				ps.setInt(12, p.getT().id());
 				ps.setString(13, trimString(p.getTrivia()));
 				ps.setString(14, trimString(p.getStartingAltitude()));
 				ps.setString(15, trimString(p.getAspect()));
@@ -3045,8 +3060,8 @@ public class BuldreinfoRepository {
 				ps.setString(9, p.getBroken());
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.isLockedSuperadmin());
-				ps.setInt(12, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.getNr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(13, p.getT().getId());
+				ps.setInt(12, p.getNr() == 0 ? getSector(authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(13, p.getT().id());
 				ps.setString(14, trimString(p.getTrivia()));
 				ps.setString(15, trimString(p.getStartingAltitude()));
 				ps.setString(16, trimString(p.getAspect()));
@@ -3078,7 +3093,7 @@ public class BuldreinfoRepository {
 				final int idSector = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, m.getPitch(), m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
+				addNewMedia(authUserId, idProblem, m.pitch(), m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		// FA
@@ -3092,20 +3107,20 @@ public class BuldreinfoRepository {
 					}
 				}
 			}
-			for (FaUser x : p.getFa()) {
-				Preconditions.checkArgument(x.getId() != 0);
-				if (x.getId() > 0) { // Existing user
-					boolean exists = fas.remove(x.getId());
+			for (User x : p.getFa()) {
+				Preconditions.checkArgument(x.id() != 0);
+				if (x.id() > 0) { // Existing user
+					boolean exists = fas.remove(x.id());
 					if (!exists) {
 						try (PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 							ps2.setInt(1, idProblem);
-							ps2.setInt(2, x.getId());
+							ps2.setInt(2, x.id());
 							ps2.execute();
 						}
 					}
 				} else { // New user
 					final boolean autoCommit = false;
-					int idUser = addUser(null, x.getName(), null, null, autoCommit);
+					int idUser = addUser(null, x.name(), null, null, autoCommit);
 					Preconditions.checkArgument(idUser > 0);
 					try (PreparedStatement ps2 = c.getConnection().prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
@@ -3138,9 +3153,9 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade) VALUES (?, ?, ?, ?)")) {
 				for (ProblemSection section : p.getSections()) {
 					ps.setInt(1, idProblem);
-					ps.setInt(2, section.getNr());
-					ps.setString(3, trimString(section.getDescription()));
-					ps.setInt(4, s.getGradeConverter().getIdGradeFromGrade(section.getGrade()));
+					ps.setInt(2, section.nr());
+					ps.setString(3, trimString(section.description()));
+					ps.setInt(4, s.getGradeConverter().getIdGradeFromGrade(section.grade()));
 					ps.addBatch();
 				}
 				ps.executeBatch();
@@ -3158,23 +3173,23 @@ public class BuldreinfoRepository {
 			}
 			if (p.getFaAid() != null) {
 				FaAid faAid = p.getFaAid();
-				final Date aidDt = Strings.isNullOrEmpty(faAid.getDate()) ? null : new Date(sdf.parse(faAid.getDate()).getTime());
+				final Date aidDt = Strings.isNullOrEmpty(faAid.date()) ? null : new Date(sdf.parse(faAid.date()).getTime());
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
-					ps.setInt(1, faAid.getProblemId());
+					ps.setInt(1, faAid.problemId());
 					ps.setDate(2, aidDt);
-					ps.setString(3, trimString(faAid.getDescription()));
+					ps.setString(3, trimString(faAid.description()));
 					ps.execute();
 				}
-				if (!faAid.getUsers().isEmpty()) {
+				if (!faAid.users().isEmpty()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)")) {
-						for (FaUser u : faAid.getUsers()) {
-							int idUser = u.getId();
+						for (User u : faAid.users()) {
+							int idUser = u.id();
 							if (idUser <= 0) {
 								final boolean autoCommit = false;
-								idUser = addUser(null, u.getName(), null, null, autoCommit);
+								idUser = addUser(null, u.name(), null, null, autoCommit);
 							}
 							Preconditions.checkArgument(idUser > 0);
-							ps.setInt(1, faAid.getProblemId());
+							ps.setInt(1, faAid.problemId());
 							ps.setInt(2, idUser);
 							ps.addBatch();
 						}
@@ -3185,9 +3200,9 @@ public class BuldreinfoRepository {
 		}
 		fillActivity(idProblem);
 		if (p.isTrash()) {
-			return new Redirect(null, 0, p.getSectorId(), 0);
+			return Redirect.fromIdSector(p.getSectorId());
 		}
-		return new Redirect(null, 0, 0, idProblem);
+		return Redirect.fromIdProblem(idProblem);
 	}
 
 	public Redirect setSector(int authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
@@ -3198,8 +3213,8 @@ public class BuldreinfoRepository {
 		if (s.getOutline() != null && !s.getOutline().isEmpty()) {
 			allCoordinates.addAll(s.getOutline());
 		}
-		if (s.getApproach() != null && s.getApproach().getCoordinates() != null && !s.getApproach().getCoordinates().isEmpty()) {
-			allCoordinates.addAll(s.getApproach().getCoordinates());
+		if (s.getApproach() != null && s.getApproach().coordinates() != null && !s.getApproach().coordinates().isEmpty()) {
+			allCoordinates.addAll(s.getApproach().coordinates());
 		}
 		if (s.getParking() != null) {
 			if (s.getParking().getLatitude() == 0 || s.getParking().getLongitude() == 0) {
@@ -3223,8 +3238,8 @@ public class BuldreinfoRepository {
 				ps.setBoolean(6, isLockedAdmin);
 				ps.setBoolean(7, s.isLockedSuperadmin());
 				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.getOutline());
-				setNullablePositiveInteger(ps, 8, calculatedWallDirection != null? calculatedWallDirection.getId() : 0);
-				setNullablePositiveInteger(ps, 9, s.getWallDirectionManual() != null? s.getWallDirectionManual().getId() : 0);
+				setNullablePositiveInteger(ps, 8, calculatedWallDirection != null? calculatedWallDirection.id() : 0);
+				setNullablePositiveInteger(ps, 9, s.getWallDirectionManual() != null? s.getWallDirectionManual().id() : 0);
 				ps.setBoolean(10, s.isTrash());
 				ps.setInt(11, s.isTrash()? authUserId : 0);
 				ps.setInt(12, s.getId());
@@ -3240,8 +3255,8 @@ public class BuldreinfoRepository {
 			if (s.getProblemOrder() != null) {
 				for (SectorProblemOrder x : s.getProblemOrder()) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
-						ps.setInt(1, x.getNr());
-						ps.setInt(2, x.getId());
+						ps.setInt(1, x.nr());
+						ps.setInt(2, x.id());
 						ps.execute();
 					}
 				}
@@ -3279,8 +3294,8 @@ public class BuldreinfoRepository {
 				ps.setBoolean(8, isLockedAdmin);
 				ps.setBoolean(9, s.isLockedSuperadmin());
 				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.getOutline());
-				setNullablePositiveInteger(ps, 10, calculatedWallDirection != null? calculatedWallDirection.getId() : 0);
-				setNullablePositiveInteger(ps, 11, s.getWallDirectionManual() != null? s.getWallDirectionManual().getId() : 0);
+				setNullablePositiveInteger(ps, 10, calculatedWallDirection != null? calculatedWallDirection.id() : 0);
+				setNullablePositiveInteger(ps, 11, s.getWallDirectionManual() != null? s.getWallDirectionManual().id() : 0);
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -3316,7 +3331,7 @@ public class BuldreinfoRepository {
 			}
 		}
 		// Approach
-		if (s.getApproach() == null || s.getApproach().getCoordinates() == null || s.getApproach().getCoordinates().isEmpty()) {
+		if (s.getApproach() == null || s.getApproach().coordinates() == null || s.getApproach().coordinates().isEmpty()) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_approach WHERE sector_id=?")) {
 				ps.setInt(1, idSector);
 				ps.execute();
@@ -3324,12 +3339,12 @@ public class BuldreinfoRepository {
 		} else {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM sector_approach WHERE sector_id=? AND sorting>?")) {
 				ps.setInt(1, idSector);
-				ps.setInt(2, s.getApproach().getCoordinates().size());
+				ps.setInt(2, s.getApproach().coordinates().size());
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
 				int sorting = 0;
-				for (Coordinates coord : s.getApproach().getCoordinates()) {
+				for (Coordinates coord : s.getApproach().coordinates()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
@@ -3347,15 +3362,15 @@ public class BuldreinfoRepository {
 				final int idProblem = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(authUserId, idProblem, pitch, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
+				addNewMedia(authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
 		Redirect res = null;
 		if (s.isTrash()) {
-			res = new Redirect(null, s.getAreaId(), 0, 0);
+			res = Redirect.fromIdArea(s.getAreaId());
 		}
 		else {
-			res = new Redirect(null, 0, idSector, 0);
+			res = Redirect.fromIdSector(idSector);
 		}
 		logger.debug("setSector() - res={}", res);
 		return res;
@@ -3367,59 +3382,59 @@ public class BuldreinfoRepository {
 		// Remove from project list (if existing)
 		try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM todo WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, authUserId);
-			ps.setInt(2, t.getIdProblem());
+			ps.setInt(2, t.idProblem());
 			ps.execute();
 		}
-		final Date dt = Strings.isNullOrEmpty(t.getDate()) ? null : new Date(sdf.parse(t.getDate()).getTime());
+		final Date dt = Strings.isNullOrEmpty(t.date()) ? null : new Date(sdf.parse(t.date()).getTime());
 		logger.debug("setTick(authUserId={}, dt={}, t={}", authUserId, dt, t);
-		if (t.isDelete()) {
-			Preconditions.checkArgument(t.getId() > 0, "Cannot delete a tick without id");
+		if (t.delete()) {
+			Preconditions.checkArgument(t.id() > 0, "Cannot delete a tick without id");
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?")) {
-				ps.setInt(1, t.getId());
+				ps.setInt(1, t.id());
 				ps.setInt(2, authUserId);
-				ps.setInt(3, t.getIdProblem());
+				ps.setInt(3, t.idProblem());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 				}
 			}
 		}
-		else if (t.getId() == -1) {
+		else if (t.id() == -1) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
-				ps.setInt(1, t.getIdProblem());
+				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId);
 				ps.setDate(3, dt);
-				ps.setInt(4, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
-				ps.setString(5, trimString(t.getComment()));
-				ps.setDouble(6, t.getStars());
+				ps.setInt(4, setup.getGradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setString(5, trimString(t.comment()));
+				ps.setDouble(6, t.stars());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
 						int idTick = rst.getInt(1);
-						upsertTickRepeats(idTick, t.getRepeats());
+						upsertTickRepeats(idTick, t.repeats());
 					}
 				}
 			}
 		}
-		else if (t.getId() > 0) {
+		else if (t.id() > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
-				ps.setInt(2, setup.getGradeConverter().getIdGradeFromGrade(t.getGrade()));
-				ps.setString(3, trimString(t.getComment()));
-				ps.setDouble(4, t.getStars());
-				ps.setInt(5, t.getId());
-				ps.setInt(6, t.getIdProblem());
+				ps.setInt(2, setup.getGradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setString(3, trimString(t.comment()));
+				ps.setDouble(4, t.stars());
+				ps.setInt(5, t.id());
+				ps.setInt(6, t.idProblem());
 				ps.setInt(7, authUserId);
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 				}
-				upsertTickRepeats(t.getId(), t.getRepeats());
+				upsertTickRepeats(t.id(), t.repeats());
 			}
 		} else {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
-		fillActivity(t.getIdProblem());
+		fillActivity(t.idProblem());
 	}
 
 	public void setUserRegion(int authUserId, int regionId, boolean delete) throws SQLException {
@@ -3500,10 +3515,10 @@ public class BuldreinfoRepository {
 		int problemId = 0;
 		try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id FROM ((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)) LEFT JOIN media_area ma ON (a.id=ma.area_id AND ma.media_id=?) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) LEFT JOIN guestbook g ON (p.id=g.problem_id)) LEFT JOIN media_guestbook mg ON (g.id=mg.guestbook_id AND mg.media_id=?)) WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mg.media_id IS NOT NULL GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id")) {
 			ps.setInt(1, authUserId);
-			ps.setInt(2, m.getMediaId());
-			ps.setInt(3, m.getMediaId());
-			ps.setInt(4, m.getMediaId());
-			ps.setInt(5, m.getMediaId());
+			ps.setInt(2, m.mediaId());
+			ps.setInt(3, m.mediaId());
+			ps.setInt(4, m.mediaId());
+			ps.setInt(5, m.mediaId());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
@@ -3515,31 +3530,31 @@ public class BuldreinfoRepository {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 		try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media SET description=? WHERE id=?")) {
-			ps.setString(1, Strings.emptyToNull(m.getDescription()));
-			ps.setInt(2, m.getMediaId());
+			ps.setString(1, Strings.emptyToNull(m.description()));
+			ps.setInt(2, m.mediaId());
 			ps.execute();
 		}
 		if (areaId > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_area SET trivia=? WHERE media_id=? AND area_id=?")) {
-				ps.setBoolean(1, m.isTrivia());
-				ps.setInt(2, m.getMediaId());
+				ps.setBoolean(1, m.trivia());
+				ps.setInt(2, m.mediaId());
 				ps.setInt(3, areaId);
 				ps.execute();
 			}
 		}
 		else if (sectorId > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_sector SET trivia=? WHERE media_id=? AND sector_id=?")) {
-				ps.setBoolean(1, m.isTrivia());
-				ps.setInt(2, m.getMediaId());
+				ps.setBoolean(1, m.trivia());
+				ps.setInt(2, m.mediaId());
 				ps.setInt(3, sectorId);
 				ps.execute();
 			}
 		}
 		else if (problemId > 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE media_problem SET pitch=?, trivia=? WHERE media_id=? AND problem_id=?")) {
-				ps.setInt(1, m.getPitch());
-				ps.setBoolean(2, m.isTrivia());
-				ps.setInt(3, m.getMediaId());
+				ps.setInt(1, m.pitch());
+				ps.setBoolean(2, m.trivia());
+				ps.setInt(3, m.mediaId());
 				ps.setInt(4, problemId);
 				ps.execute();
 			}
@@ -3548,44 +3563,44 @@ public class BuldreinfoRepository {
 
 	public void upsertComment(int authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId > 0);
-		if (co.getId() > 0) {
-			List<Problem.ProblemComment> comments = getProblem(authUserId, s, co.getIdProblem(), false).getComments();
-			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.getIdProblem());
+		if (co.id() > 0) {
+			List<ProblemComment> comments = getProblem(authUserId, s, co.idProblem(), false).getComments();
+			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
 			boolean commentIsEditableByUser = comments
 					.stream()
-					.filter(x -> x.getId() == co.getId() && x.getIdUser() == authUserId && x.isEditable())
+					.filter(x -> x.getId() == co.id() && x.getIdUser() == authUserId && x.isEditable())
 					.findAny()
 					.isPresent();
 			Preconditions.checkArgument(commentIsEditableByUser, "Comment not editable by " + authUserId);
-			if (co.isDelete()) {
+			if (co.delete()) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM guestbook WHERE id=?")) {
-					ps.setInt(1, co.getId());
+					ps.setInt(1, co.id());
 					ps.execute();
 				}
 			}
 			else {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
-					ps.setString(1, trimString(co.getComment()));
-					ps.setBoolean(2, co.isDanger());
-					ps.setBoolean(3, co.isResolved());
-					ps.setInt(4, co.getId());
+					ps.setString(1, trimString(co.comment()));
+					ps.setBoolean(2, co.danger());
+					ps.setBoolean(3, co.resolved());
+					ps.setInt(4, co.id());
 					ps.execute();
-					if (co.getNewMedia() != null) {
+					if (co.newMedia() != null) {
 						// New media
-						for (NewMedia m : co.getNewMedia()) {
+						for (NewMedia m : co.newMedia()) {
 							final int idProblem = 0;
 							final int idSector = 0;
 							final int idArea = 0;
-							addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, co.getId(), m, multiPart);
+							addNewMedia(authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), m, multiPart);
 						}
 					}
 				}
 			}
 		} else {
-			Preconditions.checkNotNull(trimString(co.getComment()));
+			Preconditions.checkNotNull(trimString(co.comment()));
 			int parentId = 0;
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
-				ps.setInt(1, co.getIdProblem());
+				ps.setInt(1, co.idProblem());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						parentId = rst.getInt(1);
@@ -3594,59 +3609,59 @@ public class BuldreinfoRepository {
 			}
 
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
-				ps.setString(1, trimString(co.getComment()));
-				ps.setInt(2, co.getIdProblem());
+				ps.setString(1, trimString(co.comment()));
+				ps.setInt(2, co.idProblem());
 				ps.setInt(3, authUserId);
 				setNullablePositiveInteger(ps, 4, parentId);
-				ps.setBoolean(5, co.isDanger());
-				ps.setBoolean(6, co.isResolved());
+				ps.setBoolean(5, co.danger());
+				ps.setBoolean(6, co.resolved());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
 						int idGuestbook = rst.getInt(1);
-						if (co.getNewMedia() != null) {
+						if (co.newMedia() != null) {
 							// New media
-							for (NewMedia m : co.getNewMedia()) {
+							for (NewMedia m : co.newMedia()) {
 								final int idProblem = 0;
 								final int idSector = 0;
 								final int idArea = 0;
-								addNewMedia(authUserId, idProblem, 0, m.isTrivia(), idSector, idArea, idGuestbook, m, multiPart);
+								addNewMedia(authUserId, idProblem, 0, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 							}
 						}
 					}
 				}
 			}
 		}
-		fillActivity(co.getIdProblem());
+		fillActivity(co.idProblem());
 	}
 
 	public void upsertMediaSvg(int authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(authUserId, setup.getIdRegion());
 		// Clear existing
 		try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM media_svg WHERE media_id=?")) {
-			ps.setInt(1, m.getId());
+			ps.setInt(1, m.id());
 			ps.execute();
 		}
 		// Insert
-		for (MediaSvgElement element : m.getMediaSvgs()) {
-			if (element.getT().equals(MediaSvgElement.TYPE.PATH)) {
+		for (MediaSvgElement element : m.mediaSvgs()) {
+			if (element.t().equals(MediaSvgElementType.PATH)) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, path) VALUES (?, ?)")) {
-					ps.setInt(1, m.getId());
-					ps.setString(2, element.getPath());
+					ps.setInt(1, m.id());
+					ps.setString(2, element.path());
 					ps.execute();
 				}
 			}
-			else if (element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED) || element.getT().equals(MediaSvgElement.TYPE.RAPPEL_NOT_BOLTED)) {
+			else if (element.t().equals(MediaSvgElementType.RAPPEL_BOLTED) || element.t().equals(MediaSvgElementType.RAPPEL_NOT_BOLTED)) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_svg (media_id, rappel_x, rappel_y, rappel_bolted) VALUES (?, ?, ?, ?)")) {
-					ps.setInt(1, m.getId());
-					ps.setInt(2, element.getRappelX());
-					ps.setInt(3, element.getRappelY());
-					ps.setBoolean(4, element.getT().equals(MediaSvgElement.TYPE.RAPPEL_BOLTED));
+					ps.setInt(1, m.id());
+					ps.setInt(2, element.rappelX());
+					ps.setInt(3, element.rappelY());
+					ps.setBoolean(4, element.t().equals(MediaSvgElementType.RAPPEL_BOLTED));
 					ps.execute();
 				}
 			}
 			else {
-				throw new RuntimeException("Invalid type: " + element.getT());
+				throw new RuntimeException("Invalid type: " + element.t());
 			}
 		}
 	}
@@ -3655,16 +3670,16 @@ public class BuldreinfoRepository {
 		ensureSuperadminWriteRegion(authUserId, regionId);
 		// Upsert
 		try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO user_region (user_id, region_id, admin_read, admin_write, superadmin_read, superadmin_write) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE admin_read=?, admin_write=?, superadmin_read=?, superadmin_write=?")) {
-			ps.setInt(1, u.getUserId());
+			ps.setInt(1, u.userId());
 			ps.setInt(2, regionId);
-			ps.setBoolean(3, u.isAdminRead());
-			ps.setBoolean(4, u.isAdminWrite());
-			ps.setBoolean(5, u.isSuperadminRead());
-			ps.setBoolean(6, u.isSuperadminWrite());
-			ps.setBoolean(7, u.isAdminRead());
-			ps.setBoolean(8, u.isAdminWrite());
-			ps.setBoolean(9, u.isSuperadminRead());
-			ps.setBoolean(10, u.isSuperadminWrite());
+			ps.setBoolean(3, u.adminRead());
+			ps.setBoolean(4, u.adminWrite());
+			ps.setBoolean(5, u.superadminRead());
+			ps.setBoolean(6, u.superadminWrite());
+			ps.setBoolean(7, u.adminRead());
+			ps.setBoolean(8, u.adminWrite());
+			ps.setBoolean(9, u.superadminRead());
+			ps.setBoolean(10, u.superadminWrite());
 			ps.execute();
 		}
 		// region_visible only set by user, if user have not asked to see a specific region --> remove row
@@ -3676,31 +3691,31 @@ public class BuldreinfoRepository {
 	public void upsertSvg(int authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
 		ensureAdminWriteProblem(authUserId, problemId);
 		// Delete/Insert/Update
-		if (svg.isDelete() || trimString(svg.getPath()) == null) {
+		if (svg.delete() || trimString(svg.path()) == null) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
 				ps.execute();
 			}
-		} else if (svg.getId() <= 0) {
+		} else if (svg.id() <= 0) {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor, anchors, texts) VALUES (?, ?, ?, ?, ?, ?)")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				ps.setString(3, svg.getPath());
-				ps.setBoolean(4, svg.isHasAnchor());
-				ps.setString(5, svg.getAnchors());
-				ps.setString(6, svg.getTexts());
+				ps.setString(3, svg.path());
+				ps.setBoolean(4, svg.hasAnchor());
+				ps.setString(5, svg.anchors());
+				ps.setString(6, svg.texts());
 				ps.execute();
 			}
 		} else {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=?, anchors=?, texts=? WHERE id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				ps.setString(3, svg.getPath());
-				ps.setBoolean(4, svg.isHasAnchor());
-				ps.setString(5, svg.getAnchors());
-				ps.setString(6, svg.getTexts());
-				ps.setInt(7, svg.getId());
+				ps.setString(3, svg.path());
+				ps.setBoolean(4, svg.hasAnchor());
+				ps.setString(5, svg.anchors());
+				ps.setString(6, svg.texts());
+				ps.setInt(7, svg.id());
 				ps.execute();
 			}
 		}
@@ -3717,13 +3732,13 @@ public class BuldreinfoRepository {
 		boolean alreadyExistsInDb = false;
 		boolean isMovie = false;
 		String suffix = null;
-		if (Strings.isNullOrEmpty(m.getName())) {
+		if (Strings.isNullOrEmpty(m.name())) {
 			// Embed video url
-			Preconditions.checkNotNull(m.getEmbedThumbnailUrl(), "embedThumbnailUrl required");
-			Preconditions.checkNotNull(m.getEmbedVideoUrl(), "embedVideoUrl required");
+			Preconditions.checkNotNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
+			Preconditions.checkNotNull(m.embedVideoUrl(), "embedVideoUrl required");
 			// First check if video already exists in system, don't duplicate videos!
 			try (PreparedStatement ps = c.getConnection().prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
-				ps.setString(1, m.getEmbedVideoUrl());
+				ps.setString(1, m.embedVideoUrl());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						alreadyExistsInDb = true;
@@ -3746,10 +3761,10 @@ public class BuldreinfoRepository {
 			try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, isMovie);
 				ps.setString(2, suffix);
-				ps.setInt(3, getExistingOrInsertUser(m.getPhotographer()));
+				ps.setInt(3, getExistingOrInsertUser(m.photographer()));
 				ps.setInt(4, idUser);
-				ps.setString(5, trimString(m.getDescription()));
-				ps.setString(6, m.getEmbedVideoUrl());
+				ps.setString(5, trimString(m.description()));
+				ps.setString(6, m.embedVideoUrl());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -3765,7 +3780,7 @@ public class BuldreinfoRepository {
 				ps.setInt(2, idProblem);
 				setNullablePositiveInteger(ps, 3, pitch);
 				ps.setBoolean(4, trivia);
-				ps.setLong(5, m.getEmbedMilliseconds());
+				ps.setLong(5, m.embedMilliseconds());
 				ps.execute();
 			}
 		} else if (idSector > 0) {
@@ -3792,18 +3807,18 @@ public class BuldreinfoRepository {
 			throw new RuntimeException("Server error");
 		}
 		if (!alreadyExistsInDb) {
-			if (!Strings.isNullOrEmpty(m.getInPhoto())) {
+			if (!Strings.isNullOrEmpty(m.inPhoto())) {
 				try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
 					ps.setInt(1, idMedia);
-					ps.setInt(2, getExistingOrInsertUser(m.getInPhoto()));
+					ps.setInt(2, getExistingOrInsertUser(m.inPhoto()));
 					ps.execute();
 				}
 			}
 			if (isMovie) {
-				ImageHelper.saveImageFromEmbedVideo(c, idMedia, m.getEmbedVideoUrl());
+				ImageHelper.saveImageFromEmbedVideo(c, idMedia, m.embedVideoUrl());
 			}
 			else {
-				try (InputStream is = multiPart.getField(m.getName()).getValueAs(InputStream.class)) {
+				try (InputStream is = multiPart.getField(m.name()).getValueAs(InputStream.class)) {
 					byte[] bytes = ByteStreams.toByteArray(is);
 					ImageHelper.saveImage(c, idMedia, bytes);
 				}
@@ -3913,7 +3928,7 @@ public class BuldreinfoRepository {
 		}
 		return s.getCompassDirections()
 				.stream()
-				.filter(cd -> cd.getId() == id)
+				.filter(cd -> cd.id() == id)
 				.findAny()
 				.get();
 	}
@@ -4009,8 +4024,8 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, 0, 0));
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, 0, 0, null));
 				}
 			}
 		}
@@ -4040,8 +4055,8 @@ public class BuldreinfoRepository {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl));
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, null));
 				}
 			}
 		}
@@ -4084,8 +4099,8 @@ public class BuldreinfoRepository {
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia, problemId);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0));
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0, null));
 				}
 			}
 		}
@@ -4124,9 +4139,9 @@ public class BuldreinfoRepository {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(idMedia);
 					List<Svg> svgs = getSvgs(s, authUserId, idMedia, optionalIdProblem);
-					MediaMetadata mediaMetadata = new MediaMetadata(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem);
-					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.getProblemId() == optionalIdProblem).findAny().isPresent()) {
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem, null);
+					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
 					allMedia.add(m);
@@ -4136,11 +4151,11 @@ public class BuldreinfoRepository {
 		// Figure out what to actually return
 		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
 			// Only images without topo lines or images with topo lines for this problem
-			return allMedia.stream().filter(m -> m.getSvgs() == null || m.getSvgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
+			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
 		}
 		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
 			// In bouldering we don't want to show all rocks with lines if this one does not have a line
-			return allMedia.stream().filter(m -> m.getSvgs() == null || m.getSvgs().isEmpty()).collect(Collectors.toList());
+			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
 		}
 		return allMedia;
 	}
@@ -4157,13 +4172,13 @@ public class BuldreinfoRepository {
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
 					if (path != null) {
-						res.add(new MediaSvgElement(id, path));
+						res.add(MediaSvgElement.fromPath(id, path));
 					}
 					else {
 						int rappelX = rst.getInt("rappel_x");
 						int rappelY = rst.getInt("rappel_y");
 						boolean rappelBolted = rst.getBoolean("rappel_bolted");
-						res.add(new MediaSvgElement(id, rappelX, rappelY, rappelBolted));
+						res.add(MediaSvgElement.fromRappel(id, rappelX, rappelY, rappelBolted));
 					}
 				}
 			}
@@ -4264,9 +4279,9 @@ public class BuldreinfoRepository {
 					List<Media> allMedia = getMediaSector(setup, authUserId, reqId, 0, false, 0, 0, false);
 					allMedia.addAll(getMediaArea(authUserId, areaId, true));
 					if (allMedia != null && allMedia.size() > 0) {
-						media = allMedia.stream().filter(x -> !x.isTrivia()).collect(Collectors.toList());
+						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
-							triviaMedia = allMedia.stream().filter(x -> x.isTrivia()).collect(Collectors.toList());
+							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
 
@@ -4280,8 +4295,8 @@ public class BuldreinfoRepository {
 		if (s == null) {
 			// Sector not found, see if it's visible on a different domain
 			Redirect res = c.getBuldreinfoRepo().getCanonicalUrl(0, reqId, 0);
-			if (!Strings.isNullOrEmpty(res.getRedirectUrl())) {
-				return new Sector(res.getRedirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, 0);
+			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, 0);
 			}
 		}
 
@@ -4305,7 +4320,7 @@ public class BuldreinfoRepository {
 			s.addProblem(sp);
 		}
 		if (!s.getProblems().isEmpty() && orderByGrade) {
-			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::getGradeNumber).reversed());
+			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::gradeNumber).reversed());
 		}
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
@@ -4346,7 +4361,7 @@ public class BuldreinfoRepository {
 		}
 		for (int idSector : idSectorCoordinates.keySet()) {
 			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
-			res.put(idSector, new Approach(coordinates));
+			res.put(idSector, Approach.from(coordinates));
 		}
 		logger.debug("getSectorApproaches(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
 		return res;
@@ -4508,7 +4523,7 @@ public class BuldreinfoRepository {
 
 	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) throws SQLException, ParseException {
 		// Deleted removed ascents
-		String repeatIdsToKeep = repeats == null? null : repeats.stream().filter(x -> x.getId() > 0).map(TickRepeat::getId).map(String::valueOf).collect(Collectors.joining(","));
+		String repeatIdsToKeep = repeats == null? null : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).map(String::valueOf).collect(Collectors.joining(","));
 		String sqlStr = Strings.isNullOrEmpty(repeatIdsToKeep) ? "DELETE FROM tick_repeat WHERE tick_id=?" :
 			"DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + repeatIdsToKeep + ")";
 		try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr)) {
@@ -4519,12 +4534,12 @@ public class BuldreinfoRepository {
 		if (repeats != null && !repeats.isEmpty()) {
 			final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 			for (TickRepeat r : repeats) {
-				final Date dt = Strings.isNullOrEmpty(r.getDate()) ? null : new Date(sdf.parse(r.getDate()).getTime());
-				if (r.getId() > 0) {
+				final Date dt = Strings.isNullOrEmpty(r.date()) ? null : new Date(sdf.parse(r.date()).getTime());
+				if (r.id() > 0) {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
 						ps.setDate(1, dt);
-						ps.setString(2, trimString(r.getComment()));
-						ps.setInt(3, r.getId());
+						ps.setString(2, trimString(r.comment()));
+						ps.setInt(3, r.id());
 						int res = ps.executeUpdate();
 						if (res != 1) {
 							throw new SQLException("Invalid repeat=" + r);
@@ -4535,7 +4550,7 @@ public class BuldreinfoRepository {
 					try (PreparedStatement ps = c.getConnection().prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
 						ps.setInt(1, idTick);
 						ps.setDate(2, dt);
-						ps.setString(3, trimString(r.getComment()));
+						ps.setString(3, trimString(r.comment()));
 						ps.execute();
 					}
 				}

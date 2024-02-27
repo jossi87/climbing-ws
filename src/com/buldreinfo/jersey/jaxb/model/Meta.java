@@ -9,24 +9,11 @@ import com.buldreinfo.jersey.jaxb.db.DbConnection;
 import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 
-public class Meta {
-	private final String title;
-	private final boolean isAuthenticated;
-	private final boolean isAdmin;
-	private final boolean isSuperAdmin;
-	private final List<Grade> grades;
-	private final int defaultZoom;
-	private final LatLng defaultCenter;
-	private final boolean isBouldering;
-	private final boolean isClimbing;
-	private final boolean isIce;
-	private final String url;
-	private final List<Type> types;
-	private final List<Site> sites;
-	private final List<CompassDirection> compassDirections;
-
-	public Meta(DbConnection c, Setup setup, int authUserId) throws SQLException {
-		this.title = setup.getTitle();
+public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, int defaultZoom, LatLng defaultCenter,
+		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
+		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
+	public static Meta from(DbConnection c, Setup setup, int authUserId) throws SQLException {
+		String title = setup.getTitle();
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
@@ -46,75 +33,17 @@ public class Meta {
 			rst.close();
 			ps.close();
 		}
-		this.isAuthenticated = isAuthenticated;
-		this.isAdmin = isAdmin;
-		this.isSuperAdmin = isSuperAdmin;
-		this.grades = setup.getGradeConverter().getGrades();
-		this.defaultZoom = setup.getDefaultZoom();
-		this.defaultCenter = setup.getDefaultCenter();
+		List<Grade> grades = setup.getGradeConverter().getGrades();
+		int defaultZoom = setup.getDefaultZoom();
+		LatLng defaultCenter = setup.getDefaultCenter();
 		GRADE_SYSTEM gradeSystem = setup.getGradeSystem();
-		this.isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
-		this.isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
-		this.isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
-		this.url = setup.getUrl();
-		this.types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
-		this.sites = c.getBuldreinfoRepo().getSites(setup.getIdRegion());
-		this.compassDirections = setup.getCompassDirections();
-	}
-	
-	public List<CompassDirection> getCompassDirections() {
-		return compassDirections;
-	}
-	
-	public LatLng getDefaultCenter() {
-		return defaultCenter;
-	}
-	
-	public int getDefaultZoom() {
-		return defaultZoom;
-	}
-	
-	public List<Grade> getGrades() {
-		return grades;
-	}
-	
-	public List<Site> getSites() {
-		return sites;
-	}
-	
-	public String getTitle() {
-		return title;
-	}
-	
-	public List<Type> getTypes() {
-		return types;
-	}
-	
-	public String getUrl() {
-		return url;
-	}
-	
-	public boolean isAdmin() {
-		return isAdmin;
-	}
-	
-	public boolean isAuthenticated() {
-		return isAuthenticated;
-	}
-	
-	public boolean isBouldering() {
-		return isBouldering;
-	}
-	
-	public boolean isClimbing() {
-		return isClimbing;
-	}
-	
-	public boolean isIce() {
-		return isIce;
-	}
-	
-	public boolean isSuperAdmin() {
-		return isSuperAdmin;
+		boolean isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
+		boolean isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
+		boolean isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
+		String url = setup.getUrl();
+		List<Type> types = c.getBuldreinfoRepo().getTypes(setup.getIdRegion());
+		List<Site> sites = c.getBuldreinfoRepo().getSites(setup.getIdRegion());
+		List<CompassDirection> compassDirections = setup.getCompassDirections();
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}
 }
