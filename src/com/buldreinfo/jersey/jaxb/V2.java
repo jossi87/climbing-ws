@@ -22,6 +22,8 @@ import org.imgscalr.Scalr.Mode;
 
 import com.buldreinfo.jersey.jaxb.db.ConnectionPoolProvider;
 import com.buldreinfo.jersey.jaxb.db.DbConnection;
+import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
+import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
@@ -59,9 +61,6 @@ import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
 import com.google.common.base.Joiner;
@@ -560,35 +559,35 @@ public class V2 {
 			final int authUserId = getUserId(request);
 			List<ProblemArea> res = c.getBuldreinfoRepo().getProblemsList(authUserId, setup);
 			byte[] bytes;
-			try (ExcelReport report = new ExcelReport()) {
-				try (SheetWriter writer = report.addSheet("TOC")) {
+			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
+				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
 					for (ProblemArea a : res) {
 						for (ProblemArea.ProblemAreaSector s : a.getSectors()) {
 							for (ProblemArea.ProblemAreaProblem p : s.getProblems()) {
-								writer.incrementRow();
-								writer.write("URL", SheetHyperlink.of(p.getUrl()));
-								writer.write("AREA", a.getName());
-								writer.write("SECTOR", s.getName());
-								writer.write("NR", p.getNr());
-								writer.write("NAME", p.getName());
-								writer.write("GRADE", p.getGrade());
+								sheet.incrementRow();
+								sheet.writeHyperlink("URL", p.getUrl());
+								sheet.writeString("AREA", a.getName());
+								sheet.writeString("SECTOR", s.getName());
+								sheet.writeInt("NR", p.getNr());
+								sheet.writeString("NAME", p.getName());
+								sheet.writeString("GRADE", p.getGrade());
 								String type = p.getT().getType();
 								if (p.getT().getSubType() != null) {
 									type += " (" + p.getT().getSubType() + ")";			
 								}
-								writer.write("TYPE", type);
+								sheet.writeString("TYPE", type);
 								if (!setup.isBouldering()) {
-									writer.write("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
+									sheet.writeInt("PITCHES", p.getNumPitches() > 0? p.getNumPitches() : 1);
 								}
-								writer.write("FA", p.getFa());
-								writer.write("STARS", p.getStars());
-								writer.write("DESCRIPTION", p.getDescription());
+								sheet.writeString("FA", p.getFa());
+								sheet.writeDouble("STARS", p.getStars());
+								sheet.writeString("DESCRIPTION", p.getDescription());
 							}
 						}
 					}
 				}
 				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					report.writeExcel(os);
+					workbook.write(os);
 					bytes = os.toByteArray();
 				}
 			}

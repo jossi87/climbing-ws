@@ -40,6 +40,8 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr.Rotation;
 
+import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
+import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
@@ -100,9 +102,6 @@ import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.UserSearch;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetHyperlink;
-import com.buldreinfo.jersey.jaxb.util.excel.ExcelReport.SheetWriter;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -2590,7 +2589,7 @@ public class BuldreinfoRepository {
 
 	public byte[] getUserTicks(int authUserId) throws SQLException, IOException {
 		byte[] bytes;
-		try (ExcelReport report = new ExcelReport()) {
+		try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 			String sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade" + 
 					" FROM (((((((((problem p INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)" + 
 					" WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
@@ -2601,7 +2600,7 @@ public class BuldreinfoRepository {
 				ps.setInt(2, authUserId);
 				ps.setInt(3, authUserId);
 				try (ResultSet rst = ps.executeQuery()) {
-					Map<String, SheetWriter> writers = new HashMap<>();
+					Map<String, ExcelSheet> sheets = new HashMap<>();
 					while (rst.next()) {
 						int regionId = rst.getInt("region_id");
 						String type = rst.getString("type");
@@ -2617,33 +2616,26 @@ public class BuldreinfoRepository {
 						boolean fa = rst.getBoolean("fa");
 						Setup setup = MetaHelper.getMeta().getSetup(regionId);
 						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
-						SheetWriter writer = writers.get(type);
-						if (writer == null) {
-							writer = report.addSheet(type);
-							writers.put(type, writer);
+						ExcelSheet sheet = sheets.get(type);
+						if (sheet == null) {
+							sheet = workbook.addSheet(type);
+							sheets.put(type, sheet);
 						}
-						writer.incrementRow();
-						writer.write("AREA", areaName);
-						writer.write("SECTOR", sectorName);
+						sheet.incrementRow();
+						sheet.writeString("AREA", areaName);
+						sheet.writeString("SECTOR", sectorName);
 						if (subType != null) {
-							writer.write("TYPE", subType);
-							writer.write("PITCHES", numPitches > 0? numPitches : 1);
+							sheet.writeString("TYPE", subType);
+							sheet.writeInt("PITCHES", numPitches > 0? numPitches : 1);
 						}
-						writer.write("NAME", name);
-						writer.write("FIRST ASCENT", fa? "Yes" : "No");
-						writer.write("DATE", date);
-						writer.write("GRADE", grade);
-						writer.write("STARS", stars);
-						writer.write("DESCRIPTION", comment);
-						writer.write("URL", SheetHyperlink.of(url));
+						sheet.writeString("NAME", name);
+						sheet.writeString("FIRST ASCENT", fa? "Yes" : "No");
+						sheet.writeDate("DATE", date);
+						sheet.writeString("GRADE", grade);
+						sheet.writeDouble("STARS", stars);
+						sheet.writeString("DESCRIPTION", comment);
+						sheet.writeHyperlink("URL", url);
 					}
-					for (SheetWriter writer : writers.values()) {
-						writer.close();
-					}
-				}
-				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					report.writeExcel(os);
-					bytes = os.toByteArray();
 				}
 			}
 			sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, t.stars, 0 fa, t.grade grade"
@@ -2655,7 +2647,7 @@ public class BuldreinfoRepository {
 				ps.setInt(1, authUserId);
 				ps.setInt(2, authUserId);
 				try (ResultSet rst = ps.executeQuery()) {
-					Map<String, SheetWriter> writers = new HashMap<>();
+					Map<String, ExcelSheet> sheets = new HashMap<>();
 					while (rst.next()) {
 						int regionId = rst.getInt("region_id");
 						String type = rst.getString("type") + " (repeats)";
@@ -2671,33 +2663,26 @@ public class BuldreinfoRepository {
 						boolean fa = rst.getBoolean("fa");
 						Setup setup = MetaHelper.getMeta().getSetup(regionId);
 						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
-						SheetWriter writer = writers.get(type);
-						if (writer == null) {
-							writer = report.addSheet(type);
-							writers.put(type, writer);
+						ExcelSheet sheet = sheets.get(type);
+						if (sheet == null) {
+							sheet = workbook.addSheet(type);
+							sheets.put(type, sheet);
 						}
-						writer.incrementRow();
-						writer.write("AREA", areaName);
-						writer.write("SECTOR", sectorName);
+						sheet.incrementRow();
+						sheet.writeString("AREA", areaName);
+						sheet.writeString("SECTOR", sectorName);
 						if (subType != null) {
-							writer.write("TYPE", subType);
-							writer.write("PITCHES", numPitches > 0? numPitches : 1);
+							sheet.writeString("TYPE", subType);
+							sheet.writeInt("PITCHES", numPitches > 0? numPitches : 1);
 						}
-						writer.write("NAME", name);
-						writer.write("FIRST ASCENT", fa? "Yes" : "No");
-						writer.write("DATE", date);
-						writer.write("GRADE", grade);
-						writer.write("STARS", stars);
-						writer.write("DESCRIPTION", comment);
-						writer.write("URL", SheetHyperlink.of(url));
+						sheet.writeString("NAME", name);
+						sheet.writeString("FIRST ASCENT", fa? "Yes" : "No");
+						sheet.writeDate("DATE", date);
+						sheet.writeString("GRADE", grade);
+						sheet.writeDouble("STARS", stars);
+						sheet.writeString("DESCRIPTION", comment);
+						sheet.writeHyperlink("URL", url);
 					}
-					for (SheetWriter writer : writers.values()) {
-						writer.close();
-					}
-				}
-				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					report.writeExcel(os);
-					bytes = os.toByteArray();
 				}
 			}
 			sqlStr = "SELECT r.id region_id, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, aid.aid_description comment, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date" + 
@@ -2706,7 +2691,7 @@ public class BuldreinfoRepository {
 					" GROUP BY r.id, ty.type, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date" + 
 					" ORDER BY ty.type, a.name, s.name, p.name";
 			try (PreparedStatement ps = c.getConnection().prepareStatement(sqlStr);
-					SheetWriter writer = report.addSheet("First_AID_Ascent")) {
+					ExcelSheet sheet = workbook.addSheet("First_AID_Ascent")) {
 				ps.setInt(1, authUserId);
 				ps.setInt(2, authUserId);
 				try (ResultSet rst = ps.executeQuery()) {
@@ -2717,20 +2702,20 @@ public class BuldreinfoRepository {
 						String name = rst.getString("name");
 						String comment = rst.getString("comment");
 						Date date = rst.getDate("date");
-						writer.incrementRow();
-						writer.write("AREA", areaName);
-						writer.write("SECTOR", sectorName);
-						writer.write("NAME", name);
-						writer.write("DATE", date);
-						writer.write("DESCRIPTION", comment);
-						writer.write("URL", SheetHyperlink.of(url));
+						sheet.incrementRow();
+						sheet.writeString("AREA", areaName);
+						sheet.writeString("SECTOR", sectorName);
+						sheet.writeString("NAME", name);
+						sheet.writeDate("DATE", date);
+						sheet.writeString("DESCRIPTION", comment);
+						sheet.writeHyperlink("URL", url);
 					}
-					writer.close();
+					sheet.close();
 				}
-				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					report.writeExcel(os);
-					bytes = os.toByteArray();
-				}
+			}
+			try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+				workbook.write(os);
+				bytes = os.toByteArray();
 			}
 		}
 		return bytes;
