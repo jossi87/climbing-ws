@@ -40,10 +40,9 @@ public class Server {
 	
 	public static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
 		try (Connection c = getServer().bds.getConnection()) {
-			// Always commit user to avoid multiple parallel transactions inserting the same user...
+			c.setAutoCommit(true); // Always commit user to avoid multiple parallel transactions inserting the same user...
 			Optional<Integer> authUserId = getServer().auth.getAuthUserId(c, request, MetaHelper.getMeta());
-			// Now set auto commit to false for the rest of the transaction
-			c.setAutoCommit(false); 
+			c.setAutoCommit(false); // Now set auto commit to false for the rest of the transaction
 			Response res = function.get(c, authUserId);
 			c.commit();
 			return res;
