@@ -1940,7 +1940,7 @@ public class Dao {
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
-		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res={}", authUserId, setup.getIdRegion(), reqId, res);
+		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res.areas().size()={}", authUserId, setup.getIdRegion(), reqId, res.areas().size());
 		return res;
 	}
 
@@ -2341,7 +2341,7 @@ public class Dao {
 		}
 		int numPages = (int)(Math.ceil(numTicks / 200f));
 		Ticks res = new Ticks(ticks, page, numPages);
-		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - res={}", authUserId, setup.getIdRegion(), page, res);
+		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - ticks.size()={}", authUserId, setup.getIdRegion(), page, ticks.size());
 		return res;
 	}
 
