@@ -319,7 +319,6 @@ public class V2 {
 	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
 	 */
 	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
-	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
