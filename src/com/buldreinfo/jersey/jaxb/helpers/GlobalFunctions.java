@@ -23,7 +23,7 @@ public class GlobalFunctions {
 		}
 		return res;
 	}
-
+	
 	public static String getUrlJpgToImage(int id) {
 		return "https://brattelinjer.no/buldreinfo_media/jpg/" + String.valueOf(id / 100 * 100) + "/" + id + ".jpg";
 	}

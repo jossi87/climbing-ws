@@ -15,10 +15,10 @@ import com.auth0.client.auth.AuthAPI;
 import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.auth0.net.Response;
-import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.buldreinfo.jersey.jaxb.db.Dao;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -50,21 +50,21 @@ public class AuthHelper {
 				}
 			});
 
-	public Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, Setup setup) {
+	public Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup) {
 		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (Strings.isNullOrEmpty(authorization)) {
 			return Optional.empty();
 		}
 		String accessToken = authorization.substring(7); // Remove "Bearer "
-		return getAuthUserId(c, request, setup, accessToken);
+		return getAuthUserId(dao, c, request, setup, accessToken);
 	}
 
-	private Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, Setup setup, String accessToken) {
+	private Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup, String accessToken) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try {
 			boolean update = cache.getIfPresent(accessToken) == null;
 			Auth0Profile profile = cache.get(accessToken);
-			Optional<Integer> authUserId = Server.getDao().getAuthUserId(c, profile);
+			Optional<Integer> authUserId = dao.getAuthUserId(c, profile);
 			if (update) {
 				Gson gson = new Gson();
 				String headers = gson.toJson(getHeadersInfo(request));

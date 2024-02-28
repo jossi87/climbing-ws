@@ -7,14 +7,15 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
+import com.buldreinfo.jersey.jaxb.db.Dao;
 
 public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
-	public static Meta from(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
+	
+	public static Meta from(Dao dao, Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		String title = setup.title();
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
@@ -43,8 +44,8 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isClimbing = gradeSystem.equals(GradeSystem.CLIMBING);
 		boolean isIce = gradeSystem.equals(GradeSystem.ICE);
 		String url = setup.url();
-		List<Type> types = Server.getDao().getTypes(c, setup.idRegion());
-		List<Site> sites = Server.getDao().getSites(c, setup.idRegion());
+		List<Type> types = dao.getTypes(c, setup.idRegion());
+		List<Site> sites = dao.getSites(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
 		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}

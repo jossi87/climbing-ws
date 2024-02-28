@@ -1,5 +1,7 @@
 package com.buldreinfo.jersey.jaxb;
 
+import com.buldreinfo.jersey.jaxb.io.IOHelper;
+
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -22,13 +24,13 @@ public class V1 {
 	@Path("/images")
 	@Produces("image/webp")
 	public Response getImages(@QueryParam("id") int id) {
-		return Server.buildResponse(() -> Response.ok(Server.getDao().getImage(true, id)).build());
+		return Server.buildResponse(() -> Response.ok(IOHelper.getPathImage(id, true)).build());
 	}
 
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getRegions(@Context HttpServletRequest request, @QueryParam("uniqueId") String uniqueId, @QueryParam("climbingNotBouldering") boolean climbingNotBouldering) {
-		return Server.buildResponseWithSql(request, (c, setup) -> Response.ok().entity(Server.getDao().getRegions(c, uniqueId, climbingNotBouldering)).build());
+		return Server.buildResponseWithSql(request, (dao, c, setup) -> Response.ok().entity(dao.getRegions(c, uniqueId, climbingNotBouldering)).build());
 	}
 }

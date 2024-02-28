@@ -33,6 +33,17 @@ public class IOHelper {
 		}
 	}
 
+	public static Path getPathImage(int id, boolean webP) throws IOException {
+		Path p = null;
+		if (webP) {
+			p = getPathMediaWebWebp(id);
+		} else {
+			p = getPathMediaWebJpg(id);
+		}
+		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
+		return p;
+	}
+	
 	public static Path getPathMediaOriginalJpg(int id) throws IOException {
 		return getPathRoot().resolve("original/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 	}
@@ -44,11 +55,11 @@ public class IOHelper {
 	public static Path getPathMediaWebJpg(int id) throws IOException {
 		return getPathRoot().resolve("web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 	}
-	
+
 	public static Path getPathMediaWebMp4(int id) throws IOException {
 		return getPathRoot().resolve("web/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
 	}
-
+	
 	public static Path getPathMediaWebWebm(int id) throws IOException {
 		return getPathRoot().resolve("web/webm").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webm");
 	}

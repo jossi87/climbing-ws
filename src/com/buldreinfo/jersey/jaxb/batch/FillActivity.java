@@ -16,12 +16,12 @@ public class FillActivity {
 	}
 
 	public FillActivity() {
-		Server.runSql(c -> {
+		Server.runSql((dao, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM problem ORDER BY id")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					int done = 0;
 					while (rst.next()) {
-						Server.getDao().fillActivity(c, rst.getInt("id"));
+						dao.fillActivity(c, rst.getInt("id"));
 						if ((++done) % 50 == 0) {
 							logger.debug("Done with " + done + " problems");
 						}

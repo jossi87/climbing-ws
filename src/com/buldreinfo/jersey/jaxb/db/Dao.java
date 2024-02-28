@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.db;
 
 import java.awt.Point;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +41,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr.Rotation;
 
+import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
@@ -134,7 +135,7 @@ public class Dao {
 	private static Logger logger = LogManager.getLogger();
 	private final Gson gson = new Gson();
 	
-	protected Dao() {
+	public Dao() {
 	}
 	
 	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
@@ -1121,17 +1122,6 @@ public class Dao {
 			}
 		}
 		return res.values();
-	}
-
-	public Path getImage(boolean webP, int id) throws IOException {
-		Path p = null;
-		if (webP) {
-			p = IOHelper.getPathMediaWebWebp(id);
-		} else {
-			p = IOHelper.getPathMediaWebJpg(id);
-		}
-		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
-		return p;
 	}
 
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
@@ -2623,8 +2613,11 @@ public class Dao {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						Setup setup = Server.getSetup(regionId);
-						String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String grade = Server.getSetups().stream()
+								.filter(x -> x.idRegion() == regionId)
+								.findAny()
+								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
+								.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -2671,8 +2664,11 @@ public class Dao {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						Setup setup = Server.getSetup(regionId);
-						String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String grade = Server.getSetups().stream()
+								.filter(x -> x.idRegion() == regionId)
+								.findAny()
+								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
+								.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -2866,7 +2862,7 @@ public class Dao {
 		default:
 			throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		}
-		ImageHelper.rotateImage(c, idMedia, r);
+		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
@@ -3807,12 +3803,12 @@ public class Dao {
 				}
 			}
 			if (isMovie) {
-				ImageHelper.saveImageFromEmbedVideo(c, idMedia, m.embedVideoUrl());
+				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
 			}
 			else {
 				try (InputStream is = multiPart.getField(m.name()).getValueAs(InputStream.class)) {
 					byte[] bytes = ByteStreams.toByteArray(is);
-					ImageHelper.saveImage(c, idMedia, bytes);
+					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
 			}
 		}

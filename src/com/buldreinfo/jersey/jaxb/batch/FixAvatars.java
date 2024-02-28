@@ -13,7 +13,7 @@ public class FixAvatars {
 	private static Logger logger = LogManager.getLogger();
 
 	public static void main(String[] args) {
-		Server.runSql(c -> {
+		Server.runSql((dao, c) -> {
 			int counter = 0;
 			try (PreparedStatement ps = c.prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL ORDER BY u.id DESC");
 					ResultSet rst = ps.executeQuery()) {

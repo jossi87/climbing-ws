@@ -10,7 +10,7 @@ public class MergeUsers {
 	private final static int USER_ID_DELETE = -2;
 
 	public static void main(String[] args) {
-		Server.runSql(c -> {
+		Server.runSql((dao, c) -> {
 			// guestbook
 			try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
 				ps.setInt(1, USER_ID_KEEP);

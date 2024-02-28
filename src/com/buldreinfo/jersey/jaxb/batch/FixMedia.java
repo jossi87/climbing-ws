@@ -44,7 +44,7 @@ public class FixMedia {
 	private final List<String> warnings = new ArrayList<>();
 
 	public FixMedia() {
-		Server.runSql(c -> {
+		Server.runSql((dao, c) -> {
 			List<Integer> newIdMedia = Lists.newArrayList();
 			// Add movie
 			//			final int idUploaderUserId = 1;
@@ -92,7 +92,7 @@ public class FixMedia {
 									}
 								}
 								if (!Files.exists(originalJpg)) {
-									ImageHelper.saveImageFromEmbedVideo(c, id, embedUrl);
+									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
 								}
 							}
 							else {
@@ -137,7 +137,7 @@ public class FixMedia {
 									g.setColor(Color.BLUE);
 									g.drawString(str, x, y);
 									g.dispose();
-									ImageHelper.saveImage(c, id, b);
+									ImageHelper.saveImage(dao, c, id, b);
 									Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 								}
 							}
