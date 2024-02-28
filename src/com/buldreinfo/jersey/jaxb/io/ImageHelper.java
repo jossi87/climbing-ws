@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.ParseException;
 
 import javax.imageio.ImageIO;
 
@@ -22,7 +21,7 @@ import com.buldreinfo.jersey.jaxb.db.Dao;
 import com.google.common.base.Preconditions;
 
 public class ImageHelper {
-	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws ImageReadException, ImageWriteException, IOException, ParseException, SQLException, InterruptedException {
+	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws ImageReadException, ImageWriteException, IOException, SQLException, InterruptedException {
 		Path original = IOHelper.getPathMediaOriginalJpg(idMedia);
 		byte[] bytes = Files.readAllBytes(original);
 		ExifReader exifReader = new ExifReader(bytes);
@@ -65,7 +64,7 @@ public class ImageHelper {
 		dao.setMediaMetadata(c, idMedia, bufferedImage.getHeight(), bufferedImage.getWidth(), null);
 	}
 
-	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws ImageReadException, ImageWriteException, IOException, ParseException, SQLException, InterruptedException {
+	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws ImageReadException, ImageWriteException, IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
 		ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)

@@ -138,7 +138,7 @@ public class Dao {
 	public Dao() {
 	}
 	
-	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
@@ -2842,7 +2842,7 @@ public class Dao {
 		}
 	}
 
-	public void rotateMedia(Connection c, int idRegion, Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public void rotateMedia(Connection c, int idRegion, Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException {
 		// Rotate allowed for administrators + user who uploaded specific image
 		boolean uploadedByMe = getMedia(c, authUserId, idMedia).uploadedByMe();
 		if (!uploadedByMe) {
@@ -2865,7 +2865,7 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
 		ensureAdminWriteRegion(c, authUserId, s.idRegion());
@@ -2975,7 +2975,7 @@ public class Dao {
 		return Redirect.fromIdArea(idArea);
 	}
 
-	public void setMediaMetadata(Connection c, int idMedia, int height, int width, String dateTaken) throws SQLException, IOException {
+	public void setMediaMetadata(Connection c, int idMedia, int height, int width, LocalDateTime dateTaken) throws SQLException, IOException {
 		Path webp = IOHelper.getPathMediaWebWebp(idMedia);
 		Path webm = IOHelper.getPathMediaWebWebm(idMedia);
 		Path p = Files.exists(webm)? webm : webp;
@@ -2984,7 +2984,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 0;
 			if (dateTaken != null) {
-				ps.setString(++ix, dateTaken);
+				ps.setObject(++ix, dateTaken);
 			}
 			ps.setInt(++ix, com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt());
 			ps.setInt(++ix, width);
@@ -3193,7 +3193,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -3549,7 +3549,7 @@ public class Dao {
 		}
 	}
 
-	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		if (co.id() > 0) {
 			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false).getComments();
@@ -3709,7 +3709,7 @@ public class Dao {
 		}
 	}
 
-	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		int idMedia = -1;
 		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);

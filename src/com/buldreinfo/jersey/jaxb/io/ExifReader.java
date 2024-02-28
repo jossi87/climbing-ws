@@ -1,9 +1,8 @@
 package com.buldreinfo.jersey.jaxb.io;
 
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.apache.commons.imaging.ImageReadException;
 import org.apache.commons.imaging.ImageWriteException;
@@ -22,9 +21,9 @@ public class ExifReader {
 	private static final String EXIF_DATE_PATTERN = "yyyy:MM:dd HH:mm:ss";
 	private final Rotation rotation;
 	private final TiffOutputSet outputSet;
-	private final Date dateTaken;
+	private final LocalDateTime dateTaken;
 
-	protected ExifReader(byte[] bytes) throws IOException, ImageReadException, ImageWriteException, ParseException {
+	protected ExifReader(byte[] bytes) throws IOException, ImageReadException, ImageWriteException {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
 			// Read exif orientation and remove from metadata. Save rotated image instead of keeping exif orientation in file.
@@ -32,7 +31,7 @@ public class ExifReader {
 			TiffOutputSet outputSet = imageMetadata.getOutputSet();
 			outputSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
 			this.outputSet = outputSet;
-			this.dateTaken = getEXIFDateValue(imageMetadata, ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL, ExifTagConstants.EXIF_TAG_SUB_SEC_TIME_ORIGINAL);
+			this.dateTaken = getExifDateValue(imageMetadata, ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL);
 		}
 		else {
 			this.rotation = null;
@@ -41,7 +40,7 @@ public class ExifReader {
 		}
 	}
 	
-	private Date getEXIFDateValue(ImageMetadata imageMetadata, TagInfo tagInfo, TagInfo subTagInfo) throws ParseException, ImageReadException {
+	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImageReadException {
 		if (imageMetadata == null) {
 			return null;
 		}
@@ -50,15 +49,7 @@ public class ExifReader {
 			return null;
 		}
 
-		SimpleDateFormat dateFormat = new SimpleDateFormat(EXIF_DATE_PATTERN);
-		Date date = dateFormat.parse(exifDateStr);
-		if (subTagInfo != null) {
-			String subSec = getExifStringValue(imageMetadata, subTagInfo);
-			if (subSec != null && !subSec.isEmpty()) {
-				date = new Date(date.getTime() + (Integer.parseInt(subSec) * 10));
-			}
-		}
-		return date;
+		return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
 	}
 
 	private Rotation getExifOrientation(ImageMetadata imageMetadata) throws ImageReadException {
@@ -124,11 +115,8 @@ public class ExifReader {
 		return null;
 	}
 
-	protected String getDateTaken() {
-		if (dateTaken == null) {
-			return null;
-		}
-		return new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(dateTaken);
+	protected LocalDateTime getDateTaken() {
+		return dateTaken;
 	}
 
 	protected TiffOutputSet getOutputSet() {
