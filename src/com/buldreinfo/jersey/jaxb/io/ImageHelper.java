@@ -55,7 +55,7 @@ public class ImageHelper {
 		IOHelper.setFilePermission(resized);
 	}
 
-	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage) throws ImageReadException, ImageWriteException, IOException, ParseException, SQLException, InterruptedException {
+	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage) throws IOException, SQLException {
 		ImageSaver.newBuilder()
 		.withBufferedImage(bufferedImage)
 		.withPathOriginalJpg(IOHelper.getPathMediaOriginalJpg(idMedia))
@@ -81,7 +81,7 @@ public class ImageHelper {
 		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
 	}
 
-	public static void saveImageFromEmbedVideo(Dao dao, Connection c, int idMedia, String embedVideoUrl) throws ImageReadException, ImageWriteException, IOException, ParseException, SQLException, InterruptedException {
+	public static void saveImageFromEmbedVideo(Dao dao, Connection c, int idMedia, String embedVideoUrl) throws IOException, SQLException, InterruptedException {
 		ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build();
 		ImageSaver.newBuilder()
 		.withBufferedImage(imageReader.getJpgBufferedImage())

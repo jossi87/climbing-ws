@@ -56,11 +56,11 @@ public class TopoGenerator {
 				JPEGTranscoder t = new JPEGTranscoder();
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, true);
 				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 1f);
-				t.addTranscodingHint(JPEGTranscoder.KEY_WIDTH, (float)width);
-				t.addTranscodingHint(JPEGTranscoder.KEY_HEIGHT, (float)height);
-				t.addTranscodingHint(JPEGTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "*");
-				t.addTranscodingHint(JPEGTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, true);
-				t.addTranscodingHint(JPEGTranscoder.KEY_EXECUTE_ONLOAD, true);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_WIDTH, (float)width);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, (float)height);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "*");
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, true);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_EXECUTE_ONLOAD, true);
 				t.transcode(ti, to);
 			}
 		}

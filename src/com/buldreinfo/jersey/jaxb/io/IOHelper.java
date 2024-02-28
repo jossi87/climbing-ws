@@ -33,7 +33,7 @@ public class IOHelper {
 		}
 	}
 
-	public static Path getPathImage(int id, boolean webP) throws IOException {
+	public static Path getPathImage(int id, boolean webP) {
 		Path p = null;
 		if (webP) {
 			p = getPathMediaWebWebp(id);
@@ -44,35 +44,35 @@ public class IOHelper {
 		return p;
 	}
 	
-	public static Path getPathMediaOriginalJpg(int id) throws IOException {
+	public static Path getPathMediaOriginalJpg(int id) {
 		return getPathRoot().resolve("original/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 	}
 	
-	public static Path getPathMediaOriginalMp4(int id) throws IOException {
+	public static Path getPathMediaOriginalMp4(int id) {
 		return getPathRoot().resolve("original/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
 	}
 	
-	public static Path getPathMediaWebJpg(int id) throws IOException {
+	public static Path getPathMediaWebJpg(int id) {
 		return getPathRoot().resolve("web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
 	}
 
-	public static Path getPathMediaWebMp4(int id) throws IOException {
+	public static Path getPathMediaWebMp4(int id) {
 		return getPathRoot().resolve("web/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
 	}
 	
-	public static Path getPathMediaWebWebm(int id) throws IOException {
+	public static Path getPathMediaWebWebm(int id) {
 		return getPathRoot().resolve("web/webm").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webm");
 	}
 
-	public static Path getPathMediaWebWebp(int id) throws IOException {
+	public static Path getPathMediaWebWebp(int id) {
 		return getPathRoot().resolve("web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 	}
 
-	public static Path getPathTemp() throws IOException {
+	public static Path getPathTemp() {
 		return getPathRoot().resolve("temp");
 	}
 	
-	private static Path getPathRoot() throws IOException {
+	private static Path getPathRoot() {
 		Path root = null;
 		if (!SystemUtils.IS_OS_WINDOWS) {
 			root = Paths.get("/mnt/buldreinfo/media");
@@ -84,11 +84,11 @@ public class IOHelper {
 		return root;
 	}
 
-	protected static Path getPathOriginalUsers(int id) throws IOException {
+	protected static Path getPathOriginalUsers(int id) {
 		return getPathRoot().resolve("original/users").resolve(id + ".jpg");
 	}
 
-	protected static Path getPathWebUsers(int id) throws IOException {
+	protected static Path getPathWebUsers(int id) {
 		return getPathRoot().resolve("web/users").resolve(id + ".jpg");
 	}
 

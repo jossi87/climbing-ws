@@ -87,6 +87,7 @@ public class LeafletPrintGenerator {
 	
 	private static void watch(final Process process) {
 	    new Thread() {
+	    	@Override
 	        public void run() {
 	            BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
 	            String line = null; 

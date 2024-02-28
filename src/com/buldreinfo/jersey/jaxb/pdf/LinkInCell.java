@@ -15,7 +15,8 @@ public class LinkInCell implements PdfPCellEvent {
         this.url = url;
     }
     
-    public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
+    @Override
+	public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
         @SuppressWarnings("resource")
 		PdfWriter writer = canvases[0].getPdfWriter();
         PdfAction action = new PdfAction(url);

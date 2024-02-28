@@ -79,6 +79,7 @@ public class PdfGenerator implements AutoCloseable {
 		public WatermarkedCell(String watermark) {
 			this.watermark = watermark;
 		}
+		@Override
 		public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
 			PdfContentByte canvas = canvases[PdfPTable.TEXTCANVAS];
 			ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER,
@@ -88,6 +89,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 	class MyFooter extends PdfPageEventHelper {
+		@Override
 		public void onEndPage(PdfWriter writer, Document document) {
 			PdfContentByte cb = writer.getDirectContent();
 			Phrase header = new Phrase("\u00A9 buldreinfo.com & brattelinjer.no", FONT_SMALL);
@@ -451,6 +453,7 @@ public class PdfGenerator implements AutoCloseable {
 			URI.create(url); 
 			return true; 
 		} catch (Exception e) { 
+			logger.debug(e.getMessage(), e);
 			return false; 
 		} 
 	}

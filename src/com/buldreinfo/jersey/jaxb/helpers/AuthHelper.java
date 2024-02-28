@@ -79,16 +79,16 @@ public class AuthHelper {
 			logger.info("getAuthUserId(accessToken={}) - authUserId={}, duration={}", accessToken, authUserId, stopwatch);
 			return authUserId;
 		} catch (Exception e) {
-			logger.warn("getAuthUserId(accessToken={}) - authentication failed, login required - duration={}", accessToken, stopwatch);
+			logger.warn("getAuthUserId(accessToken={}) - authentication failed, login required - duration={}, message={}", accessToken, stopwatch, e.getMessage());
 			return Optional.empty();
 		}
 	}
 
 	private Map<String, String> getHeadersInfo(HttpServletRequest request) {
-		Map<String, String> map = new HashMap<String, String>();
+		Map<String, String> map = new HashMap<>();
 		Enumeration<String> headerNames = request.getHeaderNames();
 		while (headerNames.hasMoreElements()) {
-			String key = (String) headerNames.nextElement();
+			String key = headerNames.nextElement();
 			String value = request.getHeader(key);
 			map.put(key, value);
 		}

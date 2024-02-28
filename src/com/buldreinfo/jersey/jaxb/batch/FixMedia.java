@@ -14,6 +14,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -170,40 +171,37 @@ public class FixMedia {
 		int idMedia = 0;
 		final String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
 		Preconditions.checkArgument(suffix.equals("mp4") || suffix.equals("mov"), "Invalid suffix on " + src.toString() + ": " + suffix);
-		PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", PreparedStatement.RETURN_GENERATED_KEYS);
-		ps.setString(1, suffix);
-		ps.setInt(2, idPhotographerUserId);
-		ps.setInt(3, idUploaderUserId);
-		ps.executeUpdate();
-		ResultSet rst = ps.getGeneratedKeys();
-		if (rst != null && rst.next()) {
-			idMedia = rst.getInt(1);
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", Statement.RETURN_GENERATED_KEYS)) {
+			ps.setString(1, suffix);
+			ps.setInt(2, idPhotographerUserId);
+			ps.setInt(3, idUploaderUserId);
+			ps.executeUpdate();
+			try (ResultSet rst = ps.getGeneratedKeys()) {
+				if (rst != null && rst.next()) {
+					idMedia = rst.getInt(1);
+				}
+			}
 		}
-		rst.close();
-		ps.close();
-		ps = null;
 		Preconditions.checkArgument(idMedia>0);
 		// DB - connect to problem
-		ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, milliseconds) VALUES (?, ?, ?)");
-		for (int idProblem : idProblemMsMap.keySet()) {
-			ps.setInt(1, idMedia);
-			ps.setInt(2, idProblem);
-			ps.setLong(3, idProblemMsMap.get(idProblem));
-			ps.addBatch();
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, milliseconds) VALUES (?, ?, ?)")) {
+			for (int idProblem : idProblemMsMap.keySet()) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idProblem);
+				ps.setLong(3, idProblemMsMap.get(idProblem));
+				ps.addBatch();
+			}
+			ps.executeBatch();
 		}
-		ps.executeBatch();
-		ps.close();
-		ps = null;
 		// DB - add inPhoto
-		ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)");
-		for (int idUser : inPhoto) {
-			ps.setInt(1, idMedia);
-			ps.setInt(2, idUser);
-			ps.addBatch();
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
+			for (int idUser : inPhoto) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idUser);
+				ps.addBatch();
+			}
+			ps.executeBatch();
 		}
-		ps.executeBatch();
-		ps.close();
-		ps = null;
 		// IO
 		final Path dst = IOHelper.getPathMediaOriginalMp4(idMedia);
 		Preconditions.checkArgument(!Files.exists(dst), dst.toString() + " already exists");

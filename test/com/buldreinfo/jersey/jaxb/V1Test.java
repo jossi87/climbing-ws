@@ -2,9 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.util.Collection;
-import java.util.concurrent.ExecutionException;
 
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
@@ -33,7 +31,7 @@ public class V1Test {
 		assertTrue(jostein > stian);
 	}
 
-	private int getRegionAreas(String uniqueId) throws ExecutionException, IOException {
+	private int getRegionAreas(String uniqueId) {
 		try (Response r = new V1().getRegions(getRequest(), uniqueId, false)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);

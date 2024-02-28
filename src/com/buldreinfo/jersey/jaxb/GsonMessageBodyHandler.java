@@ -24,9 +24,6 @@ import jakarta.ws.rs.ext.Provider;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
-
-	private static final String UTF_8 = "UTF-8";
-
 	private Gson gson;
 
 	private Gson getGson() {
@@ -45,8 +42,7 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 
 	@Override
 	public Object readFrom(Class<Object> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) throws IOException {
-		InputStreamReader streamReader = new InputStreamReader(entityStream, UTF_8);
-		try {
+		try (InputStreamReader streamReader = new InputStreamReader(entityStream)) {
 			Type jsonType;
 			if (type.equals(genericType)) {
 				jsonType = type;
@@ -54,8 +50,6 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 				jsonType = genericType;
 			}
 			return getGson().fromJson(streamReader, jsonType);
-		} finally {
-			streamReader.close();
 		}
 	}
 
@@ -71,8 +65,7 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 
 	@Override
 	public void writeTo(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
-		OutputStreamWriter writer = new OutputStreamWriter(entityStream, UTF_8);
-		try {
+		try (OutputStreamWriter writer = new OutputStreamWriter(entityStream)) {
 			Type jsonType;
 			if (type.equals(genericType)) {
 				jsonType = type;
@@ -80,8 +73,6 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 				jsonType = genericType;
 			}
 			getGson().toJson(object, jsonType, writer);
-		} finally {
-			writer.close();
 		}
 	}
 }

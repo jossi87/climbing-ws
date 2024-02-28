@@ -12,10 +12,6 @@ public class FillActivity {
 	private static Logger logger = LogManager.getLogger();
 
 	public static void main(String[] args) {
-		new FillActivity();
-	}
-
-	public FillActivity() {
 		Server.runSql((dao, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM problem ORDER BY id")) {
 				try (ResultSet rst = ps.executeQuery()) {

@@ -156,16 +156,10 @@ public class V2 {
 	public Response getAreas(@Context HttpServletRequest request,
 			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Response response = null;
-			if (id > 0) {
-				Collection<Area> areas = Collections.singleton(dao.getArea(c, setup, authUserId, id));
-				response = Response.ok().entity(areas).build();
-			}
-			else {
-				Collection<Area> areas = dao.getAreaList(c, authUserId, setup.idRegion());
-				response = Response.ok().entity(areas).build();
-			}
-			return response;
+			Collection<Area> areas = id > 0?
+					Collections.singleton(dao.getArea(c, setup, authUserId, id)) :
+						dao.getAreaList(c, authUserId, setup.idRegion());
+			return Response.ok().entity(areas).build();
 		});
 	}
 
@@ -206,7 +200,7 @@ public class V2 {
 	@GET
 	@Path("/webcams")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getCameras(@Context HttpServletRequest request) {
+	public Response getCameras() {
 		return Server.buildResponse(() -> {
 			VegvesenParser vegvesenPaser = new VegvesenParser();
 			List<Webcam> res = vegvesenPaser.getCameras();
@@ -252,7 +246,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get frontpage (num problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumProblems.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -264,7 +258,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get frontpage (num ticks)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumTicks.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -276,7 +270,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageRandomMedia.class))})})
 	@GET
 	@Path("/frontpage/random_media")
@@ -325,6 +319,7 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
 			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
+		logger.debug("getImages(id={}, crc32={}, minDimention={}) initialized", id, crc32, minDimention);
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
 			final String acceptHeader = request.getHeader("Accept");
@@ -405,9 +400,7 @@ public class V2 {
 	@GET
 	@Path("/problem/pdf")
 	@Produces("application/pdf")
-	public Response getProblemPdf(@Context final HttpServletRequest request,
-			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
+	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			final Problem problem = dao.getProblem(c, authUserId, setup, id, false);
 			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId());
@@ -511,10 +504,10 @@ public class V2 {
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			List<Media> res = dao.getProfileMediaProblem(c, authUserId, setup, id, captured);
+			List<Media> res = dao.getProfileMediaProblem(c, authUserId, id, captured);
 			if (captured) {
-				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, setup, id));
-				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, setup, id));
+				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
+				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
 				res.sort(Comparator.comparingInt(Media::id).reversed());
 			}
 			return Response.ok().entity(res).build();
@@ -582,9 +575,7 @@ public class V2 {
 	@GET
 	@Path("/sectors/pdf")
 	@Produces("application/pdf")
-	public Response getSectorsPdf(@Context final HttpServletRequest request,
-			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
-			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
+	public Response getSectorsPdf(@Context final HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Sector sector = dao.getSector(c, authUserId, false, setup, id);
@@ -593,12 +584,12 @@ public class V2 {
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
-						try (PdfGenerator generator = new PdfGenerator(output)) {
-							generator.writeArea(meta, area, gradeDistribution, Lists.newArrayList(sector));
-						} catch (Exception e) {
-							logger.error(e.getMessage(), e);
-							throw new RuntimeException(e.getMessage(), e);
-						}
+					try (PdfGenerator generator = new PdfGenerator(output)) {
+						generator.writeArea(meta, area, gradeDistribution, Lists.newArrayList(sector));
+					} catch (Exception e) {
+						logger.error(e.getMessage(), e);
+						throw new RuntimeException(e.getMessage(), e);
+					}
 				}
 			};
 			String fn = GlobalFunctions.getFilename(sector.getName(), "pdf");
@@ -610,7 +601,7 @@ public class V2 {
 	@GET
 	@Path("/sitemap.txt")
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
+	public Response getSitemapTxt(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			String res = dao.getSitemapTxt(c, setup);
 			return Response.ok().entity(res).build();
@@ -656,7 +647,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Collection<Top> res = dao.getTop(c, authUserId, setup, idArea, idSector);
+			Collection<Top> res = dao.getTop(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -900,9 +891,7 @@ public class V2 {
 	@Path("/problems/media")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postProblemsMedia(@Context HttpServletRequest request,
-			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
-			FormDataMultiPart multiPart) {
+	public Response postProblemsMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(p.getId() > 0);
@@ -956,8 +945,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			final boolean orderByGrade = setup.gradeSystem().equals(GradeSystem.BOULDER);
-			Redirect res = dao.setSector(c, authUserId, orderByGrade, setup, s, multiPart);
+			Redirect res = dao.setSector(c, authUserId, setup, s, multiPart);
 			return Response.ok().entity(res).build();
 		});
 	}

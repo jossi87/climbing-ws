@@ -61,7 +61,7 @@ public class GradeConverter {
 					return gradeLookup.get(key);
 				}
 			}
-			throw new RuntimeException("Invalid grade=" + grade + " (grades=" + grades + ")");
+			throw new RuntimeException("Invalid grade=" + grade + " (grades=" + grades + ") - message=" + e.getMessage());
 		}
 	}
 }

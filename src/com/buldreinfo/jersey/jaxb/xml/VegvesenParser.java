@@ -114,6 +114,8 @@ public class VegvesenParser {
 					event = eventReader.nextEvent();
 					camera.setLng(Double.parseDouble(event.asCharacters().getData()));
 					break;
+				default:
+					break;
 				}
 			}
 			// If we reach the end of an item element, we add it to the list

@@ -66,9 +66,7 @@ public class FixImageWithouitInPhoto {
 							res = -1;
 							break;
 						}
-						else {
-							res = rst.getInt("id");
-						}
+						res = rst.getInt("id");
 					}
 				}
 			}

@@ -217,7 +217,7 @@ public class GeoHelper {
 	private int sunOffset;
 	private long wallDirectionDegrees;
 
-	private GeoHelper() throws IOException {
+	private GeoHelper() {
 	}
 
 	private void calculateBoundingBox() {
@@ -332,7 +332,7 @@ public class GeoHelper {
 		return angle;
 	}
 
-	private String getWallDirection(List<Coordinates> outline) throws IOException {
+	private String getWallDirection(List<Coordinates> outline) {
 		for (Coordinates coord : outline) {
 			geoPoints.add(new GeoPoint(coord.getLatitude(), coord.getLongitude(), coord.getElevation()));
 		}

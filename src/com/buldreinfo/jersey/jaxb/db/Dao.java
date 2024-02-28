@@ -6,12 +6,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.ParseException;
@@ -138,7 +138,7 @@ public class Dao {
 	public Dao() {
 	}
 	
-	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
 			final int idArea = 0;
@@ -632,7 +632,7 @@ public class Dao {
 		return res;
 	}
 
-	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId) throws IOException, SQLException {
+	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
 			ps.setInt(1, reqId);
@@ -767,7 +767,7 @@ public class Dao {
 		return a;
 	}
 
-	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws IOException, SQLException {
+	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits ORDER BY replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')")) {
@@ -810,7 +810,7 @@ public class Dao {
 		return res;
 	}
 
-	public Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException, NoSuchAlgorithmException, IOException {
+	public Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
 		Optional<Integer> authUserId = Optional.empty();
 		String picture = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?")) {
@@ -1194,7 +1194,7 @@ public class Dao {
 		return res;
 	}
 
-	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia) throws IOException, SQLException {
+	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
 			ps.setInt(1, reqId);
@@ -1461,7 +1461,7 @@ public class Dao {
 		return p;
 	}
 
-	public List<ProblemArea> getProblemsList(Connection c, Optional<Integer> authUserId, Setup setup) throws IOException, SQLException {
+	public List<ProblemArea> getProblemsList(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
 		Map<Integer, ProblemAreaSector> sectorLookup = new HashMap<>();
@@ -1573,7 +1573,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
+	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, MAX(a.name) location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(a.id) area_id FROM ((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_area ma ON m.id=ma.media_id) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
 		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1609,7 +1609,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<Media> getProfileMediaCapturedSector(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
+	public List<Media> getProfileMediaCapturedSector(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
 		String sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(s.id) sector_id  FROM (((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_sector ms ON m.id=ms.media_id) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
 		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1645,7 +1645,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<Media> getProfileMediaProblem(Connection c, Optional<Integer> authUserId, Setup setup, int reqId, boolean captured) throws SQLException {
+	public List<Media> getProfileMediaProblem(Connection c, Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
 		String sqlStr = null;
 		if (captured) {
 			sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id  FROM ((((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
@@ -2185,7 +2185,7 @@ public class Dao {
 		return res;
 	}
 
-	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId) throws IOException, SQLException {
+	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId) throws SQLException {
 		final boolean updateHits = true;
 		return getSector(c, authUserId, orderByGrade, setup, reqId, updateHits);
 	}
@@ -2402,7 +2402,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<Top> getTop(Connection c, Optional<Integer> authUserId, Setup s, int areaId, int sectorId) throws SQLException {
+	public List<Top> getTop(Connection c, Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
 		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
 		String sqlStr = "WITH x AS ("
@@ -2457,7 +2457,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<Trash> getTrash(Connection c, Optional<Integer> authUserId, Setup setup) throws IOException, SQLException {
+	public List<Trash> getTrash(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		List<Trash> res = new ArrayList<>();
 		String sqlStr =
@@ -2865,7 +2865,7 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
 		ensureAdminWriteRegion(c, authUserId, s.idRegion());
@@ -2936,7 +2936,7 @@ public class Dao {
 				}
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.idRegion());
 				ps.setString(3, GlobalFunctions.stripString(a.getName()));
@@ -2995,7 +2995,7 @@ public class Dao {
 		logger.debug("setMediaMetadata(idMedia={}, height={}, width={}, dateTaken={}) - success", idMedia, height, width, dateTaken);
 	}
 
-	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException, ImageReadException, ImageWriteException {
+	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, ParseException, InterruptedException, ImageReadException, ImageWriteException {
 		final boolean orderByGrade = s.gradeSystem().equals(GradeSystem.BOULDER);
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
@@ -3038,7 +3038,7 @@ public class Dao {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
@@ -3193,7 +3193,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public Redirect setSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, Sector s, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -3271,7 +3271,7 @@ public class Dao {
 			}
 		} else {
 			ensureAdminWriteArea(c, authUserId, s.getAreaId());
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, s.getAreaId());
 				ps.setString(3, s.getName());
@@ -3388,7 +3388,7 @@ public class Dao {
 			}
 		}
 		else if (t.id() == -1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId.orElseThrow());
 				ps.setDate(3, dt);
@@ -3549,7 +3549,7 @@ public class Dao {
 		}
 	}
 
-	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		if (co.id() > 0) {
 			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false).getComments();
@@ -3596,7 +3596,7 @@ public class Dao {
 				}
 			}
 
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setString(1, GlobalFunctions.stripString(co.comment()));
 				ps.setInt(2, co.idProblem());
 				ps.setInt(3, authUserId.orElseThrow());
@@ -3709,7 +3709,7 @@ public class Dao {
 		}
 	}
 
-	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
+	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		int idMedia = -1;
 		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
@@ -3746,7 +3746,7 @@ public class Dao {
 		 * DB
 		 */
 		if (!alreadyExistsInDb) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, isMovie);
 				ps.setString(2, suffix);
 				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
@@ -3815,9 +3815,9 @@ public class Dao {
 		return idMedia;
 	}
 
-	private int addUser(Connection c, String email, String firstname, String lastname, String picture) throws SQLException, IOException {
+	private int addUser(Connection c, String email, String firstname, String lastname, String picture) throws SQLException {
 		int id = -1;
-		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, firstname);
 			ps.setString(2, lastname);
 			ps.setString(3, picture);
@@ -3932,7 +3932,7 @@ public class Dao {
 		return res;
 	}
 
-	private int getExistingOrInsertUser(Connection c, String name) throws SQLException, NoSuchAlgorithmException, IOException {
+	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {
 		if (Strings.isNullOrEmpty(name)) {
 			return 1049; // Unknown
 		}
@@ -4082,7 +4082,7 @@ public class Dao {
 						}
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, problemId);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0, null));
 				}
@@ -4122,7 +4122,7 @@ public class Dao {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, optionalIdProblem);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem, null);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
@@ -4220,7 +4220,7 @@ public class Dao {
 		return res;
 	}
 
-	private Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws IOException, SQLException {
+	private Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		if (updateHits) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
@@ -4262,7 +4262,7 @@ public class Dao {
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, 0, 0, false);
 					allMedia.addAll(getMediaArea(c, authUserId, areaId, true));
-					if (allMedia != null && allMedia.size() > 0) {
+					if (!allMedia.isEmpty()) {
 						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
 							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
@@ -4447,7 +4447,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia, int optionalIdProblem) throws SQLException {
+	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
 		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
 			ps.setInt(1, authUserId.orElse(0));

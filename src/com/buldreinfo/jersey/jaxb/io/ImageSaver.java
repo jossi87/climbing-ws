@@ -31,7 +31,7 @@ public class ImageSaver {
 		private Path pathWebJpg;
 		private Path pathWebWebP;
 		private TiffOutputSet metadata;
-		protected ImageSaver save() throws IOException {
+		protected ImageSaver save() {
 			return new ImageSaver(this);
 		}
 		protected ImageSaverBuilder withBufferedImage(BufferedImage bufferedImage) {
@@ -60,7 +60,7 @@ public class ImageSaver {
 		return new ImageSaverBuilder();
 	}
 
-	private ImageSaver(ImageSaverBuilder builder) throws IOException {
+	private ImageSaver(ImageSaverBuilder builder) {
 		Preconditions.checkNotNull(builder.bufferedImage);
 		if (builder.pathOriginalJpg != null) {
 			Preconditions.checkNotNull(builder.pathOriginalJpg);
