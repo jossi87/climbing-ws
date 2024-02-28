@@ -334,12 +334,10 @@ public class V2 {
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
-			if (dimention != null) {
+			if (dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				if (b.getWidth() > dimention.getX() && b.getHeight() > dimention.getY()) {
-					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
-				}
+				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
 				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 					ImageIO.write(b, "jpg", baos);
 					return Response.ok(baos.toByteArray(), mimeType).cacheControl(cc).build();
