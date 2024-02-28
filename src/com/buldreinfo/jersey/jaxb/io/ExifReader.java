@@ -48,7 +48,6 @@ public class ExifReader {
 		if (exifDateStr == null) {
 			return null;
 		}
-
 		return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
 	}
 
