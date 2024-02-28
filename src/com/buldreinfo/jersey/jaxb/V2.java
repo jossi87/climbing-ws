@@ -24,8 +24,6 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -60,6 +58,7 @@ import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
 import com.google.common.base.Joiner;
@@ -132,7 +131,7 @@ public class V2 {
 			@Parameter(description = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
 			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<Activity> res = Server.getDao().getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media);
 			return Response.ok().entity(res).build();
 		});
@@ -144,7 +143,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAdministrators(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<Administrator> administrators = Server.getDao().getAdministrators(c, setup.getIdRegion());
 			return Response.ok().entity(administrators).build();
 		});
@@ -158,7 +157,7 @@ public class V2 {
 	public Response getAreas(@Context HttpServletRequest request,
 			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Response response = null;
 			if (id > 0) {
 				Collection<Area> areas = Collections.singleton(Server.getDao().getArea(c, setup, authUserId, id));
@@ -180,7 +179,7 @@ public class V2 {
 	public Response getAreasPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Meta meta = Meta.from(c, setup, authUserId);
 			final Area area = Server.getDao().getArea(c, setup, authUserId, id);
 			final Collection<GradeDistribution> gradeDistribution = Server.getDao().getGradeDistribution(c, authUserId, setup, area.getId(), 0);
@@ -225,7 +224,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getDangerous(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Collection<DangerousArea> res = Server.getDao().getDangerous(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -253,7 +252,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpageNumMedia(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			FrontpageNumMedia res = Server.getDao().getFrontpageNumMedia(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -266,7 +265,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpageNumProblems(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			FrontpageNumProblems res = Server.getDao().getFrontpageNumProblems(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -279,7 +278,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpageNumTicks(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			FrontpageNumTicks res = Server.getDao().getFrontpageNumTicks(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -292,7 +291,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			FrontpageRandomMedia res = Server.getDao().getFrontpageRandomMedia(c, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -308,7 +307,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Collection<GradeDistribution> res = Server.getDao().getGradeDistribution(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
@@ -321,7 +320,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getGraph(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Collection<GradeDistribution> res = Server.getDao().getContentGraph(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -382,7 +381,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMeta(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Meta res = Meta.from(c, setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
@@ -395,7 +394,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getPermissions(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<PermissionUser> res = Server.getDao().getPermissions(c, authUserId, setup.getIdRegion());
 			return Response.ok().entity(res).build();
 		});
@@ -411,7 +410,7 @@ public class V2 {
 			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Problem res = Server.getDao().getProblem(c, authUserId, setup, id, showHiddenMedia);
 			Response response = Response.ok().entity(res).build();
 			return response;
@@ -427,7 +426,7 @@ public class V2 {
 			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Problem problem = Server.getDao().getProblem(c, authUserId, setup, id, false);
 			final Area area = Server.getDao().getArea(c, setup, authUserId, problem.getAreaId());
 			final Sector sector = Server.getDao().getSector(c, authUserId, false, setup, problem.getSectorId());
@@ -454,7 +453,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblems(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<ProblemArea> res = Server.getDao().getProblemsList(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -467,7 +466,7 @@ public class V2 {
 	@Produces(MIME_TYPE_XLSX)
 	public Response getProblemsXlsx(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<ProblemArea> res = Server.getDao().getProblemsList(c, authUserId, setup);
 			byte[] bytes;
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
@@ -517,7 +516,7 @@ public class V2 {
 	public Response getProfile(@Context HttpServletRequest request,
 			@Parameter(description = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Profile res = Server.getDao().getProfile(c, authUserId, setup, reqUserId);
 			return Response.ok().entity(res).build();
 		});
@@ -532,7 +531,7 @@ public class V2 {
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<Media> res = Server.getDao().getProfileMediaProblem(c, authUserId, setup, id, captured);
 			if (captured) {
 				res.addAll(Server.getDao().getProfileMediaCapturedSector(c, authUserId, setup, id));
@@ -550,7 +549,7 @@ public class V2 {
 	public Response getProfileStatistics(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			ProfileStatistics res = Server.getDao().getProfileStatistics(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
@@ -564,7 +563,7 @@ public class V2 {
 	public Response getProfileTodo(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			ProfileTodo res = Server.getDao().getProfileTodo(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
@@ -575,7 +574,7 @@ public class V2 {
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getRobotsTxt(@Context HttpServletRequest request) {
-		final Setup setup = MetaHelper.getMeta().getSetup(request);
+		final Setup setup = Server.getSetup(request);
 		if (setup.isSetRobotsDenyAll()) {
 			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
 		}
@@ -595,7 +594,7 @@ public class V2 {
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final boolean orderByGrade = setup.isBouldering();
 			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
 			Response response = Response.ok().entity(s).build();
@@ -612,7 +611,7 @@ public class V2 {
 			@Parameter(description = "Access token", required = false) @QueryParam("accessToken") String accessToken,
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Meta meta = Meta.from(c, setup, authUserId);
 			final Sector sector = Server.getDao().getSector(c, authUserId, false, setup, id);
 			final Collection<GradeDistribution> gradeDistribution = Server.getDao().getGradeDistribution(c, authUserId, setup, 0, id);
@@ -639,7 +638,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getSitemapTxt(@Context HttpServletRequest request, @QueryParam("base") String base) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			String res = Server.getDao().getSitemapTxt(c, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -654,7 +653,7 @@ public class V2 {
 			@Parameter(description = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Ticks res = Server.getDao().getTicks(c, authUserId, setup, page);
 			return Response.ok().entity(res).build();
 		});
@@ -670,7 +669,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Todo res = Server.getDao().getTodo(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
@@ -686,7 +685,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Collection<Top> res = Server.getDao().getTop(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
@@ -699,7 +698,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTrash(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<Trash> res = Server.getDao().getTrash(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
@@ -740,7 +739,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJs(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Optional<Integer> authUserId = Optional.empty();
 			FrontpageNumProblems frontpageNumProblems = Server.getDao().getFrontpageNumProblems(c, authUserId, setup);
 			FrontpageNumMedia frontpageNumMedia = Server.getDao().getFrontpageNumMedia(c, authUserId, setup);
@@ -770,7 +769,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Optional<Integer> authUserId = Optional.empty();
 			Area a = Server.getDao().getArea(c, setup, authUserId, id);
 			String description = null;
@@ -802,7 +801,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Optional<Integer> authUserId = Optional.empty();
 			Problem p = Server.getDao().getProblem(c, authUserId, setup, id, false);
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
@@ -838,7 +837,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) {
 		return Server.buildResponseWithSql(c -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
 			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
@@ -871,7 +870,7 @@ public class V2 {
 	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
 			Redirect res = Server.getDao().setArea(c, setup, authUserId, a, multiPart);
 			return Response.ok().entity(res).build();
@@ -887,7 +886,7 @@ public class V2 {
 	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Server.getDao().upsertComment(c, authUserId, setup, co, multiPart);
 			return Response.ok().build();
 		});
@@ -899,7 +898,7 @@ public class V2 {
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Server.getDao().upsertMediaSvg(c, authUserId, setup, m);
 			return Response.ok().build();
 		});
@@ -911,7 +910,7 @@ public class V2 {
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Server.getDao().upsertPermissionUser(c, setup.getIdRegion(), authUserId, u);
 			return Response.ok().build();
 		});
@@ -926,7 +925,7 @@ public class V2 {
 	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
@@ -946,7 +945,7 @@ public class V2 {
 			FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			Server.getDao().addProblemMedia(c, authUserId, p, multiPart);
@@ -982,7 +981,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
 			Preconditions.checkNotNull(search, "Invalid search: " + search);
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			List<Search> res = Server.getDao().getSearch(c, authUserId, setup, search);
 			return Response.ok().entity(res).build();
 		});
@@ -997,7 +996,7 @@ public class V2 {
 	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
 			final boolean orderByGrade = setup.isBouldering();
@@ -1012,7 +1011,7 @@ public class V2 {
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Preconditions.checkArgument(t.idProblem() > 0);
 			Server.getDao().setTick(c, authUserId, setup, t);
 			return Response.ok().build();
@@ -1089,7 +1088,7 @@ public class V2 {
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Server.getDao().rotateMedia(c, setup.getIdRegion(), authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
@@ -1112,7 +1111,7 @@ public class V2 {
 				(idArea == 0 && idSector == 0 && idProblem == 0),
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
-			final Setup setup = MetaHelper.getMeta().getSetup(request);
+			final Setup setup = Server.getSetup(request);
 			Server.getDao().trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
 		});

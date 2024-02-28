@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
+import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.gson.stream.JsonReader;
@@ -78,6 +79,7 @@ public class GeoHelper {
 	}
 
 	private static Logger logger = LogManager.getLogger();
+	
 	public static CompassDirection calculateCompassDirection(Setup setup, List<Coordinates> outline) {
 		final String direction = calculateWallDirection(setup, outline);
 		if (direction == null) {
@@ -85,18 +87,27 @@ public class GeoHelper {
 		}
 		return setup.getCompassDirections().stream().filter(cd -> cd.direction().equals(direction)).findAny().get();
 	}
-	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
-		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
-			return null;
+	
+	public static long calculateHikingDurationInMinutes(List<Coordinates> approach) {
+		final double e = -3.5; // Exponential growth factor in Tobler's function
+		final double a = 0.05; // Slope offset with max speed. 5% down hill will result in max speed -2.86 degrees
+		final double c = 1 / Math.exp(e * a); // Horizontal speed to max speed factor: Vmax=C*Vflat
+		final int maxLimit = 3; // >30% incline / >40% decline
+		double totalCalculatedDistance = 0;
+		for (int i = 1; i < approach.size(); i++) {
+			Coordinates prevCoord = approach.get(i-1);
+			Coordinates coord = approach.get(i);
+			double elevation = coord.getElevation()-prevCoord.getElevation();
+			double distance = coord.getDistance()-prevCoord.getDistance();
+			double distanceMultiplier = 1.0 / (c * Math.exp(e * Math.abs(elevation / distance + a)));
+			totalCalculatedDistance += (Math.min(maxLimit, distanceMultiplier) * distance);
 		}
-		try {
-			GeoHelper calc = new GeoHelper();
-			return calc.getWallDirection(outline);
-		} catch (Exception e) {
-			logger.warn(e.getMessage());
-		}
-		return null;
+		double meterPerSecond = 1.3; // Average hiking speed is between 1.2 and 1.4 m/s
+		double durationSeconds = totalCalculatedDistance / meterPerSecond;
+		long durationMinutes = Math.round(durationSeconds / 60.0);
+		return durationMinutes;
 	}
+	
 	public static void fillElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
 		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
 			String locations = null;
@@ -173,20 +184,7 @@ public class GeoHelper {
 			}
 		}
 	}
-	@Deprecated // TODO Use st_distance_sphere in MySQL
-	public static double getDistance(double lat1, double lat2, double lon1, double lon2, double el1, double el2) {
-		final int R = 6371; // Radius of the earth
-		double latDistance = Math.toRadians(lat2 - lat1);
-		double lonDistance = Math.toRadians(lon2 - lon1);
-		double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-				* Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-		double distance = R * c * 1000; // convert to meters
-		double height = el1 - el2;
-		distance = Math.pow(distance, 2) + Math.pow(height, 2);
-		return Math.sqrt(distance);
-	}
+	
 	public static int getElevation(double latitude, double longitude) throws IOException, InterruptedException {
 		List<Coordinates> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinates(latitude, longitude));
@@ -194,25 +192,20 @@ public class GeoHelper {
 		GeoHelper.fillElevations(coordinates);
 		return (int)Math.round(coordinates.get(0).getElevation());
 	}
-	public static long calculateHikingDurationInMinutes(List<Coordinates> approach) {
-		final double e = -3.5; // Exponential growth factor in Tobler's function
-		final double a = 0.05; // Slope offset with max speed. 5% down hill will result in max speed -2.86 degrees
-		final double c = 1 / Math.exp(e * a); // Horizontal speed to max speed factor: Vmax=C*Vflat
-		final int maxLimit = 3; // >30% incline / >40% decline
-		double totalCalculatedDistance = 0;
-		for (int i = 1; i < approach.size(); i++) {
-			Coordinates prevCoord = approach.get(i-1);
-			Coordinates coord = approach.get(i);
-			double elevation = coord.getElevation()-prevCoord.getElevation();
-			double distance = coord.getDistance()-prevCoord.getDistance();
-			double distanceMultiplier = 1.0 / (c * Math.exp(e * Math.abs(elevation / distance + a)));
-			totalCalculatedDistance += (Math.min(maxLimit, distanceMultiplier) * distance);
+	
+	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
+		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
+			return null;
 		}
-		double meterPerSecond = 1.3; // Average hiking speed is between 1.2 and 1.4 m/s
-		double durationSeconds = totalCalculatedDistance / meterPerSecond;
-		long durationMinutes = Math.round(durationSeconds / 60.0);
-		return durationMinutes;
+		try {
+			GeoHelper calc = new GeoHelper();
+			return calc.getWallDirection(outline);
+		} catch (Exception e) {
+			logger.warn(e.getMessage());
+		}
+		return null;
 	}
+	
 	private List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
 	private GeoPoint firstPointHigh;
@@ -221,35 +214,9 @@ public class GeoHelper {
 	private double wallBearing;
 	private double wallPerpendicularBearing;
 	private int sunOffset;
-
 	private long wallDirectionDegrees;
 
-	public GeoHelper() throws IOException {
-	}
-
-	public void debug() {
-		logger.debug("wallBearing={}, wallPerpendicularBearing={}, sunOffset={}, firstPointLow={}, firstPointHigh={}, secondPointLow={}, secondPointHigh={}, vectorLow={}, vectorHigh={}",
-				wallBearing, wallPerpendicularBearing, sunOffset,
-				firstPointLow, firstPointHigh, secondPointLow, secondPointHigh,
-				(firstPointLow.getLatitude() + "," + firstPointLow.getLongitude() + ";" + secondPointLow.getLatitude() + "," + secondPointLow.getLongitude()),
-				(firstPointHigh.getLatitude() + "," + firstPointHigh.getLongitude() + ";" + secondPointHigh.getLatitude() + "," + secondPointHigh.getLongitude()));
-	}
-
-	public List<GeoPoint> getGeoPoints() {
-		return geoPoints;
-	}
-
-	public String getWallDirection(List<Coordinates> outline) throws IOException {
-		for (Coordinates coord : outline) {
-			geoPoints.add(new GeoPoint(coord.getLatitude(), coord.getLongitude(), coord.getElevation()));
-		}
-		calculateDistanceToCenter();
-		calculateBoundingBox();
-		this.wallBearing = getBearing(firstPointLow, secondPointLow);
-		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
-		calculateSunOffset();
-		this.wallDirectionDegrees = ((Math.round(wallBearing) + sunOffset)+360) % 360;
-		return convertFromDegreesToOrdinalName(wallDirectionDegrees);
+	private GeoHelper() throws IOException {
 	}
 
 	private void calculateBoundingBox() {
@@ -362,5 +329,18 @@ public class GeoHelper {
 		double avgR = Math.atan2(y / anglesDeg.length, x / anglesDeg.length);
 		int angle = (int)Math.round((Math.toDegrees(avgR)+360)%360);
 		return angle;
+	}
+
+	private String getWallDirection(List<Coordinates> outline) throws IOException {
+		for (Coordinates coord : outline) {
+			geoPoints.add(new GeoPoint(coord.getLatitude(), coord.getLongitude(), coord.getElevation()));
+		}
+		calculateDistanceToCenter();
+		calculateBoundingBox();
+		this.wallBearing = getBearing(firstPointLow, secondPointLow);
+		// Add or subtract 90 degrees to get perpendicular vector in the walls facing direction
+		calculateSunOffset();
+		this.wallDirectionDegrees = ((Math.round(wallBearing) + sunOffset)+360) % 360;
+		return convertFromDegreesToOrdinalName(wallDirectionDegrees);
 	}
 }

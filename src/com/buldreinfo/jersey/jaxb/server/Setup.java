@@ -1,7 +1,8 @@
-package com.buldreinfo.jersey.jaxb.helpers;
+package com.buldreinfo.jersey.jaxb.server;
 
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.google.common.base.Strings;

@@ -46,9 +46,6 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
-import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
@@ -111,6 +108,7 @@ import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
+import com.buldreinfo.jersey.jaxb.server.Setup.GRADE_SYSTEM;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -2621,7 +2619,7 @@ public class Dao {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						Setup setup = MetaHelper.getMeta().getSetup(regionId);
+						Setup setup = Server.getSetup(regionId);
 						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
@@ -2669,7 +2667,7 @@ public class Dao {
 						Date date = rst.getDate("date");
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
-						Setup setup = MetaHelper.getMeta().getSetup(regionId);
+						Setup setup = Server.getSetup(regionId);
 						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {

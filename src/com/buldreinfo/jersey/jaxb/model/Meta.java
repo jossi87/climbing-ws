@@ -7,9 +7,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
-import com.buldreinfo.jersey.jaxb.helpers.Setup.GRADE_SYSTEM;
 import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.server.Setup;
+import com.buldreinfo.jersey.jaxb.server.Setup.GRADE_SYSTEM;
 
 public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,

@@ -6,8 +6,8 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
+import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.google.common.collect.Sets;
 
 import jakarta.annotation.Priority;
@@ -44,7 +44,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			}
 			
 			if (LEGAL_ORIGINS.isEmpty()) {
-				for (String domain : MetaHelper.getMeta().getSetups()
+				for (String domain : Server.getSetups()
 						.stream()
 						.map(Setup::getDomain)
 						.collect(Collectors.toList())) {

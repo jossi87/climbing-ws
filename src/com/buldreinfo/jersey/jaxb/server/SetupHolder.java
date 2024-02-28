@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.helpers;
+package com.buldreinfo.jersey.jaxb.server;
 
 import java.util.List;
 

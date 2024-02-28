@@ -14,8 +14,6 @@ import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSector;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -24,6 +22,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -123,7 +122,7 @@ public class FillProblems {
 
 	public FillProblems() {
 		Preconditions.checkArgument(REGION_ID > 0, "Invalid REGION_ID=" + REGION_ID);
-		this.setup = MetaHelper.getMeta().getSetup(REGION_ID);
+		this.setup = Server.getSetup(REGION_ID);
 		List<Data> data = new ArrayList<>();
 		// TODO Fill data (FA-date: yyyy-MM-dd)
 		data.add(new Data(1,"AREA","SECTOR","NAME", T.TRAD,"DESCRIPTION", 1,"6+","USER_1,USER_2&USER_3","9999-12-31"));
@@ -174,19 +173,19 @@ public class FillProblems {
 			}
 		}
 		Area a = new Area(null, REGION_ID, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, 0);
-		Redirect r = Server.getDao().setArea(c, MetaHelper.getMeta().getSetup(REGION_ID), AUTH_USER_ID, a, null);
+		Redirect r = Server.getDao().setArea(c, Server.getSetup(REGION_ID), AUTH_USER_ID, a, null);
 		return r.idArea();
 	}
 
 	private int upsertSector(Connection c, int idArea, Data d) throws IOException, SQLException, NoSuchAlgorithmException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
-		Area a = Preconditions.checkNotNull(Server.getDao().getArea(c, MetaHelper.getMeta().getSetup(REGION_ID), AUTH_USER_ID, idArea));
+		Area a = Preconditions.checkNotNull(Server.getDao().getArea(c, Server.getSetup(REGION_ID), AUTH_USER_ID, idArea));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
 				return s.getId();
 			}
 		}
 		Sector s = new Sector(null, false, idArea, false, false, null, null, false, idArea, idArea, null, null, -1, false, false, false, d.getSector(), null, null, null, null, null, null, null, null, null, null, null, 0);
-		Redirect r = Server.getDao().setSector(c, AUTH_USER_ID, false, MetaHelper.getMeta().getSetup(REGION_ID), s, null);
+		Redirect r = Server.getDao().setSector(c, AUTH_USER_ID, false, Server.getSetup(REGION_ID), s, null);
 		return r.idSector();
 	}
 }

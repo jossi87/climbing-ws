@@ -16,8 +16,6 @@ import com.auth0.json.auth.UserInfo;
 import com.auth0.net.Request;
 import com.auth0.net.Response;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.buldreinfo.jersey.jaxb.helpers.MetaHelper;
-import com.buldreinfo.jersey.jaxb.helpers.Setup;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -43,20 +41,19 @@ public class AuthHelper {
 						Map<String, Object> values = info.getBody().getValues();
 						return new Auth0Profile(values);
 					} catch (Exception ex) {
-						logger.warn(ex.getMessage(), ex);
-						throw ex;
+						logger.warn("Login failed: " + ex.getMessage());
+						return null;
 					}
 				}
 			});
 
-	private Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, MetaHelper metaHelper, String accessToken) {
+	private Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, Setup setup, String accessToken) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try {
 			boolean update = cache.getIfPresent(accessToken) == null;
 			Auth0Profile profile = cache.get(accessToken);
 			Optional<Integer> authUserId = Server.getDao().getAuthUserId(c, profile);
 			if (update) {
-				Setup setup = metaHelper.getSetup(request);
 				Gson gson = new Gson();
 				String headers = gson.toJson(getHeadersInfo(request));
 				// Log login
@@ -86,12 +83,12 @@ public class AuthHelper {
 		return map;
 	}
 
-	protected Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, MetaHelper metaHelper) {
+	protected Optional<Integer> getAuthUserId(Connection c, HttpServletRequest request, Setup setup) {
 		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (Strings.isNullOrEmpty(authorization)) {
 			return Optional.empty();
 		}
 		String accessToken = authorization.substring(7); // Remove "Bearer "
-		return getAuthUserId(c, request, metaHelper, accessToken);
+		return getAuthUserId(c, request, setup, accessToken);
 	}
 }
