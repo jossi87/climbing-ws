@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.io;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
@@ -11,8 +10,6 @@ import java.util.concurrent.Executors;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.apache.commons.lang3.SystemUtils;
@@ -83,9 +80,8 @@ public class ImageSaver {
 							}
 						}
 						IOHelper.setFilePermission(builder.pathOriginalJpg);
-					} catch (IOException | ImageReadException | ImageWriteException e) {
+					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
-						throw new RuntimeException(e.getMessage(), e);
 					}
 				});
 				// Scaled jpg and webp
@@ -115,9 +111,8 @@ public class ImageSaver {
 						Process process = Runtime.getRuntime().exec(cmd);
 						process.waitFor();
 						IOHelper.setFilePermission(builder.pathWebWebP);
-					} catch (IOException | InterruptedException e) {
+					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
-						throw new RuntimeException(e.getMessage(), e);
 					}
 				});
 			}
