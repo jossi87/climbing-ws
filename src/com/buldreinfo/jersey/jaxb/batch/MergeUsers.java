@@ -2,7 +2,7 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.sql.PreparedStatement;
 
-import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.Server;
 
 public class MergeUsers {
 	// WITH u AS (SELECT TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) nm FROM user u GROUP BY TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) HAVING COUNT(TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))))>1) SELECT u2.* FROM u, user u2 WHERE u.nm=TRIM(CONCAT(u2.firstname,' ',COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname

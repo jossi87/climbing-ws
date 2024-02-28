@@ -27,9 +27,9 @@ import javax.imageio.ImageIO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
-import com.buldreinfo.jersey.jaxb.server.Server;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 

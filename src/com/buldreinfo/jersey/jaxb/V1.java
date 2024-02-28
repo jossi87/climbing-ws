@@ -1,7 +1,5 @@
 package com.buldreinfo.jersey.jaxb;
 
-import com.buldreinfo.jersey.jaxb.server.Server;
-
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

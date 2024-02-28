@@ -18,7 +18,7 @@ import org.apache.commons.imaging.ImageWriteException;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
-import com.buldreinfo.jersey.jaxb.server.Server;
+import com.buldreinfo.jersey.jaxb.Server;
 import com.google.common.base.Preconditions;
 
 public class ImageHelper {

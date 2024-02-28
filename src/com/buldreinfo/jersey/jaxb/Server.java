@@ -1,6 +1,7 @@
-package com.buldreinfo.jersey.jaxb.server;
+package com.buldreinfo.jersey.jaxb;
 
 import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,13 +9,14 @@ import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.buldreinfo.jersey.jaxb.server.function.Consumer;
-import com.buldreinfo.jersey.jaxb.server.function.Function;
-import com.buldreinfo.jersey.jaxb.server.function.FunctionDb;
-import com.buldreinfo.jersey.jaxb.server.function.FunctionDbUser;
+import com.buldreinfo.jersey.jaxb.function.Consumer;
+import com.buldreinfo.jersey.jaxb.function.Function;
+import com.buldreinfo.jersey.jaxb.function.FunctionDb;
+import com.buldreinfo.jersey.jaxb.function.FunctionDbUser;
+import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Response;
@@ -23,7 +25,38 @@ public class Server {
 	private static Server server;
 	private static Logger logger = LogManager.getLogger();
 	
-	public static Response buildResponse(Function<Response> function) {
+	public static Dao getDao() {
+		return getServer().dao;
+	}
+	
+	public static Setup getSetup(int regionId) {
+		return getSetups()
+				.stream()
+				.filter(x -> x.idRegion() == regionId)
+				.findAny()
+				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId));
+	}
+	
+	public static void runSql(Consumer<Connection> action) {
+		try (Connection c = getServer().bds.getConnection()) {
+			c.setAutoCommit(false);
+			action.run(c);
+			c.commit();
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+	
+	private static synchronized Server getServer() {
+		Server result = server;
+		if (result == null) {
+			server = result = new Server();
+		}
+		return result;
+	}
+	
+	protected static Response buildResponse(Function<Response> function) {
 		try {
 			return function.get();
 		} catch (Exception e) {
@@ -32,7 +65,7 @@ public class Server {
 		}
 	}
 	
-	public static Response buildResponseWithSql(FunctionDb<Connection, Response> function) {
+	protected static Response buildResponseWithSql(FunctionDb<Connection, Response> function) {
 		try (Connection c = getServer().bds.getConnection()) {
 			c.setAutoCommit(false);
 			Response res = function.get(c);
@@ -44,7 +77,7 @@ public class Server {
 		}
 	}
 	
-	public static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
 		try (Connection c = getServer().bds.getConnection()) {
 			c.setAutoCommit(true); // Always commit user to avoid multiple parallel transactions inserting the same user...
 			Optional<Integer> authUserId = getServer().auth.getAuthUserId(c, request, getSetup(request));
@@ -58,56 +91,25 @@ public class Server {
 		}
 	}
 	
-	public static Dao getDao() {
-		return getServer().dao;
-	}
-	
-	public static Setup getSetup(HttpServletRequest request) {
+	protected static Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
 		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
 		return getSetups()
 				.stream()
-				.filter(x -> serverName.equalsIgnoreCase(x.getDomain()))
+				.filter(x -> serverName.equalsIgnoreCase(x.domain()))
 				.findAny()
 				.orElseThrow(() -> new RuntimeException("Invalid serverName=" + serverName));
 	}
 	
-	public static Setup getSetup(int regionId) {
-		return getSetups()
-				.stream()
-				.filter(x -> x.getIdRegion() == regionId)
-				.findAny()
-				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId));
+	protected static List<Setup> getSetups() {
+		return getServer().setups;
 	}
 	
-	public static List<Setup> getSetups() {
-		return Server.getServer().findSetups();
-	}
-	public static void runSql(Consumer<Connection> action) {
-		try (Connection c = getServer().bds.getConnection()) {
-			c.setAutoCommit(false);
-			action.run(c);
-			c.commit();
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
-	private static synchronized Server getServer() {
-		Server result = server;
-		if (result == null) {
-			server = result = new Server();
-		}
-		return result;
-	}
 	private final BasicDataSource bds;
-	
 	private final Dao dao = new Dao();
-
 	private final AuthHelper auth = new AuthHelper();
-
-	private SetupHolder holder;
+	private final List<Setup> setups = new ArrayList<>();
 	
 	private Server() {
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
@@ -120,18 +122,6 @@ public class Server {
 		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		this.bds.setUrl(url);
 		this.bds.setMaxTotal(64);
-	}
-	
-	private List<Setup> findSetups() {
-		long validMilliseconds = holder == null? 0 : holder.getValidMilliseconds();
-		if (validMilliseconds > 0) {
-			logger.debug("getSetups() - From cache, validMilliseconds={}", validMilliseconds);
-		}
-		else {
-			Stopwatch stopwatch = Stopwatch.createStarted();
-			Server.runSql(c -> holder = new SetupHolder(Server.getDao().getSetups(c), System.currentTimeMillis()));
-			logger.debug("getSetups() - Fetched new setups in {}", stopwatch);
-		}
-		return holder.getSetups();
+		Server.runSql(c -> setups.addAll(Server.getDao().getSetups(c)));
 	}
 }

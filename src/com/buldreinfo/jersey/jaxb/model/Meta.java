@@ -7,21 +7,21 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-import com.buldreinfo.jersey.jaxb.server.Server;
-import com.buldreinfo.jersey.jaxb.server.Setup;
-import com.buldreinfo.jersey.jaxb.server.Setup.GRADE_SYSTEM;
+import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 
 public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
 	public static Meta from(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
-		String title = setup.getTitle();
+		String title = setup.title();
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
 		if (authUserId.isPresent()) {
 			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
-				ps.setInt(1, setup.getIdRegion());
+				ps.setInt(1, setup.idRegion());
 				ps.setInt(2, authUserId.get());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -35,17 +35,17 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 				}
 			}
 		}
-		List<Grade> grades = setup.getGradeConverter().getGrades();
-		int defaultZoom = setup.getDefaultZoom();
-		LatLng defaultCenter = setup.getDefaultCenter();
-		GRADE_SYSTEM gradeSystem = setup.getGradeSystem();
-		boolean isBouldering = gradeSystem.equals(GRADE_SYSTEM.BOULDER);
-		boolean isClimbing = gradeSystem.equals(GRADE_SYSTEM.CLIMBING);
-		boolean isIce = gradeSystem.equals(GRADE_SYSTEM.ICE);
-		String url = setup.getUrl();
-		List<Type> types = Server.getDao().getTypes(c, setup.getIdRegion());
-		List<Site> sites = Server.getDao().getSites(c, setup.getIdRegion());
-		List<CompassDirection> compassDirections = setup.getCompassDirections();
+		List<Grade> grades = setup.gradeConverter().getGrades();
+		int defaultZoom = setup.defaultZoom();
+		LatLng defaultCenter = setup.defaultCenter();
+		GradeSystem gradeSystem = setup.gradeSystem();
+		boolean isBouldering = gradeSystem.equals(GradeSystem.BOULDER);
+		boolean isClimbing = gradeSystem.equals(GradeSystem.CLIMBING);
+		boolean isIce = gradeSystem.equals(GradeSystem.ICE);
+		String url = setup.url();
+		List<Type> types = Server.getDao().getTypes(c, setup.idRegion());
+		List<Site> sites = Server.getDao().getSites(c, setup.idRegion());
+		List<CompassDirection> compassDirections = setup.compassDirections();
 		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}
 }

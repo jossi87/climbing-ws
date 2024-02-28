@@ -13,8 +13,8 @@ import java.util.Scanner;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
-import com.buldreinfo.jersey.jaxb.server.Server;
 import com.google.common.base.Strings;
 
 public class FixImageWithouitInPhoto {

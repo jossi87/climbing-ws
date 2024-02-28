@@ -20,6 +20,8 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
 
+import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
@@ -57,8 +59,6 @@ import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
-import com.buldreinfo.jersey.jaxb.server.Server;
-import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
 import com.google.common.base.Joiner;
@@ -144,7 +144,7 @@ public class V2 {
 	public Response getAdministrators(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(c -> {
 			final Setup setup = Server.getSetup(request);
-			List<Administrator> administrators = Server.getDao().getAdministrators(c, setup.getIdRegion());
+			List<Administrator> administrators = Server.getDao().getAdministrators(c, setup.idRegion());
 			return Response.ok().entity(administrators).build();
 		});
 	}
@@ -164,7 +164,7 @@ public class V2 {
 				response = Response.ok().entity(areas).build();
 			}
 			else {
-				Collection<Area> areas = Server.getDao().getAreaList(c, authUserId, setup.getIdRegion());
+				Collection<Area> areas = Server.getDao().getAreaList(c, authUserId, setup.idRegion());
 				response = Response.ok().entity(areas).build();
 			}
 			return response;
@@ -395,7 +395,7 @@ public class V2 {
 	public Response getPermissions(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = Server.getSetup(request);
-			List<PermissionUser> res = Server.getDao().getPermissions(c, authUserId, setup.getIdRegion());
+			List<PermissionUser> res = Server.getDao().getPermissions(c, authUserId, setup.idRegion());
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -486,7 +486,7 @@ public class V2 {
 									type += " (" + p.t().subType() + ")";			
 								}
 								sheet.writeString("TYPE", type);
-								if (!setup.isBouldering()) {
+								if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
 									sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
 								}
 								sheet.writeString("FA", p.fa());
@@ -575,13 +575,13 @@ public class V2 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getRobotsTxt(@Context HttpServletRequest request) {
 		final Setup setup = Server.getSetup(request);
-		if (setup.isSetRobotsDenyAll()) {
+		if (setup.robotsDenyAll()) {
 			return Response.ok().entity("User-agent: *\r\nDisallow: /").build(); 
 		}
 		List<String> lines = Lists.newArrayList(
 				"User-agent: *",
 				"Disallow: */pdf", // Disallow all pdf-calls
-				"Sitemap: " + setup.getUrl("/sitemap.txt"));
+				"Sitemap: " + setup.url() + "/sitemap.txt");
 		return Response.ok().entity(Joiner.on("\r\n").join(lines)).build(); 
 	}
 
@@ -595,7 +595,7 @@ public class V2 {
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = Server.getSetup(request);
-			final boolean orderByGrade = setup.isBouldering();
+			final boolean orderByGrade = setup.gradeSystem().equals(GradeSystem.BOULDER);
 			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
 			Response response = Response.ok().entity(s).build();
 			return response;
@@ -746,15 +746,15 @@ public class V2 {
 			FrontpageNumTicks frontpageNumTicks = Server.getDao().getFrontpageNumTicks(c, authUserId, setup);
 			FrontpageRandomMedia frontpageRandomMedia = Server.getDao().getFrontpageRandomMedia(c, setup);
 			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
-					setup.getDescription(),
+					setup.description(),
 					frontpageNumProblems.numProblems(),
-					(setup.isBouldering()? "boulders" : "routes"),
+					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
 					frontpageNumTicks.numTicks(),
 					frontpageNumMedia.numImages(),
 					frontpageNumMedia.numMovies());
 			String html = getHtml(setup,
-					setup.getUrl(),
-					setup.getTitle(),
+					setup.url(),
+					setup.title(),
 					description,
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
@@ -777,7 +777,7 @@ public class V2 {
 					.stream()
 					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
 					.collect(Collectors.joining(", "));
-			if (setup.isBouldering()) {
+			if (setup.gradeSystem().equals(GradeSystem.BOULDER)) {
 				description = String.format("Bouldering in %s (%s)", a.getName(), info);
 			}
 			else {
@@ -785,7 +785,7 @@ public class V2 {
 			}
 			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().get(0) : null;
 			String html = getHtml(setup,
-					setup.getUrl("/area/" + a.getId()),
+					setup.url() + "/area/" + a.getId(),
 					a.getName(),
 					description,
 					(m == null? 0 : m.id()),
@@ -821,7 +821,7 @@ public class V2 {
 				}
 			}
 			String html = getHtml(setup,
-					setup.getUrl("/problem/" + p.getId()),
+					setup.url() + "/problem/" + p.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -843,15 +843,15 @@ public class V2 {
 			Sector s = Server.getDao().getSector(c, authUserId, orderByGrade, setup, id);
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
-					(setup.isBouldering()? "Bouldering" : "Climbing"),
+					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "Bouldering" : "Climbing"),
 					s.getAreaName(),
 					s.getName(),
 					(s.getProblems() != null? s.getProblems().size() : 0),
-					(setup.isBouldering()? "boulders" : "routes"),
+					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().get(0) : null;
 			String html = getHtml(setup,
-					setup.getUrl("/sector/" + s.getId()),
+					setup.url() + "/sector/" + s.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -911,7 +911,7 @@ public class V2 {
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = Server.getSetup(request);
-			Server.getDao().upsertPermissionUser(c, setup.getIdRegion(), authUserId, u);
+			Server.getDao().upsertPermissionUser(c, setup.idRegion(), authUserId, u);
 			return Response.ok().build();
 		});
 	}
@@ -999,7 +999,7 @@ public class V2 {
 			final Setup setup = Server.getSetup(request);
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
-			final boolean orderByGrade = setup.isBouldering();
+			final boolean orderByGrade = setup.gradeSystem().equals(GradeSystem.BOULDER);
 			Redirect res = Server.getDao().setSector(c, authUserId, orderByGrade, setup, s, multiPart);
 			return Response.ok().entity(res).build();
 		});
@@ -1089,7 +1089,7 @@ public class V2 {
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (c, authUserId) -> {
 			final Setup setup = Server.getSetup(request);
-			Server.getDao().rotateMedia(c, setup.getIdRegion(), authUserId, idMedia, degrees);
+			Server.getDao().rotateMedia(c, setup.idRegion(), authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}
@@ -1120,7 +1120,7 @@ public class V2 {
 	private String getHtml(Setup setup, String url, String title, String description, int mediaId, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
-			String image = setup.getUrl("/buldreinfo_media/jpg/" + String.valueOf(mediaId/100*100) + "/" + mediaId + ".jpg");
+			String image = setup.url() + "/buldreinfo_media/jpg/" + String.valueOf(mediaId/100*100) + "/" + mediaId + ".jpg";
 			ogImage = "<meta property=\"og:image\" content=\"" + image + "\" />" + 
 					"<meta property=\"og:image:width\" content=\"" + mediaWidth + "\" />" + 
 					"<meta property=\"og:image:height\" content=\"" + mediaHeight + "\" />";

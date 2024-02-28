@@ -16,10 +16,11 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
-import com.buldreinfo.jersey.jaxb.server.Setup;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.gson.stream.JsonReader;
@@ -85,7 +86,7 @@ public class GeoHelper {
 		if (direction == null) {
 			return null;
 		}
-		return setup.getCompassDirections().stream().filter(cd -> cd.direction().equals(direction)).findAny().get();
+		return setup.compassDirections().stream().filter(cd -> cd.direction().equals(direction)).findAny().get();
 	}
 	
 	public static long calculateHikingDurationInMinutes(List<Coordinates> approach) {
@@ -194,7 +195,7 @@ public class GeoHelper {
 	}
 	
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
-		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
+		if (!setup.gradeSystem().equals(GradeSystem.CLIMBING) || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
 			return null;
 		}
 		try {

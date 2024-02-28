@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.server;
+package com.buldreinfo.jersey.jaxb.beans;
 
 import java.util.Map;
 

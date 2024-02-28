@@ -6,8 +6,8 @@ import java.sql.ResultSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
-import com.buldreinfo.jersey.jaxb.server.Server;
 
 public class FixAvatars {
 	private static Logger logger = LogManager.getLogger();

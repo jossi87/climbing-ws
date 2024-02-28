@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.server;
+package com.buldreinfo.jersey.jaxb;
 
 import java.awt.Point;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +41,9 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr.Rotation;
 
+import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
+import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
@@ -67,6 +70,7 @@ import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
@@ -108,7 +112,6 @@ import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
-import com.buldreinfo.jersey.jaxb.server.Setup.GRADE_SYSTEM;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -462,8 +465,8 @@ public class Dao {
 				" GROUP BY x.activity_timestamp, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade" +
 				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					Timestamp activityTimestamp = rst.getTimestamp("activity_timestamp");
@@ -472,7 +475,7 @@ public class Dao {
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String problemName = rst.getString("problem_name");
 					String problemSubtype = rst.getString("problem_subtype");
-					String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+					String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 					Set<Integer> activityIds = new HashSet<>();
 					String activities = rst.getString("activities");
 					for (String activity : activities.split(",")) {
@@ -510,7 +513,7 @@ public class Dao {
 						String picture = rst.getString("picture");
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
-						String personalGrade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String personalGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						a.setTick(false, userId, name, picture, description, stars, personalGrade);
 					}
 				}
@@ -531,7 +534,7 @@ public class Dao {
 						String picture = rst.getString("picture");
 						String description = rst.getString("description");
 						int stars = rst.getInt("stars");
-						String personalGrade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String personalGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						a.setTick(true, userId, name, picture, description, stars, personalGrade);
 					}
 				}
@@ -638,7 +641,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
-			ps.setInt(3, s.getIdRegion());
+			ps.setInt(3, s.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int regionId = rst.getInt("region_id");
@@ -905,10 +908,10 @@ public class Dao {
 				+ " ORDER BY g.sort, x.region, x.t";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
-			ps.setString(4, setup.getGradeSystem().toString());
-			ps.setString(5, setup.getGradeSystem().toString());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
+			ps.setString(4, setup.gradeSystem().toString());
+			ps.setString(5, setup.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String grade = rst.getString("grade");
@@ -934,8 +937,8 @@ public class Dao {
 		Map<Integer, DangerousSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.broken problem_broken, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message FROM ((((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin, u.firstname, u.lastname, g.post_time, g.message ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					// Area
@@ -977,7 +980,7 @@ public class Dao {
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.problems().add(new DangerousProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.getGradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
+					s.problems().add(new DangerousProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
 				}
 			}
 		}
@@ -989,8 +992,8 @@ public class Dao {
 		FrontpageNumMedia res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL AND m.deleted_user_id IS NULL AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int numImages = rst.getInt("num_images");
@@ -1008,8 +1011,8 @@ public class Dao {
 		FrontpageNumProblems res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id AND a.trash IS NULL) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id AND s.trash IS NULL) INNER JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int numProblems = rst.getInt("num_problems");
@@ -1028,8 +1031,8 @@ public class Dao {
 		FrontpageNumTicks res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id AND p.trash IS NULL) INNER JOIN sector s ON p.sector_id=s.id AND s.trash IS NULL) INNER JOIN area a ON s.area_id=a.id AND a.trash IS NULL) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int numTicks = rst.getInt("num_ticks");
@@ -1054,7 +1057,7 @@ public class Dao {
 				GROUP BY m.id, m.checksum, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname
 				ORDER BY rand() LIMIT 1
 				""")) {
-			ps.setInt(1, setup.getIdRegion());
+			ps.setInt(1, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id_media");
@@ -1072,7 +1075,7 @@ public class Dao {
 					String taggedJson = rst.getString("tagged");
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
 					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<User>>(){}.getType());
-					res = new FrontpageRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.getGradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
+					res = new FrontpageRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
 				}
 			}
 		}
@@ -1098,8 +1101,8 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, optionalSectorId!=0? optionalSectorId : optionalAreaId);
-			ps.setString(3, setup.getGradeSystem().toString());
-			ps.setString(4, setup.getGradeSystem().toString());
+			ps.setString(3, setup.gradeSystem().toString());
+			ps.setString(4, setup.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String grade = rst.getString("grade");
@@ -1236,9 +1239,9 @@ public class Dao {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, s.getIdRegion());
+			ps.setInt(4, s.idRegion());
 			ps.setInt(5, reqId);
-			ps.setInt(6, s.getIdRegion());
+			ps.setInt(6, s.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
@@ -1325,8 +1328,8 @@ public class Dao {
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach,
 							neighbourPrev, neighbourNext,
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							s.getGradeConverter().getGradeFromIdGrade(grade),
-							s.getGradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
+							s.gradeConverter().getGradeFromIdGrade(grade),
+							s.gradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
@@ -1362,7 +1365,7 @@ public class Dao {
 						noPersonalGrade = true;
 					}
 					else {
-						grade = s.getGradeConverter().getGradeFromIdGrade(idGrade);
+						grade = s.gradeConverter().getGradeFromIdGrade(idGrade);
 					}
 					boolean writable = idUser == authUserId.orElse(0);
 					ProblemTick t = p.addTick(id, idUser, picture, date, name, grade, noPersonalGrade, comment, stars, writable);
@@ -1435,12 +1438,12 @@ public class Dao {
 						sectionMedia = p.getMedia().stream().filter(x -> x.pitch() == nr).collect(Collectors.toList());
 						p.getMedia().removeAll(sectionMedia);
 					}
-					p.addSection(id, nr, description, s.getGradeConverter().getGradeFromIdGrade(grade), sectionMedia);
+					p.addSection(id, nr, description, s.gradeConverter().getGradeFromIdGrade(grade), sectionMedia);
 				}
 			}
 		}
 		// First aid ascent
-		if (!s.isBouldering()) {
+		if (!s.gradeSystem().equals(GradeSystem.BOULDER)) {
 			try (PreparedStatement ps = c.prepareStatement("SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture FROM (fa_aid a LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id) LEFT JOIN user u ON au.user_id=u.id WHERE a.problem_id=?")) {
 				ps.setInt(1, p.getId());
 				try (ResultSet rst = ps.executeQuery()) {
@@ -1464,7 +1467,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.getIdRegion(), reqId, stopwatch, p);
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.idRegion(), reqId, stopwatch, p);
 		return p;
 	}
 
@@ -1486,9 +1489,9 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, setup.getIdRegion());
+			ps.setInt(5, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					// Area
@@ -1541,7 +1544,7 @@ public class Dao {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numTicks, stars, ticked, t, numPitches);
+					ProblemAreaProblem p = new ProblemAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, numTicks, stars, ticked, t, numPitches);
 					s.problems().add(p);
 				}
 			}
@@ -1725,7 +1728,7 @@ public class Dao {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
 			ps.setInt(3, reqId);
-			ps.setInt(4, setup.getIdRegion());
+			ps.setInt(4, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String regionName = rst.getString("region_name");
@@ -1753,7 +1756,7 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.getGradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
@@ -1766,7 +1769,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String regionName = rst.getString("region_name");
@@ -1794,19 +1797,19 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = false;
-					res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.getGradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 				}
 			}
 		}
 		// First aid ascent
-		if (!setup.isBouldering()) {
+		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
 			try (PreparedStatement ps = c.prepareStatement("SELECT r.name region_name, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr" +
 					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
 					" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
 					" GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date")) {
 				ps.setInt(1, reqId);
 				ps.setInt(2, authUserId.orElse(0));
-				ps.setInt(3, setup.getIdRegion());
+				ps.setInt(3, setup.idRegion());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						String regionName = rst.getString("region_name");
@@ -1832,7 +1835,7 @@ public class Dao {
 						String dateHr = rst.getString("date_hr");
 						int grade = 0;
 						boolean noPersonalGrade = false;
-						ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.getGradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+						ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 						idProblemTickMap.put(idProblem, tick);
 					}
 				}
@@ -1869,8 +1872,8 @@ public class Dao {
 		Map<Integer, ProfileTodoProblem> problemLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY r.url, t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin ORDER BY a.name, s.name, p.nr")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setInt(4, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -1907,7 +1910,7 @@ public class Dao {
 					int problemGrade = rst.getInt("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade));
+					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade));
 					s.problems().add(p);
 					problemLookup.put(problemId, p);
 				}
@@ -1938,7 +1941,7 @@ public class Dao {
 		}
 		// Sort areas (ae, oe, aa is sorted wrong by MySql):
 		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
-		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res.areas().size()={}", authUserId, setup.getIdRegion(), reqId, res.areas().size());
+		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res.areas().size()={}", authUserId, setup.idRegion(), reqId, res.areas().size());
 		return res;
 	}
 
@@ -2065,8 +2068,8 @@ public class Dao {
 		List<Search> areas = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ? OR a.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits ORDER BY a.hits DESC, a.name LIMIT 8")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setString(4, search + "%");
 			ps.setString(5, "% " + search + "%");
 			ps.setString(6, "%(" + search + "%");
@@ -2086,7 +2089,7 @@ public class Dao {
 		// External Areas
 		List<Search> externalAreas = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name, r_external.name, a_external.hits ORDER BY a_external.hits DESC, a_external.name LIMIT 3")) {
-			ps.setInt(1, setup.getIdRegion());
+			ps.setInt(1, setup.idRegion());
 			ps.setString(2, search + "%");
 			ps.setString(3, "% " + search + "%");
 			ps.setString(4, "%(" + search + "%");
@@ -2106,8 +2109,8 @@ public class Dao {
 		List<Search> sectors = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits ORDER BY s.hits DESC, a.name, s.name LIMIT 8")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setString(4, search + "%");
 			ps.setString(5, "% " + search + "%");
 			try (ResultSet rst = ps.executeQuery()) {
@@ -2127,8 +2130,8 @@ public class Dao {
 		List<Search> problems = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits ORDER BY p.hits DESC, p.name, p.grade LIMIT 8")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setString(4, search + "%");
 			ps.setString(5, "% " + search + "%");
 			ps.setString(6, search + "%");
@@ -2145,7 +2148,7 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					problems.add(new Search(name + " [" + setup.getGradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
 				}
 			}
 		}
@@ -2209,24 +2212,25 @@ public class Dao {
 					double latitude = rst.getDouble("latitude");
 					double longitude = rst.getDouble("longitude");
 					int defaultZoom = rst.getInt("default_zoom");
-					GRADE_SYSTEM gradeSystem = null;
+					GradeSystem gradeSystem = null;
 					String group = rst.getString("group");
 					switch (group) {
-					case "Bouldering": gradeSystem = GRADE_SYSTEM.BOULDER; break;
-					case "Climbing": gradeSystem = GRADE_SYSTEM.CLIMBING; break;
-					case "Ice": gradeSystem = GRADE_SYSTEM.ICE; break;
+					case "Bouldering": gradeSystem = GradeSystem.BOULDER; break;
+					case "Climbing": gradeSystem = GradeSystem.CLIMBING; break;
+					case "Ice": gradeSystem = GradeSystem.ICE; break;
 					default: throw new RuntimeException("Invalid group: " + group);
 					}
 					List<CompassDirection> compassDirections = getCompassDirections(c);
 					GradeConverter gradeConverter = new GradeConverter(getGrades(c, gradeSystem));
-					res.add(new Setup(domain, gradeSystem)
-							.setIdRegion(idRegion)
-							.setTitle(title)
-							.setDescription(description)
-							.setLatLng(latitude, longitude)
-							.setDefaultZoom(defaultZoom)
-							.setCompassDirections(compassDirections)
-							.setGradeConverter(gradeConverter));
+					res.add(Setup.newBuilder(domain, gradeSystem)
+							.withIdRegion(idRegion)
+							.withTitle(title)
+							.withDescription(description)
+							.withDefaultCenter(new LatLng(latitude, longitude))
+							.withDefaultZoom(defaultZoom)
+							.withCompassDirections(compassDirections)
+							.withGradeConverter(gradeConverter)
+							.build());
 				}
 			}
 		}
@@ -2237,34 +2241,34 @@ public class Dao {
 	public String getSitemapTxt(Connection c, Setup setup) throws SQLException {
 		List<String> urls = new ArrayList<>();
 		// Fixed urls
-		urls.add(setup.getUrl(null));
-		urls.add(setup.getUrl("/about"));
-		urls.add(setup.getUrl("/areas"));
-		urls.add(setup.getUrl("/filter"));
-		urls.add(setup.getUrl("/gpl-3.0.txt"));
-		urls.add(setup.getUrl("/problems"));
-		urls.add(setup.getUrl("/sites/bouldering"));
-		urls.add(setup.getUrl("/sites/climbing"));
-		urls.add(setup.getUrl("/sites/ice"));
+		urls.add(setup.url());
+		urls.add(setup.url() + "/about");
+		urls.add(setup.url() + "/areas");
+		urls.add(setup.url() + "/filter");
+		urls.add(setup.url() + "/gpl-3.0.txt");
+		urls.add(setup.url() + "/problems");
+		urls.add(setup.url() + "/sites/bouldering");
+		urls.add(setup.url() + "/sites/climbing");
+		urls.add(setup.url() + "/sites/ice");
 		// Users
 		try (PreparedStatement ps = c.prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
-			ps.setInt(1, setup.getIdRegion());
-			ps.setInt(2, setup.getIdRegion());
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int userId = rst.getInt("user_id");
-					urls.add(setup.getUrl("/user/" + userId));
+					urls.add(setup.url() + "/user/" + userId);
 				}
 			}
 		}
 		// Areas, sectors, problems
-		try (PreparedStatement ps = c.prepareStatement("SELECT CONCAT('/area/', a.id) url FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0")) {
-			ps.setInt(1, setup.getIdRegion());
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+		try (PreparedStatement ps = c.prepareStatement("SELECT CONCAT('/area/', a.id) suffix FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0")) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					urls.add(setup.getUrl(rst.getString("url")));
+					urls.add(setup.url() + rst.getString("suffix"));
 				}
 			}
 		}
@@ -2312,8 +2316,8 @@ public class Dao {
 		List<PublicAscent> ticks = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					numTicks++;
@@ -2333,13 +2337,13 @@ public class Dao {
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String date = rst.getString("ts");
 					String name = rst.getString("name");
-					ticks.add(new PublicAscent(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, setup.getGradeConverter().getGradeFromIdGrade(problemGrade), problemName, problemLockedAdmin, problemLockedSuperadmin, date, name));
+					ticks.add(new PublicAscent(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, setup.gradeConverter().getGradeFromIdGrade(problemGrade), problemName, problemLockedAdmin, problemLockedSuperadmin, date, name));
 				}
 			}
 		}
 		int numPages = (int)(Math.ceil(numTicks / 200f));
 		Ticks res = new Ticks(ticks, page, numPages);
-		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - ticks.size()={}", authUserId, setup.getIdRegion(), page, ticks.size());
+		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - ticks.size()={}", authUserId, setup.idRegion(), page, ticks.size());
 		return res;
 	}
 
@@ -2393,7 +2397,7 @@ public class Dao {
 						int problemGrade = rst.getInt("problem_grade");
 						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.getGradeConverter().getGradeFromIdGrade(problemGrade), new ArrayList<>());
+						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade), new ArrayList<>());
 						s.problems().add(p);
 						problemLookup.put(problemId, p);
 					}
@@ -2404,7 +2408,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getTodo(authUserId={}, idArea={}, idSector)={}) - res={}", authUserId, setup.getIdRegion(), idArea, idSector, res);
+		logger.debug("getTodo(authUserId={}, idArea={}, idSector)={}) - res={}", authUserId, setup.idRegion(), idArea, idSector, res);
 		return res;
 	}
 
@@ -2464,7 +2468,7 @@ public class Dao {
 	}
 
 	public List<Trash> getTrash(Connection c, Optional<Integer> authUserId, Setup setup) throws IOException, SQLException {
-		ensureAdminWriteRegion(c, authUserId, setup.getIdRegion());
+		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		List<Trash> res = new ArrayList<>();
 		String sqlStr =
 				// Area
@@ -2506,23 +2510,23 @@ public class Dao {
 				+ " ORDER BY trash DESC";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElseThrow());
-			ps.setInt(2, setup.getIdRegion());
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
 			ps.setInt(4, authUserId.orElseThrow());
-			ps.setInt(5, setup.getIdRegion());
-			ps.setInt(6, setup.getIdRegion());
+			ps.setInt(5, setup.idRegion());
+			ps.setInt(6, setup.idRegion());
 			ps.setInt(7, authUserId.orElseThrow());
-			ps.setInt(8, setup.getIdRegion());
-			ps.setInt(9, setup.getIdRegion());
+			ps.setInt(8, setup.idRegion());
+			ps.setInt(9, setup.idRegion());
 			ps.setInt(10, authUserId.orElseThrow());
-			ps.setInt(11, setup.getIdRegion());
-			ps.setInt(12, setup.getIdRegion());
+			ps.setInt(11, setup.idRegion());
+			ps.setInt(12, setup.idRegion());
 			ps.setInt(13, authUserId.orElseThrow());
-			ps.setInt(14, setup.getIdRegion());
-			ps.setInt(15, setup.getIdRegion());
+			ps.setInt(14, setup.idRegion());
+			ps.setInt(15, setup.idRegion());
 			ps.setInt(16, authUserId.orElseThrow());
-			ps.setInt(17, setup.getIdRegion());
-			ps.setInt(18, setup.getIdRegion());
+			ps.setInt(17, setup.idRegion());
+			ps.setInt(18, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
@@ -2558,9 +2562,9 @@ public class Dao {
 	public List<UserRegion> getUserRegion(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		List<UserRegion> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only, ur.region_visible, CASE WHEN ur.superadmin_write=1 THEN 'Superadmin' WHEN ur.superadmin_read=1 THEN 'Superadmin (read)' WHEN ur.admin_read=1 THEN 'Admin (read)' WHEN ur.admin_write=1 THEN 'Admin' END role FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
-			ps.setInt(1, setup.getIdRegion());
+			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2620,7 +2624,7 @@ public class Dao {
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
 						Setup setup = Server.getSetup(regionId);
-						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -2668,7 +2672,7 @@ public class Dao {
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
 						Setup setup = Server.getSetup(regionId);
-						String grade = setup.getGradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+						String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -2867,8 +2871,8 @@ public class Dao {
 
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException, ParseException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkArgument(s.getIdRegion() > 0, "Insufficient credentials");
-		ensureAdminWriteRegion(c, authUserId, s.getIdRegion());
+		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
+		ensureAdminWriteRegion(c, authUserId, s.idRegion());
 		int idArea = -1;
 		final boolean isLockedAdmin = a.isLockedSuperadmin()? false : a.isLockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -2938,7 +2942,7 @@ public class Dao {
 		} else {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", PreparedStatement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
-				ps.setInt(2, s.getIdRegion());
+				ps.setInt(2, s.idRegion());
 				ps.setString(3, GlobalFunctions.stripString(a.getName()));
 				ps.setString(4, GlobalFunctions.stripString(a.getComment()));
 				setNullablePositiveInteger(ps, 5, a.getCoordinates() == null? 0 : a.getCoordinates().getId());
@@ -2996,7 +3000,7 @@ public class Dao {
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws NoSuchAlgorithmException, SQLException, IOException, ParseException, InterruptedException, ImageReadException, ImageWriteException {
-		final boolean orderByGrade = s.isBouldering();
+		final boolean orderByGrade = s.gradeSystem().equals(GradeSystem.BOULDER);
 		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
 		int idProblem = -1;
@@ -3015,7 +3019,7 @@ public class Dao {
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
-				ps.setInt(5, s.getGradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setInt(5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setDate(6, dt);
 				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(8, GlobalFunctions.stripString(p.getBroken()));
@@ -3044,7 +3048,7 @@ public class Dao {
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
 				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
-				ps.setInt(6, s.getGradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setInt(6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setDate(7, dt);
 				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(9, p.getBroken());
@@ -3144,14 +3148,14 @@ public class Dao {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.nr());
 					ps.setString(3, GlobalFunctions.stripString(section.description()));
-					ps.setInt(4, s.getGradeConverter().getIdGradeFromGrade(section.grade()));
+					ps.setInt(4, s.gradeConverter().getIdGradeFromGrade(section.grade()));
 					ps.addBatch();
 				}
 				ps.executeBatch();
 			}
 		}
 		// First aid ascent
-		if (!s.isBouldering()) {
+		if (!s.gradeSystem().equals(GradeSystem.BOULDER)) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa_aid WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
 				ps.execute();
@@ -3392,7 +3396,7 @@ public class Dao {
 				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId.orElseThrow());
 				ps.setDate(3, dt);
-				ps.setInt(4, setup.getGradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setInt(4, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
 				ps.setString(5, GlobalFunctions.stripString(t.comment()));
 				ps.setDouble(6, t.stars());
 				ps.executeUpdate();
@@ -3407,7 +3411,7 @@ public class Dao {
 		else if (t.id() > 0) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setDate(1, dt);
-				ps.setInt(2, setup.getGradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setInt(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
 				ps.setString(3, GlobalFunctions.stripString(t.comment()));
 				ps.setDouble(4, t.stars());
 				ps.setInt(5, t.id());
@@ -3470,7 +3474,7 @@ public class Dao {
 	}
 
 	public void trashRecover(Connection c, Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
-		ensureSuperadminWriteRegion(c, authUserId, setup.getIdRegion());
+		ensureSuperadminWriteRegion(c, authUserId, setup.idRegion());
 		String sqlStr = null;
 		int id = 0;
 		// Important to check media first. A media in trash always has idArea, idSector or idProblem!
@@ -3624,7 +3628,7 @@ public class Dao {
 	}
 
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {
-		ensureAdminWriteRegion(c, authUserId, setup.getIdRegion());
+		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		// Clear existing
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_svg WHERE media_id=?")) {
 			ps.setInt(1, m.id());
@@ -3911,7 +3915,7 @@ public class Dao {
 		if (id == 0) {
 			return null;
 		}
-		return s.getCompassDirections()
+		return s.compassDirections()
 				.stream()
 				.filter(cd -> cd.id() == id)
 				.findAny()
@@ -3967,7 +3971,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Grade> getGrades(Connection c, GRADE_SYSTEM gradeSystem) throws SQLException {
+	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
 		List<Grade> res = new ArrayList<>(); 
 		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
 			ps.setString(1, gradeSystem.toString());
@@ -4137,7 +4141,7 @@ public class Dao {
 			// Only images without topo lines or images with topo lines for this problem
 			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
 		}
-		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
+		else if (!showHiddenMedia && s.gradeSystem().equals(GradeSystem.BOULDER) && optionalIdProblem != 0) {
 			// In bouldering we don't want to show all rocks with lines if this one does not have a line
 			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
 		}
@@ -4232,7 +4236,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
-			ps.setInt(3, setup.getIdRegion());
+			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
@@ -4388,7 +4392,7 @@ public class Dao {
 	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
 		List<SectorProblem> res = new ArrayList<>();
 		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.isBouldering()) {
+		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
 			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
 		}
 		String sqlStr = "SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,"
@@ -4440,7 +4444,7 @@ public class Dao {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.getGradeConverter().getGradeFromIdGrade(grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
+					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromIdGrade(grade), fa, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}
@@ -4454,7 +4458,7 @@ public class Dao {
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
 			ps.setInt(4, idMedia);
-			ps.setString(5, s.getGradeSystem().toString());
+			ps.setString(5, s.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					if (res == null) {

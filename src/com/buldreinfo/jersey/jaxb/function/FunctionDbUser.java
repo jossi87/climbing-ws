@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.server.function;
+package com.buldreinfo.jersey.jaxb.function;
 
 import java.util.Optional;
 
