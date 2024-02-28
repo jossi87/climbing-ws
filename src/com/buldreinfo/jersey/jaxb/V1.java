@@ -1,10 +1,12 @@
 package com.buldreinfo.jersey.jaxb;
 
 import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -26,7 +28,7 @@ public class V1 {
 	@GET
 	@Path("/regions")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getRegions(@QueryParam("uniqueId") String uniqueId, @QueryParam("climbingNotBouldering") boolean climbingNotBouldering) {
-		return Server.buildResponseWithSql(c -> Response.ok().entity(Server.getDao().getRegions(c, uniqueId, climbingNotBouldering)).build());
+	public Response getRegions(@Context HttpServletRequest request, @QueryParam("uniqueId") String uniqueId, @QueryParam("climbingNotBouldering") boolean climbingNotBouldering) {
+		return Server.buildResponseWithSql(request, (c, setup) -> Response.ok().entity(Server.getDao().getRegions(c, uniqueId, climbingNotBouldering)).build());
 	}
 }

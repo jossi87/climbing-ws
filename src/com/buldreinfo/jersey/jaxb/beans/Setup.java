@@ -6,7 +6,7 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, GradeSystem gradeSystem, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom, boolean robotsDenyAll) {
+public record Setup(String domain, String url, int idRegion, GradeSystem gradeSystem, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
 	public static SetupBuilder newBuilder(String domain, GradeSystem gradeSystem) {
 		return new SetupBuilder(domain, gradeSystem);
 	}
@@ -22,7 +22,6 @@ public record Setup(String domain, String url, int idRegion, GradeSystem gradeSy
 		private String description;
 		private LatLng defaultCenter;
 		private int defaultZoom;
-		private boolean robotsDenyAll = false;
 
 		public SetupBuilder(String domain, GradeSystem gradeSystem) {
 			this.domain = domain;
@@ -31,7 +30,7 @@ public record Setup(String domain, String url, int idRegion, GradeSystem gradeSy
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, gradeSystem, gradeConverter, compassDirections, title, description, defaultCenter, defaultZoom, robotsDenyAll);
+			return new Setup(domain, url, idRegion, gradeSystem, gradeConverter, compassDirections, title, description, defaultCenter, defaultZoom);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {
@@ -64,11 +63,6 @@ public record Setup(String domain, String url, int idRegion, GradeSystem gradeSy
 			return this;
 		}
 
-		public SetupBuilder withRobotsDenyAll(boolean robotsDenyAll) {
-			this.robotsDenyAll = robotsDenyAll;
-			return this;
-		}
-		
 		public SetupBuilder withTitle(String title) {
 			this.title = title;
 			return this;

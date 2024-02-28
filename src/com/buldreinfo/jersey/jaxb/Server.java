@@ -65,10 +65,12 @@ public class Server {
 		}
 	}
 	
-	protected static Response buildResponseWithSql(FunctionDb<Connection, Response> function) {
-		try (Connection c = getServer().bds.getConnection()) {
+	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
+		Server server = getServer();
+		Setup setup = server.getSetup(request);
+		try (Connection c = server.bds.getConnection()) {
 			c.setAutoCommit(false);
-			Response res = function.get(c);
+			Response res = function.get(c, setup);
 			c.commit();
 			return res;
 		} catch (Exception e) {
@@ -78,28 +80,19 @@ public class Server {
 	}
 	
 	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
-		try (Connection c = getServer().bds.getConnection()) {
+		Server server = getServer();
+		Setup setup = server.getSetup(request);
+		try (Connection c = server.bds.getConnection()) {
 			c.setAutoCommit(true); // Always commit user to avoid multiple parallel transactions inserting the same user...
-			Optional<Integer> authUserId = getServer().auth.getAuthUserId(c, request, getSetup(request));
+			Optional<Integer> authUserId = server.auth.getAuthUserId(c, request, setup);
 			c.setAutoCommit(false); // Now set auto commit to false for the rest of the transaction
-			Response res = function.get(c, authUserId);
+			Response res = function.get(c, setup, authUserId);
 			c.commit();
 			return res;
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			return Response.serverError().build();
 		}
-	}
-	
-	protected static Setup getSetup(HttpServletRequest request) {
-		Preconditions.checkNotNull(request);
-		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
-		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
-		return getSetups()
-				.stream()
-				.filter(x -> serverName.equalsIgnoreCase(x.domain()))
-				.findAny()
-				.orElseThrow(() -> new RuntimeException("Invalid serverName=" + serverName));
 	}
 	
 	protected static List<Setup> getSetups() {
@@ -122,6 +115,21 @@ public class Server {
 		this.bds.setDriverClassName("com.mysql.cj.jdbc.Driver");
 		this.bds.setUrl(url);
 		this.bds.setMaxTotal(64);
-		Server.runSql(c -> setups.addAll(Server.getDao().getSetups(c)));
+		try (Connection c = bds.getConnection()) {
+			setups.addAll(dao.getSetups(c));
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+	
+	private Setup getSetup(HttpServletRequest request) {
+		Preconditions.checkNotNull(request);
+		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
+		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
+		return setups.stream()
+				.filter(x -> serverName.equalsIgnoreCase(x.domain()))
+				.findAny()
+				.orElseThrow(() -> new RuntimeException("Invalid serverName=" + serverName));
 	}
 }
