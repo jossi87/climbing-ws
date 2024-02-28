@@ -7,16 +7,16 @@ public class SetupHolder {
 	private final List<Setup> setups;
 	private final long created;
 	
-	public SetupHolder(List<Setup> setups, long created) {
+	protected SetupHolder(List<Setup> setups, long created) {
 		this.setups = setups;
 		this.created = created;
 	}
 	
-	public List<Setup> getSetups() {
+	protected List<Setup> getSetups() {
 		return setups;
 	}
 	
-	public long getValidMilliseconds() {
+	protected long getValidMilliseconds() {
 		return oneHourInMs - (System.currentTimeMillis() - created);
 	}
 }

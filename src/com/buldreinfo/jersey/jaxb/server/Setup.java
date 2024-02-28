@@ -20,7 +20,7 @@ public class Setup {
 	private int defaultZoom;
 	private boolean setRobotsDenyAll = false;
 
-	public Setup(String domain, GRADE_SYSTEM gradeSystem) {
+	protected Setup(String domain, GRADE_SYSTEM gradeSystem) {
 		this.domain = domain;
 		this.gradeSystem = gradeSystem;
 	}

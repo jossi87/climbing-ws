@@ -39,7 +39,7 @@ public class AuthHelper {
 						Request<UserInfo> req = auth.userInfo(authorization);
 						Response<UserInfo> info = req.execute();
 						Map<String, Object> values = info.getBody().getValues();
-						return new Auth0Profile(values);
+						return Auth0Profile.from(values);
 					} catch (Exception ex) {
 						logger.warn("Login failed: " + ex.getMessage());
 						return null;

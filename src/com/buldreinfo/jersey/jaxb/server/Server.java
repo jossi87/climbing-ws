@@ -9,6 +9,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.buldreinfo.jersey.jaxb.server.function.Consumer;
+import com.buldreinfo.jersey.jaxb.server.function.Function;
+import com.buldreinfo.jersey.jaxb.server.function.FunctionDb;
+import com.buldreinfo.jersey.jaxb.server.function.FunctionDbUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 

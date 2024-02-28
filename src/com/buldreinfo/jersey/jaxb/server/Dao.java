@@ -810,7 +810,7 @@ public class Dao {
 		Optional<Integer> authUserId = Optional.empty();
 		String picture = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?")) {
-			ps.setString(1, profile.getEmail());
+			ps.setString(1, profile.email());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					authUserId = Optional.of(rst.getInt("user_id"));
@@ -818,9 +818,9 @@ public class Dao {
 				}
 			}
 		}
-		if (authUserId.isEmpty() && profile.getName() != null) {
+		if (authUserId.isEmpty() && profile.fullname() != null) {
 			try (PreparedStatement ps = c.prepareStatement("SELECT id, picture FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?")) {
-				ps.setString(1, profile.getName());
+				ps.setString(1, profile.fullname());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						authUserId = Optional.of(rst.getInt("id"));
@@ -828,7 +828,7 @@ public class Dao {
 						// Add email to user
 						try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)")) {
 							ps2.setInt(1, authUserId.get());
-							ps2.setString(2, profile.getEmail());
+							ps2.setString(2, profile.email());
 							ps2.execute();
 						}
 					}
@@ -836,16 +836,16 @@ public class Dao {
 			}
 		}
 		if (authUserId.isEmpty()) {
-			authUserId = Optional.of(addUser(c, profile.getEmail(), profile.getFirstname(), profile.getLastname(), profile.getPicture()));
+			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname(), profile.picture()));
 		}
-		else if (profile.getPicture() != null && (picture == null || !picture.equals(profile.getPicture()))) {
-			if (picture != null && picture.contains("fbsbx.com") && !profile.getPicture().contains("fbsbx.com")) {
+		else if (profile.picture() != null && (picture == null || !picture.equals(profile.picture()))) {
+			if (picture != null && picture.contains("fbsbx.com") && !profile.picture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
 				try {
-					ImageHelper.saveAvatar(authUserId.orElseThrow(), profile.getPicture());
+					ImageHelper.saveAvatar(authUserId.orElseThrow(), profile.picture());
 					try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
-						ps.setString(1, profile.getPicture());
+						ps.setString(1, profile.picture());
 						ps.setInt(2, authUserId.orElseThrow());
 						ps.executeUpdate();
 					}
