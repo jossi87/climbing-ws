@@ -505,6 +505,7 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -524,6 +525,7 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get profile statistics by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/statistics")
 	@Produces(MediaType.APPLICATION_JSON)
