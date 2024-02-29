@@ -1,6 +1,6 @@
 package com.buldreinfo.jersey.jaxb.excel;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,7 +38,7 @@ public class ExcelSheet implements AutoCloseable {
 		this.rowIndex++;
 	}
 
-	public void writeDate(String columnName, Date date) {
+	public void writeDate(String columnName, LocalDate date) {
 		Cell cell = getOrCreateCell(columnName);
 		cell.setCellValue(date);
 		cell.setCellStyle(workbook.getDateStyle());

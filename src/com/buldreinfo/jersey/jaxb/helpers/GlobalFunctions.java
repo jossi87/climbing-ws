@@ -25,7 +25,7 @@ public class GlobalFunctions {
 	public static String getUrlJpgToImage(int id) {
 		return "https://brattelinjer.no/buldreinfo_media/jpg/" + String.valueOf(id / 100 * 100) + "/" + id + ".jpg";
 	}
-
+	
 	public static String stripString(String str) {
 		if (str == null) {
 			return null;

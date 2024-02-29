@@ -7,21 +7,16 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.sql.Types;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -276,19 +271,13 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					exists = true;
-					Timestamp faDate = rst.getTimestamp("fa_date");
-					Timestamp lastUpdated = rst.getTimestamp("last_updated");
+					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
+					LocalDateTime lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
 					if (faDate != null && lastUpdated != null) {
-						Calendar faCal = Calendar.getInstance();
-						faCal.setTimeInMillis(faDate.getTime());
-						Calendar luCal = Calendar.getInstance();
-						luCal.setTimeInMillis(lastUpdated.getTime());
-						problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH)+1, faCal.get(Calendar.DAY_OF_MONTH), luCal.get(Calendar.HOUR_OF_DAY), luCal.get(Calendar.MINUTE), luCal.get(Calendar.SECOND));
+						problemActivityTimestamp = faDate.atTime(lastUpdated.getHour(), lastUpdated.getMinute(), lastUpdated.getSecond());
 					}
 					else if (faDate != null) {
-						Calendar faCal = Calendar.getInstance();
-						faCal.setTimeInMillis(faDate.getTime());
-						problemActivityTimestamp = LocalDateTime.of(faCal.get(Calendar.YEAR), faCal.get(Calendar.MONTH)+1, faCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+						problemActivityTimestamp = faDate.atStartOfDay();
 					}
 				}
 			}
@@ -297,7 +286,7 @@ public class Dao {
 			return;
 		}
 		try (PreparedStatement psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-			psAddActivity.setTimestamp(1, problemActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(problemActivityTimestamp));
+			psAddActivity.setObject(1, problemActivityTimestamp);
 			psAddActivity.setString(2, ACTIVITY_TYPE_FA);
 			psAddActivity.setInt(3, idProblem);
 			psAddActivity.setNull(4, Types.INTEGER);
@@ -316,15 +305,14 @@ public class Dao {
 					LocalDateTime useMediaActivityTimestamp = null;
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						Timestamp ts = rst.getTimestamp("date_created");
-						LocalDateTime mediaActivityTimestamp = ts == null? null : ts.toLocalDateTime();
+						LocalDateTime mediaActivityTimestamp = rst.getObject("date_created", LocalDateTime.class);
 						if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && Math.abs(ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp)) <= 7)) {
 							useMediaActivityTimestamp = problemActivityTimestamp;
 						}
 						else if (useMediaActivityTimestamp == null || Math.abs(ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp)) > 7) {
 							useMediaActivityTimestamp = mediaActivityTimestamp;
 						}
-						psAddActivity.setTimestamp(1, useMediaActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(useMediaActivityTimestamp));
+						psAddActivity.setObject(1, useMediaActivityTimestamp);
 						psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setInt(4, id);
@@ -344,22 +332,16 @@ public class Dao {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int userId = rst.getInt("user_id");
+						LocalDate tickDate = rst.getObject("date", LocalDate.class);
+						LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
 						LocalDateTime tickActivityTimestamp = null;
-						Timestamp tickDate = rst.getTimestamp("date");
-						Timestamp tickCreated = rst.getTimestamp("created");
 						if (tickDate != null && tickCreated != null) {
-							Calendar tickCal = Calendar.getInstance();
-							tickCal.setTimeInMillis(tickDate.getTime());
-							Calendar createdCal = Calendar.getInstance();
-							createdCal.setTimeInMillis(tickCreated.getTime());
-							tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
+							tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
 						}
 						else if (tickDate != null) {
-							Calendar tickCal = Calendar.getInstance();
-							tickCal.setTimeInMillis(tickDate.getTime());
-							tickActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+							tickActivityTimestamp = tickDate.atStartOfDay();
 						}
-						psAddActivity.setTimestamp(1, tickActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(tickActivityTimestamp));
+						psAddActivity.setObject(1, tickActivityTimestamp);
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -380,22 +362,16 @@ public class Dao {
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						int userId = rst.getInt("user_id");
+						LocalDate tickDate = rst.getObject("date", LocalDate.class);
+						LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
 						LocalDateTime tickRepeatActivityTimestamp = null;
-						Timestamp tickDate = rst.getTimestamp("date");
-						Timestamp tickCreated = rst.getTimestamp("created");
 						if (tickDate != null && tickCreated != null) {
-							Calendar tickCal = Calendar.getInstance();
-							tickCal.setTimeInMillis(tickDate.getTime());
-							Calendar createdCal = Calendar.getInstance();
-							createdCal.setTimeInMillis(tickCreated.getTime());
-							tickRepeatActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), createdCal.get(Calendar.HOUR_OF_DAY), createdCal.get(Calendar.MINUTE), createdCal.get(Calendar.SECOND));
+							tickRepeatActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
 						}
 						else if (tickDate != null) {
-							Calendar tickCal = Calendar.getInstance();
-							tickCal.setTimeInMillis(tickDate.getTime());
-							tickRepeatActivityTimestamp = LocalDateTime.of(tickCal.get(Calendar.YEAR), tickCal.get(Calendar.MONTH)+1, tickCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+							tickRepeatActivityTimestamp = tickDate.atStartOfDay();
 						}
-						psAddActivity.setTimestamp(1, tickRepeatActivityTimestamp == null? new Timestamp(0) : Timestamp.valueOf(tickRepeatActivityTimestamp));
+						psAddActivity.setObject(1, tickRepeatActivityTimestamp);
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK_REPEAT);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -415,8 +391,8 @@ public class Dao {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						Timestamp postTime = rst.getTimestamp("post_time");
-						psAddActivity.setTimestamp(1, postTime);
+						LocalDateTime postTime = rst.getObject("post_time", LocalDateTime.class);
+						psAddActivity.setObject(1, postTime);
 						psAddActivity.setString(2, ACTIVITY_TYPE_GUESTBOOK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -470,7 +446,7 @@ public class Dao {
 			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					Timestamp activityTimestamp = rst.getTimestamp("activity_timestamp");
+					LocalDateTime activityTimestamp = rst.getObject("activity_timestamp", LocalDateTime.class);
 					int problemId = rst.getInt("problem_id");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
@@ -494,7 +470,7 @@ public class Dao {
 						}
 					}
 
-					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDateTime().toLocalDate());
+					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDate());
 					res.add(new Activity(activityIds, timeAgo, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubtype, grade));
 				}
 			}
@@ -2610,7 +2586,7 @@ public class Dao {
 						String sectorName = rst.getString("sector_name");
 						String name = rst.getString("name");
 						String comment = rst.getString("comment");
-						Date date = rst.getDate("date");
+						LocalDate date = rst.getObject("date", LocalDate.class);
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
 						String grade = Server.getSetups().stream()
@@ -2661,7 +2637,7 @@ public class Dao {
 						String sectorName = rst.getString("sector_name");
 						String name = rst.getString("name");
 						String comment = rst.getString("comment");
-						Date date = rst.getDate("date");
+						LocalDate date = rst.getObject("date", LocalDate.class);
 						int stars = rst.getInt("stars");
 						boolean fa = rst.getBoolean("fa");
 						String grade = Server.getSetups().stream()
@@ -2711,7 +2687,7 @@ public class Dao {
 						String sectorName = rst.getString("sector_name");
 						String name = rst.getString("name");
 						String comment = rst.getString("comment");
-						Date date = rst.getDate("date");
+						LocalDate date = rst.getObject("date", LocalDate.class);
 						sheet.incrementRow();
 						sheet.writeString("AREA", areaName);
 						sheet.writeString("SECTOR", sectorName);
@@ -2995,10 +2971,9 @@ public class Dao {
 		logger.debug("setMediaMetadata(idMedia={}, height={}, width={}, dateTaken={}) - success", idMedia, height, width, dateTaken);
 	}
 
-	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, ParseException, InterruptedException, ImageReadException, ImageWriteException {
+	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		final boolean orderByGrade = s.gradeSystem().equals(GradeSystem.BOULDER);
-		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-		final Date dt = Strings.isNullOrEmpty(p.getFaDate()) ? null : new Date(sdf.parse(p.getFaDate()).getTime());
+		final LocalDate dt = Strings.isNullOrEmpty(p.getFaDate())? null : LocalDate.parse(p.getFaDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		int idProblem = -1;
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
 		if (p.getCoordinates() != null) {
@@ -3016,7 +2991,7 @@ public class Dao {
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
 				ps.setInt(5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setDate(6, dt);
+				ps.setObject(6, dt);
 				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(8, GlobalFunctions.stripString(p.getBroken()));
 				ps.setBoolean(9, isLockedAdmin);
@@ -3045,7 +3020,7 @@ public class Dao {
 				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
 				ps.setInt(6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setDate(7, dt);
+				ps.setObject(7, dt);
 				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(9, p.getBroken());
 				ps.setBoolean(10, isLockedAdmin);
@@ -3162,10 +3137,10 @@ public class Dao {
 			}
 			if (p.getFaAid() != null) {
 				FaAid faAid = p.getFaAid();
-				final Date aidDt = Strings.isNullOrEmpty(faAid.date()) ? null : new Date(sdf.parse(faAid.date()).getTime());
+				final LocalDate aidDt = Strings.isNullOrEmpty(faAid.date())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				try (PreparedStatement ps = c.prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
 					ps.setInt(1, faAid.problemId());
-					ps.setDate(2, aidDt);
+					ps.setObject(2, aidDt);
 					ps.setString(3, GlobalFunctions.stripString(faAid.description()));
 					ps.execute();
 				}
@@ -3364,16 +3339,15 @@ public class Dao {
 		return res;
 	}
 
-	public void setTick(Connection c, Optional<Integer> authUserId, Setup setup, Tick t) throws SQLException, ParseException {
+	public void setTick(Connection c, Optional<Integer> authUserId, Setup setup, Tick t) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		// Remove from project list (if existing)
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM todo WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, t.idProblem());
 			ps.execute();
 		}
-		final Date dt = Strings.isNullOrEmpty(t.date()) ? null : new Date(sdf.parse(t.date()).getTime());
+		final LocalDate dt = Strings.isNullOrEmpty(t.date())? null : LocalDate.parse(t.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		logger.debug("setTick(authUserId={}, dt={}, t={}", authUserId, dt, t);
 		if (t.delete()) {
 			Preconditions.checkArgument(t.id() > 0, "Cannot delete a tick without id");
@@ -3391,7 +3365,7 @@ public class Dao {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId.orElseThrow());
-				ps.setDate(3, dt);
+				ps.setObject(3, dt);
 				ps.setInt(4, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
 				ps.setString(5, GlobalFunctions.stripString(t.comment()));
 				ps.setDouble(6, t.stars());
@@ -3406,7 +3380,7 @@ public class Dao {
 		}
 		else if (t.id() > 0) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
-				ps.setDate(1, dt);
+				ps.setObject(1, dt);
 				ps.setInt(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
 				ps.setString(3, GlobalFunctions.stripString(t.comment()));
 				ps.setDouble(4, t.stars());
@@ -4498,7 +4472,7 @@ public class Dao {
 		}
 	}
 
-	private void upsertTickRepeats(Connection c, int idTick, List<TickRepeat> repeats) throws SQLException, ParseException {
+	private void upsertTickRepeats(Connection c, int idTick, List<TickRepeat> repeats) throws SQLException {
 		// Deleted removed ascents
 		String repeatIdsToKeep = repeats == null? null : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).map(String::valueOf).collect(Collectors.joining(","));
 		String sqlStr = Strings.isNullOrEmpty(repeatIdsToKeep) ? "DELETE FROM tick_repeat WHERE tick_id=?" :
@@ -4509,12 +4483,11 @@ public class Dao {
 		}
 		// Upsert repeats
 		if (repeats != null && !repeats.isEmpty()) {
-			final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 			for (TickRepeat r : repeats) {
-				final Date dt = Strings.isNullOrEmpty(r.date()) ? null : new Date(sdf.parse(r.date()).getTime());
+				final LocalDate dt = Strings.isNullOrEmpty(r.date())? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				if (r.id() > 0) {
 					try (PreparedStatement ps = c.prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
-						ps.setDate(1, dt);
+						ps.setObject(1, dt);
 						ps.setString(2, GlobalFunctions.stripString(r.comment()));
 						ps.setInt(3, r.id());
 						int res = ps.executeUpdate();
@@ -4526,7 +4499,7 @@ public class Dao {
 				else {
 					try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
 						ps.setInt(1, idTick);
-						ps.setDate(2, dt);
+						ps.setObject(2, dt);
 						ps.setString(3, GlobalFunctions.stripString(r.comment()));
 						ps.execute();
 					}

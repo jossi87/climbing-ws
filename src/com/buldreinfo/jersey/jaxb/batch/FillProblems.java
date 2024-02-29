@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.batch;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -156,7 +155,7 @@ public class FillProblems {
 		return res;
 	}
 
-	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws IOException, SQLException, InterruptedException, ParseException, ImageReadException, ImageWriteException {
+	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
 		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
