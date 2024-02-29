@@ -286,7 +286,7 @@ public class Dao {
 			return;
 		}
 		try (PreparedStatement psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-			psAddActivity.setObject(1, problemActivityTimestamp);
+			psAddActivity.setObject(1, problemActivityTimestamp != null? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 			psAddActivity.setString(2, ACTIVITY_TYPE_FA);
 			psAddActivity.setInt(3, idProblem);
 			psAddActivity.setNull(4, Types.INTEGER);
@@ -312,7 +312,7 @@ public class Dao {
 						else if (useMediaActivityTimestamp == null || Math.abs(ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp)) > 7) {
 							useMediaActivityTimestamp = mediaActivityTimestamp;
 						}
-						psAddActivity.setObject(1, useMediaActivityTimestamp);
+						psAddActivity.setObject(1, useMediaActivityTimestamp != null? useMediaActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setInt(4, id);
@@ -341,7 +341,7 @@ public class Dao {
 						else if (tickDate != null) {
 							tickActivityTimestamp = tickDate.atStartOfDay();
 						}
-						psAddActivity.setObject(1, tickActivityTimestamp);
+						psAddActivity.setObject(1, tickActivityTimestamp != null? tickActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -371,7 +371,7 @@ public class Dao {
 						else if (tickDate != null) {
 							tickRepeatActivityTimestamp = tickDate.atStartOfDay();
 						}
-						psAddActivity.setObject(1, tickRepeatActivityTimestamp);
+						psAddActivity.setObject(1, tickRepeatActivityTimestamp != null? tickRepeatActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK_REPEAT);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -392,7 +392,7 @@ public class Dao {
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						LocalDateTime postTime = rst.getObject("post_time", LocalDateTime.class);
-						psAddActivity.setObject(1, postTime);
+						psAddActivity.setObject(1, postTime != null? postTime : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_GUESTBOOK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
