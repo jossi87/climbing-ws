@@ -823,7 +823,7 @@ public class Dao {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
 			} else {
 				try {
-					ImageHelper.saveAvatar(authUserId.orElseThrow(), profile.picture());
+					ImageHelper.saveAvatar(authUserId.orElseThrow(), profile.picture(), true);
 					try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.picture());
 						ps.setInt(2, authUserId.orElseThrow());
@@ -3813,7 +3813,7 @@ public class Dao {
 		}
 		if (picture != null) {
 			try {
-				ImageHelper.saveAvatar(id, picture);
+				ImageHelper.saveAvatar(id, picture, true);
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
 			}
