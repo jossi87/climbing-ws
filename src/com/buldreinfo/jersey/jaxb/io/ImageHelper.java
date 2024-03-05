@@ -14,6 +14,8 @@ import javax.imageio.ImageIO;
 
 import org.apache.commons.imaging.ImageReadException;
 import org.apache.commons.imaging.ImageWriteException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
@@ -21,6 +23,8 @@ import com.buldreinfo.jersey.jaxb.db.Dao;
 import com.google.common.base.Preconditions;
 
 public class ImageHelper {
+	private static Logger logger = LogManager.getLogger();
+
 	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws ImageReadException, ImageWriteException, IOException, SQLException, InterruptedException {
 		Path original = IOHelper.getPathMediaOriginalJpg(idMedia);
 		byte[] bytes = Files.readAllBytes(original);
@@ -38,25 +42,31 @@ public class ImageHelper {
 		.save();
 		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
 	}
-	
-	public static void saveAvatar(int userId, String avatarUrl, boolean replaceOriginal) throws IOException, InterruptedException {
-		Path original = IOHelper.getPathOriginalUsers(userId);
-		boolean createResized = false;
-		if (replaceOriginal || !Files.exists(original)) {
-			IOHelper.createDirectories(original.getParent());
-			try (InputStream in = URI.create(avatarUrl).toURL().openStream()) {
-				Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
-				IOHelper.setFilePermission(original);
-				createResized = true;
+
+	public static void saveAvatar(int userId, String avatarUrl, boolean replaceOriginal) {
+		try {
+			Path original = IOHelper.getPathOriginalUsers(userId);
+			boolean createResized = false;
+			if (replaceOriginal || !Files.exists(original)) {
+				IOHelper.createDirectories(original.getParent());
+				try (InputStream in = URI.create(avatarUrl).toURL().openStream()) {
+					Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
+					IOHelper.setFilePermission(original);
+					createResized = true;
+				}
 			}
-		}
-		Path resized = IOHelper.getPathWebUsers(userId);
-		if (createResized || !Files.exists(resized)) {
-			IOHelper.deleteIfExistsCreateParent(resized);
-			BufferedImage b = ImageReader.newBuilder().withPath(original).build().getJpgBufferedImage();
-			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-			Preconditions.checkArgument(ImageIO.write(b, "jpg", resized.toFile()));
-			IOHelper.setFilePermission(resized);
+			if (Files.exists(original) ) {
+				Path resized = IOHelper.getPathWebUsers(userId);
+				if (createResized || !Files.exists(resized)) {
+					IOHelper.deleteIfExistsCreateParent(resized);
+					BufferedImage b = ImageReader.newBuilder().withPath(original).build().getJpgBufferedImage();
+					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
+					Preconditions.checkArgument(ImageIO.write(b, "jpg", resized.toFile()));
+					IOHelper.setFilePermission(resized);
+				}
+			}
+		} catch (IOException | InterruptedException e) {
+			logger.warn("saveAvatar(userId={}, avatarUrl={}, replaceOriginal={}) failed: {}", userId, avatarUrl, replaceOriginal, e.toString());
 		}
 	}
 

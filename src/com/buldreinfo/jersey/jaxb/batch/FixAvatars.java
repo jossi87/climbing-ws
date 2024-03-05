@@ -20,11 +20,7 @@ public class FixAvatars {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String picture = rst.getString("picture");
-					try {
-						ImageHelper.saveAvatar(id, picture, false);
-					} catch (Exception e) {
-						logger.warn(e.getMessage() + " - " + id + " - " + picture);
-					}
+					ImageHelper.saveAvatar(id, picture, false);
 					if (++counter % 250 == 0) {
 						logger.debug("Done with {} users, id={}", counter, id);
 					}
