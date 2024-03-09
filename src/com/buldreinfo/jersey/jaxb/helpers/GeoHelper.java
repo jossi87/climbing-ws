@@ -4,10 +4,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -121,6 +123,7 @@ public class GeoHelper {
 					locations += "|" + latLng;
 				}
 			}
+			locations = URLEncoder.encode(locations, StandardCharsets.UTF_8); // Encode pipe to avoid java.lang.IllegalArgumentException: Illegal character in query at index 88
 			double latitude = 0, longitude = 0, elevation = 0;
 			try (HttpClient client = HttpClient.newHttpClient()) {
 				String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
