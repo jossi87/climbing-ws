@@ -50,17 +50,17 @@ public class FixMedia {
 			// Add movie
 			//			final int idUploaderUserId = 1;
 			//			Path src = Paths.get(""); // TODO
-			//			int idPhotographerUserId = 1; // TODO
+			//			int idPhotographerUserId = ; // TODO
 			//			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
-			//			idProblemMsMap.put(1, 0l); // TODO
+			//			idProblemMsMap.put(, 0l); // TODO
 			//			List<Integer> inPhoto = Lists.newArrayList(); // TODO
-			//			newIdMedia.add(addMovie(c.getConnection(), src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto));
+			//			newIdMedia.add(addMovie(c, src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto));
 			//			for (int idProblem : idProblemMsMap.keySet()) {
-			//				c.getBuldreinfoRepo().fillActivity(idProblem);
+			//				dao.fillActivity(c, idProblem);
 			//			}
 			// Create all formats and set checksum
 			String sqlStr = "SELECT id, width, height, suffix, embed_url FROM media WHERE is_movie=1";
-			if (newIdMedia != null && !newIdMedia.isEmpty()) {
+			if (!newIdMedia.isEmpty()) {
 				sqlStr += " AND id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
 			}
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
