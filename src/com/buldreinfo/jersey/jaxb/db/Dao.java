@@ -964,6 +964,25 @@ public class Dao {
 		return areasLookup.values();
 	}
 
+	public List<Integer> getFaYears(Connection c, int regionId) throws SQLException {
+		List<Integer> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT year(p.fa_date) fa_year
+				FROM area a, sector s, problem p
+				WHERE a.region_id=? AND a.id=s.area_id AND s.id=p.sector_id
+				  AND p.fa_date IS NOT NULL GROUP BY year(p.fa_date) ORDER BY year(p.fa_date) DESC
+				""")) {
+			ps.setInt(1, regionId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int faYear = rst.getInt("fa_year");
+					res.add(faYear);
+				}
+			}
+		}
+		return res;
+	}
+
 	public FrontpageNumMedia getFrontpageNumMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumMedia res = null;
@@ -982,7 +1001,7 @@ public class Dao {
 		logger.debug("getFrontpageNumMedia(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
-
+	
 	public FrontpageNumProblems getFrontpageNumProblems(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumProblems res = null;
@@ -1020,7 +1039,7 @@ public class Dao {
 		logger.debug("getFrontpageNumTicks(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
-	
+
 	public FrontpageRandomMedia getFrontpageRandomMedia(Connection c, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageRandomMedia res = null;
@@ -2514,7 +2533,7 @@ public class Dao {
 		}
 		return res;
 	}
-
+	
 	public List<Type> getTypes(Connection c, int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {

@@ -11,7 +11,8 @@ import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.db.Dao;
 
-public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, int defaultZoom, LatLng defaultCenter,
+public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, List<Integer> faYears,
+		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
 	
@@ -37,6 +38,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 			}
 		}
 		List<Grade> grades = setup.gradeConverter().getGrades();
+		List<Integer> faYears = dao.getFaYears(c, setup.idRegion());
 		int defaultZoom = setup.defaultZoom();
 		LatLng defaultCenter = setup.defaultCenter();
 		GradeSystem gradeSystem = setup.gradeSystem();
@@ -47,6 +49,6 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Site> sites = dao.getSites(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}
 }
