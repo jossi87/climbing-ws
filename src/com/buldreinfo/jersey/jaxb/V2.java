@@ -454,6 +454,7 @@ public class V2 {
 								sheet.writeInt("NR", p.nr());
 								sheet.writeString("NAME", p.name());
 								sheet.writeString("GRADE", p.grade());
+								sheet.writeInt("FA_YEAR", p.faYear());
 								String type = p.t().type();
 								if (p.t().subType() != null) {
 									type += " (" + p.t().subType() + ")";			

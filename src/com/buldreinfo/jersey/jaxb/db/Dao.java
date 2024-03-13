@@ -439,7 +439,7 @@ public class Dao {
 				(media? "" : " AND x.type!='MEDIA'") +
 				(idArea==0? "" : " AND a.id=" + idArea) +
 				(idSector==0? "" : " AND s.id=" + idSector) +
-				" GROUP BY x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade" +
+				" GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade" +
 				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
