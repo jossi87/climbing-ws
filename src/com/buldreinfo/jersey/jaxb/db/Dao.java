@@ -427,7 +427,7 @@ public class Dao {
 		final Set<Integer> tickRepeatActivitityIds = new HashSet<>();
 		final Set<Integer> mediaActivitityIds = new HashSet<>();
 		final Set<Integer> guestbookActivitityIds = new HashSet<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT x.activity_timestamp, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
+		try (PreparedStatement ps = c.prepareStatement("SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities" + 
 				" FROM ((((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN type t ON p.type_id=t.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)" + 
 				" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) " +
 				"   AND (r.id=? OR ur.user_id IS NOT NULL)" + 
@@ -439,7 +439,7 @@ public class Dao {
 				(media? "" : " AND x.type!='MEDIA'") +
 				(idArea==0? "" : " AND a.id=" + idArea) +
 				(idSector==0? "" : " AND s.id=" + idSector) +
-				" GROUP BY x.activity_timestamp, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade" +
+				" GROUP BY x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade" +
 				" ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
@@ -447,6 +447,14 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime activityTimestamp = rst.getObject("activity_timestamp", LocalDateTime.class);
+					int areaId = rst.getInt("area_id");
+					String areaName = rst.getString("area_name");
+					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					int sectorId = rst.getInt("sector_id");
+					String sectorName = rst.getString("sector_name");
+					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 					int problemId = rst.getInt("problem_id");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
@@ -471,7 +479,7 @@ public class Dao {
 					}
 
 					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDate());
-					res.add(new Activity(activityIds, timeAgo, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubtype, grade));
+					res.add(new Activity(activityIds, timeAgo, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubtype, grade));
 				}
 			}
 		}

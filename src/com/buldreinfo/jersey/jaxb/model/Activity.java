@@ -9,6 +9,14 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 public class Activity {
 	private final Set<Integer> activityIds;
 	private final String timeAgo;
+	private final int areaId;
+	private final String areaName;
+	private final boolean areaLockedAdmin;
+	private final boolean areaLockedSuperadmin;
+	private final int sectorId;
+	private final String sectorName;
+	private final boolean sectorLockedAdmin;
+	private final boolean sectorLockedSuperadmin;
 	private final int problemId;
 	private final boolean problemLockedAdmin;
 	private final boolean problemLockedSuperadmin;
@@ -27,9 +35,17 @@ public class Activity {
 	private String description;
 	private String message;
 	private List<User> users;
-	public Activity(Set<Integer> activityIds, String timeAgo, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade) {
+	public Activity(Set<Integer> activityIds, String timeAgo, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade) {
 		this.activityIds = activityIds;
 		this.timeAgo = timeAgo;
+		this.areaId = areaId;
+		this.areaName = areaName;
+		this.areaLockedAdmin = areaLockedAdmin;
+		this.areaLockedSuperadmin = areaLockedSuperadmin;
+		this.sectorId = sectorId;
+		this.sectorName = sectorName;
+		this.sectorLockedAdmin = sectorLockedAdmin;
+		this.sectorLockedSuperadmin = sectorLockedSuperadmin;
 		this.problemId = problemId;
 		this.problemLockedAdmin = problemLockedAdmin;
 		this.problemLockedSuperadmin = problemLockedSuperadmin;
@@ -58,14 +74,17 @@ public class Activity {
 	public Set<Integer> getActivityIds() {
 		return activityIds;
 	}
+	public int getAreaId() {
+		return areaId;
+	}
+	public String getAreaName() {
+		return areaName;
+	}
 	public String getDescription() {
 		return description;
 	}
 	public String getGrade() {
 		return grade;
-	}
-	public boolean isNoPersonalGrade() {
-		return noPersonalGrade;
 	}
 	public int getId() {
 		return id;
@@ -97,6 +116,12 @@ public class Activity {
 	public String getProblemSubtype() {
 		return problemSubtype;
 	}
+	public int getSectorId() {
+		return sectorId;
+	}
+	public String getSectorName() {
+		return sectorName;
+	}
 	public int getStars() {
 		return stars;
 	}
@@ -106,6 +131,15 @@ public class Activity {
 	public List<User> getUsers() {
 		return users;
 	}
+	public boolean isAreaLockedAdmin() {
+		return areaLockedAdmin;
+	}
+	public boolean isAreaLockedSuperadmin() {
+		return areaLockedSuperadmin;
+	}
+	public boolean isNoPersonalGrade() {
+		return noPersonalGrade;
+	}
 	public boolean isProblemLockedAdmin() {
 		return problemLockedAdmin;
 	}
@@ -114,6 +148,12 @@ public class Activity {
 	}
 	public boolean isRepeat() {
 		return repeat;
+	}
+	public boolean isSectorLockedAdmin() {
+		return sectorLockedAdmin;
+	}
+	public boolean isSectorLockedSuperadmin() {
+		return sectorLockedSuperadmin;
 	}
 	public void setGuestbook(int id, String name, String picture, String message) {
 		this.id = id;
