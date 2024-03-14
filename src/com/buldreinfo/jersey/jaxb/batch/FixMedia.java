@@ -70,7 +70,7 @@ public class FixMedia {
 	public FixMedia() {
 		Server.runSql((dao, c) -> {
 			List<Movie> movies = new ArrayList<>();
-			// movies.add(new Movie(Paths.get("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()));
+			// movies.add(new Movie(Paths.get("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()); // TODO
 			List<Integer> newIdMedia = Lists.newArrayList();
 			for (Movie m : movies) {
 				newIdMedia.add(addMovie(c, m.path, m.idPhotographerUserId, m.idUploaderUserId, m.idProblemMsMap, m.inPhoto));
