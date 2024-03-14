@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -35,6 +36,28 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class FixMedia {
+	public static class Movie {
+		private final int idUploaderUserId = 1;
+		private final Path path;
+		private int idPhotographerUserId;
+		private final Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
+		private List<Integer> inPhoto = new ArrayList<>();
+		public Movie(Path path) {
+			this.path = path;
+		}
+		public Movie withIdPhotographerUserId(int idPhotographerUserId) {
+			this.idPhotographerUserId = idPhotographerUserId;
+			return this;
+		}
+		public Movie withInPhoto(int inPhoto) {
+			this.inPhoto.add(inPhoto);
+			return this;
+		}
+		public Movie withProblem(int idProblem, long ms) {
+			this.idProblemMsMap.put(idProblem, ms);
+			return this;
+		}
+	}
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-10-04-git-9078dc0c52-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
@@ -46,18 +69,15 @@ public class FixMedia {
 
 	public FixMedia() {
 		Server.runSql((dao, c) -> {
+			List<Movie> movies = new ArrayList<>();
+			// movies.add(new Movie(Paths.get("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()));
 			List<Integer> newIdMedia = Lists.newArrayList();
-			// Add movie
-			//			final int idUploaderUserId = 1;
-			//			Path src = Paths.get(""); // TODO
-			//			int idPhotographerUserId = ; // TODO
-			//			Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
-			//			idProblemMsMap.put(, 0l); // TODO
-			//			List<Integer> inPhoto = Lists.newArrayList(); // TODO
-			//			newIdMedia.add(addMovie(c, src, idPhotographerUserId, idUploaderUserId, idProblemMsMap, inPhoto));
-			//			for (int idProblem : idProblemMsMap.keySet()) {
-			//				dao.fillActivity(c, idProblem);
-			//			}
+			for (Movie m : movies) {
+				newIdMedia.add(addMovie(c, m.path, m.idPhotographerUserId, m.idUploaderUserId, m.idProblemMsMap, m.inPhoto));
+				for (int idProblem : m.idProblemMsMap.keySet()) {
+					dao.fillActivity(c, idProblem);
+				}
+			}
 			// Create all formats and set checksum
 			String sqlStr = "SELECT id, width, height, suffix, embed_url FROM media WHERE is_movie=1";
 			if (!newIdMedia.isEmpty()) {
@@ -160,7 +180,6 @@ public class FixMedia {
 		logger.debug("Done");
 	}
 
-	@SuppressWarnings("unused")
 	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
 		Preconditions.checkArgument(Files.exists(src), src.toString() + " does not exist");
 		Preconditions.checkArgument(idPhotographerUserId > 0, "Invalid idPhotographerUserId=" + idPhotographerUserId);
