@@ -76,10 +76,6 @@ import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemComment;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegion;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionArea;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaProblem;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaSector;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -99,6 +95,11 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Toc;
+import com.buldreinfo.jersey.jaxb.model.TocArea;
+import com.buldreinfo.jersey.jaxb.model.TocProblem;
+import com.buldreinfo.jersey.jaxb.model.TocRegion;
+import com.buldreinfo.jersey.jaxb.model.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoProblem;
 import com.buldreinfo.jersey.jaxb.model.TodoSector;
@@ -1465,11 +1466,12 @@ public class Dao {
 		return p;
 	}
 
-	public List<ProblemRegion> getProblemsList(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, ProblemRegion> regionLookup = new LinkedHashMap<>();
-		Map<Integer, ProblemRegionArea> areaLookup = new HashMap<>();
-		Map<Integer, ProblemRegionAreaSector> sectorLookup = new HashMap<>();
+		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
+		Map<Integer, TocArea> areaLookup = new HashMap<>();
+		Map<Integer, TocSector> sectorLookup = new HashMap<>();
+		int numProblems = 0;
 		String sqlStr = """
 				SELECT r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
 				       s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
@@ -1496,15 +1498,15 @@ public class Dao {
 				while (rst.next()) {
 					// Region
 					int regionId = rst.getInt("region_id");
-					ProblemRegion r = regionLookup.get(regionId);
+					TocRegion r = regionLookup.get(regionId);
 					if (r == null) {
 						String regionName = rst.getString("region_name");
-						r = new ProblemRegion(regionId, regionName, new ArrayList<>());
+						r = new TocRegion(regionId, regionName, new ArrayList<>());
 						regionLookup.put(regionId, r);
 					}
 					// Area
 					int areaId = rst.getInt("area_id");
-					ProblemRegionArea a = areaLookup.get(areaId);
+					TocArea a = areaLookup.get(areaId);
 					if (a == null) {
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
@@ -1514,13 +1516,13 @@ public class Dao {
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new ProblemRegionArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+						a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 						r.areas().add(a);
 						areaLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
-					ProblemRegionAreaSector s = sectorLookup.get(sectorId);
+					TocSector s = sectorLookup.get(sectorId);
 					if (s == null) {
 						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
@@ -1531,7 +1533,7 @@ public class Dao {
 						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = new ProblemRegionAreaSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
 						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
@@ -1554,8 +1556,9 @@ public class Dao {
 					boolean ticked = rst.getBoolean("ticked");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					ProblemRegionAreaProblem p = new ProblemRegionAreaProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faYear, numTicks, stars, ticked, t, numPitches);
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faYear, numTicks, stars, ticked, t, numPitches);
 					s.problems().add(p);
+					numProblems++;
 				}
 			}
 		}
@@ -1566,12 +1569,12 @@ public class Dao {
 				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}
 		}
-		List<ProblemRegion> res = Lists.newArrayList(regionLookup.values());
-		res.forEach(r -> {
-			r.areas().sort(Comparator.comparing(ProblemRegionArea::name)); // Sorting (ae, oe, aa is sorted wrong by MySQL)
+		Toc res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, Lists.newArrayList(regionLookup.values()));
+		res.regions().forEach(r -> {
+			r.areas().sort(Comparator.comparing(TocArea::name)); // Sorting (ae, oe, aa is sorted wrong by MySQL)
 			r.areas().forEach(a -> a.orderSectors());
 		});
-		logger.debug("getProblemsList(authUserId={}, setup={}) - res.size()={} - duration={}", authUserId, setup, res.size(), stopwatch);
+		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 

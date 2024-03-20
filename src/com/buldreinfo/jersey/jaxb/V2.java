@@ -42,10 +42,6 @@ import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegion;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionArea;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaProblem;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaSector;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
@@ -56,6 +52,11 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Toc;
+import com.buldreinfo.jersey.jaxb.model.TocArea;
+import com.buldreinfo.jersey.jaxb.model.TocProblem;
+import com.buldreinfo.jersey.jaxb.model.TocRegion;
+import com.buldreinfo.jersey.jaxb.model.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
@@ -422,18 +423,6 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problems", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemRegion.class)))})})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/problems")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getProblems(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			List<ProblemRegion> res = dao.getProblemsList(c, authUserId, setup);
-			return Response.ok().entity(res).build();
-		});
-	}
-
 	@Operation(summary = "Get problems as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -441,14 +430,14 @@ public class V2 {
 	@Produces(MIME_TYPE_XLSX)
 	public Response getProblemsXlsx(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			List<ProblemRegion> res = dao.getProblemsList(c, authUserId, setup);
+			Toc toc = dao.getToc(c, authUserId, setup);
 			byte[] bytes;
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
-					for (ProblemRegion r : res) {
-						for (ProblemRegionArea a : r.areas()) {
-							for (ProblemRegionAreaSector s : a.sectors()) {
-								for (ProblemRegionAreaProblem p : s.problems()) {
+					for (TocRegion r : toc.regions()) {
+						for (TocArea a : r.areas()) {
+							for (TocSector s : a.sectors()) {
+								for (TocProblem p : s.problems()) {
 									sheet.incrementRow();
 									sheet.writeString("REGION", r.name());
 									sheet.writeHyperlink("URL", p.url());
@@ -624,6 +613,17 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Ticks res = dao.getTicks(c, authUserId, setup, page);
 			return Response.ok().entity(res).build();
+		});
+	}
+
+	@Operation(summary = "Get toc", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/toc")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getToc(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			return Response.ok().entity(dao.getToc(c, authUserId, setup)).build();
 		});
 	}
 

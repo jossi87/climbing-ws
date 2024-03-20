@@ -15,13 +15,13 @@ import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemRegion;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
+import com.buldreinfo.jersey.jaxb.model.Toc;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 
@@ -135,18 +135,6 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetProblems() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getProblems(getRequest())) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof Collection<?>);
-			@SuppressWarnings("unchecked")
-			Collection<ProblemRegion> problemRegions = (Collection<ProblemRegion>)r.getEntity();
-			assertTrue(!problemRegions.isEmpty());
-		}
-	}
-
-	@Test
 	public void testGetProfile() throws Exception {
 		V2 tester = new V2();
 		// User: Jostein
@@ -176,6 +164,15 @@ public class V2Test {
 		try (Response r = tester.getTicks(getRequest(), 1)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Ticks);
+		}
+	}
+
+	@Test
+	public void testGetToc() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getToc(getRequest())) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Toc);
 		}
 	}
 
