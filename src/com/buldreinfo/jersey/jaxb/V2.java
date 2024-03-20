@@ -448,6 +448,7 @@ public class V2 {
 						for (ProblemAreaSector s : a.sectors()) {
 							for (ProblemAreaProblem p : s.problems()) {
 								sheet.incrementRow();
+								sheet.writeString("REGION", a.regionName());
 								sheet.writeHyperlink("URL", p.url());
 								sheet.writeString("AREA", a.name());
 								sheet.writeString("SECTOR", s.name());
