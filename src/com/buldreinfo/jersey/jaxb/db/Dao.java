@@ -1469,7 +1469,7 @@ public class Dao {
 		Map<Integer, ProblemArea> areaLookup = new HashMap<>();
 		Map<Integer, ProblemAreaSector> sectorLookup = new HashMap<>();
 		String sqlStr = """
-				SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
+				SELECT r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
 				       s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, 
@@ -1481,7 +1481,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 
-				GROUP BY r.url, a.id, a.name, ac.id, ac.latitude, ac.longitude, ac.elevation, ac.elevation_source, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, year(p.fa_date), c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.grade, ty.id, ty.type, ty.subtype
+				GROUP BY r.name, r.url, a.id, a.name, ac.id, ac.latitude, ac.longitude, ac.elevation, ac.elevation_source, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, year(p.fa_date), c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.grade, ty.id, ty.type, ty.subtype
 				ORDER BY a.name, s.sorting, s.name, p.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1496,6 +1496,7 @@ public class Dao {
 					int areaId = rst.getInt("area_id");
 					ProblemArea a = areaLookup.get(areaId);
 					if (a == null) {
+						String regionName = rst.getString("region_name");
 						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
 						int areaidCoordinates = rst.getInt("area_coordinates_id");
@@ -1504,7 +1505,7 @@ public class Dao {
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new ProblemArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+						a = new ProblemArea(regionName, areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 						areaLookup.put(areaId, a);
 					}
 					// Sector
