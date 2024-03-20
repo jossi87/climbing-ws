@@ -42,9 +42,10 @@ import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemArea;
-import com.buldreinfo.jersey.jaxb.model.ProblemAreaProblem;
-import com.buldreinfo.jersey.jaxb.model.ProblemAreaSector;
+import com.buldreinfo.jersey.jaxb.model.ProblemRegion;
+import com.buldreinfo.jersey.jaxb.model.ProblemRegionArea;
+import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaProblem;
+import com.buldreinfo.jersey.jaxb.model.ProblemRegionAreaSector;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
@@ -421,14 +422,14 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problems", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemArea.class)))})})
+	@Operation(summary = "Get problems", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemRegionArea.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problems")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblems(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			List<ProblemArea> res = dao.getProblemsList(c, authUserId, setup);
+			List<ProblemRegion> res = dao.getProblemsList(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -440,33 +441,35 @@ public class V2 {
 	@Produces(MIME_TYPE_XLSX)
 	public Response getProblemsXlsx(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			List<ProblemArea> res = dao.getProblemsList(c, authUserId, setup);
+			List<ProblemRegion> res = dao.getProblemsList(c, authUserId, setup);
 			byte[] bytes;
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
-					for (ProblemArea a : res) {
-						for (ProblemAreaSector s : a.sectors()) {
-							for (ProblemAreaProblem p : s.problems()) {
-								sheet.incrementRow();
-								sheet.writeString("REGION", a.regionName());
-								sheet.writeHyperlink("URL", p.url());
-								sheet.writeString("AREA", a.name());
-								sheet.writeString("SECTOR", s.name());
-								sheet.writeInt("NR", p.nr());
-								sheet.writeString("NAME", p.name());
-								sheet.writeString("GRADE", p.grade());
-								sheet.writeInt("FA_YEAR", p.faYear());
-								String type = p.t().type();
-								if (p.t().subType() != null) {
-									type += " (" + p.t().subType() + ")";			
+					for (ProblemRegion r : res) {
+						for (ProblemRegionArea a : r.areas()) {
+							for (ProblemRegionAreaSector s : a.sectors()) {
+								for (ProblemRegionAreaProblem p : s.problems()) {
+									sheet.incrementRow();
+									sheet.writeString("REGION", r.name());
+									sheet.writeHyperlink("URL", p.url());
+									sheet.writeString("AREA", a.name());
+									sheet.writeString("SECTOR", s.name());
+									sheet.writeInt("NR", p.nr());
+									sheet.writeString("NAME", p.name());
+									sheet.writeString("GRADE", p.grade());
+									sheet.writeInt("FA_YEAR", p.faYear());
+									String type = p.t().type();
+									if (p.t().subType() != null) {
+										type += " (" + p.t().subType() + ")";			
+									}
+									sheet.writeString("TYPE", type);
+									if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+										sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
+									}
+									sheet.writeString("FA", p.fa());
+									sheet.writeDouble("STARS", p.stars());
+									sheet.writeString("DESCRIPTION", p.description());
 								}
-								sheet.writeString("TYPE", type);
-								if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
-									sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
-								}
-								sheet.writeString("FA", p.fa());
-								sheet.writeDouble("STARS", p.stars());
-								sheet.writeString("DESCRIPTION", p.description());
 							}
 						}
 					}

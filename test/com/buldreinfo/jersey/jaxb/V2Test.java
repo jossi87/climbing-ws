@@ -15,7 +15,7 @@ import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
-import com.buldreinfo.jersey.jaxb.model.ProblemArea;
+import com.buldreinfo.jersey.jaxb.model.ProblemRegionArea;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -141,7 +141,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			@SuppressWarnings("unchecked")
-			Collection<ProblemArea> problemAreas = (Collection<ProblemArea>)r.getEntity();
+			Collection<ProblemRegionArea> problemAreas = (Collection<ProblemRegionArea>)r.getEntity();
 			assertTrue(problemAreas.size() > 1);
 		}
 	}
