@@ -423,58 +423,6 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problems as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/problems/xlsx")
-	@Produces(MIME_TYPE_XLSX)
-	public Response getProblemsXlsx(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Toc toc = dao.getToc(c, authUserId, setup);
-			byte[] bytes;
-			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
-				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
-					for (TocRegion r : toc.regions()) {
-						for (TocArea a : r.areas()) {
-							for (TocSector s : a.sectors()) {
-								for (TocProblem p : s.problems()) {
-									sheet.incrementRow();
-									sheet.writeString("REGION", r.name());
-									sheet.writeHyperlink("URL", p.url());
-									sheet.writeString("AREA", a.name());
-									sheet.writeString("SECTOR", s.name());
-									sheet.writeInt("NR", p.nr());
-									sheet.writeString("NAME", p.name());
-									sheet.writeString("GRADE", p.grade());
-									sheet.writeInt("FA_YEAR", p.faYear());
-									String type = p.t().type();
-									if (p.t().subType() != null) {
-										type += " (" + p.t().subType() + ")";			
-									}
-									sheet.writeString("TYPE", type);
-									if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
-										sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
-									}
-									sheet.writeString("FA", p.fa());
-									sheet.writeDouble("STARS", p.stars());
-									sheet.writeString("DESCRIPTION", p.description());
-								}
-							}
-						}
-					}
-				}
-				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-					workbook.write(os);
-					bytes = os.toByteArray();
-				}
-			}
-			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
-			return Response.ok(bytes, MIME_TYPE_XLSX)
-					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
-					.build();
-		});
-	}
-
 	@Operation(summary = "Get profile by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -616,7 +564,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get toc", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))})})
+	@Operation(summary = "Get table of contents (all problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/toc")
@@ -624,6 +572,58 @@ public class V2 {
 	public Response getToc(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			return Response.ok().entity(dao.getToc(c, authUserId, setup)).build();
+		});
+	}
+
+	@Operation(summary = "Get table of contents (all problems) as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/toc/xlsx")
+	@Produces(MIME_TYPE_XLSX)
+	public Response getTocXlsx(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			Toc toc = dao.getToc(c, authUserId, setup);
+			byte[] bytes;
+			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
+				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
+					for (TocRegion r : toc.regions()) {
+						for (TocArea a : r.areas()) {
+							for (TocSector s : a.sectors()) {
+								for (TocProblem p : s.problems()) {
+									sheet.incrementRow();
+									sheet.writeString("REGION", r.name());
+									sheet.writeHyperlink("URL", p.url());
+									sheet.writeString("AREA", a.name());
+									sheet.writeString("SECTOR", s.name());
+									sheet.writeInt("NR", p.nr());
+									sheet.writeString("NAME", p.name());
+									sheet.writeString("GRADE", p.grade());
+									sheet.writeInt("FA_YEAR", p.faYear());
+									String type = p.t().type();
+									if (p.t().subType() != null) {
+										type += " (" + p.t().subType() + ")";			
+									}
+									sheet.writeString("TYPE", type);
+									if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+										sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
+									}
+									sheet.writeString("FA", p.fa());
+									sheet.writeDouble("STARS", p.stars());
+									sheet.writeString("DESCRIPTION", p.description());
+								}
+							}
+						}
+					}
+				}
+				try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+					workbook.write(os);
+					bytes = os.toByteArray();
+				}
+			}
+			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
+			return Response.ok(bytes, MIME_TYPE_XLSX)
+					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
+					.build();
 		});
 	}
 
