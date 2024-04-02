@@ -131,10 +131,10 @@ public class Dao {
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 	private static Logger logger = LogManager.getLogger();
 	private final Gson gson = new Gson();
-	
+
 	public Dao() {
 	}
-	
+
 	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException, ImageReadException, ImageWriteException {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
@@ -1011,7 +1011,7 @@ public class Dao {
 		logger.debug("getFrontpageNumMedia(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
-	
+
 	public FrontpageNumProblems getFrontpageNumProblems(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumProblems res = null;
@@ -1031,7 +1031,7 @@ public class Dao {
 		logger.debug("getFrontpageNumProblems(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
-	
+
 	public FrontpageNumTicks getFrontpageNumTicks(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumTicks res = null;
@@ -2556,7 +2556,7 @@ public class Dao {
 		}
 		return res;
 	}
-	
+
 	public List<Type> getTypes(Connection c, int regionId) throws SQLException {
 		List<Type> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
@@ -3576,35 +3576,48 @@ public class Dao {
 		if (co.id() > 0) {
 			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false).getComments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
-			boolean commentIsEditableByUser = comments
+			final int loggedInUserId = authUserId.orElseThrow();
+			int editableCommentCreatedByUserId = comments
 					.stream()
-					.filter(x -> x.getId() == co.id() && x.getIdUser() == authUserId.orElseThrow() && x.isEditable())
+					.filter(x -> x.getId() == co.id() && x.isEditable())
 					.findAny()
-					.isPresent();
-			Preconditions.checkArgument(commentIsEditableByUser, "Comment not editable by " + authUserId);
-			if (co.delete()) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
-					ps.setInt(1, co.id());
+					.map(ProblemComment::getIdUser)
+					.orElseThrow();
+			if (loggedInUserId == editableCommentCreatedByUserId) {
+				if (co.delete()) {
+					try (PreparedStatement ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
+						ps.setInt(1, co.id());
+						ps.execute();
+					}
+				}
+				else {
+					try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
+						ps.setString(1, GlobalFunctions.stripString(co.comment()));
+						ps.setBoolean(2, co.danger());
+						ps.setBoolean(3, co.resolved());
+						ps.setInt(4, co.id());
+						ps.execute();
+						if (co.newMedia() != null) {
+							// New media
+							for (NewMedia m : co.newMedia()) {
+								final int idProblem = 0;
+								final int idSector = 0;
+								final int idArea = 0;
+								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), m, multiPart);
+							}
+						}
+					}
+				}
+			}
+			else if (co.danger()) {
+				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET danger=? WHERE id=?")) {
+					ps.setBoolean(1, co.danger());
+					ps.setInt(2, co.id());
 					ps.execute();
 				}
 			}
 			else {
-				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
-					ps.setString(1, GlobalFunctions.stripString(co.comment()));
-					ps.setBoolean(2, co.danger());
-					ps.setBoolean(3, co.resolved());
-					ps.setInt(4, co.id());
-					ps.execute();
-					if (co.newMedia() != null) {
-						// New media
-						for (NewMedia m : co.newMedia()) {
-							final int idProblem = 0;
-							final int idSector = 0;
-							final int idArea = 0;
-							addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), m, multiPart);
-						}
-					}
-				}
+				throw new IllegalArgumentException("Comment written by " + editableCommentCreatedByUserId + " not editable by " + loggedInUserId + ". Other users can only mark as dangerous.");
 			}
 		} else {
 			Preconditions.checkNotNull(GlobalFunctions.stripString(co.comment()));
