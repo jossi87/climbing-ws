@@ -3576,14 +3576,8 @@ public class Dao {
 		if (co.id() > 0) {
 			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false).getComments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
-			final int loggedInUserId = authUserId.orElseThrow();
-			int editableCommentCreatedByUserId = comments
-					.stream()
-					.filter(x -> x.getId() == co.id() && x.isEditable())
-					.findAny()
-					.map(ProblemComment::getIdUser)
-					.orElseThrow();
-			if (loggedInUserId == editableCommentCreatedByUserId) {
+			ProblemComment comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
+			if (comment.isEditable()) {
 				if (co.delete()) {
 					try (PreparedStatement ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
 						ps.setInt(1, co.id());
@@ -3609,7 +3603,7 @@ public class Dao {
 					}
 				}
 			}
-			else if (co.danger()) {
+			else if (!comment.isDanger() && !comment.isResolved() && co.danger()) {
 				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET danger=? WHERE id=?")) {
 					ps.setBoolean(1, co.danger());
 					ps.setInt(2, co.id());
@@ -3617,7 +3611,7 @@ public class Dao {
 				}
 			}
 			else {
-				throw new IllegalArgumentException("Comment written by " + editableCommentCreatedByUserId + " not editable by " + loggedInUserId + ". Other users can only mark as dangerous.");
+				throw new IllegalArgumentException("Comment not editable by " + authUserId.orElseThrow() + ". Other users can only mark as dangerous - comment=" + comment);
 			}
 		} else {
 			Preconditions.checkNotNull(GlobalFunctions.stripString(co.comment()));
