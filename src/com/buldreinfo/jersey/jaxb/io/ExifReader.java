@@ -4,9 +4,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.Imaging;
+import org.apache.commons.imaging.ImagingException;
 import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
 import org.apache.commons.imaging.formats.tiff.TiffField;
@@ -23,7 +22,7 @@ public class ExifReader {
 	private final TiffOutputSet outputSet;
 	private final LocalDateTime dateTaken;
 
-	protected ExifReader(byte[] bytes) throws IOException, ImageReadException, ImageWriteException {
+	protected ExifReader(byte[] bytes) throws IOException {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
 			// Read exif orientation and remove from metadata. Save rotated image instead of keeping exif orientation in file.
@@ -40,7 +39,7 @@ public class ExifReader {
 		}
 	}
 	
-	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImageReadException {
+	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
 		if (imageMetadata == null) {
 			return null;
 		}
@@ -51,7 +50,7 @@ public class ExifReader {
 		return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
 	}
 
-	private Rotation getExifOrientation(ImageMetadata imageMetadata) throws ImageReadException {
+	private Rotation getExifOrientation(ImageMetadata imageMetadata) throws ImagingException {
 		TiffField field = getTiffField(imageMetadata, TiffTagConstants.TIFF_TAG_ORIENTATION);
 		if (field != null) {
 			int value = field.getIntValue();
@@ -74,7 +73,7 @@ public class ExifReader {
 		return null;
 	}
 
-	private String getExifStringValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImageReadException {
+	private String getExifStringValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
 		TiffField field = getTiffField(imageMetadata, tagInfo);
 		if (field == null) {
 			return null;
@@ -89,19 +88,19 @@ public class ExifReader {
 		return exifStr;
 	}
 
-	private TiffField getTiffField(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImageReadException {
+	private TiffField getTiffField(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
 		if (imageMetadata == null) {
 			return null;
 		}
 		if (imageMetadata instanceof JpegImageMetadata jpegMetadata) {
-			return jpegMetadata.findEXIFValueWithExactMatch(tagInfo);
+			return jpegMetadata.findExifValueWithExactMatch(tagInfo);
 		} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
 			return tiffMetadata.findField(tagInfo, true);
 		}
 		return null;
 	}
 
-	private TiffImageMetadata getTiffImageMetadata(byte[] imageBytes) throws ImageReadException, IOException {
+	private TiffImageMetadata getTiffImageMetadata(byte[] imageBytes) throws IOException {
 		ImageMetadata imageMetadata = Imaging.getMetadata(imageBytes);
 		if (imageMetadata == null) {
 			return null;

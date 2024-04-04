@@ -26,7 +26,7 @@ import com.google.common.collect.Lists;
 
 public class VegvesenParser {
 	private static Logger logger = LogManager.getLogger();
-	
+
 	public static void main(String[] args) throws Exception {
 		VegvesenParser parser = new VegvesenParser();
 		parser.getCameras();
@@ -49,7 +49,7 @@ public class VegvesenParser {
 			}
 		}
 	}
-	
+
 	private List<Webcam> parseCameras(InputStream is) throws Exception {
 		List<Webcam> cameras = Lists.newArrayList();
 		XMLInputFactory inputFactory = XMLInputFactory.newInstance();
@@ -69,23 +69,27 @@ public class VegvesenParser {
 					break;
 				case "cctvCameraIdentification":
 					event = eventReader.nextEvent();
-					if (isCharacherString(event)) {
+					if (camera != null && isCharacherString(event)) {
 						camera.setId(event.asCharacters().getData());
 					}
 					break;
 				case "cctvCameraRecordVersionTime":
-					event = eventReader.nextEvent();
-					camera.setLastUpdated(event.asCharacters().getData());
+					if (camera != null) {
+						event = eventReader.nextEvent();
+						camera.setLastUpdated(event.asCharacters().getData());
+					}
 					break;
 				case "cctvCameraSiteLocalDescription":
-					eventReader.nextEvent();
-					eventReader.nextEvent();
-					event = eventReader.nextEvent();
-					camera.setName(event.asCharacters().getData());
+					if (camera != null) {
+						eventReader.nextEvent();
+						eventReader.nextEvent();
+						event = eventReader.nextEvent();
+						camera.setName(event.asCharacters().getData());
+					}
 					break;
 				case "stillImageUrl":
 					event = eventReader.nextEvent();
-					if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkAddress")) {
+					if (camera != null && event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkAddress")) {
 						event = eventReader.nextEvent();
 						camera.setUrlStillImage(event.asCharacters().getData());
 						event = eventReader.nextEvent();
@@ -107,12 +111,16 @@ public class VegvesenParser {
 					}
 					break;
 				case "latitude":
-					event = eventReader.nextEvent();
-					camera.setLat(Double.parseDouble(event.asCharacters().getData()));
+					if (camera != null) {
+						event = eventReader.nextEvent();
+						camera.setLat(Double.parseDouble(event.asCharacters().getData()));
+					}
 					break;
 				case "longitude":
-					event = eventReader.nextEvent();
-					camera.setLng(Double.parseDouble(event.asCharacters().getData()));
+					if (camera != null) {
+						event = eventReader.nextEvent();
+						camera.setLng(Double.parseDouble(event.asCharacters().getData()));
+					}
 					break;
 				default:
 					break;
@@ -128,7 +136,7 @@ public class VegvesenParser {
 		}
 		return cameras;
 	}
-	
+
 	private boolean isCharacherString(XMLEvent event) {
 		if (event.toString().startsWith("<")) {
 			return false;

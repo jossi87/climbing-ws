@@ -12,8 +12,6 @@ import java.sql.SQLException;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr;
@@ -25,7 +23,7 @@ import com.google.common.base.Preconditions;
 public class ImageHelper {
 	private static Logger logger = LogManager.getLogger();
 
-	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws ImageReadException, ImageWriteException, IOException, SQLException, InterruptedException {
+	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws IOException, SQLException, InterruptedException {
 		Path original = IOHelper.getPathMediaOriginalJpg(idMedia);
 		byte[] bytes = Files.readAllBytes(original);
 		ExifReader exifReader = new ExifReader(bytes);
@@ -80,7 +78,7 @@ public class ImageHelper {
 		dao.setMediaMetadata(c, idMedia, bufferedImage.getHeight(), bufferedImage.getWidth(), null);
 	}
 
-	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws ImageReadException, ImageWriteException, IOException, SQLException, InterruptedException {
+	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
 		ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)

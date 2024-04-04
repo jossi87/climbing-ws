@@ -10,8 +10,6 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.apache.commons.lang3.SystemUtils;
@@ -77,7 +75,7 @@ public class ImageSaver {
 						}
 					}
 					IOHelper.setFilePermission(builder.pathOriginalJpg);
-				} catch (IOException | ImageReadException | ImageWriteException e) {
+				} catch (IOException e) {
 					throw new RuntimeException(e.getMessage(), e);
 				}
 			});

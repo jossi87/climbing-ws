@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.commons.imaging.ImageReadException;
-import org.apache.commons.imaging.ImageWriteException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -155,7 +153,7 @@ public class FillProblems {
 		return res;
 	}
 
-	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException {
+	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws IOException, SQLException, InterruptedException {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
 		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
@@ -168,7 +166,7 @@ public class FillProblems {
 		dao.setProblem(c, AUTH_USER_ID, setup, p, null);
 	}
 
-	private int upsertArea(Dao dao, Connection c, Data d) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException {
+	private int upsertArea(Dao dao, Connection c, Data d) throws IOException, SQLException, InterruptedException {
 		for (Area a : dao.getAreaList(c, AUTH_USER_ID, REGION_ID)) {
 			if (a.getName().equals(d.getArea())) {
 				return a.getId();
@@ -179,7 +177,7 @@ public class FillProblems {
 		return r.idArea();
 	}
 
-	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException, ImageReadException, ImageWriteException {
+	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
 		Area a = Preconditions.checkNotNull(dao.getArea(c, setup, AUTH_USER_ID, idArea));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
