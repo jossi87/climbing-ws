@@ -1847,8 +1847,24 @@ public class Dao {
 						String dateHr = rst.getString("date_hr");
 						int grade = 0;
 						boolean noPersonalGrade = false;
-						ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
-						idProblemTickMap.put(idProblem, tick);
+						Optional<ProfileStatistics.ProfileStatisticsTick> optTick = res.getTicks().stream()
+								.filter(x -> x.getIdProblem() == idProblem)
+								.findAny();
+						if (optTick.isPresent()) {
+							// User has ticked route, update this (don't add an extra First Ascent (AID))
+							ProfileStatistics.ProfileStatisticsTick tick = optTick.get();
+							tick.setFa(true);
+							if (tick.getDate() == null && date != null) {
+								tick.setDate(date);
+							}
+							if (tick.getDateHr() == null && dateHr != null) {
+								tick.setDateHr(dateHr);
+							}
+						}
+						else {
+							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+							idProblemTickMap.put(idProblem, tick);
+						}
 					}
 				}
 			}

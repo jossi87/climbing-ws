@@ -22,10 +22,10 @@ public class ProfileStatistics {
 		private final boolean lockedSuperadmin;
 		private final String name;
 		private final String comment;
-		private final String date;
-		private final String dateHr;
+		private String date;
+		private String dateHr;
 		private final double stars;
-		private final boolean fa;
+		private boolean fa;
 		private final String grade;
 		private final int gradeNumber;
 		private final boolean noPersonalGrade;
@@ -75,11 +75,11 @@ public class ProfileStatistics {
 		public String getDate() {
 			return date;
 		}
-
+		
 		public String getDateHr() {
 			return dateHr;
 		}
-
+		
 		public String getGrade() {
 			return grade;
 		}
@@ -87,7 +87,7 @@ public class ProfileStatistics {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
@@ -95,7 +95,7 @@ public class ProfileStatistics {
 		public int getIdProblem() {
 			return idProblem;
 		}
-		
+
 		public int getIdTickRepeat() {
 			return idTickRepeat;
 		}
@@ -111,11 +111,11 @@ public class ProfileStatistics {
 		public int getNumPitches() {
 			return numPitches;
 		}
-
+		
 		public String getRegionName() {
 			return regionName;
 		}
-
+		
 		public String getSectorName() {
 			return sectorName;
 		}
@@ -162,6 +162,18 @@ public class ProfileStatistics {
 
 		public void setCoordinates(Coordinates coordinates) {
 			this.coordinates = coordinates;
+		}
+
+		public void setDate(String date) {
+			this.date = date;
+		}
+
+		public void setDateHr(String dateHr) {
+			this.dateHr = dateHr;
+		}
+
+		public void setFa(boolean fa) {
+			this.fa = fa;
 		}
 
 		public void setNum(int num) {
