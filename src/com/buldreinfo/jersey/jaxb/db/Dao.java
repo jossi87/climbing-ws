@@ -1464,118 +1464,6 @@ public class Dao {
 		return p;
 	}
 
-	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
-		Map<Integer, TocArea> areaLookup = new HashMap<>();
-		Map<Integer, TocSector> sectorLookup = new HashMap<>();
-		int numProblems = 0;
-		String sqlStr = """
-				SELECT r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
-				       s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, 
-				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, year(p.fa_date) fa_year,
-				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars, 
-				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches 
-				FROM ((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id 
-				WHERE (a.region_id=? OR ur.user_id IS NOT NULL) 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 
-				GROUP BY r.id, r.name, r.url, a.id, a.name, ac.id, ac.latitude, ac.longitude, ac.elevation, ac.elevation_source, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, year(p.fa_date), c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.grade, ty.id, ty.type, ty.subtype
-				ORDER BY r.name, a.name, s.sorting, s.name, p.nr
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.idRegion());
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					// Region
-					int regionId = rst.getInt("region_id");
-					TocRegion r = regionLookup.get(regionId);
-					if (r == null) {
-						String regionName = rst.getString("region_name");
-						r = new TocRegion(regionId, regionName, new ArrayList<>());
-						regionLookup.put(regionId, r);
-					}
-					// Area
-					int areaId = rst.getInt("area_id");
-					TocArea a = areaLookup.get(areaId);
-					if (a == null) {
-						String areaUrl = rst.getString("area_url");
-						String areaName = rst.getString("area_name");
-						int areaidCoordinates = rst.getInt("area_coordinates_id");
-						Coordinates areaCoordinates = areaidCoordinates == 0? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"), rst.getString("area_elevation_source"));
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						int areaSunFromHour = rst.getInt("area_sun_from_hour");
-						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
-						r.areas().add(a);
-						areaLookup.put(areaId, a);
-					}
-					// Sector
-					int sectorId = rst.getInt("sector_id");
-					TocSector s = sectorLookup.get(sectorId);
-					if (s == null) {
-						String sectorUrl = rst.getString("sector_url");
-						String sectorName = rst.getString("sector_name");
-						int sectorSorting = rst.getInt("sector_sorting");
-						int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-						Coordinates sectorParking = sectorParkingidCoordinates == 0? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-						CompassDirection sectorWallDirectionCalculated = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
-						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
-						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
-						a.sectors().add(s);
-						sectorLookup.put(sectorId, s);
-					}
-					// Problem
-					int id = rst.getInt("id");
-					String url = rst.getString("url");
-					String broken = rst.getString("broken");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					String name = rst.getString("name");
-					String description = rst.getString("description");
-					int faYear = rst.getInt("fa_year");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					int grade = rst.getInt("grade");
-					String fa = rst.getString("fa");
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					int numPitches = rst.getInt("num_pitches");
-					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faYear, numTicks, stars, ticked, t, numPitches);
-					s.problems().add(p);
-					numProblems++;
-				}
-			}
-		}
-		if (!sectorLookup.isEmpty()) {
-			// Fill sector outlines
-			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
-			for (int idSector : idSectorOutline.keySet()) {
-				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
-			}
-		}
-		Toc res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, Lists.newArrayList(regionLookup.values()));
-		res.regions().forEach(r -> {
-			r.areas().sort(Comparator.comparing(TocArea::name)); // Sorting (ae, oe, aa is sorted wrong by MySQL)
-			r.areas().forEach(a -> a.orderSectors());
-		});
-		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
-		return res;
-	}
-
 	public Profile getProfile(Connection c, Optional<Integer> authUserId, Setup setup, int reqUserId) throws SQLException {
 		int userId = reqUserId > 0? reqUserId : authUserId.orElse(0);
 		Preconditions.checkArgument(userId > 0);
@@ -2375,6 +2263,118 @@ public class Dao {
 		return res;
 	}
 
+	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
+		Map<Integer, TocArea> areaLookup = new HashMap<>();
+		Map<Integer, TocSector> sectorLookup = new HashMap<>();
+		int numProblems = 0;
+		String sqlStr = """
+				SELECT r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
+				       s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				       p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, 
+				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, year(p.fa_date) fa_year,
+				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars, 
+				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches 
+				FROM ((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id 
+				WHERE (a.region_id=? OR ur.user_id IS NOT NULL) 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 
+				GROUP BY r.id, r.name, r.url, a.id, a.name, ac.id, ac.latitude, ac.longitude, ac.elevation, ac.elevation_source, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, year(p.fa_date), c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.grade, ty.id, ty.type, ty.subtype
+				ORDER BY r.name, a.name, s.sorting, s.name, p.nr
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setInt(3, setup.idRegion());
+			ps.setInt(4, authUserId.orElse(0));
+			ps.setInt(5, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					// Region
+					int regionId = rst.getInt("region_id");
+					TocRegion r = regionLookup.get(regionId);
+					if (r == null) {
+						String regionName = rst.getString("region_name");
+						r = new TocRegion(regionId, regionName, new ArrayList<>());
+						regionLookup.put(regionId, r);
+					}
+					// Area
+					int areaId = rst.getInt("area_id");
+					TocArea a = areaLookup.get(areaId);
+					if (a == null) {
+						String areaUrl = rst.getString("area_url");
+						String areaName = rst.getString("area_name");
+						int areaidCoordinates = rst.getInt("area_coordinates_id");
+						Coordinates areaCoordinates = areaidCoordinates == 0? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"), rst.getString("area_elevation_source"));
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						int areaSunFromHour = rst.getInt("area_sun_from_hour");
+						int areaSunToHour = rst.getInt("area_sun_to_hour");
+						a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+						r.areas().add(a);
+						areaLookup.put(areaId, a);
+					}
+					// Sector
+					int sectorId = rst.getInt("sector_id");
+					TocSector s = sectorLookup.get(sectorId);
+					if (s == null) {
+						String sectorUrl = rst.getString("sector_url");
+						String sectorName = rst.getString("sector_name");
+						int sectorSorting = rst.getInt("sector_sorting");
+						int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+						Coordinates sectorParking = sectorParkingidCoordinates == 0? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
+						CompassDirection sectorWallDirectionCalculated = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
+						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
+						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin"); 
+						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						a.sectors().add(s);
+						sectorLookup.put(sectorId, s);
+					}
+					// Problem
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String broken = rst.getString("broken");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					int nr = rst.getInt("nr");
+					String name = rst.getString("name");
+					String description = rst.getString("description");
+					int faYear = rst.getInt("fa_year");
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					int grade = rst.getInt("grade");
+					String fa = rst.getString("fa");
+					int numTicks = rst.getInt("num_ticks");
+					double stars = rst.getDouble("stars");
+					boolean ticked = rst.getBoolean("ticked");
+					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					int numPitches = rst.getInt("num_pitches");
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faYear, numTicks, stars, ticked, t, numPitches);
+					s.problems().add(p);
+					numProblems++;
+				}
+			}
+		}
+		if (!sectorLookup.isEmpty()) {
+			// Fill sector outlines
+			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
+			for (int idSector : idSectorOutline.keySet()) {
+				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
+			}
+		}
+		Toc res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, Lists.newArrayList(regionLookup.values()));
+		res.regions().forEach(r -> {
+			r.areas().sort(Comparator.comparing(TocArea::name)); // Sorting (ae, oe, aa is sorted wrong by MySQL)
+			r.areas().forEach(a -> a.orderSectors());
+		});
+		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		return res;
+	}
+
 	public Todo getTodo(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector) throws SQLException {
 		Todo res = new Todo(new ArrayList<>());
 		Map<Integer, TodoSector> sectorLookup = new HashMap<>();
@@ -3047,6 +3047,7 @@ public class Dao {
 			}
 		}
 		if (p.getId() > 0) {
+			tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
@@ -3278,13 +3279,7 @@ public class Dao {
 
 			// Problem order
 			if (s.getProblemOrder() != null) {
-				for (SectorProblemOrder x : s.getProblemOrder()) {
-					try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
-						ps.setInt(1, x.nr());
-						ps.setInt(2, x.id());
-						ps.execute();
-					}
-				}
+				setSectorProblemOrder(c, s.getProblemOrder());
 			}
 
 			// Also update problems (last_updated and locked) + last_updated on area
@@ -4539,6 +4534,61 @@ public class Dao {
 		} else {
 			ps.setNull(parameterIndex, Types.INTEGER);
 		}
+	}
+
+	private void setSectorProblemOrder(Connection c, List<SectorProblemOrder> lst) throws SQLException {
+		if (!lst.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
+				for (SectorProblemOrder x : lst) {
+					ps.setInt(1, x.id());
+					ps.setInt(2, x.nr());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+	}
+
+	/**
+	 * When updating a problem, the user can change the nr.
+	 * This function will move other problems in this sector to make place for this update.
+	 * Ignore sectors with custom ordering (this is often the case when numbers are set to match a topo-image/pdf)
+	 * We don't need to update this problems nr, it will be updated later by the endpoint.
+	 */
+	private void tryFixSectorOrdering(Connection c, int sectorId, int problemId, int problemNewNr) throws SQLException {
+		String sqlStr = """
+				WITH x AS (
+				  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+				  FROM problem p
+				  WHERE p.sector_id=?
+				  GROUP BY p.sector_id
+				)
+				SELECT p.id
+				FROM problem p_input, x,
+				     problem p
+				WHERE p_input.id=? AND p_input.nr!=?
+				  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
+				  AND p_input.sector_id=p.sector_id
+				  AND p.id!=p_input.id
+				ORDER BY p.nr
+				""";
+		List<SectorProblemOrder> lst = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, sectorId);
+			ps.setInt(2, problemId);
+			ps.setInt(3, problemNewNr);
+			try (ResultSet rst = ps.executeQuery()) {
+				int nr = 0;
+				while (rst.next()) {
+					if (++nr == problemNewNr) {
+						++nr;
+					}
+					int id = rst.getInt("id");
+					lst.add(new SectorProblemOrder(id, null, nr));
+				}
+			}
+		}
+		setSectorProblemOrder(c, lst);
 	}
 
 	private void upsertTickRepeats(Connection c, int idTick, List<TickRepeat> repeats) throws SQLException {
