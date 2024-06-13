@@ -4540,8 +4540,8 @@ public class Dao {
 		if (!lst.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
 				for (SectorProblemOrder x : lst) {
-					ps.setInt(1, x.id());
-					ps.setInt(2, x.nr());
+					ps.setInt(1, x.nr());
+					ps.setInt(2, x.id());
 					ps.addBatch();
 				}
 				ps.executeBatch();
