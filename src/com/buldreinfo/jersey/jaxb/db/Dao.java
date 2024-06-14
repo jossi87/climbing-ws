@@ -3046,8 +3046,8 @@ public class Dao {
 				ensureCoordinatesInDbWithElevationAndId(c, Lists.newArrayList(p.getCoordinates()));
 			}
 		}
+		tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 		if (p.getId() > 0) {
-			tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
@@ -4550,41 +4550,73 @@ public class Dao {
 	}
 
 	/**
-	 * When updating a problem, the user can change the nr.
-	 * This function will move other problems in this sector to make place for this update.
+	 * When upserting a problem, the user can change the nr.
+	 * This function will move other problems in this sector to make place for this update/insert.
 	 * Ignore sectors with custom ordering (this is often the case when numbers are set to match a topo-image/pdf)
 	 * We don't need to update this problems nr, it will be updated later by the endpoint.
 	 */
 	private void tryFixSectorOrdering(Connection c, int sectorId, int problemId, int problemNewNr) throws SQLException {
-		String sqlStr = """
-				WITH x AS (
-				  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
-				  FROM problem p
-				  WHERE p.sector_id=?
-				  GROUP BY p.sector_id
-				)
-				SELECT p.id
-				FROM problem p_input, x,
-				     problem p
-				WHERE p_input.id=? AND p_input.nr!=?
-				  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
-				  AND p_input.sector_id=p.sector_id
-				  AND p.id!=p_input.id
-				ORDER BY p.nr
-				""";
 		List<SectorProblemOrder> lst = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, sectorId);
-			ps.setInt(2, problemId);
-			ps.setInt(3, problemNewNr);
-			try (ResultSet rst = ps.executeQuery()) {
-				int nr = 0;
-				while (rst.next()) {
-					if (++nr == problemNewNr) {
-						++nr;
+		if (problemId > 0) {
+			// Existing problem, check if user changed nr
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM problem p_input, x,
+					     problem p
+					WHERE p_input.id=? AND p_input.nr!=?
+					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
+					  AND p_input.sector_id=p.sector_id
+					  AND p.id!=p_input.id
+					ORDER BY p.nr
+					""";
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				ps.setInt(2, problemId);
+				ps.setInt(3, problemNewNr);
+				try (ResultSet rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) {
+							++nr;
+						}
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
 					}
-					int id = rst.getInt("id");
-					lst.add(new SectorProblemOrder(id, null, nr));
+				}
+			}
+		}
+		else if (problemNewNr != 0) {
+			// New problem with specific nr
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM x, problem p
+					WHERE x.num_problems=x.max_num
+					  AND x.sector_id=p.sector_id
+					ORDER BY p.nr
+					""";
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				try (ResultSet rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) {
+							++nr;
+						}
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
+					}
 				}
 			}
 		}
