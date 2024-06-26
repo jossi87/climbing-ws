@@ -336,7 +336,14 @@ public class Dao {
 						LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
 						LocalDateTime tickActivityTimestamp = null;
 						if (tickDate != null && tickCreated != null) {
-							tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
+							if (tickCreated.toLocalDate().isAfter(tickDate)) {
+								// Tick created on different date, use end of day in activity order
+								tickActivityTimestamp = tickDate.atTime(23, 59, 59);
+							}
+							else {
+								// Tick created on same date as FA, use HHMMSS in activity order
+								tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
+							}
 						}
 						else if (tickDate != null) {
 							tickActivityTimestamp = tickDate.atStartOfDay();
