@@ -2051,7 +2051,19 @@ public class Dao {
 		}
 		// Problems
 		List<Search> problems = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits ORDER BY p.hits DESC, p.name, p.grade LIMIT 8")) {
+		String sqlStr = """
+				SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock,
+				        ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
+				        p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (r.id=? OR ur.user_id IS NOT NULL)
+				  AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits
+				ORDER BY p.hits DESC, p.name, p.grade LIMIT 8
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
