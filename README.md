@@ -23,7 +23,7 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 
 ### Database
 
-- Download the databasedump: <https://github.com/jossi87/climbing-ws/blob/main/20231009.buldreinfo.no-data.sql>
+- Download the databasedump: <https://github.com/jossi87/climbing-ws/blob/main/20240706.buldreinfo.no-data.sql>
 - Download and run MySQL Installer (<https://dev.mysql.com/downloads/installer/>)
 - Choose "Use Legacy Authentication Method (Retain MySQL 5.x Compability)"
 - Run MySQL Command Line Client and paste in the contents of `init.sql`.
