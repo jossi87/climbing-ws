@@ -653,7 +653,7 @@ public class Dao {
 					int hits = rst.getInt("hits");
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
-					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false);
+					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false, 0, 0, 0);
 					if (allMedia != null && allMedia.size() > 0) {
 						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
@@ -695,7 +695,7 @@ public class Dao {
 					if (randomMediaId == 0) {
 						boolean inherited = false;
 						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
-						List<Media> x = getMediaSector(c, s, authUserId, id, 0, inherited, 0, 0, showHiddenMedia);
+						List<Media> x = getMediaSector(c, s, authUserId, id, 0, inherited, 0, 0, 0, showHiddenMedia);
 						if (!x.isEmpty()) {
 							randomMediaId = x.get(0).id();
 						}
@@ -1158,7 +1158,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, null);
+					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
 				}
 			}
 		}
@@ -1287,7 +1287,7 @@ public class Dao {
 					boolean ticked = rst.getBoolean("ticked");
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
-					List<Media> allMedia = getMediaProblem(c, s, authUserId, sectorId, id, showHiddenMedia);
+					List<Media> allMedia = getMediaProblem(c, s, authUserId, areaId, sectorId, id, showHiddenMedia);
 					if (allMedia != null && allMedia.size() > 0) {
 						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
@@ -1518,7 +1518,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/area/" + areaId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1554,7 +1554,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/sector/" + sectorId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1596,7 +1596,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/problem/" + problemId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -4082,7 +4082,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited) throws SQLException {
+	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.uploader_user_id, m.checksum, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
 			ps.setInt(1, id);
@@ -4109,7 +4109,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, 0, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
 		}
@@ -4140,15 +4140,15 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
 				}
 			}
 		}
 		return media;
 	}
 
-	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
-		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, 0, problemId, showHiddenMedia);
+	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
+		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, 0, 0, problemId, showHiddenMedia);
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN media_problem mp ON p.id=mp.problem_id) INNER JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE p.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
 			ps.setInt(1, problemId);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -4184,7 +4184,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, sectorId, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, areaId, sectorId, 0, null));
 				}
 			}
 		}
@@ -4194,7 +4194,7 @@ public class Dao {
 		return media;
 	}
 
-	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
+	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
 		List<Media> allMedia = new ArrayList<>();
 		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
 		String sqlStr = "SELECT m.id, m.uploader_user_id, m.checksum, ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN media_sector ms ON s.id=ms.sector_id) INNER JOIN media m ON (ms.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE s.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
@@ -4224,7 +4224,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdSector, enableMoveToIdProblem, null);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
@@ -4360,8 +4360,8 @@ public class Dao {
 					int hits = rst.getInt("hits");
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
-					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, 0, 0, false);
-					allMedia.addAll(getMediaArea(c, authUserId, areaId, true));
+					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, 0, 0, 0, false);
+					allMedia.addAll(getMediaArea(c, authUserId, areaId, true, areaId, 0, 0));
 					if (!allMedia.isEmpty()) {
 						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
