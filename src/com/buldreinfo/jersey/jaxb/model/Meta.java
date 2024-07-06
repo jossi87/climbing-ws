@@ -11,7 +11,7 @@ import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.db.Dao;
 
-public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, List<Grade> grades, List<Integer> faYears,
+public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, String authenticatedName, List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
@@ -21,8 +21,9 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
+		String name = null;
 		if (authUserId.isPresent()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
 				ps.setInt(1, setup.idRegion());
 				ps.setInt(2, authUserId.get());
 				try (ResultSet rst = ps.executeQuery()) {
@@ -33,6 +34,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 						if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
 							isAdmin = true;
 						}
+						name = rst.getString("name");
 					}
 				}
 			}
@@ -49,6 +51,6 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Site> sites = dao.getSites(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, name, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}
 }
