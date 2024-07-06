@@ -3786,24 +3786,26 @@ public class Dao {
 				ps.execute();
 			}
 		} else if (svg.id() <= 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor, anchors, texts) VALUES (?, ?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor, anchors, trad_belay_stations, texts) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
 				ps.setString(3, svg.path());
 				ps.setBoolean(4, svg.hasAnchor());
 				ps.setString(5, svg.anchors());
-				ps.setString(6, svg.texts());
+				ps.setString(6, svg.tradBelayStations());
+				ps.setString(7, svg.texts());
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=?, anchors=?, texts=? WHERE id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=?, anchors=?, trad_belay_stations=?, texts=? WHERE id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
 				ps.setString(3, svg.path());
 				ps.setBoolean(4, svg.hasAnchor());
 				ps.setString(5, svg.anchors());
-				ps.setString(6, svg.texts());
-				ps.setInt(7, svg.id());
+				ps.setString(6, svg.tradBelayStations());
+				ps.setString(7, svg.texts());
+				ps.setInt(8, svg.id());
 				ps.execute();
 			}
 		}
@@ -4551,7 +4553,7 @@ public class Dao {
 
 	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
+		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
@@ -4573,11 +4575,12 @@ public class Dao {
 					boolean hasAnchor = rst.getBoolean("has_anchor");
 					String texts = rst.getString("texts");
 					String anchors = rst.getString("anchors");
+					String tradBelayStations = rst.getString("trad_belay_stations");
 					boolean primary = rst.getBoolean("prim");
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, primary, isTicked, isTodo, isDangerous));
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}
