@@ -4361,7 +4361,7 @@ public class Dao {
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, areaId, 0, 0, false);
-					allMedia.addAll(getMediaArea(c, authUserId, areaId, true, areaId, 0, 0));
+					allMedia.addAll(getMediaArea(c, authUserId, areaId, true, 0, reqId, 0));
 					if (!allMedia.isEmpty()) {
 						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
 						if (media.size() != allMedia.size()) {
