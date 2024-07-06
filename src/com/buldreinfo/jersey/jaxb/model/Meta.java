@@ -23,7 +23,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isSuperAdmin = false;
 		String authenticatedName = null;
 		if (authUserId.isPresent()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) names FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
 				ps.setInt(1, setup.idRegion());
 				ps.setInt(2, authUserId.get());
 				try (ResultSet rst = ps.executeQuery()) {
@@ -34,7 +34,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 						if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
 							isAdmin = true;
 						}
-						authenticatedName = rst.getString("name");
+						authenticatedName = rst.getString("authenticated_name");
 					}
 				}
 			}
