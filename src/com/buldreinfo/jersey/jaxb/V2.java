@@ -1002,17 +1002,19 @@ public class V2 {
 	public Response putMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Move right", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(description = "To sector id (will move media to sector if toSectorId>0 and toProblemId=0)", required = true) @QueryParam("toIdSector") int toIdSector,
-			@Parameter(description = "To problem id (will move media to problem if toProblemId>0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
+			@Parameter(description = "To sector id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
+			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
+			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
 			) {
-		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector > 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem > 0),
+		Preconditions.checkArgument((left && toIdArea == 0 && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdArea > 0 && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdArea == 0 && toIdSector > 0 && toIdProblem == 0) ||
+				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem > 0),
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
-			dao.moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
+			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}

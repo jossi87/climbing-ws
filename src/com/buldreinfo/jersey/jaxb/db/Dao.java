@@ -2790,7 +2790,7 @@ public class Dao {
 		return bytes;
 	}
 
-	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdSector, int toIdProblem) throws SQLException {
+	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
 		int sectorId = 0;
@@ -2811,12 +2811,47 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 
-		if (toIdSector > 0) {
-			Preconditions.checkArgument(problemId>0);
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
+		if (toIdArea > 0) {
+			if (problemId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, problemId);
+					ps.execute();
+				}
+			}
+			else if (sectorId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=? AND sector_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, sectorId);
+					ps.execute();
+				}
+			}
+			else {
+				throw new IllegalArgumentException("Invalid location on media with id=" + id);
+			}
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id) VALUES (?, ?)")) {
 				ps.setInt(1, id);
-				ps.setInt(2, problemId);
+				ps.setInt(2, toIdArea);
 				ps.execute();
+			}
+		}
+		else if (toIdSector > 0) {
+			if (problemId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, problemId);
+					ps.execute();
+				}
+			}
+			else if (areaId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=? AND area_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, areaId);
+					ps.execute();
+				}
+			}
+			else {
+				throw new IllegalArgumentException("Invalid location on media with id=" + id);
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id) VALUES (?, ?)")) {
 				ps.setInt(1, id);
@@ -2825,11 +2860,19 @@ public class Dao {
 			}
 		}
 		else if (toIdProblem > 0) {
-			Preconditions.checkArgument(sectorId>0);
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=? AND sector_id=?")) {
-				ps.setInt(1, id);
-				ps.setInt(2, sectorId);
-				ps.execute();
+			if (sectorId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=? AND sector_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, sectorId);
+					ps.execute();
+				}
+			}
+			else if (areaId > 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=? AND area_id=?")) {
+					ps.setInt(1, id);
+					ps.setInt(2, areaId);
+					ps.execute();
+				}
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id) VALUES (?, ?)")) {
 				ps.setInt(1, id);
