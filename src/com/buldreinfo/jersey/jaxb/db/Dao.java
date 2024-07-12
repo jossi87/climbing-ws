@@ -3147,7 +3147,7 @@ public class Dao {
 				ps.setInt(6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setObject(7, dt);
 				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(9, p.getBroken());
+				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.isLockedSuperadmin());
 				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
