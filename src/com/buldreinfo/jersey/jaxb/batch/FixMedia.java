@@ -69,6 +69,7 @@ public class FixMedia {
 
 	public FixMedia() {
 		Server.runSql((dao, c) -> {
+			c.setAutoCommit(true);
 			List<Movie> movies = new ArrayList<>();
 			// movies.add(new Movie(Paths.get("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()); // TODO
 			List<Integer> newIdMedia = Lists.newArrayList();
