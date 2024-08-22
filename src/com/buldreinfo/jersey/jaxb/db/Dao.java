@@ -441,13 +441,13 @@ public class Dao {
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				  """ +  
-				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade) +
-				(fa? "" : " AND x.type!='FA'") +
-				(comments? "" : " AND x.type!='GUESTBOOK'") +
-				(ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT'") +
-				(media? "" : " AND x.type!='MEDIA'") +
-				(idArea==0? "" : " AND a.id=" + idArea) +
-				(idSector==0? "" : " AND s.id=" + idSector) +
+				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade + " ") +
+				(fa? "" : " AND x.type!='FA' ") +
+				(comments? "" : " AND x.type!='GUESTBOOK' ") +
+				(ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT' ") +
+				(media? "" : " AND x.type!='MEDIA' ") +
+				(idArea==0? "" : " AND a.id=" + idArea + " ") +
+				(idSector==0? "" : " AND s.id=" + idSector + " ") +
 				"""
 				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
 				ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100
