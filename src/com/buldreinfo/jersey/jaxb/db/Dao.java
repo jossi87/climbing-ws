@@ -435,7 +435,7 @@ public class Dao {
 		final Set<Integer> mediaActivitityIds = new HashSet<>();
 		final Set<Integer> guestbookActivitityIds = new HashSet<>();
 		String sqlStr = """
-				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(concat(x.id,'-',x.type) SEPARATOR ',') activities 
+				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
 				FROM ((((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN type t ON p.type_id=t.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
