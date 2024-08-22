@@ -440,7 +440,8 @@ public class Dao {
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				  """ +  
+				  """ +
+				((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0)? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") + // Only look at activity for the last three months when loading frontpage, this improves speed significantly
 				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade + " ") +
 				(fa? "" : " AND x.type!='FA' ") +
 				(comments? "" : " AND x.type!='GUESTBOOK' ") +
