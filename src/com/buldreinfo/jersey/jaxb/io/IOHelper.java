@@ -68,10 +68,6 @@ public class IOHelper {
 		return getPathRoot().resolve("web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
 	}
 
-	public static Path getPathTemp() {
-		return getPathRoot().resolve("temp");
-	}
-	
 	private static Path getPathRoot() {
 		Path root = null;
 		if (!SystemUtils.IS_OS_WINDOWS) {

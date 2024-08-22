@@ -6,13 +6,12 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.xml.transform.TransformerException;
@@ -22,7 +21,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
@@ -156,10 +154,8 @@ public class PdfGenerator implements AutoCloseable {
 			table.setWidthPercentage(100);
 			boolean addDummyCell = false;
 			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-				Path png = IOHelper.getPathTemp().resolve("gradeDistribution").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-				IOHelper.createDirectories(png.getParent());
-				GradeDistributionGenerator.write(png, gradeDistribution);
-				Image img = Image.getInstance(png.toString());
+				byte[] png = GradeDistributionGenerator.write(gradeDistribution);
+				Image img = Image.getInstance(png);
 				PdfPCell cell = new PdfPCell(img, true);
 				cell.setBorder(0);
 				table.addCell(cell);
@@ -509,11 +505,11 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
-				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
-				if (png != null) {
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
-					Image img = Image.getInstance(png.toString());
+					Image img = Image.getInstance(optSnapshot.get());
 					PdfPCell cell = new PdfPCell(img, true);
 					cell.setColspan(table.getNumberOfColumns());
 					table.addCell(cell);
@@ -564,11 +560,11 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
-				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
-				if (png != null) {
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
-					Image img = Image.getInstance(png.toString());
+					Image img = Image.getInstance(optSnapshot.get());
 					PdfPCell cell = new PdfPCell(img, true);
 					cell.setColspan(table.getNumberOfColumns());
 					table.addCell(cell);
@@ -579,9 +575,9 @@ public class PdfGenerator implements AutoCloseable {
 						outlines.clear();
 						polylines.clear();
 						leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, true);
-						png = LeafletPrintGenerator.takeSnapshot(leaflet);
-						if (png != null) {
-							img = Image.getInstance(png.toString());
+						optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+						if (optSnapshot.isPresent()) {
+							img = Image.getInstance(optSnapshot.get());
 							cell = new PdfPCell(img, true);
 							cell.setColspan(table.getNumberOfColumns());
 							table.addCell(cell);
@@ -656,11 +652,11 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
-				Path png = LeafletPrintGenerator.takeSnapshot(leaflet);
-				if (png != null) {
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
-					Image img = Image.getInstance(png.toString());
+					Image img = Image.getInstance(optSnapshot.get());
 					PdfPCell cell = new PdfPCell(img, true);
 					cell.setColspan(table.getNumberOfColumns());
 					table.addCell(cell);
@@ -682,8 +678,8 @@ public class PdfGenerator implements AutoCloseable {
 			}
 		}
 		else {
-			Path topo = TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs);
-			img = Image.getInstance(topo.toString());
+			byte[] topo = TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs);
+			img = Image.getInstance(topo);
 		}
 		if (img != null) {
 			PdfPCell cell = new PdfPCell(img, true);

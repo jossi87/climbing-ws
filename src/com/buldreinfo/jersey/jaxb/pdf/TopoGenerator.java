@@ -1,17 +1,14 @@
 package com.buldreinfo.jersey.jaxb.pdf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -30,7 +27,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -46,13 +42,11 @@ public class TopoGenerator {
 	private final static String xmlns = "http://www.w3.org/2000/svg";
 	private final static String COLOR_WHITE = "#FFFFFF";
 	
-	public static Path generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
-		Path dst = IOHelper.getPathTemp().resolve("topo").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".jpg");
-		IOHelper.createDirectories(dst.getParent());
+	public static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
 		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs))) {
 			TranscoderInput ti = new TranscoderInput(reader);
-			try (OutputStream os = new FileOutputStream(dst.toString())) {
-				TranscoderOutput to = new TranscoderOutput(os);
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+				TranscoderOutput to = new TranscoderOutput(baos);
 				JPEGTranscoder t = new JPEGTranscoder();
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, true);
 				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 1f);
@@ -62,9 +56,9 @@ public class TopoGenerator {
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, true);
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_EXECUTE_ONLOAD, true);
 				t.transcode(ti, to);
+				return baos.toByteArray();
 			}
 		}
-		return dst;
 	}
 	
 	private static void addCircle(Document doc, Element parent, String fill, String x, String y, String strokeWidth, String r) {

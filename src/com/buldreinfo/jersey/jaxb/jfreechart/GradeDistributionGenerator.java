@@ -2,10 +2,8 @@ package com.buldreinfo.jersey.jaxb.jfreechart;
 
 import java.awt.Color;
 import java.awt.SystemColor;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Path;
 import java.util.Collection;
 
 import org.jfree.chart.ChartFactory;
@@ -24,7 +22,7 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 
 public class GradeDistributionGenerator {
-	public static void write(Path dst, Collection<GradeDistribution> gradeDistribution) throws IOException {
+	public static byte[] write(Collection<GradeDistribution> gradeDistribution) throws IOException {
 		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 		for (GradeDistribution x : gradeDistribution) {
 			dataset.addValue(x.getNum(), "row", x.getGrade());
@@ -54,8 +52,9 @@ public class GradeDistributionGenerator {
         ItemLabelPosition position = new ItemLabelPosition(ItemLabelAnchor.OUTSIDE12, TextAnchor.TOP_CENTER);
         renderer.setDefaultPositiveItemLabelPosition(position); 
         
-		try (OutputStream out = new FileOutputStream(dst.toFile())) {
-			ChartUtils.writeChartAsPNG(out, chart, 800, 300);
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			ChartUtils.writeChartAsPNG(baos, chart, 800, 300);
+			return baos.toByteArray();
 		}
 	}
 }

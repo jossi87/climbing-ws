@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -14,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
@@ -55,19 +55,17 @@ public class LeafletPrintGenerator {
 	    return new LatLng(newX, newY);
 	}
 	
-	public static Path takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
-		Path res = takeSnapshotWorker(leaflet);
+	public static Optional<byte[]> takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
+		byte[] res = takeSnapshotWorker(leaflet);
 		if (res == null) {
 			Thread.sleep(1000);
 			res = takeSnapshotWorker(leaflet);
 		}
-		logger.debug("takeSnapshot(leaflet={}) - res={}", leaflet, res);
-		return res;
+		return Optional.ofNullable(res);
 	}
 	
-	private static Path takeSnapshotWorker(Leaflet leaflet) throws IOException, InterruptedException {
-		Path png = IOHelper.getPathTemp().resolve("leafletScreenshot").resolve(System.currentTimeMillis() + "_" + UUID.randomUUID() + ".png");
-		IOHelper.createDirectories(png.getParent());
+	private static byte[] takeSnapshotWorker(Leaflet leaflet) throws IOException, InterruptedException {
+		Path png = Files.createTempFile("leafletScreenshot_" + UUID.randomUUID(), ".png");
 		Path script = GlobalFunctions.getPathLeafletPrint();
 		Gson gson = new Gson();
 		String json = gson.toJson(leaflet);
@@ -79,10 +77,13 @@ public class LeafletPrintGenerator {
 		watch(process);
 		process.waitFor(5, TimeUnit.SECONDS);
 		if (!Files.exists(png) || Files.size(png) == 0) {
+			Files.deleteIfExists(png);
 			logger.warn("takeSnapshot() failed - Files.exists({})={}, json={}", png.toString(), Files.exists(png), json);
 			return null;
 		}
-		return png;
+		byte[] res = Files.readAllBytes(png);
+		Files.deleteIfExists(png);
+		return res;
 	}
 	
 	private static void watch(final Process process) {
