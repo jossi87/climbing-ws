@@ -4541,7 +4541,7 @@ public class Dao {
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
 						fa = "FA: " + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
 					}
-					LocalDate faDate = rst.getObject(rst.getString("fa_date"), LocalDate.class);
+					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
 					String faDateStr = faDate == null? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
 					int numPitches = rst.getInt("num_pitches");
 					boolean hasImages = rst.getInt("num_images")>0;
