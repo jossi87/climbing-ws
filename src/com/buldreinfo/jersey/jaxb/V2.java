@@ -21,6 +21,7 @@ import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.ImageRegion;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -320,9 +321,11 @@ public class V2 {
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Region - E.g. 10,10,160,100 (x,y,w,h)", required = false) @QueryParam("region") String region,
 			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
 		logger.debug("getImages(id={}, crc32={}, minDimention={}) initialized", id, crc32, minDimention);
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
+			final ImageRegion imageRegion = ImageRegion.fromString(region);
 			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
 			final String acceptHeader = request.getHeader("Accept");
 			final boolean webP = dimention == null && acceptHeader != null && acceptHeader.contains("image/webp");
@@ -331,10 +334,17 @@ public class V2 {
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
-			if (dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention) {
+			boolean cropImage = imageRegion != null;
+			boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
+			if (cropImage || resizeImage) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
+				if (cropImage) {
+					b = Scalr.crop(b, imageRegion.x(), imageRegion.y(), imageRegion.width(), imageRegion.height());
+				}
+				if (resizeImage) {
+					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
+				}
 				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 					ImageIO.write(b, "jpg", baos);
 					return Response.ok(baos.toByteArray(), mimeType).cacheControl(cc).build();
