@@ -329,10 +329,20 @@ public class V2 {
 			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
 			final boolean cropImage = imageRegion != null;
 			final boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
-			final String acceptHeader = request.getHeader("Accept");
-			final boolean webP = !cropImage && !resizeImage && acceptHeader != null && acceptHeader.contains("image/webp");
-			final String mimeType = webP? "image/webp" : "image/jpeg";
-			final java.nio.file.Path p = IOHelper.getPathImage(id, webP);
+			java.nio.file.Path p = null;
+			String mimeType = "image/jpeg";
+			if (cropImage) {
+				p = IOHelper.getPathMediaOriginalJpg(id);
+			}
+			else if (!resizeImage && GlobalFunctions.requestAcceptsWebp(request)) {
+				boolean webP = true;
+				p = IOHelper.getPathImage(id, webP);
+				mimeType = "image/webp";
+			}
+			else {
+				boolean webP = false;
+				p = IOHelper.getPathImage(id, webP);
+			}
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);

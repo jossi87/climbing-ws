@@ -8,6 +8,8 @@ import java.time.format.DateTimeFormatter;
 
 import com.google.common.base.Strings;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 public class GlobalFunctions {
 	public static String getFilename(String purpose, String ext) {
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
@@ -35,5 +37,10 @@ public class GlobalFunctions {
 
 	private static String removeIllegalCharacters(String str) {
 		return str.trim().replaceAll("[\\\\/:*?\"<>|] ", "_");
+	}
+
+	public static boolean requestAcceptsWebp(HttpServletRequest request) {
+		final String acceptHeader = request.getHeader("Accept");
+		return acceptHeader != null && acceptHeader.contains("image/webp");
 	}
 }
