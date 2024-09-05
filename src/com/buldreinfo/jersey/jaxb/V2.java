@@ -21,7 +21,6 @@ import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Mode;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
-import com.buldreinfo.jersey.jaxb.beans.ImageRegion;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -321,13 +320,15 @@ public class V2 {
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
-			@Parameter(description = "Region - E.g. 10,10,160,100 (x,y,w,h)", required = false) @QueryParam("region") String region,
+			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
+			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
+			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
+			@Parameter(description = "Image region - height", required = false) @QueryParam("height") int height,
 			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
-		logger.debug("getImages(id={}, crc32={}, region={}, minDimention={}) initialized", id, crc32, region, minDimention);
+		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, minDimention={}) initialized", id, crc32, x, y, width, height, minDimention);
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
-			final ImageRegion imageRegion = ImageRegion.fromString(region);
 			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
-			final boolean cropImage = imageRegion != null;
+			final boolean cropImage = width > 0 && height > 0;
 			final boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
 			java.nio.file.Path p = null;
 			String mimeType = "image/jpeg";
@@ -349,7 +350,7 @@ public class V2 {
 			if (cropImage || resizeImage) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				if (cropImage) {
-					b = Scalr.crop(b, imageRegion.x(), imageRegion.y(), imageRegion.width(), imageRegion.height());
+					b = Scalr.crop(b, x, y, width, height);
 				}
 				if (resizeImage) {
 					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
