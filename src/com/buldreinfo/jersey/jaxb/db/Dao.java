@@ -1441,8 +1441,25 @@ public class Dao {
 					int grade = rst.getInt("grade");
 					List<Media> sectionMedia = new ArrayList<>();
 					if (p.getMedia() != null) {
-						sectionMedia = p.getMedia().stream().filter(x -> x.pitch() == nr).collect(Collectors.toList());
-						p.getMedia().removeAll(sectionMedia);
+						// Add topo media for pitch first
+						for (Media m : p.getMedia()) {
+							if (m.svgProblemId() == p.getId() && m.svgs() != null && !m.svgs().isEmpty()) {
+								List<Svg> pitchSvgs = m.svgs().stream()
+										.filter(x -> x.problemSectionId() == id)
+										.toList();
+								if (!pitchSvgs.isEmpty()) {
+									Media pitchMedia = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
+									sectionMedia.add(pitchMedia);
+								}
+							}
+						}
+						// Also move media connected to a specific pitch from problem to pitch
+						List<Media> mediaToMove = p.getMedia()
+								.stream()
+								.filter(x -> x.pitch() == nr)
+								.toList();
+						p.getMedia().removeAll(mediaToMove);
+						sectionMedia.addAll(mediaToMove);
 					}
 					p.addSection(id, nr, description, s.gradeConverter().getGradeFromIdGrade(grade), sectionMedia);
 				}
@@ -4562,7 +4579,7 @@ public class Dao {
 
 	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
+		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, s.problem_section_id, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, s.problem_section_id, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.problem_section_id, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
@@ -4585,11 +4602,12 @@ public class Dao {
 					String texts = rst.getString("texts");
 					String anchors = rst.getString("anchors");
 					String tradBelayStations = rst.getString("trad_belay_stations");
+					int problemSectionId = rst.getInt("problem_section_id");
 					boolean primary = rst.getBoolean("prim");
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, tradBelayStations, problemSectionId, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}
