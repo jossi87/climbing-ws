@@ -323,19 +323,19 @@ public class V2 {
 			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
 			@Parameter(description = "Region - E.g. 10,10,160,100 (x,y,w,h)", required = false) @QueryParam("region") String region,
 			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
-		logger.debug("getImages(id={}, crc32={}, minDimention={}) initialized", id, crc32, minDimention);
+		logger.debug("getImages(id={}, crc32={}, region={}, minDimention={}) initialized", id, crc32, region, minDimention);
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final ImageRegion imageRegion = ImageRegion.fromString(region);
 			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
+			final boolean cropImage = imageRegion != null;
+			final boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
 			final String acceptHeader = request.getHeader("Accept");
-			final boolean webP = dimention == null && acceptHeader != null && acceptHeader.contains("image/webp");
+			final boolean webP = !cropImage && !resizeImage && acceptHeader != null && acceptHeader.contains("image/webp");
 			final String mimeType = webP? "image/webp" : "image/jpeg";
 			final java.nio.file.Path p = IOHelper.getPathImage(id, webP);
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
-			boolean cropImage = imageRegion != null;
-			boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
 			if (cropImage || resizeImage) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 				if (cropImage) {
