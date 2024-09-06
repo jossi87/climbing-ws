@@ -68,6 +68,7 @@ import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
+import com.buldreinfo.jersey.jaxb.model.MediaRegion;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -110,6 +111,7 @@ import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -441,18 +443,18 @@ public class Dao {
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				  """ +
-				((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0)? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") + // Only look at activity for the last three months when loading frontpage, this improves speed significantly
-				(lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade + " ") +
-				(fa? "" : " AND x.type!='FA' ") +
-				(comments? "" : " AND x.type!='GUESTBOOK' ") +
-				(ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT' ") +
-				(media? "" : " AND x.type!='MEDIA' ") +
-				(idArea==0? "" : " AND a.id=" + idArea + " ") +
-				(idSector==0? "" : " AND s.id=" + idSector + " ") +
-				"""
-				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
-				ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100
-				""";
+				  ((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0)? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") + // Only look at activity for the last three months when loading frontpage, this improves speed significantly
+				  (lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade + " ") +
+				  (fa? "" : " AND x.type!='FA' ") +
+				  (comments? "" : " AND x.type!='GUESTBOOK' ") +
+				  (ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT' ") +
+				  (media? "" : " AND x.type!='MEDIA' ") +
+				  (idArea==0? "" : " AND a.id=" + idArea + " ") +
+				  (idSector==0? "" : " AND s.id=" + idSector + " ") +
+				  		"""
+				  		GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
+				  		ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100
+				  		""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
@@ -1164,7 +1166,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
+					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
 				}
 			}
 		}
@@ -1441,19 +1443,7 @@ public class Dao {
 					int grade = rst.getInt("grade");
 					List<Media> sectionMedia = new ArrayList<>();
 					if (p.getMedia() != null) {
-						// Add topo media for pitch first
-						for (Media m : p.getMedia()) {
-							if (m.svgProblemId() == p.getId() && m.svgs() != null && !m.svgs().isEmpty()) {
-								List<Svg> pitchSvgs = m.svgs().stream()
-										.filter(x -> x.problemSectionId() == id)
-										.toList();
-								if (!pitchSvgs.isEmpty()) {
-									Media pitchMedia = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
-									sectionMedia.add(pitchMedia);
-								}
-							}
-						}
-						// Also move media connected to a specific pitch from problem to pitch
+						getPitchMedia(p.getMedia(), p.getId(), id, nr).ifPresent(m -> sectionMedia.add(m));
 						List<Media> mediaToMove = p.getMedia()
 								.stream()
 								.filter(x -> x.pitch() == nr)
@@ -1541,7 +1531,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/area/" + areaId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1577,7 +1567,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/sector/" + sectorId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1619,7 +1609,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/problem/" + problemId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -4134,7 +4124,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
 		}
@@ -4165,7 +4155,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
 				}
 			}
 		}
@@ -4209,7 +4199,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
 				}
 			}
 		}
@@ -4249,7 +4239,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, (svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0), enableMoveToIdSector, enableMoveToIdProblem, null);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, (svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0), enableMoveToIdSector, enableMoveToIdProblem, null);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
@@ -4293,6 +4283,93 @@ public class Dao {
 			}
 		}
 		return res;
+	}
+
+	private Optional<Media> getPitchMedia(List<Media> media, int idProblem, int idProblemSection, int nr) {
+		for (Media m : media) {
+			if (m.svgProblemId() == idProblem && m.svgs() != null && !m.svgs().isEmpty()) {
+				List<Svg> pitchSvgs = new ArrayList<>();
+				MediaRegion region = null;
+				for (Svg svg : m.svgs().stream()
+						.filter(x -> x.problemSectionId() == idProblemSection)
+						.toList()) {
+						List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " "));
+						/**
+						 *  Calculate image region
+						 */
+						int minX = Integer.MAX_VALUE;
+						int minY = Integer.MAX_VALUE;
+						int maxX = 0;
+						int maxY = 0;
+						for (int i = 0; i < pathLst.size(); i++) {
+							String part = pathLst.get(i);
+							boolean isCharacter = !part.matches("\\d+");
+							if (isCharacter) {
+								int x = Integer.parseInt(pathLst.get(i+1));
+								int y = Integer.parseInt(pathLst.get(i+2));
+								minX = Math.min(minX, x);
+								minY = Math.min(minY, y);
+								maxX = Math.max(maxX, x);
+								maxY = Math.max(maxY, y);
+							}
+						}
+						int margin = 360;
+						minX = Math.max(minX - margin, 0);
+						minY = Math.max(minY - margin, 0);
+						maxX = Math.min(maxX + margin, m.width());
+						maxY = Math.min(maxY + margin, m.height());
+						// Crop should have at least 1920 in width (if possible)
+						final int width = Math.min(Math.max(maxX - minX, 1920), m.width());
+						int addX = width - (maxX - minX);
+						if (addX > 0) {
+							int addLeft = Math.min(addX / 2, minX);
+							int addRight = addX - addLeft;
+							if ((maxX + addRight) > m.width()) {
+								addRight = m.width() - maxX;
+								addLeft = addX - addRight;
+							}
+							minX -= addLeft;
+							maxX += addRight;
+						}
+						// Crop should have at least 1080 in height (if possible)
+						final int height = Math.min(Math.max(maxY - minY, 1080), m.height());
+						int addY = height - (maxY - minY);
+						if (addY > 0) {
+							int addTop = Math.min(addY / 2, minY);
+							int addBottom = addY - addTop;
+							if ((maxY + addBottom) > m.height()) {
+								addBottom = m.height() - maxY;
+								addTop = addY - addBottom;
+							}
+							minY -= addTop;
+							maxY += addBottom;
+						}
+						region = new MediaRegion(minX, minY, width, height);
+						/**
+						 * Update path
+						 */
+						List<String> newPathLst = new ArrayList<>();
+						for (int i = 0; i < pathLst.size(); i++) {
+							String part = pathLst.get(i);
+							boolean isCharacter = !part.matches("\\d+");
+							if (isCharacter) {
+								newPathLst.add(part);
+							}
+							else {
+								int x = Integer.parseInt(pathLst.get(i++));
+								int y = Integer.parseInt(pathLst.get(i));
+								newPathLst.add(String.valueOf(x - minX));
+								newPathLst.add(String.valueOf(y - minY));
+							}
+						String newPath = Joiner.on(" ").join(newPathLst);
+						pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), svg.problemGrade(), svg.problemGradeGroup(), svg.problemSubtype(), nr, newPath, svg.hasAnchor(), null, null, newPath, svg.problemSectionId(), svg.primary(), svg.ticked(), false, false));
+					}
+					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
+					return Optional.of(res);
+				}
+			}
+		}
+		return Optional.empty();
 	}
 
 	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
