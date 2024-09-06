@@ -1433,17 +1433,25 @@ public class Dao {
 			}
 		}
 		// Sections
-		try (PreparedStatement ps = c.prepareStatement("SELECT id, nr, description, grade FROM problem_section WHERE problem_id=? ORDER BY nr")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT ps.id, ps.nr, ps.description, g.grade, g.group grade_group
+				FROM problem_section ps, grade g
+				WHERE ps.problem_id=?
+				  AND ps.grade=g.grade_id AND g.t=?
+				ORDER BY ps.nr
+				""")) {
 			ps.setInt(1, p.getId());
+			ps.setString(2, s.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					int nr = rst.getInt("nr");
 					String description = rst.getString("description");
-					int grade = rst.getInt("grade");
+					String grade = rst.getString("grade");
+					int gradeGroup = rst.getInt("grade_group");
 					List<Media> sectionMedia = new ArrayList<>();
 					if (p.getMedia() != null) {
-						getPitchMedia(p.getMedia(), p.getId(), id, nr).ifPresent(m -> sectionMedia.add(m));
+						getPitchMedia(p.getMedia(), p.getId(), id, nr, grade, gradeGroup).ifPresent(m -> sectionMedia.add(m));
 						List<Media> mediaToMove = p.getMedia()
 								.stream()
 								.filter(x -> x.pitch() == nr)
@@ -1451,7 +1459,7 @@ public class Dao {
 						p.getMedia().removeAll(mediaToMove);
 						sectionMedia.addAll(mediaToMove);
 					}
-					p.addSection(id, nr, description, s.gradeConverter().getGradeFromIdGrade(grade), sectionMedia);
+					p.addSection(id, nr, description, grade, sectionMedia);
 				}
 			}
 		}
@@ -4285,7 +4293,7 @@ public class Dao {
 		return res;
 	}
 
-	private Optional<Media> getPitchMedia(List<Media> media, int idProblem, int idProblemSection, int nr) {
+	private Optional<Media> getPitchMedia(List<Media> media, int idProblem, int idProblemSection, int pitchNr, String pitchGrade, int pitchGradeGroup) {
 		for (Media m : media) {
 			if (m.svgProblemId() == idProblem && m.svgs() != null && !m.svgs().isEmpty()) {
 				List<Svg> pitchSvgs = new ArrayList<>();
@@ -4363,8 +4371,8 @@ public class Dao {
 						}
 					}
 					String newPath = Joiner.on(" ").join(newPathLst);
-					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), svg.problemGrade(), svg.problemGradeGroup(), svg.problemSubtype(), nr, newPath, svg.hasAnchor(), null, null, null, svg.problemSectionId(), svg.primary(), svg.ticked(), false, false));
-					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
+					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), pitchGrade, pitchGradeGroup, svg.problemSubtype(), 0, newPath, svg.hasAnchor(), null, null, null, svg.problemSectionId(), svg.primary(), false, false, false));
+					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), pitchNr, m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
 					return Optional.of(res);
 				}
 			}
