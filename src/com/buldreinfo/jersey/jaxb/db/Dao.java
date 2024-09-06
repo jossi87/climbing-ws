@@ -1450,7 +1450,6 @@ public class Dao {
 								if (!pitchSvgs.isEmpty()) {
 									Media pitchMedia = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
 									sectionMedia.add(pitchMedia);
-									p.getMedia().remove(m); // TODO Temp, remove from overview for now. Need to figure out how these images should work in the future.
 								}
 							}
 						}
