@@ -4301,7 +4301,7 @@ public class Dao {
 				for (Svg svg : m.svgs().stream()
 						.filter(x -> x.problemSectionId() == idProblemSection)
 						.toList()) {
-					List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " "));
+					List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " ").strip());
 					/**
 					 *  Calculate image region
 					 */
