@@ -4311,14 +4311,23 @@ public class Dao {
 					int maxY = 0;
 					for (int i = 0; i < pathLst.size(); i++) {
 						String part = pathLst.get(i);
-						boolean isCharacter = !part.matches("\\d+");
-						if (isCharacter) {
+						switch (part) {
+						case "M", "L" -> {
 							int x = Integer.parseInt(pathLst.get(i+1));
 							int y = Integer.parseInt(pathLst.get(i+2));
 							minX = Math.min(minX, x);
 							minY = Math.min(minY, y);
 							maxX = Math.max(maxX, x);
 							maxY = Math.max(maxY, y);
+						}
+						case "C" -> {
+							int x = Integer.parseInt(pathLst.get(i+5));
+							int y = Integer.parseInt(pathLst.get(i+6));
+							minX = Math.min(minX, x);
+							minY = Math.min(minY, y);
+							maxX = Math.max(maxX, x);
+							maxY = Math.max(maxY, y);
+						}
 						}
 					}
 					int margin = 360;
