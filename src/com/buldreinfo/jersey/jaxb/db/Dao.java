@@ -4371,7 +4371,7 @@ public class Dao {
 						}
 					}
 					String newPath = Joiner.on(" ").join(newPathLst);
-					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), pitchGrade, pitchGradeGroup, svg.problemSubtype(), 0, newPath, svg.hasAnchor(), null, null, null, svg.problemSectionId(), svg.primary(), false, false, false));
+					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), pitchGrade, pitchGradeGroup, svg.problemSubtype(), -1, newPath, svg.hasAnchor(), null, null, null, svg.problemSectionId(), svg.primary(), false, false, false));
 					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), pitchNr, m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
 					return Optional.of(res);
 				}
