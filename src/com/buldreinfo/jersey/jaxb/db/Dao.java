@@ -4293,77 +4293,77 @@ public class Dao {
 				for (Svg svg : m.svgs().stream()
 						.filter(x -> x.problemSectionId() == idProblemSection)
 						.toList()) {
-						List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " "));
-						/**
-						 *  Calculate image region
-						 */
-						int minX = Integer.MAX_VALUE;
-						int minY = Integer.MAX_VALUE;
-						int maxX = 0;
-						int maxY = 0;
-						for (int i = 0; i < pathLst.size(); i++) {
-							String part = pathLst.get(i);
-							boolean isCharacter = !part.matches("\\d+");
-							if (isCharacter) {
-								int x = Integer.parseInt(pathLst.get(i+1));
-								int y = Integer.parseInt(pathLst.get(i+2));
-								minX = Math.min(minX, x);
-								minY = Math.min(minY, y);
-								maxX = Math.max(maxX, x);
-								maxY = Math.max(maxY, y);
-							}
+					List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " "));
+					/**
+					 *  Calculate image region
+					 */
+					int minX = Integer.MAX_VALUE;
+					int minY = Integer.MAX_VALUE;
+					int maxX = 0;
+					int maxY = 0;
+					for (int i = 0; i < pathLst.size(); i++) {
+						String part = pathLst.get(i);
+						boolean isCharacter = !part.matches("\\d+");
+						if (isCharacter) {
+							int x = Integer.parseInt(pathLst.get(i+1));
+							int y = Integer.parseInt(pathLst.get(i+2));
+							minX = Math.min(minX, x);
+							minY = Math.min(minY, y);
+							maxX = Math.max(maxX, x);
+							maxY = Math.max(maxY, y);
 						}
-						int margin = 360;
-						minX = Math.max(minX - margin, 0);
-						minY = Math.max(minY - margin, 0);
-						maxX = Math.min(maxX + margin, m.width());
-						maxY = Math.min(maxY + margin, m.height());
-						// Crop should have at least 1920 in width (if possible)
-						final int width = Math.min(Math.max(maxX - minX, 1920), m.width());
-						int addX = width - (maxX - minX);
-						if (addX > 0) {
-							int addLeft = Math.min(addX / 2, minX);
-							int addRight = addX - addLeft;
-							if ((maxX + addRight) > m.width()) {
-								addRight = m.width() - maxX;
-								addLeft = addX - addRight;
-							}
-							minX -= addLeft;
-							maxX += addRight;
-						}
-						// Crop should have at least 1080 in height (if possible)
-						final int height = Math.min(Math.max(maxY - minY, 1080), m.height());
-						int addY = height - (maxY - minY);
-						if (addY > 0) {
-							int addTop = Math.min(addY / 2, minY);
-							int addBottom = addY - addTop;
-							if ((maxY + addBottom) > m.height()) {
-								addBottom = m.height() - maxY;
-								addTop = addY - addBottom;
-							}
-							minY -= addTop;
-							maxY += addBottom;
-						}
-						region = new MediaRegion(minX, minY, width, height);
-						/**
-						 * Update path
-						 */
-						List<String> newPathLst = new ArrayList<>();
-						for (int i = 0; i < pathLst.size(); i++) {
-							String part = pathLst.get(i);
-							boolean isCharacter = !part.matches("\\d+");
-							if (isCharacter) {
-								newPathLst.add(part);
-							}
-							else {
-								int x = Integer.parseInt(pathLst.get(i++));
-								int y = Integer.parseInt(pathLst.get(i));
-								newPathLst.add(String.valueOf(x - minX));
-								newPathLst.add(String.valueOf(y - minY));
-							}
-						String newPath = Joiner.on(" ").join(newPathLst);
-						pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), svg.problemGrade(), svg.problemGradeGroup(), svg.problemSubtype(), nr, newPath, svg.hasAnchor(), null, null, newPath, svg.problemSectionId(), svg.primary(), svg.ticked(), false, false));
 					}
+					int margin = 360;
+					minX = Math.max(minX - margin, 0);
+					minY = Math.max(minY - margin, 0);
+					maxX = Math.min(maxX + margin, m.width());
+					maxY = Math.min(maxY + margin, m.height());
+					// Crop should have at least 1920 in width (if possible)
+					final int width = Math.min(Math.max(maxX - minX, 1920), m.width());
+					int addX = width - (maxX - minX);
+					if (addX > 0) {
+						int addLeft = Math.min(addX / 2, minX);
+						int addRight = addX - addLeft;
+						if ((maxX + addRight) > m.width()) {
+							addRight = m.width() - maxX;
+							addLeft = addX - addRight;
+						}
+						minX -= addLeft;
+						maxX += addRight;
+					}
+					// Crop should have at least 1080 in height (if possible)
+					final int height = Math.min(Math.max(maxY - minY, 1080), m.height());
+					int addY = height - (maxY - minY);
+					if (addY > 0) {
+						int addTop = Math.min(addY / 2, minY);
+						int addBottom = addY - addTop;
+						if ((maxY + addBottom) > m.height()) {
+							addBottom = m.height() - maxY;
+							addTop = addY - addBottom;
+						}
+						minY -= addTop;
+						maxY += addBottom;
+					}
+					region = new MediaRegion(minX, minY, width, height);
+					/**
+					 * Update path
+					 */
+					List<String> newPathLst = new ArrayList<>();
+					for (int i = 0; i < pathLst.size(); i++) {
+						String part = pathLst.get(i);
+						boolean isCharacter = !part.matches("\\d+");
+						if (isCharacter) {
+							newPathLst.add(part);
+						}
+						else {
+							int x = Integer.parseInt(pathLst.get(i++));
+							int y = Integer.parseInt(pathLst.get(i));
+							newPathLst.add(String.valueOf(x - minX));
+							newPathLst.add(String.valueOf(y - minY));
+						}
+					}
+					String newPath = Joiner.on(" ").join(newPathLst);
+					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), svg.problemGrade(), svg.problemGradeGroup(), svg.problemSubtype(), nr, newPath, svg.hasAnchor(), null, null, newPath, svg.problemSectionId(), svg.primary(), svg.ticked(), false, false));
 					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), m.pitch(), m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
 					return Optional.of(res);
 				}
