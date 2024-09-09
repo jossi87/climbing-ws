@@ -68,7 +68,7 @@ import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
-import com.buldreinfo.jersey.jaxb.model.MediaRegion;
+import com.buldreinfo.jersey.jaxb.model.SvgPitch;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -1166,7 +1166,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
+					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
 				}
 			}
 		}
@@ -1434,32 +1434,27 @@ public class Dao {
 		}
 		// Sections
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT ps.id, ps.nr, ps.description, g.grade, g.group grade_group
-				FROM problem_section ps, grade g
+				SELECT ps.id, ps.nr, ps.description, ps.grade
+				FROM problem_section ps
 				WHERE ps.problem_id=?
-				  AND ps.grade=g.grade_id AND g.t=?
 				ORDER BY ps.nr
 				""")) {
 			ps.setInt(1, p.getId());
-			ps.setString(2, s.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					int nr = rst.getInt("nr");
 					String description = rst.getString("description");
-					String grade = rst.getString("grade");
-					int gradeGroup = rst.getInt("grade_group");
-					List<Media> sectionMedia = new ArrayList<>();
+					int grade = rst.getInt("grade");
+					List<Media> sectionMedia = null;
 					if (p.getMedia() != null) {
-						getPitchMedia(p.getMedia(), p.getId(), id, nr, grade, gradeGroup).ifPresent(m -> sectionMedia.add(m));
-						List<Media> mediaToMove = p.getMedia()
+						sectionMedia = p.getMedia()
 								.stream()
 								.filter(x -> x.pitch() == nr)
 								.toList();
-						p.getMedia().removeAll(mediaToMove);
-						sectionMedia.addAll(mediaToMove);
+						p.getMedia().removeAll(sectionMedia);
 					}
-					p.addSection(id, nr, description, grade, sectionMedia);
+					p.addSection(id, nr, description, s.gradeConverter().getGradeFromIdGrade(grade), sectionMedia);
 				}
 			}
 		}
@@ -1539,7 +1534,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/area/" + areaId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1575,7 +1570,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/sector/" + sectorId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -1617,7 +1612,7 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/problem/" + problemId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
 			}
@@ -4132,7 +4127,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
 		}
@@ -4163,7 +4158,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
 				}
 			}
 		}
@@ -4205,9 +4200,9 @@ public class Dao {
 						}
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
 				}
 			}
 		}
@@ -4245,9 +4240,9 @@ public class Dao {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, null, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, (svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0), enableMoveToIdSector, enableMoveToIdProblem, null);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited, (svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0), enableMoveToIdSector, enableMoveToIdProblem, null);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
@@ -4293,100 +4288,89 @@ public class Dao {
 		return res;
 	}
 
-	private Optional<Media> getPitchMedia(List<Media> media, int idProblem, int idProblemSection, int pitchNr, String pitchGrade, int pitchGradeGroup) {
-		for (Media m : media) {
-			if (m.svgProblemId() == idProblem && m.svgs() != null && !m.svgs().isEmpty()) {
-				List<Svg> pitchSvgs = new ArrayList<>();
-				MediaRegion region = null;
-				for (Svg svg : m.svgs().stream()
-						.filter(x -> x.problemSectionId() == idProblemSection)
-						.toList()) {
-					List<String> pathLst = Splitter.on(" ").splitToList(svg.path().replaceAll("  ", " ").strip());
-					/**
-					 *  Calculate image region
-					 */
-					int minX = Integer.MAX_VALUE;
-					int minY = Integer.MAX_VALUE;
-					int maxX = 0;
-					int maxY = 0;
-					for (int i = 0; i < pathLst.size(); i++) {
-						String part = pathLst.get(i);
-						switch (part) {
-						case "M", "L" -> {
-							int x = Integer.parseInt(pathLst.get(i+1));
-							int y = Integer.parseInt(pathLst.get(i+2));
-							minX = Math.min(minX, x);
-							minY = Math.min(minY, y);
-							maxX = Math.max(maxX, x);
-							maxY = Math.max(maxY, y);
-						}
-						case "C" -> {
-							int x = Integer.parseInt(pathLst.get(i+5));
-							int y = Integer.parseInt(pathLst.get(i+6));
-							minX = Math.min(minX, x);
-							minY = Math.min(minY, y);
-							maxX = Math.max(maxX, x);
-							maxY = Math.max(maxY, y);
-						}
-						}
-					}
-					int margin = 360;
-					minX = Math.max(minX - margin, 0);
-					minY = Math.max(minY - margin, 0);
-					maxX = Math.min(maxX + margin, m.width());
-					maxY = Math.min(maxY + margin, m.height());
-					// Crop should have at least 1920 in width (if possible)
-					final int width = Math.min(Math.max(maxX - minX, 1920), m.width());
-					int addX = width - (maxX - minX);
-					if (addX > 0) {
-						int addLeft = Math.min(addX / 2, minX);
-						int addRight = addX - addLeft;
-						if ((maxX + addRight) > m.width()) {
-							addRight = m.width() - maxX;
-							addLeft = addX - addRight;
-						}
-						minX -= addLeft;
-						maxX += addRight;
-					}
-					// Crop should have at least 1080 in height (if possible)
-					final int height = Math.min(Math.max(maxY - minY, 1080), m.height());
-					int addY = height - (maxY - minY);
-					if (addY > 0) {
-						int addTop = Math.min(addY / 2, minY);
-						int addBottom = addY - addTop;
-						if ((maxY + addBottom) > m.height()) {
-							addBottom = m.height() - maxY;
-							addTop = addY - addBottom;
-						}
-						minY -= addTop;
-						maxY += addBottom;
-					}
-					region = new MediaRegion(minX, minY, width, height);
-					/**
-					 * Update path
-					 */
-					List<String> newPathLst = new ArrayList<>();
-					for (int i = 0; i < pathLst.size(); i++) {
-						String part = pathLst.get(i);
-						boolean isCharacter = !part.matches("\\d+");
-						if (isCharacter) {
-							newPathLst.add(part);
-						}
-						else {
-							int x = Integer.parseInt(pathLst.get(i++));
-							int y = Integer.parseInt(pathLst.get(i));
-							newPathLst.add(String.valueOf(x - minX));
-							newPathLst.add(String.valueOf(y - minY));
-						}
-					}
-					String newPath = Joiner.on(" ").join(newPathLst);
-					pitchSvgs.add(new Svg(false, svg.id(), svg.problemId(), svg.problemName(), pitchGrade, pitchGradeGroup, svg.problemSubtype(), -1, newPath, svg.hasAnchor(), null, null, null, svg.problemSectionId(), svg.primary(), false, false, false));
-					Media res = new Media(m.id(), m.uploadedByMe(), m.crc32(), pitchNr, m.trivia(), m.width(), m.height(), region, m.idType(), m.t(), m.mediaSvgs(), m.svgProblemId(), pitchSvgs, m.mediaMetadata(), m.embedUrl(), m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(), m.url());
-					return Optional.of(res);
+	private SvgPitch getSvgPitch(String path, int mediaWidth, int mediaHeight) {
+			List<String> pathLst = Splitter.on(" ").splitToList(path.replaceAll("  ", " ").strip());
+			/**
+			 *  Calculate image region
+			 */
+			int minX = Integer.MAX_VALUE;
+			int minY = Integer.MAX_VALUE;
+			int maxX = 0;
+			int maxY = 0;
+			for (int i = 0; i < pathLst.size(); i++) {
+				String part = pathLst.get(i);
+				switch (part) {
+				case "M", "L" -> {
+					int x = Integer.parseInt(pathLst.get(i+1));
+					int y = Integer.parseInt(pathLst.get(i+2));
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
+				case "C" -> {
+					int x = Integer.parseInt(pathLst.get(i+5));
+					int y = Integer.parseInt(pathLst.get(i+6));
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
 				}
 			}
-		}
-		return Optional.empty();
+			int margin = 360;
+			minX = Math.max(minX - margin, 0);
+			minY = Math.max(minY - margin, 0);
+			maxX = Math.min(maxX + margin, mediaWidth);
+			maxY = Math.min(maxY + margin, mediaHeight);
+			// Crop should have at least 1920 in width (if possible)
+			final int width = Math.min(Math.max(maxX - minX, 1920), mediaWidth);
+			int addX = width - (maxX - minX);
+			if (addX > 0) {
+				int addLeft = Math.min(addX / 2, minX);
+				int addRight = addX - addLeft;
+				if ((maxX + addRight) > mediaWidth) {
+					addRight = mediaWidth - maxX;
+					addLeft = addX - addRight;
+				}
+				minX -= addLeft;
+				maxX += addRight;
+			}
+			// Crop should have at least 1080 in height (if possible)
+			final int height = Math.min(Math.max(maxY - minY, 1080), mediaHeight);
+			int addY = height - (maxY - minY);
+			if (addY > 0) {
+				int addTop = Math.min(addY / 2, minY);
+				int addBottom = addY - addTop;
+				if ((maxY + addBottom) > mediaHeight) {
+					addBottom = mediaHeight - maxY;
+					addTop = addY - addBottom;
+				}
+				minY -= addTop;
+				maxY += addBottom;
+			}
+			/**
+			 * Update path
+			 */
+			List<String> newPathLst = new ArrayList<>();
+			for (int i = 0; i < pathLst.size(); i++) {
+				String part = pathLst.get(i);
+				boolean isCharacter = !part.matches("\\d+");
+				if (isCharacter) {
+					newPathLst.add(part);
+				}
+				else {
+					int x = Integer.parseInt(pathLst.get(i++));
+					int y = Integer.parseInt(pathLst.get(i));
+					newPathLst.add(String.valueOf(x - minX));
+					newPathLst.add(String.valueOf(y - minY));
+				}
+			}
+			final String newPath = Joiner.on(" ").join(newPathLst);
+			/**
+			 * Return
+			 */
+			return new SvgPitch(newPath, minX, minY, width, height);
 	}
 
 	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
@@ -4671,37 +4655,65 @@ public class Dao {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia) throws SQLException {
+	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia, int mediaWidth, int mediaHeight) throws SQLException {
 		List<Svg> res = null;
-		try (PreparedStatement ps = c.prepareStatement("WITH x AS (SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, s.problem_section_id, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim, MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous FROM (((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id WHERE s.media_id=? AND p.trash IS NULL GROUP BY p.id, p.name, pt.subtype, p.nr, s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, s.problem_section_id, t2.id, danger.danger) SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr, x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.problem_section_id, x.prim, x.is_ticked, x.is_todo, x.is_dangerous FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=? ORDER BY x.nr")) {
+		String sqlStr = """
+				WITH x AS (
+				  SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr,
+						 ps.id problem_section_id, ps.nr problem_section_nr, psg.grade problem_section_grade, psg.group problem_section_grade_group,
+				                     s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
+				         MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous
+				  FROM (((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?))
+				                LEFT JOIN problem_section ps ON s.problem_section_id=ps.id) LEFT JOIN grade psg ON ps.grade=psg.grade_id AND psg.t=?)
+				    LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?)
+				    LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id
+				  WHERE s.media_id=? AND p.trash IS NULL
+				  GROUP BY p.id, p.name, pt.subtype, p.nr,
+				                       ps.id, ps.nr, psg.grade, psg.group,
+				                       s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger
+				)
+				SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr,
+					   x.problem_section_id, x.problem_section_nr, x.problem_section_grade, x.problem_section_grade_group,
+				                   x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
+				FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=?
+				ORDER BY x.nr
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, idMedia);
-			ps.setString(5, s.gradeSystem().toString());
+			ps.setString(3, s.gradeSystem().toString());
+			ps.setInt(4, authUserId.orElse(0));
+			ps.setInt(5, idMedia);
+			ps.setString(6, s.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					if (res == null) {
 						res = new ArrayList<>();
 					}
-					int id = rst.getInt("id");
 					int problemId = rst.getInt("problem_id");
 					String problemName = rst.getString("problem_name");
 					String problemGrade = rst.getString("problem_grade");
 					int problemGradeGroup = rst.getInt("problem_grade_group");
 					String problemSubtype = rst.getString("problem_subtype");
 					int nr = rst.getInt("nr");
+					int problemSectionId = rst.getInt("problem_section_id");
+					int problemSectionNr = rst.getInt("problem_section_nr");
+					String problemSectionGrade = rst.getString("problem_section_grade");
+					int problemSectionGradeGroup = rst.getInt("problem_section_grade_group");
+					int id = rst.getInt("id");
 					String path = rst.getString("path");
 					boolean hasAnchor = rst.getBoolean("has_anchor");
 					String texts = rst.getString("texts");
 					String anchors = rst.getString("anchors");
 					String tradBelayStations = rst.getString("trad_belay_stations");
-					int problemSectionId = rst.getInt("problem_section_id");
 					boolean primary = rst.getBoolean("prim");
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, path, hasAnchor, texts, anchors, tradBelayStations, problemSectionId, primary, isTicked, isTodo, isDangerous));
+					SvgPitch svgPitch = problemSectionId == 0? null : getSvgPitch(path, mediaWidth, mediaHeight);
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr,
+							problemSectionId, problemSectionNr, problemSectionGrade, problemSectionGradeGroup, svgPitch,
+							path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}

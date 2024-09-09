@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public record Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, int problemGradeGroup, String problemSubtype,
-			int nr, String path, boolean hasAnchor, String texts, String anchors, String tradBelayStations, int problemSectionId,
-			boolean primary, boolean ticked, boolean todo, boolean dangerous) {}
+public record Svg(boolean delete, int id, int problemId, String problemName, String problemGrade, int problemGradeGroup, String problemSubtype, int nr,
+		int problemSectionId, int problemSectionNr, String problemSectionGrade, int problemSectionGradeGroup, SvgPitch svgPitch,
+		String path, boolean hasAnchor, String texts, String anchors, String tradBelayStations,
+		boolean primary, boolean ticked, boolean todo, boolean dangerous) {}
