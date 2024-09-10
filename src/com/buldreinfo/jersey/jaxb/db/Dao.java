@@ -68,7 +68,6 @@ import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
-import com.buldreinfo.jersey.jaxb.model.SvgPitch;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -111,7 +110,6 @@ import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -4288,91 +4286,6 @@ public class Dao {
 		return res;
 	}
 
-	private SvgPitch getSvgPitch(String path, int mediaWidth, int mediaHeight) {
-			List<String> pathLst = Splitter.on(" ").splitToList(path.replaceAll("  ", " ").strip());
-			/**
-			 *  Calculate image region
-			 */
-			int minX = Integer.MAX_VALUE;
-			int minY = Integer.MAX_VALUE;
-			int maxX = 0;
-			int maxY = 0;
-			for (int i = 0; i < pathLst.size(); i++) {
-				String part = pathLst.get(i);
-				switch (part) {
-				case "M", "L" -> {
-					int x = Integer.parseInt(pathLst.get(i+1));
-					int y = Integer.parseInt(pathLst.get(i+2));
-					minX = Math.min(minX, x);
-					minY = Math.min(minY, y);
-					maxX = Math.max(maxX, x);
-					maxY = Math.max(maxY, y);
-				}
-				case "C" -> {
-					int x = Integer.parseInt(pathLst.get(i+5));
-					int y = Integer.parseInt(pathLst.get(i+6));
-					minX = Math.min(minX, x);
-					minY = Math.min(minY, y);
-					maxX = Math.max(maxX, x);
-					maxY = Math.max(maxY, y);
-				}
-				}
-			}
-			int margin = 360;
-			minX = Math.max(minX - margin, 0);
-			minY = Math.max(minY - margin, 0);
-			maxX = Math.min(maxX + margin, mediaWidth);
-			maxY = Math.min(maxY + margin, mediaHeight);
-			// Crop should have at least 1920 in width (if possible)
-			final int width = Math.min(Math.max(maxX - minX, 1920), mediaWidth);
-			int addX = width - (maxX - minX);
-			if (addX > 0) {
-				int addLeft = Math.min(addX / 2, minX);
-				int addRight = addX - addLeft;
-				if ((maxX + addRight) > mediaWidth) {
-					addRight = mediaWidth - maxX;
-					addLeft = addX - addRight;
-				}
-				minX -= addLeft;
-				maxX += addRight;
-			}
-			// Crop should have at least 1080 in height (if possible)
-			final int height = Math.min(Math.max(maxY - minY, 1080), mediaHeight);
-			int addY = height - (maxY - minY);
-			if (addY > 0) {
-				int addTop = Math.min(addY / 2, minY);
-				int addBottom = addY - addTop;
-				if ((maxY + addBottom) > mediaHeight) {
-					addBottom = mediaHeight - maxY;
-					addTop = addY - addBottom;
-				}
-				minY -= addTop;
-				maxY += addBottom;
-			}
-			/**
-			 * Update path
-			 */
-			List<String> newPathLst = new ArrayList<>();
-			for (int i = 0; i < pathLst.size(); i++) {
-				String part = pathLst.get(i);
-				boolean isCharacter = !part.matches("\\d+");
-				if (isCharacter) {
-					newPathLst.add(part);
-				}
-				else {
-					int x = Integer.parseInt(pathLst.get(i++));
-					int y = Integer.parseInt(pathLst.get(i));
-					newPathLst.add(String.valueOf(x - minX));
-					newPathLst.add(String.valueOf(y - minY));
-				}
-			}
-			final String newPath = Joiner.on(" ").join(newPathLst);
-			/**
-			 * Return
-			 */
-			return new SvgPitch(newPath, minX, minY, width, height);
-	}
-
 	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
 		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
 		Map<Integer, Coordinates> res = new HashMap<>();
@@ -4707,10 +4620,7 @@ public class Dao {
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					SvgPitch svgPitch = problemSectionId == 0? null : getSvgPitch(path, mediaWidth, mediaHeight);
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr,
-							problemSectionId, svgPitch,
-							path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, problemSectionId, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}
