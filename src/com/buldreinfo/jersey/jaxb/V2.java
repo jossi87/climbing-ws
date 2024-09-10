@@ -4,6 +4,7 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -333,7 +334,15 @@ public class V2 {
 			java.nio.file.Path p = null;
 			String mimeType = "image/jpeg";
 			if (cropImage) {
-				p = IOHelper.getPathMediaOriginalJpg(id);
+				p = IOHelper.getPathMediaWebJpgRegion(id, x, y, width, height);
+				if (!Files.exists(p)) {
+					java.nio.file.Path original = IOHelper.getPathMediaOriginalJpg(id);
+					BufferedImage b = Preconditions.checkNotNull(ImageIO.read(original.toFile()), "Could not read " + original.toString());
+					b = Scalr.crop(b, x, y, width, height);
+					Files.createDirectories(p.getParent());
+					ImageIO.write(b, "jpg", p.toFile());
+					b.flush();
+				}
 			}
 			else if (!resizeImage && GlobalFunctions.requestAcceptsWebp(request)) {
 				boolean webP = true;
@@ -347,15 +356,10 @@ public class V2 {
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(2678400); // 31 days
 			cc.setNoTransform(false);
-			if (cropImage || resizeImage) {
+			if (resizeImage) {
 				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				if (cropImage) {
-					b = Scalr.crop(b, x, y, width, height);
-				}
-				if (resizeImage) {
-					Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
-				}
+				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
 				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 					ImageIO.write(b, "jpg", baos);
 					return Response.ok(baos.toByteArray(), mimeType).cacheControl(cc).build();

@@ -44,27 +44,35 @@ public class IOHelper {
 	}
 
 	public static Path getPathMediaOriginalJpg(int id) {
-		return getPathRoot().resolve("original/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
+		return getPathRoot().resolve("original/jpg").resolve(getFolderName(id)).resolve(id + ".jpg");
 	}
 
 	public static Path getPathMediaOriginalMp4(int id) {
-		return getPathRoot().resolve("original/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
+		return getPathRoot().resolve("original/mp4").resolve(getFolderName(id)).resolve(id + ".mp4");
 	}
 
 	public static Path getPathMediaWebJpg(int id) {
-		return getPathRoot().resolve("web/jpg").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".jpg");
+		return getPathRoot().resolve("web/jpg").resolve(getFolderName(id)).resolve(id + ".jpg");
+	}
+	
+	public static Path getPathMediaWebJpgRegion(int id, int x, int y, int width, int height) {
+		return getPathRoot().resolve("web/jpg_region").resolve(getFolderName(id)).resolve(String.valueOf(id)).resolve(x + "_" + y + "_" + width + "_" + height + ".jpg");
 	}
 
 	public static Path getPathMediaWebMp4(int id) {
-		return getPathRoot().resolve("web/mp4").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".mp4");
+		return getPathRoot().resolve("web/mp4").resolve(getFolderName(id)).resolve(id + ".mp4");
 	}
 
 	public static Path getPathMediaWebWebm(int id) {
-		return getPathRoot().resolve("web/webm").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webm");
+		return getPathRoot().resolve("web/webm").resolve(getFolderName(id)).resolve(id + ".webm");
 	}
 
 	public static Path getPathMediaWebWebp(int id) {
-		return getPathRoot().resolve("web/webp").resolve(String.valueOf(id / 100 * 100)).resolve(id + ".webp");
+		return getPathRoot().resolve("web/webp").resolve(getFolderName(id)).resolve(id + ".webp");
+	}
+	
+	private static String getFolderName(int id) {
+		return String.valueOf(id / 100 * 100);
 	}
 
 	private static Path getPathRoot() {
