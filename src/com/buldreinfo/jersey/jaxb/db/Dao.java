@@ -3790,36 +3790,48 @@ public class Dao {
 		}
 	}
 
-	public void upsertSvg(Connection c, Optional<Integer> authUserId, int problemId, int mediaId, Svg svg) throws SQLException {
+	public void upsertSvg(Connection c, Optional<Integer> authUserId, int problemId, int problemSectionId, int mediaId, Svg svg) throws SQLException {
 		ensureAdminWriteProblem(c, authUserId, problemId);
 		// Delete/Insert/Update
 		if (svg.delete() || GlobalFunctions.stripString(svg.path()) == null) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=?")) {
-				ps.setInt(1, mediaId);
-				ps.setInt(2, problemId);
-				ps.execute();
+			if (problemSectionId == 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND problem_section_id IS NULL")) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, problemId);
+					ps.execute();
+				}
+			}
+			else {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND problem_section_id=?")) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, problemId);
+					ps.setInt(3, problemSectionId);
+					ps.execute();
+				}
 			}
 		} else if (svg.id() <= 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, path, has_anchor, anchors, trad_belay_stations, texts) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, problem_section_id, path, has_anchor, anchors, trad_belay_stations, texts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				ps.setString(3, svg.path());
-				ps.setBoolean(4, svg.hasAnchor());
-				ps.setString(5, svg.anchors());
-				ps.setString(6, svg.tradBelayStations());
-				ps.setString(7, svg.texts());
+				setNullablePositiveInteger(ps, 3, problemSectionId);
+				ps.setString(4, svg.path());
+				ps.setBoolean(5, svg.hasAnchor());
+				ps.setString(6, svg.anchors());
+				ps.setString(7, svg.tradBelayStations());
+				ps.setString(8, svg.texts());
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, path=?, has_anchor=?, anchors=?, trad_belay_stations=?, texts=? WHERE id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, problem_section_id=?, path=?, has_anchor=?, anchors=?, trad_belay_stations=?, texts=? WHERE id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				ps.setString(3, svg.path());
-				ps.setBoolean(4, svg.hasAnchor());
-				ps.setString(5, svg.anchors());
-				ps.setString(6, svg.tradBelayStations());
-				ps.setString(7, svg.texts());
-				ps.setInt(8, svg.id());
+				setNullablePositiveInteger(ps, 3, problemSectionId);
+				ps.setString(4, svg.path());
+				ps.setBoolean(5, svg.hasAnchor());
+				ps.setString(6, svg.anchors());
+				ps.setString(7, svg.tradBelayStations());
+				ps.setString(8, svg.texts());
+				ps.setInt(9, svg.id());
 				ps.execute();
 			}
 		}
