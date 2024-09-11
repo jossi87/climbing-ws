@@ -2804,7 +2804,7 @@ public class Dao {
 		return bytes;
 	}
 
-	public void moveMedia(Connection c, Setup s, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
+	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
 		int sectorId = 0;
@@ -2895,10 +2895,9 @@ public class Dao {
 			}
 		}
 		else { // Move image left/right
-			List<Integer> idMediaList = new ArrayList<>();
 			String table = null;
 			String column = null;
-			String extraCondition = "";
+			String extraOrder = "";
 			int columnId = 0;
 			if (areaId > 0) {
 				table = "media_area";
@@ -2909,23 +2908,13 @@ public class Dao {
 				column = "sector_id";
 				columnId = sectorId;
 			} else {
-				int pitch = 0;
-				try (PreparedStatement ps = c.prepareStatement("SELECT pitch FROM media_problem WHERE media_id=? AND problem_id=? AND pitch IS NOT NULL AND pitch>0")) {
-					ps.setInt(1, id);
-					ps.setInt(2, problemId);
-					try (ResultSet rst = ps.executeQuery()) {
-						while (rst.next()) {
-							pitch = rst.getInt("pitch");
-						}
-					}
-				}
 				table = "media_problem";
 				column = "problem_id";
 				columnId = problemId;
-				extraCondition = pitch == 0? " AND (pitch IS NULL OR pitch=0)" : " AND pitch=" + pitch;
+				extraOrder = "IFNULL(pitch,0), ";
 			}
-			
-			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0" + extraCondition + " ORDER BY -x.sorting DESC, m.id")) {
+			List<Integer> idMediaList = new ArrayList<>();
+			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
 				ps.setInt(1, columnId);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
