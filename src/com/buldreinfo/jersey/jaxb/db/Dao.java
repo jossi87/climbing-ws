@@ -2922,7 +2922,7 @@ public class Dao {
 				table = "media_problem";
 				column = "problem_id";
 				columnId = problemId;
-				extraCondition = pitch == 0? " AND pitch IS NULL" : " AND pitch=" + pitch;
+				extraCondition = pitch == 0? " AND (pitch IS NULL OR pitch=0)" : " AND pitch=" + pitch;
 			}
 			
 			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0" + extraCondition + " ORDER BY -x.sorting DESC, m.id")) {
