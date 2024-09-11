@@ -1040,7 +1040,7 @@ public class V2 {
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
-			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
+			dao.moveMedia(c, setup, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}

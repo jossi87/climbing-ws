@@ -2804,7 +2804,7 @@ public class Dao {
 		return bytes;
 	}
 
-	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
+	public void moveMedia(Connection c, Setup s, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
 		int sectorId = 0;
@@ -2909,7 +2909,16 @@ public class Dao {
 				column = "sector_id";
 				columnId = sectorId;
 			} else {
-				int pitch = getMedia(c, authUserId, id).pitch();
+				int pitch = 0;
+				try (PreparedStatement ps = c.prepareStatement("SELECT pitch FROM media_problem WHERE media_id=? AND problem_id=? AND pitch IS NOT NULL AND pitch>0")) {
+					ps.setInt(1, id);
+					ps.setInt(2, problemId);
+					try (ResultSet rst = ps.executeQuery()) {
+						while (rst.next()) {
+							pitch = rst.getInt("pitch");
+						}
+					}
+				}
 				table = "media_problem";
 				column = "problem_id";
 				columnId = problemId;
