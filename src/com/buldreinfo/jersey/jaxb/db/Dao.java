@@ -2894,10 +2894,11 @@ public class Dao {
 				ps.execute();
 			}
 		}
-		else {
+		else { // Move image left/right
+			List<Integer> idMediaList = new ArrayList<>();
 			String table = null;
 			String column = null;
-			String extraOrder = "";
+			String extraCondition = "";
 			int columnId = 0;
 			if (areaId > 0) {
 				table = "media_area";
@@ -2908,13 +2909,14 @@ public class Dao {
 				column = "sector_id";
 				columnId = sectorId;
 			} else {
+				int pitch = getMedia(c, authUserId, id).pitch();
 				table = "media_problem";
 				column = "problem_id";
 				columnId = problemId;
-				extraOrder = "pitch, ";
+				extraCondition = pitch == 0? " AND pitch IS NULL" : " AND pitch=" + pitch;
 			}
-			List<Integer> idMediaList = new ArrayList<>();
-			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
+			
+			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0" + extraCondition + " ORDER BY -x.sorting DESC, m.id")) {
 				ps.setInt(1, columnId);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
