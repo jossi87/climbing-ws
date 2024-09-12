@@ -938,7 +938,7 @@ public class V2 {
 	@Path("/problems/svg")
 	public Response postProblemsSvg(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("problemId") int problemId,
-			@Parameter(description = "Problem section id", required = true) @QueryParam("problemSectionId") int problemSectionId,
+			@Parameter(description = "Problem section id", required = true) @QueryParam("pitch") int pitch,
 			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
 			) {
@@ -946,7 +946,7 @@ public class V2 {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
-			dao.upsertSvg(c, authUserId, problemId, problemSectionId, mediaId, svg);
+			dao.upsertSvg(c, authUserId, problemId, pitch, mediaId, svg);
 			return Response.ok().build();
 		});
 	}
