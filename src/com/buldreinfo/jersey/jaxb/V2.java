@@ -833,11 +833,12 @@ public class V2 {
 
 	@Operation(summary = "Get problem by id, idMedia and pitch without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
-	@Path("/without-js/problem/{id}/{mediaId}")
+	@Path("/without-js/problem/{id}/{mediaId}/{pitch}")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
-			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
+			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch) {
 		return getWithoutJsProblemMedia(request, id, mediaId);
 	}
 
