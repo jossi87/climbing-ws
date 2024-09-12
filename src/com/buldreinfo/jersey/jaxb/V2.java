@@ -782,12 +782,22 @@ public class V2 {
 			return Response.ok().entity(html).build();
 		});
 	}
-
+	
 	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) {
+		return getWithoutJsProblemMedia(request, id, 0);
+	}
+	
+	@Operation(summary = "Get problem by id and idMedia without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@GET
+	@Path("/without-js/problem/{id}/{mediaId}")
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJsProblemMedia(@Context HttpServletRequest request,
+			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			Problem p = dao.getProblem(c, authUserId, setup, id, false);
@@ -799,7 +809,10 @@ public class V2 {
 			}
 			Media m = null;
 			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-				Optional<Media> optM = p.getMedia().stream().filter(x -> !x.inherited()).findFirst();
+				Optional<Media> optM = p.getMedia()
+						.stream()
+						.filter(x -> !x.inherited() && (mediaId == 0 || x.id() == mediaId))
+						.findFirst();
 				if (optM.isPresent()) {
 					m = optM.get();
 				}
@@ -816,6 +829,16 @@ public class V2 {
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
 		});
+	}
+
+	@Operation(summary = "Get problem by id, idMedia and pitch without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@GET
+	@Path("/without-js/problem/{id}/{mediaId}")
+	@Produces(MediaType.TEXT_HTML)
+	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
+			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
+		return getWithoutJsProblemMedia(request, id, mediaId);
 	}
 
 	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
