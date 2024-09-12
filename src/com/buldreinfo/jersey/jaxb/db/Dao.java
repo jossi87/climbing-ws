@@ -3790,30 +3790,30 @@ public class Dao {
 		}
 	}
 
-	public void upsertSvg(Connection c, Optional<Integer> authUserId, int problemId, int problemSectionId, int mediaId, Svg svg) throws SQLException {
+	public void upsertSvg(Connection c, Optional<Integer> authUserId, int problemId, int pitch, int mediaId, Svg svg) throws SQLException {
 		ensureAdminWriteProblem(c, authUserId, problemId);
 		// Delete/Insert/Update
 		if (svg.delete() || GlobalFunctions.stripString(svg.path()) == null) {
-			if (problemSectionId == 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND problem_section_id IS NULL")) {
+			if (pitch == 0) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND pitch IS NULL")) {
 					ps.setInt(1, mediaId);
 					ps.setInt(2, problemId);
 					ps.execute();
 				}
 			}
 			else {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND problem_section_id=?")) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM svg WHERE media_id=? AND problem_id=? AND pitch=?")) {
 					ps.setInt(1, mediaId);
 					ps.setInt(2, problemId);
-					ps.setInt(3, problemSectionId);
+					ps.setInt(3, pitch);
 					ps.execute();
 				}
 			}
 		} else if (svg.id() <= 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, problem_section_id, path, has_anchor, anchors, trad_belay_stations, texts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO svg (media_id, problem_id, pitch, path, has_anchor, anchors, trad_belay_stations, texts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				setNullablePositiveInteger(ps, 3, problemSectionId);
+				setNullablePositiveInteger(ps, 3, pitch);
 				ps.setString(4, svg.path());
 				ps.setBoolean(5, svg.hasAnchor());
 				ps.setString(6, svg.anchors());
@@ -3822,10 +3822,10 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, problem_section_id=?, path=?, has_anchor=?, anchors=?, trad_belay_stations=?, texts=? WHERE id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE svg SET media_id=?, problem_id=?, pitch=?, path=?, has_anchor=?, anchors=?, trad_belay_stations=?, texts=? WHERE id=?")) {
 				ps.setInt(1, mediaId);
 				ps.setInt(2, problemId);
-				setNullablePositiveInteger(ps, 3, problemSectionId);
+				setNullablePositiveInteger(ps, 3, pitch);
 				ps.setString(4, svg.path());
 				ps.setBoolean(5, svg.hasAnchor());
 				ps.setString(6, svg.anchors());
@@ -4585,11 +4585,11 @@ public class Dao {
 		String sqlStr = """
 				WITH x AS (
 				  SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr,
-						 ps.id problem_section_id, ps.nr problem_section_nr, psg.grade problem_section_grade, psg.group problem_section_grade_group,
+						 ps.nr pitch, psg.grade problem_section_grade, psg.group problem_section_grade_group,
 				         s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
 				         MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous
 				  FROM (((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?))
-				    LEFT JOIN problem_section ps ON s.problem_section_id=ps.id) LEFT JOIN grade psg ON ps.grade=psg.grade_id AND psg.t=?)
+				    LEFT JOIN problem_section ps ON (ps.problem_id=p.id AND ps.nr=s.pitch)) LEFT JOIN grade psg ON ps.grade=psg.grade_id AND psg.t=?)
 				    LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?)
 				    LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id
 				  WHERE s.media_id=? AND p.trash IS NULL
@@ -4598,8 +4598,8 @@ public class Dao {
 				           s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger
 				)
 				SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr,
-					   x.problem_section_id, x.problem_section_nr, x.problem_section_grade, x.problem_section_grade_group,
-				                   x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
+					   x.pitch, x.problem_section_grade, x.problem_section_grade_group,
+				       x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
 				FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=?
 				ORDER BY x.nr
 				""";
@@ -4617,11 +4617,11 @@ public class Dao {
 					}
 					int problemId = rst.getInt("problem_id");
 					String problemName = rst.getString("problem_name");
-					int problemSectionId = rst.getInt("problem_section_id");
-					String problemGrade = rst.getString(problemSectionId == 0? "problem_grade" : "problem_section_grade");
-					int problemGradeGroup = rst.getInt(problemSectionId == 0? "problem_grade_group" : "problem_section_grade_group");
+					int pitch = rst.getInt("pitch");
+					String problemGrade = rst.getString(pitch == 0? "problem_grade" : "problem_section_grade");
+					int problemGradeGroup = rst.getInt(pitch == 0? "problem_grade_group" : "problem_section_grade_group");
 					String problemSubtype = rst.getString("problem_subtype");
-					int nr = rst.getInt(problemSectionId == 0? "nr" : "problem_section_nr");
+					int nr = rst.getInt(pitch == 0? "nr" : "problem_section_nr");
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
 					boolean hasAnchor = rst.getBoolean("has_anchor");
@@ -4632,7 +4632,7 @@ public class Dao {
 					boolean isTicked = rst.getBoolean("is_ticked");
 					boolean isTodo = rst.getBoolean("is_todo");
 					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, problemSectionId, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, pitch, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
 				}
 			}
 		}
