@@ -3408,9 +3408,13 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=? AND sorting>?")) {
+			String coordinateIds = s.getOutline().stream()
+					.map(Coordinates::getId)
+					.map(String::valueOf)
+					.collect(Collectors.joining(","));
+			String sqlStr = String.format("DELETE FROM sector_outline WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 				ps.setInt(1, idSector);
-				ps.setInt(2, s.getOutline().size());
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
@@ -3433,9 +3437,13 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_approach WHERE sector_id=? AND sorting>?")) {
+			String coordinateIds = s.getApproach().coordinates().stream()
+					.map(Coordinates::getId)
+					.map(String::valueOf)
+					.collect(Collectors.joining(","));
+			String sqlStr = String.format("DELETE FROM sector_approach WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 				ps.setInt(1, idSector);
-				ps.setInt(2, s.getApproach().coordinates().size());
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
