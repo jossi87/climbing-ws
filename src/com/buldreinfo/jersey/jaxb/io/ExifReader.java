@@ -78,7 +78,12 @@ public class ExifReader {
 		if (field == null) {
 			return null;
 		}
-		String exifStr = field.getStringValue();
+		String exifStr = null;
+		try {
+			exifStr = field.getStringValue();
+		} catch (ImagingException e) {
+			exifStr = ((String[])field.getValue())[0];
+		}
 		if (exifStr != null) {
 			int nullIdx = exifStr.indexOf('\u0000');
 			if (nullIdx != -1) {
