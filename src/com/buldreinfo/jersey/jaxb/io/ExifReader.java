@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb.io;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 import org.apache.commons.imaging.Imaging;
 import org.apache.commons.imaging.ImagingException;
@@ -14,9 +15,12 @@ import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
 import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
 import org.apache.commons.imaging.formats.tiff.taginfos.TagInfo;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr.Rotation;
 
 public class ExifReader {
+	private static Logger logger = LogManager.getLogger();
 	private static final String EXIF_DATE_PATTERN = "yyyy:MM:dd HH:mm:ss";
 	private final Rotation rotation;
 	private final TiffOutputSet outputSet;
@@ -47,7 +51,13 @@ public class ExifReader {
 		if (exifDateStr == null) {
 			return null;
 		}
-		return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
+		try {
+			return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
+		} catch (DateTimeParseException e) {
+			// E.g. "Text '0000:00:00 00:00:00' could not be parsed: Invalid value for YearOfEra (valid values 1 - 999999999/1000000000): 0"
+			logger.warn(e.getMessage(), e);
+			return null;
+		}
 	}
 
 	private Rotation getExifOrientation(ImageMetadata imageMetadata) throws ImagingException {
