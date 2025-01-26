@@ -83,9 +83,7 @@ public class Server {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
 		try (Connection c = server.bds.getConnection()) {
-			c.setAutoCommit(true); // Always commit user to avoid multiple parallel transactions inserting the same user...
 			Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-			c.setAutoCommit(false); // Now set auto commit to false for the rest of the transaction
 			Response res = function.get(server.dao, c, setup, authUserId);
 			c.commit();
 			return res;

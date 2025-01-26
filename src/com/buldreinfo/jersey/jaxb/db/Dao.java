@@ -807,7 +807,7 @@ public class Dao {
 		return res;
 	}
 
-	public Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
+	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
 		Optional<Integer> authUserId = Optional.empty();
 		String picture = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?")) {
@@ -838,6 +838,7 @@ public class Dao {
 				}
 			}
 		}
+		c.commit(); // Commit in synchronised function to avoid multiple parallel transactions inserting the same user...
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
 	}
