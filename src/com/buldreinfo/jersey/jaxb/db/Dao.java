@@ -819,23 +819,6 @@ public class Dao {
 				}
 			}
 		}
-		if (authUserId.isEmpty() && profile.fullname() != null) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT id, picture FROM user WHERE TRIM(CONCAT(firstname, ' ', COALESCE(lastname,'')))=?")) {
-				ps.setString(1, profile.fullname());
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						authUserId = Optional.of(rst.getInt("id"));
-						picture = rst.getString("picture");
-						// Add email to user
-						try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)")) {
-							ps2.setInt(1, authUserId.get());
-							ps2.setString(2, profile.email());
-							ps2.execute();
-						}
-					}
-				}
-			}
-		}
 		if (authUserId.isEmpty()) {
 			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname(), profile.picture()));
 		}
