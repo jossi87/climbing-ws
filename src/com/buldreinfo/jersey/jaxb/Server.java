@@ -26,28 +26,23 @@ import jakarta.ws.rs.core.Response;
 public class Server {
 	private static Server server;
 	private static Logger logger = LogManager.getLogger();
-	
+
 	public static List<Setup> getSetups() {
 		return getServer().setups;
 	}
-	
+
 	public static void runSql(Consumer<Connection> action) {
 		Server server = getServer();
 		try (Connection c = server.bds.getConnection()) {
 			c.setAutoCommit(false);
 			action.run(server.dao, c);
-			if (c.getAutoCommit()) {
-				logger.warn("AutoCommit=true on transaction");
-			}
-			else {
-				c.commit();
-			}
+			c.commit();
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
-	
+
 	private static synchronized Server getServer() {
 		Server result = server;
 		if (result == null) {
@@ -55,7 +50,7 @@ public class Server {
 		}
 		return result;
 	}
-	
+
 	protected static Response buildResponse(Function<Response> function) {
 		try {
 			return function.get();
@@ -64,7 +59,7 @@ public class Server {
 			return Response.serverError().build();
 		}
 	}
-	
+
 	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
@@ -78,11 +73,12 @@ public class Server {
 			return Response.serverError().build();
 		}
 	}
-	
+
 	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
 		try (Connection c = server.bds.getConnection()) {
+			c.setAutoCommit(false);
 			Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
 			Response res = function.get(server.dao, c, setup, authUserId);
 			c.commit();
@@ -92,12 +88,12 @@ public class Server {
 			return Response.serverError().build();
 		}
 	}
-	
+
 	private final BasicDataSource bds;
 	private final Dao dao = new Dao();
 	private final AuthHelper auth = new AuthHelper();
 	private final List<Setup> setups = new ArrayList<>();
-	
+
 	private Server() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
@@ -118,7 +114,7 @@ public class Server {
 		}
 		logger.debug("Server initialized in {}", stopwatch);
 	}
-	
+
 	private Setup getSetup(HttpServletRequest request) {
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
