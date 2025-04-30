@@ -3306,6 +3306,9 @@ public class Dao {
 		if (s.getApproach() != null && s.getApproach().coordinates() != null && !s.getApproach().coordinates().isEmpty()) {
 			allCoordinates.addAll(s.getApproach().coordinates());
 		}
+		if (s.getDescent() != null && s.getDescent().coordinates() != null && !s.getDescent().coordinates().isEmpty()) {
+			allCoordinates.addAll(s.getDescent().coordinates());
+		}
 		if (s.getParking() != null) {
 			if (s.getParking().getLatitude() == 0 || s.getParking().getLongitude() == 0) {
 				s.setParking(null);
