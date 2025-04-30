@@ -4474,7 +4474,7 @@ public class Dao {
 				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
 				FROM %s s, coordinates c
 				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
-				ORDER BY s.sector_id, sa.sorting
+				ORDER BY s.sector_id, s.sorting
 				""".formatted(
 						approachNotDescent ? "sector_approach" : "sector_descent",
 								",?".repeat(idSectors.size()).substring(1)
