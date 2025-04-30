@@ -4,8 +4,8 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 
-public record Approach(List<Coordinates> coordinates, double calculatedDurationInMinutes, long distance, long elevationGain, long elevationLoss) {
-	public static Approach from(List<Coordinates> coordinates) {
+public record Slope(List<Coordinates> coordinates, double calculatedDurationInMinutes, long distance, long elevationGain, long elevationLoss) {
+	public static Slope from(List<Coordinates> coordinates) {
 		double calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(coordinates);
 		long distance = Math.round(coordinates.get(coordinates.size()-1).getDistance());
 		double gain = 0, loss = 0;
@@ -20,6 +20,6 @@ public record Approach(List<Coordinates> coordinates, double calculatedDurationI
 		}
 		long elevationGain = Math.round(gain);
 		long elevationLoss = Math.round(loss);
-		return new Approach(coordinates, calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
+		return new Slope(coordinates, calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
 	}
 }

@@ -48,7 +48,7 @@ import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
-import com.buldreinfo.jersey.jaxb.model.Approach;
+import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
@@ -721,11 +721,10 @@ public class Dao {
 				List<Coordinates> outline = Lists.newArrayList(idSectorOutline.get(idSector));
 				sectorLookup.get(idSector).setOutline(outline);
 			}
-			// Fill sector approaches
-			Map<Integer, Approach> idSectorApproach = getSectorApproaches(c, sectorLookup.keySet());
-			for (int idSector : idSectorApproach.keySet()) {
-				sectorLookup.get(idSector).setApproach(idSectorApproach.get(idSector));
-			}
+			// Fill sector ascents
+			getSectorSlopes(c, true, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setApproach(e.getValue()));			
+			// Fill sector descents
+			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
 		}
 		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type, COUNT(DISTINCT p.id) num, COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END")) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -1254,7 +1253,8 @@ public class Dao {
 					List<Coordinates> sectorOutline = getSectorOutline(c, sectorId);
 					CompassDirection sectorWallDirectionCalculated = getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
 					CompassDirection sectorWallDirectionManual = getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
-					Approach sectorApproach = getSectorApproaches(c, Collections.singleton(sectorId)).getOrDefault(sectorId, null);
+					Slope sectorApproach = getSectorSlopes(c, true, Collections.singleton(sectorId)).getOrDefault(sectorId, null);
+					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(sectorId)).getOrDefault(sectorId, null);
 					String canonical = rst.getString("canonical");
 					int id = rst.getInt("id");
 					String broken = rst.getString("broken");
@@ -1315,7 +1315,7 @@ public class Dao {
 
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
-							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach,
+							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
 							neighbourPrev, neighbourNext,
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							s.gradeConverter().getGradeFromIdGrade(grade),
@@ -1329,7 +1329,7 @@ public class Dao {
 			// Poblem not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
+				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
 			}
 		}
 
@@ -3447,6 +3447,35 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
+		// Descent
+		if (s.getDescent() == null || s.getDescent().coordinates() == null || s.getDescent().coordinates().isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_descent WHERE sector_id=?")) {
+				ps.setInt(1, idSector);
+				ps.execute();
+			}
+		} else {
+			String coordinateIds = s.getDescent().coordinates().stream()
+					.map(Coordinates::getId)
+					.map(String::valueOf)
+					.collect(Collectors.joining(","));
+			String sqlStr = String.format("DELETE FROM sector_descent WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, idSector);
+				ps.execute();
+			}
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_descent (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
+				int sorting = 0;
+				for (Coordinates coord : s.getDescent().coordinates()) {
+					sorting++;
+					ps.setInt(1, idSector);
+					ps.setInt(2, coord.getId());
+					ps.setInt(3, sorting);
+					ps.setInt(4, coord.getId());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
 		// New media
 		if (s.getNewMedia() != null) {
 			for (NewMedia m : s.getNewMedia()) {
@@ -4378,7 +4407,8 @@ public class Dao {
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					List<Coordinates> sectorOutline = getSectorOutline(c, reqId);
-					Approach sectorApproach = getSectorApproaches(c, Collections.singleton(reqId)).getOrDefault(reqId, null);
+					Slope sectorApproach = getSectorSlopes(c, true, Collections.singleton(reqId)).getOrDefault(reqId, null);
+					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(reqId)).getOrDefault(reqId, null);
 					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
 					int hits = rst.getInt("hits");
@@ -4396,7 +4426,7 @@ public class Dao {
 					if (media != null && media.isEmpty()) {
 						media = null;
 					}
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, media, triviaMedia, null, hits);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, hits);
 				}
 			}
 		}
@@ -4404,7 +4434,7 @@ public class Dao {
 			// Sector not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, 0);
+				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, 0);
 			}
 		}
 
@@ -4434,13 +4464,21 @@ public class Dao {
 		return s;
 	}
 
-	private Map<Integer, Approach> getSectorApproaches(Connection c, Collection<Integer> idSectors) throws SQLException {
+	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, Approach> res = new HashMap<>();
+		Map<Integer, Slope> res = new HashMap<>();
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
-		String in = ",?".repeat(idSectors.size()).substring(1);
-		String sqlStr = "SELECT sa.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by sa.sector_id order by sa.sorting), lag(latitude) over (partition by sa.sector_id order by sa.sorting))) m FROM sector_approach sa, coordinates c WHERE sa.sector_id IN (" + in + ") AND sa.coordinates_id=c.id ORDER BY sa.sector_id, sa.sorting";
+		String sqlStr = """
+				SELECT s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude),
+				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
+				FROM %s s, coordinates c
+				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
+				ORDER BY s.sector_id, sa.sorting
+				""".formatted(
+						approachNotDescent ? "sector_approach" : "sector_descent",
+								",?".repeat(idSectors.size()).substring(1)
+						);
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int parameterIndex = 1;
 			for (int idSector : idSectors) {
@@ -4469,9 +4507,9 @@ public class Dao {
 		}
 		for (int idSector : idSectorCoordinates.keySet()) {
 			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
-			res.put(idSector, Approach.from(coordinates));
+			res.put(idSector, Slope.from(coordinates));
 		}
-		logger.debug("getSectorApproaches(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
+		logger.debug("getSectorSlopes(approachNotDescent={}, idSectors.size()={}) - res.size()={}, duration={}", approachNotDescent, idSectors.size(), res.size(), stopwatch);
 		return res;
 	}
 

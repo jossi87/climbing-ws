@@ -30,7 +30,8 @@ public class Sector {
 	private final List<Coordinates> outline;
 	private final CompassDirection wallDirectionCalculated;
 	private final CompassDirection wallDirectionManual;
-	private final Approach approach;
+	private final Slope approach;
+	private final Slope descent;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<SectorJump> sectors = new ArrayList<>();
@@ -39,7 +40,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Approach approach, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -65,6 +66,7 @@ public class Sector {
 		this.wallDirectionCalculated = wallDirectionCalculated;
 		this.wallDirectionManual = wallDirectionManual;
 		this.approach = approach;
+		this.descent = descent;
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
@@ -88,7 +90,7 @@ public class Sector {
 		return accessInfo;
 	}
 	
-	public Approach getApproach() {
+	public Slope getApproach() {
 		return approach;
 	}
 	
@@ -124,10 +126,14 @@ public class Sector {
 		return comment;
 	}
 	
+	public Slope getDescent() {
+		return descent;
+	}
+
 	public long getHits() {
 		return hits;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -159,7 +165,7 @@ public class Sector {
 	public List<SectorProblem> getProblems() {
 		return problems;
 	}
-	
+
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
@@ -167,7 +173,7 @@ public class Sector {
 	public List<SectorJump> getSectors() {
 		return sectors;
 	}
-
+	
 	public List<SectorJump> getSiblings() {
 		return sectors;
 	}
@@ -195,11 +201,11 @@ public class Sector {
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
-	
+
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
-
+	
 	public boolean isLockedSuperadmin() {
 		return lockedSuperadmin;
 	}

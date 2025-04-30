@@ -27,7 +27,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
-import com.buldreinfo.jersey.jaxb.model.Approach;
+import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
@@ -593,7 +593,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 	
-	private String getDistance(Approach a) {
+	private String getDistance(Slope a) {
 		long meter = a.distance();
 		if (meter > 1000) {
 			return meter/1000 + " km";

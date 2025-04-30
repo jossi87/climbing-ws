@@ -20,7 +20,8 @@ public class Area {
 		private List<Coordinates> outline;
 		private final CompassDirection wallDirectionCalculated;
 		private final CompassDirection wallDirectionManual;
-		private Approach approach;
+		private Slope approach;
+		private Slope descent;
 		private final int randomMediaId;
 		private final int randomMediaCrc32;
 		private final List<SectorProblem> problems = new ArrayList<>();
@@ -51,8 +52,12 @@ public class Area {
 			return accessInfo;
 		}
 
-		public Approach getApproach() {
+		public Slope getApproach() {
 			return approach;
+		}
+		
+		public Slope getDescent() {
+			return descent;
 		}
 
 		public String getAreaName() {
@@ -119,8 +124,12 @@ public class Area {
 			return lockedSuperadmin;
 		}
 
-		public void setApproach(Approach approach) {
+		public void setApproach(Slope approach) {
 			this.approach = approach;
+		}
+		
+		public void setDescent(Slope descent) {
+			this.descent = descent;
 		}
 
 		public void setOutline(List<Coordinates> outline) {
