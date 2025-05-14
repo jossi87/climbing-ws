@@ -20,6 +20,8 @@ public class Problem {
 	private final String sectorName;
 	private final String sectorAccessInfo;
 	private final String sectorAccessClosed;
+	private final int sectorSunFromHour;
+	private final int sectorSunToHour;
 	private final Coordinates sectorParking;
 	private final List<Coordinates> sectorOutline;
 	private final CompassDirection sectorWallDirectionCalculated;
@@ -66,6 +68,7 @@ public class Problem {
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
+			int sectorSunFromHour, int sectorSunToHour,
 			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, long hits,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
@@ -84,6 +87,8 @@ public class Problem {
 		this.sectorName = sectorName;
 		this.sectorAccessInfo = sectorAccessInfo;
 		this.sectorAccessClosed = sectorAccessClosed;
+		this.sectorSunFromHour = sectorSunFromHour;
+		this.sectorSunToHour = sectorSunToHour;
 		this.sectorParking = sectorParking;
 		this.sectorOutline = sectorOutline;
 		this.sectorWallDirectionCalculated = sectorWallDirectionCalculated;
@@ -239,7 +244,7 @@ public class Problem {
 	public List<Media> getMedia() {
 		return media;
 	}
-
+	
 	public String getName() {
 		return name;
 	}
@@ -247,7 +252,7 @@ public class Problem {
 	public SectorProblem getNeighbourNext() {
 		return neighbourNext;
 	}
-	
+
 	public SectorProblem getNeighbourPrev() {
 		return neighbourPrev;
 	}
@@ -267,7 +272,7 @@ public class Problem {
 	public String getOriginalGrade() {
 		return originalGrade;
 	}
-
+	
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
@@ -275,7 +280,7 @@ public class Problem {
 	public String getRock() {
 		return rock;
 	}
-	
+
 	public String getRouteLength() {
 		return routeLength;
 	}
@@ -283,7 +288,7 @@ public class Problem {
 	public List<ProblemSection> getSections() {
 		return sections;
 	}
-
+	
 	public String getSectorAccessClosed() {
 		return sectorAccessClosed;
 	}
@@ -291,7 +296,7 @@ public class Problem {
 	public String getSectorAccessInfo() {
 		return sectorAccessInfo;
 	}
-	
+
 	public Slope getSectorApproach() {
 		return sectorApproach;
 	}
@@ -303,7 +308,7 @@ public class Problem {
 	public int getSectorId() {
 		return sectorId;
 	}
-
+	
 	public String getSectorName() {
 		return sectorName;
 	}
@@ -314,6 +319,14 @@ public class Problem {
 
 	public Coordinates getSectorParking() {
 		return sectorParking;
+	}
+	
+	public int getSectorSunFromHour() {
+		return sectorSunFromHour;
+	}
+
+	public int getSectorSunToHour() {
+		return sectorSunToHour;
 	}
 	
 	public CompassDirection getSectorWallDirectionCalculated() {

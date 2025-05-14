@@ -26,6 +26,8 @@ public class Sector {
 	private final String comment;
 	private final String accessInfo;
 	private final String accessClosed;
+	private final int sunFromHour;
+	private final int sunToHour;
 	private Coordinates parking;
 	private final List<Coordinates> outline;
 	private final CompassDirection wallDirectionCalculated;
@@ -40,7 +42,7 @@ public class Sector {
 	private final List<NewMedia> newMedia;
 	private final long hits;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -61,6 +63,8 @@ public class Sector {
 		this.comment = comment;
 		this.accessInfo = accessInfo;
 		this.accessClosed = accessClosed;
+		this.sunFromHour = sunFromHour;
+		this.sunToHour = sunToHour;
 		this.parking = parking;
 		this.outline = outline;
 		this.wallDirectionCalculated = wallDirectionCalculated;
@@ -216,6 +220,14 @@ public class Sector {
 	
 	public boolean isTrash() {
 		return trash;
+	}
+	
+	public int getSunFromHour() {
+		return sunFromHour;
+	}
+	
+	public int getSunToHour() {
+		return sunToHour;
 	}
 	
 	public void orderSectors() {
