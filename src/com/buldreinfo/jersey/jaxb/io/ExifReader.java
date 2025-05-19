@@ -42,7 +42,7 @@ public class ExifReader {
 			this.dateTaken = null;
 		}
 	}
-	
+
 	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
 		if (imageMetadata == null) {
 			return null;
@@ -115,15 +115,19 @@ public class ExifReader {
 		return null;
 	}
 
-	private TiffImageMetadata getTiffImageMetadata(byte[] imageBytes) throws IOException {
-		ImageMetadata imageMetadata = Imaging.getMetadata(imageBytes);
-		if (imageMetadata == null) {
-			return null;
-		}
-		if (imageMetadata instanceof JpegImageMetadata jpegMetadata) {
-			return jpegMetadata.getExif();
-		} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
-			return tiffMetadata;
+	private TiffImageMetadata getTiffImageMetadata(byte[] imageBytes) {
+		try {
+			ImageMetadata imageMetadata = Imaging.getMetadata(imageBytes);
+			if (imageMetadata == null) {
+				return null;
+			}
+			if (imageMetadata instanceof JpegImageMetadata jpegMetadata) {
+				return jpegMetadata.getExif();
+			} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
+				return tiffMetadata;
+			}
+		} catch (IOException e) {
+			logger.warn(e.getMessage(), e);
 		}
 		return null;
 	}
