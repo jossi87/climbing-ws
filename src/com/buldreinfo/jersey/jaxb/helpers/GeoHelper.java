@@ -111,7 +111,7 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	public static void fillElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
+	public static void fillMissingElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
 		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
 			String locations = null;
 			for (Coordinates coord : coordinates) {
@@ -171,8 +171,7 @@ public class GeoHelper {
 								final double lat = latitude;
 								final double lng = longitude;
 								final double el = elevation;
-								coordinates
-								.stream()
+								coordinates.stream()
 								.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
 								.forEach(x -> x.setElevation(el, Coordinates.ELEVATION_SOURCE_GOOGLE));
 								jsonReader.endObject();
@@ -187,13 +186,14 @@ public class GeoHelper {
 				}
 			}
 		}
+		logger.debug("fillMissingElevations(allCoordinates.size()={}) - success", allCoordinates.size());
 	}
 	
 	public static int getElevation(double latitude, double longitude) throws IOException, InterruptedException {
 		List<Coordinates> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinates(latitude, longitude));
 		coordinates.get(0).roundCoordinatesToMaximum10digitsAfterComma();
-		GeoHelper.fillElevations(coordinates);
+		GeoHelper.fillMissingElevations(coordinates);
 		return (int)Math.round(coordinates.get(0).getElevation());
 	}
 	

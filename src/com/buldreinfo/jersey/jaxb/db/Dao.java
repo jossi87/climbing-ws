@@ -48,7 +48,6 @@ import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
-import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
 import com.buldreinfo.jersey.jaxb.model.Comment;
@@ -89,6 +88,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SectorProblemOrder;
 import com.buldreinfo.jersey.jaxb.model.Site;
+import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.TickRepeat;
@@ -202,36 +202,7 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
-		// Fill missing elevations in db
-		List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
-				}
-			}
-		}
-		if (!coordinatesMissingElevation.isEmpty()) {
-			try {
-				GeoHelper.fillElevations(coordinatesMissingElevation);
-				try (PreparedStatement ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
-					for (Coordinates coord : coordinatesMissingElevation) {
-						ps.setDouble(1, coord.getElevation());
-						ps.setString(2, coord.getElevationSource());
-						ps.setDouble(3, coord.getId());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			} catch (IOException e) {
-				logger.warn(e.getMessage(), e);
-			}
-		}
+		fillMissingElevations(c);
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// Fetch correct id's and elevation's (id can be wrong in coordinates - user might have changed latitude/longitude on existing id)
 			for (Coordinates coord : coordinates) {
@@ -1126,7 +1097,7 @@ public class Dao {
 		}
 		return res.values();
 	}
-
+	
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		Media res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -4074,6 +4045,38 @@ public class Dao {
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
+	private void fillMissingElevations(Connection c) throws SQLException, InterruptedException {
+		List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
+				}
+			}
+		}
+		if (!coordinatesMissingElevation.isEmpty()) {
+			try {
+				GeoHelper.fillMissingElevations(coordinatesMissingElevation);
+				try (PreparedStatement ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
+					for (Coordinates coord : coordinatesMissingElevation) {
+						ps.setDouble(1, coord.getElevation());
+						ps.setString(2, coord.getElevationSource());
+						ps.setDouble(3, coord.getId());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			} catch (IOException e) {
+				logger.warn(e.getMessage(), e);
+			}
+		}
+	}
+
 	private CompassDirection getCompassDirection(Setup s, int id) {
 		if (id == 0) {
 			return null;
@@ -4480,55 +4483,6 @@ public class Dao {
 		return s;
 	}
 
-	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, Slope> res = new HashMap<>();
-		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
-		String sqlStr = """
-				SELECT s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude),
-				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
-				FROM %s s, coordinates c
-				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
-				ORDER BY s.sector_id, s.sorting
-				""".formatted(
-						approachNotDescent ? "sector_approach" : "sector_descent",
-								",?".repeat(idSectors.size()).substring(1)
-						);
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idSectors) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				int prevIdSector = 0;
-				double distance = 0;
-				while (rst.next()) {
-					int idSector = rst.getInt("id_sector");
-					if (prevIdSector != idSector) {
-						prevIdSector = idSector;
-						distance = 0;
-					}
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					distance += rst.getDouble("m");
-					Coordinates coords = new Coordinates(id, latitude, longitude, elevation, elevationSource);
-					coords.setDistance(distance);
-					idSectorCoordinates.put(idSector, coords);
-				}
-			}
-		}
-		for (int idSector : idSectorCoordinates.keySet()) {
-			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
-			res.put(idSector, Slope.from(coordinates));
-		}
-		logger.debug("getSectorSlopes(approachNotDescent={}, idSectors.size()={}) - res.size()={}, duration={}", approachNotDescent, idSectors.size(), res.size(), stopwatch);
-		return res;
-	}
-
 	private List<Coordinates> getSectorOutline(Connection c, int idSector) throws SQLException {
 		Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, Collections.singleton(idSector));
 		if (idSectorOutline == null || idSectorOutline.isEmpty()) {
@@ -4627,6 +4581,55 @@ public class Dao {
 				}
 			}
 		}
+		return res;
+	}
+
+	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, Slope> res = new HashMap<>();
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
+		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
+		String sqlStr = """
+				SELECT s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude),
+				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
+				FROM %s s, coordinates c
+				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
+				ORDER BY s.sector_id, s.sorting
+				""".formatted(
+						approachNotDescent ? "sector_approach" : "sector_descent",
+								",?".repeat(idSectors.size()).substring(1)
+						);
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idSectors) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				int prevIdSector = 0;
+				double distance = 0;
+				while (rst.next()) {
+					int idSector = rst.getInt("id_sector");
+					if (prevIdSector != idSector) {
+						prevIdSector = idSector;
+						distance = 0;
+					}
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					distance += rst.getDouble("m");
+					Coordinates coords = new Coordinates(id, latitude, longitude, elevation, elevationSource);
+					coords.setDistance(distance);
+					idSectorCoordinates.put(idSector, coords);
+				}
+			}
+		}
+		for (int idSector : idSectorCoordinates.keySet()) {
+			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
+			res.put(idSector, Slope.from(coordinates));
+		}
+		logger.debug("getSectorSlopes(approachNotDescent={}, idSectors.size()={}) - res.size()={}, duration={}", approachNotDescent, idSectors.size(), res.size(), stopwatch);
 		return res;
 	}
 
