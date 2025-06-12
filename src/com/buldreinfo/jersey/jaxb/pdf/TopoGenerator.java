@@ -7,7 +7,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.transform.Transformer;
@@ -224,7 +223,7 @@ public class TopoGenerator {
 				Gson gson = new Gson();
 				// Texts
 				if (!Strings.isNullOrEmpty(svg.texts())) {
-					List<SvgText> svgTexts = gson.fromJson(svg.texts(), new TypeToken<ArrayList<SvgText>>(){}.getType());
+					List<SvgText> svgTexts = gson.fromJson(svg.texts(), new TypeToken<List<SvgText>>(){});
 					for (SvgText svgText : svgTexts) {
 						text = doc.createElementNS(xmlns, "text");
 						text.setAttributeNS(null, "style", "fill: #FF0000;");
@@ -238,7 +237,7 @@ public class TopoGenerator {
 				}
 				// Anchors
 				if (!Strings.isNullOrEmpty(svg.anchors())) {
-					List<SvgAnchor> svgAnchors = gson.fromJson(svg.anchors(), new TypeToken<ArrayList<SvgAnchor>>(){}.getType());
+					List<SvgAnchor> svgAnchors = gson.fromJson(svg.anchors(), new TypeToken<List<SvgAnchor>>(){});
 					for (SvgAnchor svgAnchor : svgAnchors) {
 						addCircle(doc, svgRoot, "#000000", String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.005 * imgMax));
 						addCircle(doc, svgRoot, groupColor, String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.004 * imgMax));

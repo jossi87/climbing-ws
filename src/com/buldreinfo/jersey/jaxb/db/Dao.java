@@ -1049,7 +1049,7 @@ public class Dao {
 					String photographerJson = rst.getString("photographer");
 					String taggedJson = rst.getString("tagged");
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
-					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<ArrayList<User>>(){}.getType());
+					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
 					res = new FrontpageRandomMedia(idMedia, crc32, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
 				}
 			}
@@ -1246,7 +1246,7 @@ public class Dao {
 					String rock = rst.getString("rock");
 					String comment = rst.getString("description");
 					String faStr = rst.getString("fa");
-					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<ArrayList<User>>(){}.getType());
+					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					int numTicks = rst.getInt("num_ticks");
