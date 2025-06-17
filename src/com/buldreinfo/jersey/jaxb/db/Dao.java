@@ -4674,7 +4674,7 @@ public class Dao {
 					String problemGrade = rst.getString(pitch == 0? "problem_grade" : "problem_section_grade");
 					int problemGradeGroup = rst.getInt(pitch == 0? "problem_grade_group" : "problem_section_grade_group");
 					String problemSubtype = rst.getString("problem_subtype");
-					int nr = rst.getInt(pitch == 0? "nr" : "pitch");
+					int nr = rst.getInt("nr");
 					int id = rst.getInt("id");
 					String path = rst.getString("path");
 					boolean hasAnchor = rst.getBoolean("has_anchor");
