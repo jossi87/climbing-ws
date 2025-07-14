@@ -1097,7 +1097,7 @@ public class Dao {
 		}
 		return res.values();
 	}
-	
+
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		Media res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -3933,11 +3933,14 @@ public class Dao {
 			throw new RuntimeException("Server error");
 		}
 		if (!alreadyExistsInDb) {
-			if (!Strings.isNullOrEmpty(m.inPhoto())) {
+			if (m.inPhoto() != null && !m.inPhoto().isEmpty()) {
 				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, getExistingOrInsertUser(c, m.inPhoto()));
-					ps.execute();
+					for (User u : m.inPhoto()) {
+						ps.setInt(1, idMedia);
+						ps.setInt(2, getExistingOrInsertUser(c, u.name()));
+						ps.execute();
+					}
+					ps.executeBatch();
 				}
 			}
 			if (isMovie) {
@@ -4106,18 +4109,15 @@ public class Dao {
 		if (Strings.isNullOrEmpty(name)) {
 			return 1049; // Unknown
 		}
-		int usId = -1;
 		try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")) {
 			ps.setString(1, name);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					usId = rst.getInt("id");
+					return rst.getInt("id");
 				}
 			}
 		}
-		if (usId == -1) {
-			usId = addUser(c, null, name, null, null);
-		}
+		int usId = addUser(c, null, name, null, null);
 		Preconditions.checkArgument(usId > 0);
 		return usId;
 	}
