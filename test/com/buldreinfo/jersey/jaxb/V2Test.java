@@ -2,7 +2,6 @@ package com.buldreinfo.jersey.jaxb;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Desktop;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -151,10 +150,8 @@ public class V2Test {
 			Path p = Files.createTempFile("problemPdf", ".pdf");
 			try (var fos = new FileOutputStream(p.toFile())) {
                 streamingOutput.write(fos);
-                if (Desktop.isDesktopSupported()) {
-        			Desktop.getDesktop().open(p.toFile()); // TODO Files.delete in prod
-        		}
             }
+			Files.deleteIfExists(p);
 		}
 	}
 
