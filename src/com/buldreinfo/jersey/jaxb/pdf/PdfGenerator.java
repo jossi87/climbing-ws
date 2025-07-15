@@ -27,7 +27,7 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
-import com.buldreinfo.jersey.jaxb.model.Slope;
+import com.buldreinfo.jersey.jaxb.leafletprint.beans.PrintSlope;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
@@ -42,6 +42,7 @@ import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
+import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
@@ -72,21 +73,7 @@ import com.lowagie.text.pdf.PdfPageEventHelper;
 import com.lowagie.text.pdf.PdfWriter;
 
 public class PdfGenerator implements AutoCloseable {
-	class WatermarkedCell implements PdfPCellEvent {
-		String watermark;
-		public WatermarkedCell(String watermark) {
-			this.watermark = watermark;
-		}
-		@Override
-		public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
-			PdfContentByte canvas = canvases[PdfPTable.TEXTCANVAS];
-			ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER,
-					new Phrase(watermark),
-					(position.getLeft() + position.getRight()) / 2,
-					(position.getBottom()+2), 0);
-		}
-	}
-	class MyFooter extends PdfPageEventHelper {
+	private class MyFooter extends PdfPageEventHelper {
 		@Override
 		public void onEndPage(PdfWriter writer, Document document) {
 			PdfContentByte cb = writer.getDirectContent();
@@ -102,8 +89,35 @@ public class PdfGenerator implements AutoCloseable {
 					document.bottom() - 10, 0);
 		}
 	}
+	private class WatermarkedCell implements PdfPCellEvent {
+		private final String watermark;
+		public WatermarkedCell(String watermark) {
+			this.watermark = watermark;
+		}
+		@Override
+		public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
+			var textCanvas = canvases[PdfPTable.TEXTCANVAS];
+			var phrase = new Phrase(watermark, FONT_WATERMARK);
+			var x = (position.getLeft() + position.getRight()) / 2;
+			var y = position.getTop() - phrase.getFont().getSize();
+			// Draw outline (white)
+			textCanvas.saveState();
+			textCanvas.setColorStroke(Color.BLACK);
+			textCanvas.setLineWidth(0.6f);
+			textCanvas.setTextRenderingMode(PdfContentByte.TEXT_RENDER_MODE_STROKE);
+			ColumnText.showTextAligned(textCanvas, Element.ALIGN_CENTER, phrase, x, y, 0);
+			textCanvas.restoreState();
+			// Draw the main text (black) on top of the outline
+			textCanvas.saveState();
+			textCanvas.setColorFill(Color.WHITE);
+			textCanvas.setTextRenderingMode(PdfContentByte.TEXT_RENDER_MODE_FILL);
+			ColumnText.showTextAligned(textCanvas, Element.ALIGN_CENTER, phrase, x, y, 0);
+			textCanvas.restoreState();
+		}
+	}
 	private static Logger logger = LogManager.getLogger();
 	private static Font FONT_SMALL = new Font(Font.UNDEFINED, 5, Font.ITALIC);
+	private static Font FONT_WATERMARK = new Font(Font.UNDEFINED, 6, Font.NORMAL);
 	private static Font FONT_H1 = new Font(Font.HELVETICA, 18, Font.BOLD);
 	private static Font FONT_H2 = new Font(Font.HELVETICA, 12, Font.BOLD);
 	private static Font FONT_REGULAR = new Font(Font.HELVETICA, 9, Font.NORMAL);
@@ -183,6 +197,18 @@ public class PdfGenerator implements AutoCloseable {
 		writeMapProblem(area, sector, problem);
 		if (!Strings.isNullOrEmpty(problem.getBroken())) {
 			document.add(new Phrase(problem.getBroken(), FONT_BOLD));
+		}
+		if (!Strings.isNullOrEmpty(problem.getStartingAltitude())) {
+			document.add(new Paragraph("Starting altitude: " + problem.getStartingAltitude(), FONT_REGULAR));
+		}
+		if (!Strings.isNullOrEmpty(problem.getAspect())) {
+			document.add(new Paragraph("Aspect: " + problem.getAspect(), FONT_REGULAR));
+		}
+		if (!Strings.isNullOrEmpty(problem.getRouteLength())) {
+			document.add(new Paragraph("Route length: " + problem.getRouteLength(), FONT_REGULAR));
+		}
+		if (!Strings.isNullOrEmpty(problem.getDescent())) {
+			document.add(new Paragraph("Descent: " + problem.getDescent(), FONT_REGULAR));
 		}
 		if (!Strings.isNullOrEmpty(sector.getAccessInfo())) {
 			document.add(new Phrase(sector.getAccessInfo(), FONT_BOLD));
@@ -311,15 +337,21 @@ public class PdfGenerator implements AutoCloseable {
 		// Media
 		List<Media> media = Lists.newArrayList();
 		if (area.getMedia() != null) {
-			media.addAll(area.getMedia());
+			media.addAll(area.getMedia().stream()
+					.filter(m -> m.idType() == 1)
+					.toList());
 		}
 		if (problem.getMedia() != null) {
-			media.addAll(problem.getMedia());
+			media.addAll(problem.getMedia().stream()
+					.filter(m -> m.idType() == 1)
+					.toList());
 		}
 		if (problem.getSections() != null) {
 			for (ProblemSection s : problem.getSections()) {
 				if (s.media() != null) {
-					media.addAll(s.media());
+					media.addAll(s.media().stream()
+							.filter(m -> m.idType() == 1)
+							.toList());
 				}
 			}
 		}
@@ -419,6 +451,18 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
+	private String convertFromApproachToPolyline(List<Coordinates> approach) {
+		return approach.stream().map(a -> a.getLatitude() + "," + a.getLongitude()).collect(Collectors.joining(";"));
+	}
+
+	private String getDistance(Slope a) {
+		long meter = a.distance();
+		if (meter > 1000) {
+			return meter/1000 + " km";
+		}
+		return meter + " meter";
+	}
+
 	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
 		if (imageStarEmpty == null) {
 			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
@@ -460,16 +504,12 @@ public class PdfGenerator implements AutoCloseable {
 		}
 		return name;
 	}
-	
-	private String convertFromApproachToPolyline(List<Coordinates> approach) {
-		return approach.stream().map(a -> a.getLatitude() + "," + a.getLongitude()).collect(Collectors.joining(";"));
-	}
 
 	private void writeMapArea(Area area, List<Sector> sectors) {
 		try {
 			List<Marker> markers = new ArrayList<>();
 			List<Outline> outlines = new ArrayList<>();
-			List<String> polylines = new ArrayList<>();
+			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
 			if (area.getCoordinates() != null && area.getCoordinates().getLatitude() > 0 && area.getCoordinates().getLongitude() > 0) {
 				defaultCenter = new LatLng(area.getCoordinates().getLatitude(), area.getCoordinates().getLongitude());
@@ -484,9 +524,12 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				String distance = null;
 				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-					polylines.add(polyline);
-					distance = getDistance(sector.getApproach());
+					var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
+					slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+				}
+				if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
+					var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
+					slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -503,8 +546,8 @@ public class PdfGenerator implements AutoCloseable {
 				}
 			}
 
-			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, false);
+			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, false);
 				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
@@ -526,7 +569,7 @@ public class PdfGenerator implements AutoCloseable {
 		try {
 			List<Marker> markers = new ArrayList<>();
 			List<Outline> outlines = new ArrayList<>();
-			List<String> polylines = new ArrayList<>();
+			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
 			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
 				defaultCenter = new LatLng(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude());
@@ -548,9 +591,12 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			String distance = null;
 			if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-				String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-				polylines.add(polyline);
-				distance = getDistance(sector.getApproach());
+				var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
+				slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+			}
+			if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
+				var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
+				slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
 			}
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -558,8 +604,8 @@ public class PdfGenerator implements AutoCloseable {
 				outlines.add(new Outline(label, polygonCoords));
 			}
 
-			if (!markers.isEmpty() || !outlines.isEmpty() || !polylines.isEmpty()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, false);
+			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
+				Leaflet leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, false);
 				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
@@ -573,8 +619,8 @@ public class PdfGenerator implements AutoCloseable {
 					markers = markers.stream().filter(m -> !m.iconType().equals(IconType.PARKING)).collect(Collectors.toList());
 					if (!markers.isEmpty()) {
 						outlines.clear();
-						polylines.clear();
-						leaflet = new Leaflet(markers, outlines, polylines, null, defaultCenter, defaultZoom, true);
+						slopes.clear();
+						leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, true);
 						optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
 						if (optSnapshot.isPresent()) {
 							img = Image.getInstance(optSnapshot.get());
@@ -592,19 +638,11 @@ public class PdfGenerator implements AutoCloseable {
 			logger.warn(e.getMessage(), e);
 		}
 	}
-	
-	private String getDistance(Slope a) {
-		long meter = a.distance();
-		if (meter > 1000) {
-			return meter/1000 + " km";
-		}
-		return meter + " meter";
-	}
 
 	private void writeMapSector(Sector sector) {
 		try {
 			List<Outline> outlines = new ArrayList<>();
-			List<String> polylines = new ArrayList<>();
+			List<PrintSlope> slopes = new ArrayList<>();
 			List<Marker> markers = new ArrayList<>();
 			LatLng defaultCenter = null;
 			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
@@ -639,9 +677,12 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				String distance = null;
 				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-					String polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-					polylines.add(polyline);
-					distance = getDistance(sector.getApproach());
+					var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
+					slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+				}
+				if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
+					var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
+					slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
 					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
@@ -651,7 +692,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 
 			if (!markers.isEmpty()) {
-				Leaflet leaflet = new Leaflet(markers, outlines, polylines, legends, defaultCenter, defaultZoom, true);
+				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, true);
 				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
@@ -693,7 +734,6 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void writeSectors(Meta meta, List<Sector> sectors) throws DocumentException, IOException, TranscoderException, TransformerException {
-		// TODO Include trivia + ice-fields? trivia, starting_altitude, aspect, route_length, descent
 		for (Sector s : sectors) {
 			final boolean showType = meta.isClimbing();
 			document.newPage();

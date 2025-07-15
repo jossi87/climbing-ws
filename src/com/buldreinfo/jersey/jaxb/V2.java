@@ -157,10 +157,11 @@ public class V2 {
 	@Path("/areas")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAreas(@Context HttpServletRequest request,
-			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
+			@Parameter(description = "Area id", required = false) @QueryParam("id") int id,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Collection<Area> areas = id > 0?
-					Collections.singleton(dao.getArea(c, setup, authUserId, id)) :
+					Collections.singleton(dao.getArea(c, setup, authUserId, id, !dontUpdateHits)) :
 						dao.getAreaList(c, authUserId, setup.idRegion());
 			return Response.ok().entity(areas).build();
 		});
@@ -174,13 +175,14 @@ public class V2 {
 	public Response getAreasPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			final boolean dontUpdateHits = true;
 			final Meta meta = Meta.from(dao, c, setup, authUserId);
-			final Area area = dao.getArea(c, setup, authUserId, id);
+			final Area area = dao.getArea(c, setup, authUserId, id, !dontUpdateHits);
 			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.AreaSector sector : area.getSectors()) {
-				Sector s = dao.getSector(c, authUserId, orderByGrade, setup, sector.getId());
+				Sector s = dao.getSector(c, authUserId, orderByGrade, setup, sector.getId(), !dontUpdateHits);
 				sectors.add(s);
 			}
 			StreamingOutput stream = new StreamingOutput() {
@@ -413,10 +415,11 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblem(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia
+			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Problem res = dao.getProblem(c, authUserId, setup, id, showHiddenMedia);
+			Problem res = dao.getProblem(c, authUserId, setup, id, showHiddenMedia, !dontUpdateHits);
 			Response response = Response.ok().entity(res).build();
 			return response;
 		});
@@ -429,9 +432,10 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			final Problem problem = dao.getProblem(c, authUserId, setup, id, false);
-			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId());
-			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId());
+			final boolean dontUpdateHits = true;
+			final Problem problem = dao.getProblem(c, authUserId, setup, id, false, !dontUpdateHits);
+			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), !dontUpdateHits);
+			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), !dontUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -527,11 +531,12 @@ public class V2 {
 	@Path("/sectors")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getSectors(@Context HttpServletRequest request,
-			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id
+			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			final boolean orderByGrade = setup.gradeSystem().equals(GradeSystem.BOULDER);
-			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id);
+			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, !dontUpdateHits);
 			Response response = Response.ok().entity(s).build();
 			return response;
 		});
@@ -544,10 +549,11 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			final boolean dontUpdateHits = true;
 			final Meta meta = Meta.from(dao, c, setup, authUserId);
-			final Sector sector = dao.getSector(c, authUserId, false, setup, id);
+			final Sector sector = dao.getSector(c, authUserId, false, setup, id, !dontUpdateHits);
 			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, 0, id);
-			final Area area = dao.getArea(c, setup, authUserId, sector.getAreaId());
+			final Area area = dao.getArea(c, setup, authUserId, sector.getAreaId(), !dontUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -756,10 +762,11 @@ public class V2 {
 	@GET
 	@Path("/without-js/area/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) {
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Area a = dao.getArea(c, setup, authUserId, id);
+			Area a = dao.getArea(c, setup, authUserId, id, !dontUpdateHits);
 			String description = null;
 			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
 					.stream()
@@ -782,25 +789,27 @@ public class V2 {
 			return Response.ok().entity(html).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) {
-		return getWithoutJsProblemMedia(request, id, 0);
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
+		return getWithoutJsProblemMedia(request, id, 0, dontUpdateHits);
 	}
-	
+
 	@Operation(summary = "Get problem by id and idMedia without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/problem/{id}/{mediaId}")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsProblemMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
-			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Problem p = dao.getProblem(c, authUserId, setup, id, false);
+			Problem p = dao.getProblem(c, authUserId, setup, id, false, !dontUpdateHits);
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
 			if (p.getFa() != null && !p.getFa().isEmpty()) {
@@ -838,19 +847,21 @@ public class V2 {
 	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
 			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
-			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch) {
-		return getWithoutJsProblemMedia(request, id, mediaId);
+			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
+		return getWithoutJsProblemMedia(request, id, mediaId, dontUpdateHits);
 	}
 
 	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
 	@GET
 	@Path("/without-js/sector/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) {
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id,
+			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
-			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id);
+			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, !dontUpdateHits);
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "Bouldering" : "Climbing"),
@@ -946,12 +957,13 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProblemsMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+		final boolean dontUpdateHits = true;
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			dao.addProblemMedia(c, authUserId, p, multiPart);
-			Problem res = dao.getProblem(c, authUserId, setup, p.getId(), false);
+			Problem res = dao.getProblem(c, authUserId, setup, p.getId(), false, !dontUpdateHits);
 			return Response.ok().entity(res).build();
 		});
 	}

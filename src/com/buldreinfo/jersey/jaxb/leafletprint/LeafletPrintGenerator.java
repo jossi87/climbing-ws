@@ -56,15 +56,6 @@ public class LeafletPrintGenerator {
 	}
 	
 	public static Optional<byte[]> takeSnapshot(Leaflet leaflet) throws IOException, InterruptedException {
-		byte[] res = takeSnapshotWorker(leaflet);
-		if (res == null) {
-			Thread.sleep(1000);
-			res = takeSnapshotWorker(leaflet);
-		}
-		return Optional.ofNullable(res);
-	}
-	
-	private static byte[] takeSnapshotWorker(Leaflet leaflet) throws IOException, InterruptedException {
 		Path png = Files.createTempFile("leafletScreenshot_" + UUID.randomUUID(), ".png");
 		Path script = GlobalFunctions.getPathLeafletPrint();
 		Gson gson = new Gson();
@@ -79,11 +70,11 @@ public class LeafletPrintGenerator {
 		if (!Files.exists(png) || Files.size(png) == 0) {
 			Files.deleteIfExists(png);
 			logger.warn("takeSnapshot() failed - Files.exists({})={}, json={}", png.toString(), Files.exists(png), json);
-			return null;
+			return Optional.empty();
 		}
 		byte[] res = Files.readAllBytes(png);
 		Files.deleteIfExists(png);
-		return res;
+		return Optional.of(res);
 	}
 	
 	private static void watch(final Process process) {

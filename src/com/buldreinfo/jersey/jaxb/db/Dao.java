@@ -600,11 +600,13 @@ public class Dao {
 		return res;
 	}
 
-	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId) throws SQLException {
+	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId, boolean updateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		try (PreparedStatement ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
-			ps.setInt(1, reqId);
-			ps.execute();
+		if (updateHits) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
+				ps.setInt(1, reqId);
+				ps.execute();
+			}
 		}
 		Area a = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits")) {
@@ -1168,11 +1170,13 @@ public class Dao {
 		return res;
 	}
 
-	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia) throws SQLException {
+	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean updateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
-			ps.setInt(1, reqId);
-			ps.execute();
+		if (updateHits) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
+				ps.setInt(1, reqId);
+				ps.execute();
+			}
 		}
 		List<Integer> todoIdProblems = new ArrayList<>();
 		ProfileTodo todo = getProfileTodo(c, authUserId, s, authUserId.orElse(0));
@@ -2106,9 +2110,97 @@ public class Dao {
 		return res;
 	}
 
-	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId) throws SQLException {
-		final boolean updateHits = true;
-		return getSector(c, authUserId, orderByGrade, setup, reqId, updateHits);
+	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		if (updateHits) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
+				ps.setInt(1, reqId);
+				ps.execute();
+			}
+		}
+		Sector s = null;
+		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits")) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, reqId);
+			ps.setInt(3, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areaId = rst.getInt("area_id");
+					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
+					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					String areaAccessInfo = rst.getString("area_access_info");
+					String areaAccessClosed = rst.getString("area_access_closed");
+					boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
+					int areaSunFromHour = rst.getInt("area_sun_from_hour");
+					int areaSunToHour = rst.getInt("area_sun_to_hour");
+					String areaName = rst.getString("area_name");
+					String canonical = rst.getString("canonical");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					String name = rst.getString("name");
+					String comment = rst.getString("description");
+					String accessInfo = rst.getString("access_info");
+					String accessClosed = rst.getString("access_closed");
+					int sunFromHour = rst.getInt("sun_from_hour");
+					int sunToHour = rst.getInt("sun_to_hour");
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					List<Coordinates> sectorOutline = getSectorOutline(c, reqId);
+					Slope sectorApproach = getSectorSlopes(c, true, Collections.singleton(reqId)).getOrDefault(reqId, null);
+					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(reqId)).getOrDefault(reqId, null);
+					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
+					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
+					int hits = rst.getInt("hits");
+					List<Media> media = null;
+					List<Media> triviaMedia = null;
+					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, areaId, 0, 0, false);
+					allMedia.addAll(getMediaArea(c, authUserId, areaId, true, 0, reqId, 0));
+					if (!allMedia.isEmpty()) {
+						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
+						if (media.size() != allMedia.size()) {
+							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
+						}
+					}
+
+					if (media != null && media.isEmpty()) {
+						media = null;
+					}
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, hits);
+				}
+			}
+		}
+		if (s == null) {
+			// Sector not found, see if it's visible on a different domain
+			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
+			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0);
+			}
+		}
+
+		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
+		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, s.getAreaId());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					String name = rst.getString("name");
+					int sorting = rst.getInt("sorting");
+					s.addSector(id, lockedAdmin, lockedSuperadmin, name, sorting);
+				}
+			}
+		}
+		s.orderSectors();
+		for (SectorProblem sp : getSectorProblems(c, setup, authUserId, reqId)) {
+			s.addProblem(sp);
+		}
+		if (!s.getProblems().isEmpty() && orderByGrade) {
+			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::gradeNumber).reversed());
+		}
+		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
+		return s;
 	}
 
 	public List<Setup> getSetups(Connection c) throws SQLException {
@@ -2964,7 +3056,7 @@ public class Dao {
 		}
 		if (a.getId() > 0) {
 			ensureAdminWriteArea(c, authUserId, a.getId());
-			Area currArea = getArea(c, s, authUserId, a.getId());
+			Area currArea = getArea(c, s, authUserId, a.getId(), false);
 			setPermissionRecursive = currArea.isLockedAdmin() != isLockedAdmin || currArea.isLockedSuperadmin() != a.isLockedSuperadmin();
 			try (PreparedStatement ps = c.prepareStatement("UPDATE area SET name=?, description=?, coordinates_id=?, locked_admin=?, locked_superadmin=?, for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?")) {
 				ps.setString(1, GlobalFunctions.stripString(a.getName()));
@@ -3132,7 +3224,7 @@ public class Dao {
 				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.isLockedSuperadmin());
-				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId()).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
 				ps.setInt(13, p.getT().id());
 				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
 				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
@@ -3300,7 +3392,7 @@ public class Dao {
 		ensureCoordinatesInDbWithElevationAndId(c, allCoordinates);
 		// Sector
 		if (s.getId() > 0) {
-			Sector currSector = getSector(c, authUserId, false, setup, s.getId());
+			Sector currSector = getSector(c, authUserId, false, setup, s.getId(), false);
 			setPermissionRecursive = currSector.isLockedAdmin() != isLockedAdmin || currSector.isLockedSuperadmin() != s.isLockedSuperadmin();
 			try (PreparedStatement ps = c.prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
 				ps.setString(1, GlobalFunctions.stripString(s.getName()));
@@ -3669,7 +3761,7 @@ public class Dao {
 	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		if (co.id() > 0) {
-			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false).getComments();
+			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false, false).getComments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
 			ProblemComment comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
 			if (comment.isEditable()) {
@@ -4388,99 +4480,6 @@ public class Dao {
 		}
 		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
 		return res;
-	}
-
-	private Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		if (updateHits) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
-				ps.setInt(1, reqId);
-				ps.execute();
-			}
-		}
-		Sector s = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, reqId);
-			ps.setInt(3, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					String areaAccessInfo = rst.getString("area_access_info");
-					String areaAccessClosed = rst.getString("area_access_closed");
-					boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
-					int areaSunFromHour = rst.getInt("area_sun_from_hour");
-					int areaSunToHour = rst.getInt("area_sun_to_hour");
-					String areaName = rst.getString("area_name");
-					String canonical = rst.getString("canonical");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					String name = rst.getString("name");
-					String comment = rst.getString("description");
-					String accessInfo = rst.getString("access_info");
-					String accessClosed = rst.getString("access_closed");
-					int sunFromHour = rst.getInt("sun_from_hour");
-					int sunToHour = rst.getInt("sun_to_hour");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates parking = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					List<Coordinates> sectorOutline = getSectorOutline(c, reqId);
-					Slope sectorApproach = getSectorSlopes(c, true, Collections.singleton(reqId)).getOrDefault(reqId, null);
-					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(reqId)).getOrDefault(reqId, null);
-					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
-					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
-					int hits = rst.getInt("hits");
-					List<Media> media = null;
-					List<Media> triviaMedia = null;
-					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, areaId, 0, 0, false);
-					allMedia.addAll(getMediaArea(c, authUserId, areaId, true, 0, reqId, 0));
-					if (!allMedia.isEmpty()) {
-						media = allMedia.stream().filter(x -> !x.trivia()).collect(Collectors.toList());
-						if (media.size() != allMedia.size()) {
-							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
-						}
-					}
-
-					if (media != null && media.isEmpty()) {
-						media = null;
-					}
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, hits);
-				}
-			}
-		}
-		if (s == null) {
-			// Sector not found, see if it's visible on a different domain
-			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
-			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0);
-			}
-		}
-
-		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
-		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, s.getAreaId());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					String name = rst.getString("name");
-					int sorting = rst.getInt("sorting");
-					s.addSector(id, lockedAdmin, lockedSuperadmin, name, sorting);
-				}
-			}
-		}
-		s.orderSectors();
-		for (SectorProblem sp : getSectorProblems(c, setup, authUserId, reqId)) {
-			s.addProblem(sp);
-		}
-		if (!s.getProblems().isEmpty() && orderByGrade) {
-			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::gradeNumber).reversed());
-		}
-		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
-		return s;
 	}
 
 	private List<Coordinates> getSectorOutline(Connection c, int idSector) throws SQLException {

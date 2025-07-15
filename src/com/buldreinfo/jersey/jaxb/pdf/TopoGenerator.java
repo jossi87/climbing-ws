@@ -217,7 +217,7 @@ public class TopoGenerator {
 				text.setAttributeNS(null, "x", String.valueOf(xMin));
 				text.setAttributeNS(null, "y", String.valueOf(yMin));
 				text.setAttributeNS(null, "dy", String.valueOf(r/3));
-				text.appendChild(doc.createTextNode(String.valueOf(svg.nr())));
+				text.appendChild(doc.createTextNode(String.valueOf(svg.pitch() > 0 ? svg.pitch() : svg.nr())));
 				texts.add(text);
 
 				Gson gson = new Gson();

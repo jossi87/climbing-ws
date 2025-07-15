@@ -178,7 +178,7 @@ public class FillProblems {
 	}
 
 	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
-		Area a = Preconditions.checkNotNull(dao.getArea(c, setup, AUTH_USER_ID, idArea));
+		Area a = Preconditions.checkNotNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, false));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
 				return s.getId();
