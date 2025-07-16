@@ -3692,8 +3692,8 @@ public class Dao {
 
 	public void setUserEmailVisibleForAll(Connection c, Optional<Integer> authUserId, boolean emailVisibleForAll) throws SQLException {
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET email_visible_to_all=? WHERE id=?")) {
-			ps.setInt(1, authUserId.orElseThrow());
-			ps.setBoolean(2, emailVisibleForAll);
+			ps.setBoolean(1, emailVisibleForAll);
+			ps.setInt(2, authUserId.orElseThrow());
 			ps.execute();
 		}
 	}
