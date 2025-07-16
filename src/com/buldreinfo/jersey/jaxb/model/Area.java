@@ -60,24 +60,16 @@ public class Area {
 			return approach;
 		}
 		
-		public Slope getDescent() {
-			return descent;
-		}
-		
-		public int getSunFromHour() {
-			return sunFromHour;
-		}
-		
-		public int getSunToHour() {
-			return sunToHour;
-		}
-
 		public String getAreaName() {
 			return areaName;
 		}
-
+		
 		public String getComment() {
 			return comment;
+		}
+		
+		public Slope getDescent() {
+			return descent;
 		}
 
 		public int getId() {
@@ -91,7 +83,7 @@ public class Area {
 		public int getNumProblems() {
 			return numProblems;
 		}
-		
+
 		public List<Coordinates> getOutline() {
 			return outline;
 		}
@@ -107,13 +99,21 @@ public class Area {
 		public int getRandomMediaCrc32() {
 			return randomMediaCrc32;
 		}
-
+		
 		public int getRandomMediaId() {
 			return randomMediaId;
 		}
 
 		public int getSorting() {
 			return sorting;
+		}
+
+		public int getSunFromHour() {
+			return sunFromHour;
+		}
+
+		public int getSunToHour() {
+			return sunToHour;
 		}
 
 		public List<TypeNumTicked> getTypeNumTicked() {
@@ -174,10 +174,10 @@ public class Area {
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<NewMedia> newMedia;
-	private final long hits;
+	private final String pageViews;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.regionId = regionId;
 		this.canonical = canonical;
@@ -201,7 +201,7 @@ public class Area {
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
-		this.hits = hits;
+		this.pageViews = pageViews;
 	}
 
 	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, int randomMediaCrc32) {
@@ -231,10 +231,6 @@ public class Area {
 		return coordinates;
 	}
 
-	public long getHits() {
-		return hits;
-	}
-
 	public int getId() {
 		return id;
 	}
@@ -257,6 +253,10 @@ public class Area {
 
 	public int getNumSectors() {
 		return numSectors;
+	}
+
+	public String getPageViews() {
+		return pageViews;
 	}
 
 	public String getRedirectUrl() {

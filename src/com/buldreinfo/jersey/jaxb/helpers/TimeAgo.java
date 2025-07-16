@@ -38,10 +38,4 @@ public class TimeAgo {
 			return res.toString();
 		}
 	}
-
-	public static void main(String args[]) {
-		for (int daysBetween : Lists.newArrayList(0, 1, 4, 6, 7, 13, 14, 30, 365, 4124)) {
-			System.out.println(daysBetween + ": " + toDuration(daysBetween));
-		}
-	}
 }

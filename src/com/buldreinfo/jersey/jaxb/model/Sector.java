@@ -40,9 +40,9 @@ public class Sector {
 	private final List<SectorProblem> problems = new ArrayList<>();
 	private final List<SectorProblemOrder> problemOrder = new ArrayList<>();
 	private final List<NewMedia> newMedia;
-	private final long hits;
+	private final String pageViews;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, long hits) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -74,7 +74,7 @@ public class Sector {
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
-		this.hits = hits;
+		this.pageViews = pageViews;
 	}
 	
 	public void addProblem(SectorProblem sp) {
@@ -134,10 +134,6 @@ public class Sector {
 		return descent;
 	}
 
-	public long getHits() {
-		return hits;
-	}
-	
 	public int getId() {
 		return id;
 	}
@@ -156,6 +152,10 @@ public class Sector {
 	
 	public List<Coordinates> getOutline() {
 		return outline;
+	}
+	
+	public String getPageViews() {
+		return pageViews;
 	}
 	
 	public Coordinates getParking() {
@@ -182,6 +182,14 @@ public class Sector {
 		return sectors;
 	}
 	
+	public int getSunFromHour() {
+		return sunFromHour;
+	}
+	
+	public int getSunToHour() {
+		return sunToHour;
+	}
+	
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
@@ -197,7 +205,7 @@ public class Sector {
 	public boolean isAreaLockedAdmin() {
 		return areaLockedAdmin;
 	}
-	
+
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
@@ -205,7 +213,7 @@ public class Sector {
 	public boolean isAreaNoDogsAllowed() {
 		return areaNoDogsAllowed;
 	}
-
+	
 	public boolean isLockedAdmin() {
 		return lockedAdmin;
 	}
@@ -220,14 +228,6 @@ public class Sector {
 	
 	public boolean isTrash() {
 		return trash;
-	}
-	
-	public int getSunFromHour() {
-		return sunFromHour;
-	}
-	
-	public int getSunToHour() {
-		return sunToHour;
 	}
 	
 	public void orderSectors() {

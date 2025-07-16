@@ -43,6 +43,7 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
+import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
@@ -629,7 +630,7 @@ public class Dao {
 					String comment = rst.getString("description");
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					int hits = rst.getInt("hits");
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false, 0, 0, 0);
@@ -639,7 +640,7 @@ public class Dao {
 							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
-					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, hits);
+					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, pageViews);
 				}
 			}
 		}
@@ -647,7 +648,7 @@ public class Dao {
 			// Area not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, reqId, 0, 0);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, 0);
+				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null);
 			}
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
@@ -772,8 +773,8 @@ public class Dao {
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
-					int hits = rst.getInt("hits");
-					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, hits));
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, pageViews));
 				}
 			}
 		}
@@ -1266,7 +1267,7 @@ public class Dao {
 						}
 					}
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					int hits = rst.getInt("hits");
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
 					String trivia = rst.getString("trivia");
 					String startingAltitude = rst.getString("starting_altitude");
 					String aspect = rst.getString("aspect");
@@ -1302,7 +1303,7 @@ public class Dao {
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							s.gradeConverter().getGradeFromIdGrade(grade),
 							s.gradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
-							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), hits,
+							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), pageViews,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
 			}
@@ -1311,7 +1312,7 @@ public class Dao {
 			// Poblem not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, 0, null, null, null, null, null, null);
+				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
 			}
 		}
 
@@ -1992,8 +1993,8 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					int hits = rst.getInt("hits");
-					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
 				}
 			}
 		}
@@ -2017,8 +2018,8 @@ public class Dao {
 						String externalUrl = rst.getString("external_url");
 						String name = rst.getString("name");
 						String regionName = rst.getString("region_name");
-						int hits = rst.getInt("hits");
-						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, hits));
+						String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, pageViews));
 					}
 				}
 			}
@@ -2047,8 +2048,8 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					int hits = rst.getInt("hits");
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
 				}
 			}
 		}
@@ -2084,8 +2085,8 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					int hits = rst.getInt("hits");
-					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
 				}
 			}
 		}
@@ -2103,7 +2104,7 @@ public class Dao {
 					String picture = rst.getString("picture");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false, 0));
+					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false, null));
 				}
 			}
 		}
@@ -2177,7 +2178,7 @@ public class Dao {
 					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(reqId)).getOrDefault(reqId, null);
 					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
-					int hits = rst.getInt("hits");
+					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
 					List<Media> media = null;
 					List<Media> triviaMedia = null;
 					List<Media> allMedia = getMediaSector(c, setup, authUserId, reqId, 0, false, areaId, 0, 0, false);
@@ -2192,7 +2193,7 @@ public class Dao {
 					if (media != null && media.isEmpty()) {
 						media = null;
 					}
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, hits);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, pageViews);
 				}
 			}
 		}
@@ -2200,7 +2201,7 @@ public class Dao {
 			// Sector not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0);
+				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null);
 			}
 		}
 
