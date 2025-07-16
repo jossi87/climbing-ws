@@ -1,3 +1,5 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public record Administrator(int userId, String name, String picture, String lastLogin) {}
+import java.util.List;
+
+public record Administrator(int userId, String name, List<String> emails, String picture, String lastLogin) {}

@@ -111,6 +111,7 @@ import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -584,17 +585,32 @@ public class Dao {
 
 	public List<Administrator> getAdministrators(Connection c, int idRegion) throws SQLException {
 		List<Administrator> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1) GROUP BY u.id, u.firstname, u.lastname, u.picture ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT u.id,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
+				       CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture,
+				       DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login
+				FROM ((user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) LEFT JOIN user_email e ON u.id=e.user_id)
+				WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)
+				GROUP BY u.id, u.firstname, u.lastname, u.picture
+				ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))
+				""")) {
 			ps.setInt(1, idRegion);
 			try (ResultSet rst = ps.executeQuery()) {
 				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 				while (rst.next()) {
 					int userId = rst.getInt("id");
 					String name = rst.getString("name");
+					String emailsStr = rst.getString("emails");
+					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
+							.trimResults()
+							.omitEmptyStrings()
+							.splitToList(emailsStr);
 					String picture = rst.getString("picture");
 					String lastLogin = rst.getString("last_login");
 					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.add(new Administrator(userId, name, picture, timeAgo));
+					res.add(new Administrator(userId, name, emails, picture, timeAgo));
 				}
 			}
 		}
@@ -1456,15 +1472,27 @@ public class Dao {
 		int userId = reqUserId > 0? reqUserId : authUserId.orElse(0);
 		Preconditions.checkArgument(userId > 0);
 		Profile res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture, u.firstname, u.lastname FROM user u WHERE u.id=?")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture,
+					   u.firstname, u.lastname,
+				                   CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails
+				FROM user u LEFT JOIN user_email e ON u.id=e.user_id
+				WHERE u.id=1
+				            GROUP BY u.id, u.picture, u.firstname, u.lastname
+				""")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String picture = rst.getString("picture");
 					String firstname = rst.getString("firstname");
 					String lastname = rst.getString("lastname");
+					String emailsStr = rst.getString("emails");
+					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
+							.trimResults()
+							.omitEmptyStrings()
+							.splitToList(emailsStr);
 					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
-					res = new Profile(userId, picture, firstname, lastname, userRegions);
+					res = new Profile(userId, picture, firstname, lastname, emails, userRegions);
 				}
 			}
 		}
@@ -3660,6 +3688,14 @@ public class Dao {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
 		fillActivity(c, t.idProblem());
+	}
+
+	public void setUserEmailVisibleForAll(Connection c, Optional<Integer> authUserId, boolean emailVisibleForAll) throws SQLException {
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET email_visible_to_all=? WHERE id=?")) {
+			ps.setInt(1, authUserId.orElseThrow());
+			ps.setBoolean(2, emailVisibleForAll);
+			ps.execute();
+		}
 	}
 
 	public void setUserRegion(Connection c, Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {

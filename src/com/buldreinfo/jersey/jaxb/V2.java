@@ -1056,6 +1056,19 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
+	
+	@Operation(summary = "Update email visible to all for profile")
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PUT
+	@Path("/user/email-visible-for-all")
+	public Response putUserEmailVisibleForAll(@Context HttpServletRequest request,
+			@Parameter(description = "Email visible for all", required = true) @QueryParam("emailVisibleForAll") boolean emailVisibleForAll
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			dao.setUserEmailVisibleForAll(c, authUserId, emailVisibleForAll);
+			return Response.ok().build();
+		});
+	}
 
 	@Operation(summary = "Update media location")
 	@SecurityRequirement(name = "Bearer Authentication")
