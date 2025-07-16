@@ -1971,7 +1971,7 @@ public class Dao {
 		Set<Integer> areaIdsVisible = new HashSet<>();
 		List<Search> areas = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, a.hits
 				FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type
 				WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)
 				  AND regexp_like(a.name,?,'i')
@@ -1992,14 +1992,15 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					int hits = rst.getInt("hits");
+					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
 				}
 			}
 		}
 		// External Areas
 		List<Search> externalAreas = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name
+				SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name, a_external.hits
 				FROM region r, region_type rt, region_type rt_external, region r_external, area a_external
 				WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id
 				  AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0
@@ -2016,7 +2017,8 @@ public class Dao {
 						String externalUrl = rst.getString("external_url");
 						String name = rst.getString("name");
 						String regionName = rst.getString("region_name");
-						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false));
+						int hits = rst.getInt("hits");
+						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, hits));
 					}
 				}
 			}
@@ -2024,7 +2026,7 @@ public class Dao {
 		// Sectors
 		List<Search> sectors = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, s.hits
 				FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)
 				  AND regexp_like(s.name,?,'i')
@@ -2045,7 +2047,8 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					int hits = rst.getInt("hits");
+					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
 				}
 			}
 		}
@@ -2054,7 +2057,7 @@ public class Dao {
 		String sqlStr = """
 				SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock,
 				        ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
-				        p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				        p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, p.hits
 				FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
@@ -2081,7 +2084,8 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin));
+					int hits = rst.getInt("hits");
+					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits));
 				}
 			}
 		}
@@ -2099,7 +2103,7 @@ public class Dao {
 					String picture = rst.getString("picture");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false));
+					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false, 0));
 				}
 			}
 		}
