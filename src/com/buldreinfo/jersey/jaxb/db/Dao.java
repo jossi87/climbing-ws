@@ -1475,10 +1475,10 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture,
 					   u.firstname, u.lastname,
-				                   CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails
+				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails
 				FROM user u LEFT JOIN user_email e ON u.id=e.user_id
-				WHERE u.id=1
-				            GROUP BY u.id, u.picture, u.firstname, u.lastname
+				WHERE u.id=?
+				GROUP BY u.id, u.picture, u.firstname, u.lastname
 				""")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
