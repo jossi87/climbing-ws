@@ -1965,17 +1965,24 @@ public class Dao {
 	}
 
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
+		String searchRegexPattern = "(^|\\W)" + search;
 		List<Search> res = new ArrayList<>();
 		// Areas
 		Set<Integer> areaIdsVisible = new HashSet<>();
 		List<Search> areas = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (a.name LIKE ? OR a.name LIKE ? OR a.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits ORDER BY a.hits DESC, a.name LIMIT 8")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				FROM ((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_area ma ON a.id=ma.area_id) LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type
+				WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)
+				  AND regexp_like(a.name,?,'i')
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits
+				ORDER BY a.hits DESC, a.name LIMIT 8
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
-			ps.setString(4, search + "%");
-			ps.setString(5, "% " + search + "%");
-			ps.setString(6, "%(" + search + "%");
+			ps.setString(4, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -1991,11 +1998,17 @@ public class Dao {
 		}
 		// External Areas
 		List<Search> externalAreas = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name FROM region r, region_type rt, region_type rt_external, region r_external, area a_external WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0 AND (a_external.name LIKE ? OR a_external.name LIKE ? OR a_external.name LIKE ?) GROUP BY r_external.url, a_external.id, a_external.name, r_external.name, a_external.hits ORDER BY a_external.hits DESC, a_external.name LIMIT 3")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name
+				FROM region r, region_type rt, region_type rt_external, region r_external, area a_external
+				WHERE r.id=? AND r.id=rt.region_id AND rt.type_id=rt_external.type_id AND rt_external.region_id=r_external.id
+				  AND r.id!=r_external.id AND r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0
+				  AND regexp_like(a_external.name,?,'i')
+				GROUP BY r_external.url, a_external.id, a_external.name, r_external.name, a_external.hits
+				ORDER BY a_external.hits DESC, a_external.name LIMIT 3
+				""")) {
 			ps.setInt(1, setup.idRegion());
-			ps.setString(2, search + "%");
-			ps.setString(3, "% " + search + "%");
-			ps.setString(4, "%(" + search + "%");
+			ps.setString(2, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2010,12 +2023,19 @@ public class Dao {
 		}
 		// Sectors
 		List<Search> sectors = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND (s.name LIKE ? OR s.name LIKE ?) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits ORDER BY s.hits DESC, a.name, s.name LIMIT 8")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_sector ms ON s.id=ms.sector_id) LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL)
+				  AND regexp_like(s.name,?,'i')
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits
+				ORDER BY s.hits DESC, a.name, s.name LIMIT 8
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
-			ps.setString(4, search + "%");
-			ps.setString(5, "% " + search + "%");
+			ps.setString(4, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2038,7 +2058,7 @@ public class Dao {
 				FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL) LEFT JOIN tick t ON p.id=t.problem_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND (p.name LIKE ? OR p.name LIKE ? OR p.rock LIKE ? OR p.rock LIKE ?)
+				  AND (regexp_like(p.name,?,'i') OR regexp_like(p.rock,?,'i'))
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits
 				ORDER BY p.hits DESC, p.name, p.grade LIMIT 8
@@ -2047,10 +2067,8 @@ public class Dao {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
-			ps.setString(4, search + "%");
-			ps.setString(5, "% " + search + "%");
-			ps.setString(6, search + "%");
-			ps.setString(7, "% " + search + "%");
+			ps.setString(4, searchRegexPattern);
+			ps.setString(5, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String areaName = rst.getString("area_name");
@@ -2069,8 +2087,13 @@ public class Dao {
 		}
 		// Users
 		List<Search> users = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT CASE WHEN picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', id, '.jpg') END picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE CONCAT('% ',?,'%') ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8")) {
-			ps.setString(1, search + "%");
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT CASE WHEN picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', id, '.jpg') END picture, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
+				FROM user
+				WHERE regexp_like(CONCAT(' ',firstname,' ',COALESCE(lastname,'')),?,'i')
+				ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8
+				""")) {
+			ps.setString(1, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String picture = rst.getString("picture");
