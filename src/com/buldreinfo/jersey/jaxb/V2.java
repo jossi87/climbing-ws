@@ -987,6 +987,20 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)")
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/profile")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			dao.setProfile(c, authUserId, profile, multiPart);
+			return Response.ok().build();
+		});
+	}
+
 	@Operation(summary = "Search for area/sector/problem/user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1042,7 +1056,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-
+	
 	@Operation(summary = "Update visible regions")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1053,20 +1067,6 @@ public class V2 {
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			dao.setUserRegion(c, authUserId, regionId, delete);
-			return Response.ok().build();
-		});
-	}
-	
-	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)")
-	@SecurityRequirement(name = "Bearer Authentication")
-	@POST
-	@Path("/profile")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response putProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			dao.setProfile(c, authUserId, profile, multiPart);
 			return Response.ok().build();
 		});
 	}
