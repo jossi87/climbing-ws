@@ -3908,7 +3908,7 @@ public class Dao {
 		}
 		fillActivity(c, co.idProblem());
 	}
-	
+
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		// Clear existing
@@ -4346,7 +4346,7 @@ public class Dao {
 		}
 		return res;
 	}
-	
+
 	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
 		Map<Integer, String> res = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
@@ -4361,7 +4361,7 @@ public class Dao {
 		}
 		return res;
 	}
-	
+
 	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
 		List<Grade> res = new ArrayList<>(); 
 		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
@@ -4376,7 +4376,7 @@ public class Dao {
 		}
 		return res;
 	}
-	
+
 	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.uploader_user_id, m.checksum, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
@@ -4947,7 +4947,7 @@ public class Dao {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}
 		var toRemove = previousLinks.stream()
-				.filter(l -> !newLinks.contains(l))
+				.filter(l -> newLinks == null || !newLinks.contains(l))
 				.toList();
 		if (!toRemove.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
@@ -4959,39 +4959,41 @@ public class Dao {
 			}
 		}
 		// Insert new links
-		for (var l : newLinks.stream()
-				.filter(l -> l.id() < 1)
-				.toList()) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setString(1, l.url());
-				ps.setString(2, l.title());
-				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						int externalLinkId = rst.getInt(1);
-						if (areaId > 0) {
-							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
-								ps2.setInt(1, externalLinkId);
-								ps2.setInt(2, areaId);
-								ps2.execute();
+		if (newLinks != null) {
+			for (var l : newLinks.stream()
+					.filter(l -> l.id() < 1)
+					.toList()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+					ps.setString(1, l.url());
+					ps.setString(2, l.title());
+					ps.executeUpdate();
+					try (ResultSet rst = ps.getGeneratedKeys()) {
+						if (rst != null && rst.next()) {
+							int externalLinkId = rst.getInt(1);
+							if (areaId > 0) {
+								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
+									ps2.setInt(1, externalLinkId);
+									ps2.setInt(2, areaId);
+									ps2.execute();
+								}
 							}
-						}
-						else if (sectorId > 0) {
-							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
-								ps2.setInt(1, externalLinkId);
-								ps2.setInt(2, sectorId);
-								ps2.execute();
+							else if (sectorId > 0) {
+								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
+									ps2.setInt(1, externalLinkId);
+									ps2.setInt(2, sectorId);
+									ps2.execute();
+								}
 							}
-						}
-						else if (problemId > 0) {
-							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
-								ps2.setInt(1, externalLinkId);
-								ps2.setInt(2, problemId);
-								ps2.execute();
+							else if (problemId > 0) {
+								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
+									ps2.setInt(1, externalLinkId);
+									ps2.setInt(2, problemId);
+									ps2.execute();
+								}
 							}
-						}
-						else {
-							throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+							else {
+								throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+							}
 						}
 					}
 				}
