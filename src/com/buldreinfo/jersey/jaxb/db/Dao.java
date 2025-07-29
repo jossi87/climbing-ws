@@ -657,7 +657,7 @@ public class Dao {
 							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
-					var externalLinks = getExternalLinksArea(c, reqId);
+					var externalLinks = getExternalLinksArea(c, reqId, false);
 					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
@@ -1312,9 +1312,9 @@ public class Dao {
 							}
 						}
 					}
-					var externalLinks = getExternalLinksProblem(c, reqId);
-					externalLinks.addAll(getExternalLinksSector(c, sectorId));
-					externalLinks.addAll(getExternalLinksArea(c, areaId));
+					var externalLinks = getExternalLinksProblem(c, reqId, false);
+					externalLinks.addAll(getExternalLinksSector(c, sectorId, true));
+					externalLinks.addAll(getExternalLinksArea(c, areaId, true));
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
@@ -2225,8 +2225,8 @@ public class Dao {
 					if (media != null && media.isEmpty()) {
 						media = null;
 					}
-					var externalLinks = getExternalLinksSector(c, reqId);
-					externalLinks.addAll(getExternalLinksArea(c, areaId));
+					var externalLinks = getExternalLinksSector(c, reqId, false);
+					externalLinks.addAll(getExternalLinksArea(c, areaId, true));
 					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
@@ -4287,7 +4287,7 @@ public class Dao {
 		return usId;
 	}
 
-	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId) throws SQLException {
+	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId, boolean inherited) throws SQLException {
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -4301,14 +4301,14 @@ public class Dao {
 					int id = rst.getInt("id");
 					String url = rst.getString("url");
 					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title));
+					res.add(new ExternalLink(id, url, title, inherited));
 				}
 			}
 		}
 		return res;
 	}
 
-	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId) throws SQLException {
+	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId, boolean inherited) throws SQLException {
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -4322,14 +4322,14 @@ public class Dao {
 					int id = rst.getInt("id");
 					String url = rst.getString("url");
 					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title));
+					res.add(new ExternalLink(id, url, title, inherited));
 				}
 			}
 		}
 		return res;
 	}
 
-	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId) throws SQLException {
+	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId, boolean inherited) throws SQLException {
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -4343,7 +4343,7 @@ public class Dao {
 					int id = rst.getInt("id");
 					String url = rst.getString("url");
 					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title));
+					res.add(new ExternalLink(id, url, title, inherited));
 				}
 			}
 		}
@@ -4938,13 +4938,13 @@ public class Dao {
 		// Delete removed links
 		List<ExternalLink> previousLinks = null;
 		if (areaId > 0) {
-			previousLinks = getExternalLinksArea(c, areaId);
+			previousLinks = getExternalLinksArea(c, areaId, false);
 		}
 		else if (sectorId > 0) {
-			previousLinks = getExternalLinksSector(c, sectorId);
+			previousLinks = getExternalLinksSector(c, sectorId, false);
 		}
 		else if (problemId > 0) {
-			previousLinks = getExternalLinksProblem(c, problemId);
+			previousLinks = getExternalLinksProblem(c, problemId, false);
 		}
 		else {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
@@ -4964,7 +4964,7 @@ public class Dao {
 		// Insert new links
 		if (newLinks != null) {
 			for (var l : newLinks.stream()
-					.filter(l -> l.id() == 0)
+					.filter(l -> !l.inherited() && l.id() == 0)
 					.toList()) {
 				try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 					ps.setString(1, l.url());
