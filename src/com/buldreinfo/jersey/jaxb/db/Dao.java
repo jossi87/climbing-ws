@@ -1313,6 +1313,8 @@ public class Dao {
 						}
 					}
 					var externalLinks = getExternalLinksProblem(c, reqId);
+					externalLinks.addAll(getExternalLinksSector(c, sectorId));
+					externalLinks.addAll(getExternalLinksArea(c, areaId));
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
@@ -2224,6 +2226,7 @@ public class Dao {
 						media = null;
 					}
 					var externalLinks = getExternalLinksSector(c, reqId);
+					externalLinks.addAll(getExternalLinksArea(c, areaId));
 					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
@@ -4961,7 +4964,7 @@ public class Dao {
 		// Insert new links
 		if (newLinks != null) {
 			for (var l : newLinks.stream()
-					.filter(l -> l.id() < 1)
+					.filter(l -> l.id() == 0)
 					.toList()) {
 				try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 					ps.setString(1, l.url());
