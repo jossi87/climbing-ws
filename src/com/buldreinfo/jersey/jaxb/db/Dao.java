@@ -3437,7 +3437,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
+	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=? WHERE id=?")) {

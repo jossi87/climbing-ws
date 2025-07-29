@@ -992,11 +992,10 @@ public class V2 {
 	@POST
 	@Path("/profile")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			dao.setProfile(c, authUserId, profile, multiPart);
+			dao.setProfile(c, authUserId, setup, profile, multiPart);
 			return Response.ok().build();
 		});
 	}
