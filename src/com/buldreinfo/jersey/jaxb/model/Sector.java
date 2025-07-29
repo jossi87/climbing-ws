@@ -40,9 +40,10 @@ public class Sector {
 	private final List<SectorProblem> problems = new ArrayList<>();
 	private final List<SectorProblemOrder> problemOrder = new ArrayList<>();
 	private final List<NewMedia> newMedia;
+	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, String pageViews) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -74,6 +75,7 @@ public class Sector {
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
+		this.externalLinks = externalLinks;
 		this.pageViews = pageViews;
 	}
 	
@@ -132,6 +134,10 @@ public class Sector {
 	
 	public Slope getDescent() {
 		return descent;
+	}
+	
+	public List<ExternalLink> getExternalLinks() {
+		return externalLinks;
 	}
 
 	public int getId() {

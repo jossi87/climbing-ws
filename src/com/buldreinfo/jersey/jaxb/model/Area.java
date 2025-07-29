@@ -148,9 +148,7 @@ public class Area {
 			this.outline = outline;
 		}
 	}
-
 	public record AreaSectorOrder(int id, String name, int sorting) {}
-
 	private final String redirectUrl;
 	private final int regionId;
 	private final String canonical;
@@ -174,10 +172,11 @@ public class Area {
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
 	private final List<NewMedia> newMedia;
+	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 	private final List<TypeNumTicked> typeNumTicked = new ArrayList<>();
 
-	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, String pageViews) {
+	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.regionId = regionId;
 		this.canonical = canonical;
@@ -201,6 +200,7 @@ public class Area {
 		this.media = media;
 		this.triviaMedia = triviaMedia;
 		this.newMedia = newMedia;
+		this.externalLinks = externalLinks;
 		this.pageViews = pageViews;
 	}
 
@@ -229,6 +229,10 @@ public class Area {
 	
 	public Coordinates getCoordinates() {
 		return coordinates;
+	}
+
+	public List<ExternalLink> getExternalLinks() {
+		return externalLinks;
 	}
 
 	public int getId() {
@@ -286,7 +290,7 @@ public class Area {
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
-
+	
 	public List<TypeNumTicked> getTypeNumTicked() {
 		return typeNumTicked;
 	}

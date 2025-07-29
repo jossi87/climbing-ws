@@ -57,6 +57,7 @@ import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
 import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
 import com.buldreinfo.jersey.jaxb.model.DangerousSector;
+import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
@@ -656,7 +657,8 @@ public class Dao {
 							triviaMedia = allMedia.stream().filter(x -> x.trivia()).collect(Collectors.toList());
 						}
 					}
-					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, pageViews);
+					var externalLinks = getExternalLinksArea(c, reqId);
+					a = new Area(null, regionId, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
 		}
@@ -664,7 +666,7 @@ public class Dao {
 			// Area not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, reqId, 0, 0);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null);
+				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
 			}
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
@@ -790,7 +792,7 @@ public class Dao {
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, pageViews));
+					res.add(new Area(null, idRegion, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, null, pageViews));
 				}
 			}
 		}
@@ -1310,7 +1312,7 @@ public class Dao {
 							}
 						}
 					}
-
+					var externalLinks = getExternalLinksProblem(c, reqId);
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
@@ -1319,7 +1321,7 @@ public class Dao {
 							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							s.gradeConverter().getGradeFromIdGrade(grade),
 							s.gradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
-							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), pageViews,
+							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
 			}
@@ -1328,7 +1330,7 @@ public class Dao {
 			// Poblem not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
+				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
 			}
 		}
 
@@ -2221,7 +2223,8 @@ public class Dao {
 					if (media != null && media.isEmpty()) {
 						media = null;
 					}
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, pageViews);
+					var externalLinks = getExternalLinksSector(c, reqId);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
 		}
@@ -2229,7 +2232,7 @@ public class Dao {
 			// Sector not found, see if it's visible on a different domain
 			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null);
+				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
 			}
 		}
 
@@ -3199,6 +3202,7 @@ public class Dao {
 				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
+		upsertExternalLinks(c, a.getExternalLinks(), idArea, 0, 0);
 		if (a.isTrash()) {
 			return Redirect.fromRoot();
 		}
@@ -3416,6 +3420,7 @@ public class Dao {
 				}
 			}
 		}
+		upsertExternalLinks(c, p.getExternalLinks(), 0, 0, idProblem);
 		fillActivity(c, idProblem);
 		if (p.isTrash()) {
 			return Redirect.fromIdSector(p.getSectorId());
@@ -3619,6 +3624,7 @@ public class Dao {
 				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 			}
 		}
+		upsertExternalLinks(c, s.getExternalLinks(), 0, idSector, 0);
 		Redirect res = null;
 		if (s.isTrash()) {
 			res = Redirect.fromIdArea(s.getAreaId());
@@ -3902,7 +3908,7 @@ public class Dao {
 		}
 		fillActivity(c, co.idProblem());
 	}
-
+	
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		// Clear existing
@@ -4278,6 +4284,69 @@ public class Dao {
 		return usId;
 	}
 
+	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_area ea, external_link e
+				WHERE ea.area_id=? AND ea.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, areaId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title));
+				}
+			}
+		}
+		return res;
+	}
+
+	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_problem ep, external_link e
+				WHERE ep.problem_id=? AND ep.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, problemId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title));
+				}
+			}
+		}
+		return res;
+	}
+
+	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_sector ea, external_link e
+				WHERE ea.sector_id=? AND ea.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title));
+				}
+			}
+		}
+		return res;
+	}
+	
 	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
 		Map<Integer, String> res = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
@@ -4292,7 +4361,7 @@ public class Dao {
 		}
 		return res;
 	}
-
+	
 	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
 		List<Grade> res = new ArrayList<>(); 
 		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
@@ -4307,7 +4376,7 @@ public class Dao {
 		}
 		return res;
 	}
-
+	
 	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.uploader_user_id, m.checksum, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
@@ -4860,6 +4929,74 @@ public class Dao {
 			}
 		}
 		setSectorProblemOrder(c, lst);
+	}
+
+	private void upsertExternalLinks(Connection c, List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
+		// Delete removed links
+		List<ExternalLink> previousLinks = null;
+		if (areaId > 0) {
+			previousLinks = getExternalLinksArea(c, areaId);
+		}
+		else if (sectorId > 0) {
+			previousLinks = getExternalLinksSector(c, sectorId);
+		}
+		else if (problemId > 0) {
+			previousLinks = getExternalLinksProblem(c, problemId);
+		}
+		else {
+			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+		}
+		var toRemove = previousLinks.stream()
+				.filter(l -> !newLinks.contains(l))
+				.toList();
+		if (!toRemove.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
+				for (var link : toRemove) {
+					ps.setInt(1, link.id());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		// Insert new links
+		for (var l : newLinks.stream()
+				.filter(l -> l.id() < 1)
+				.toList()) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setString(1, l.url());
+				ps.setString(2, l.title());
+				ps.executeUpdate();
+				try (ResultSet rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						int externalLinkId = rst.getInt(1);
+						if (areaId > 0) {
+							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
+								ps2.setInt(1, externalLinkId);
+								ps2.setInt(2, areaId);
+								ps2.execute();
+							}
+						}
+						else if (sectorId > 0) {
+							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
+								ps2.setInt(1, externalLinkId);
+								ps2.setInt(2, sectorId);
+								ps2.execute();
+							}
+						}
+						else if (problemId > 0) {
+							try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
+								ps2.setInt(1, externalLinkId);
+								ps2.setInt(2, problemId);
+								ps2.execute();
+							}
+						}
+						else {
+							throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+						}
+					}
+				}
+			}
+		}
 	}
 
 	private void upsertTickRepeats(Connection c, int idTick, List<TickRepeat> repeats) throws SQLException {
