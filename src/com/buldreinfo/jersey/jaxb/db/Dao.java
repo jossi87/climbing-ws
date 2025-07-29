@@ -4,6 +4,7 @@ import java.awt.Point;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -818,9 +819,13 @@ public class Dao {
 		else if (profile.picture() != null && (picture == null || !picture.equals(profile.picture()))) {
 			if (picture != null && picture.contains("fbsbx.com") && !profile.picture().contains("fbsbx.com")) {
 				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
-			} else {
-				try {
-					ImageHelper.saveAvatar(authUserId.orElseThrow(), profile.picture(), true);
+			}
+			else if (picture != null && !picture.startsWith("https")) {
+				logger.debug("User has uploaded an avatar, don't replace this with social media image");
+			}
+			else {
+				try (InputStream is = URI.create(profile.picture()).toURL().openStream()) {
+					ImageHelper.saveAvatar(authUserId.orElseThrow(), is, true);
 					try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.picture());
 						ps.setInt(2, authUserId.orElseThrow());
@@ -1478,7 +1483,7 @@ public class Dao {
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT CASE WHEN u.picture IS NOT NULL THEN CONCAT('https://buldreinfo.com/buldreinfo_media/users/', u.id, '.jpg') ELSE '' END picture,
-					   u.firstname, u.lastname,
+					   u.firstname, u.lastname, u.email_visible_to_all,
 				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails
 				FROM user u LEFT JOIN user_email e ON u.id=e.user_id
 				WHERE u.id=?
@@ -1490,13 +1495,14 @@ public class Dao {
 					String picture = rst.getString("picture");
 					String firstname = rst.getString("firstname");
 					String lastname = rst.getString("lastname");
+					boolean emailVisibleToAll = rst.getBoolean("email_visible_to_all");
 					String emailsStr = rst.getString("emails");
 					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
 							.trimResults()
 							.omitEmptyStrings()
 							.splitToList(emailsStr);
 					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
-					res = new Profile(userId, picture, firstname, lastname, emails, userRegions);
+					res = new Profile(userId, picture, firstname, lastname, emailVisibleToAll, emails, userRegions);
 				}
 			}
 		}
@@ -3431,6 +3437,29 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
+	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=? WHERE id=?")) {
+			ps.setString(1, profile.firstname());
+			ps.setString(2, profile.lastname());
+			ps.setBoolean(3, profile.emailVisibleToAll());
+			ps.setInt(4, authUserId.orElseThrow());
+			ps.execute();
+		}
+		var avatar = multiPart.getField("avatar");
+		if (avatar != null) {
+			try (InputStream is = avatar.getValueAs(InputStream.class)) {
+				ImageHelper.saveAvatar(authUserId.orElseThrow(), is, true);
+				try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
+					ps.setString(1, LocalDateTime.now().toString());
+					ps.setInt(2, authUserId.orElseThrow());
+					ps.executeUpdate();
+				}
+			}
+		}
+	}
+
 	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
@@ -3697,14 +3726,6 @@ public class Dao {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
 		fillActivity(c, t.idProblem());
-	}
-
-	public void setUserEmailVisibleForAll(Connection c, Optional<Integer> authUserId, boolean emailVisibleForAll) throws SQLException {
-		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET email_visible_to_all=? WHERE id=?")) {
-			ps.setBoolean(1, emailVisibleForAll);
-			ps.setInt(2, authUserId.orElseThrow());
-			ps.execute();
-		}
 	}
 
 	public void setUserRegion(Connection c, Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {
@@ -4144,8 +4165,8 @@ public class Dao {
 			}
 		}
 		if (picture != null) {
-			try {
-				ImageHelper.saveAvatar(id, picture, true);
+			try (InputStream is = URI.create(picture).toURL().openStream()) {
+				ImageHelper.saveAvatar(id, is, true);
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
 			}

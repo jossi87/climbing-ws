@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.io;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -41,17 +40,15 @@ public class ImageHelper {
 		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
 	}
 
-	public static void saveAvatar(int userId, String avatarUrl, boolean replaceOriginal) {
+	public static void saveAvatar(int userId, InputStream is, boolean replaceOriginal) {
 		try {
 			Path original = IOHelper.getPathOriginalUsers(userId);
 			boolean createResized = false;
 			if (replaceOriginal || !Files.exists(original)) {
 				IOHelper.createDirectories(original.getParent());
-				try (InputStream in = URI.create(avatarUrl).toURL().openStream()) {
-					Files.copy(in, original, StandardCopyOption.REPLACE_EXISTING);
-					IOHelper.setFilePermission(original);
-					createResized = true;
-				}
+				Files.copy(is, original, StandardCopyOption.REPLACE_EXISTING);
+				IOHelper.setFilePermission(original);
+				createResized = true;
 			}
 			if (Files.exists(original) ) {
 				Path resized = IOHelper.getPathWebUsers(userId);
@@ -64,7 +61,7 @@ public class ImageHelper {
 				}
 			}
 		} catch (IOException | InterruptedException e) {
-			logger.warn("saveAvatar(userId={}, avatarUrl={}, replaceOriginal={}) failed: {}", userId, avatarUrl, replaceOriginal, e.toString());
+			logger.warn("saveAvatar(userId={}, replaceOriginal={}) failed: {}", userId, replaceOriginal, e.toString());
 		}
 	}
 

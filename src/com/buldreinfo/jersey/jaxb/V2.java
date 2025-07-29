@@ -1057,15 +1057,16 @@ public class V2 {
 		});
 	}
 	
-	@Operation(summary = "Update email visible to all for profile")
+	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)")
 	@SecurityRequirement(name = "Bearer Authentication")
-	@PUT
-	@Path("/user/email-visible-for-all")
-	public Response putUserEmailVisibleForAll(@Context HttpServletRequest request,
-			@Parameter(description = "Email visible for all", required = true) @QueryParam("emailVisibleForAll") boolean emailVisibleForAll
-			) {
+	@POST
+	@Path("/profile")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response putProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			dao.setUserEmailVisibleForAll(c, authUserId, emailVisibleForAll);
+			dao.setProfile(c, authUserId, profile, multiPart);
 			return Response.ok().build();
 		});
 	}
