@@ -201,6 +201,23 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Get avatar by user id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@GET
+	@Path("/avatar")
+	public Response getAvatar(@Context HttpServletRequest request,
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize,
+			@Parameter(description = "Picture (cache blocker)", required = false) @QueryParam("picture") String picture) {
+		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
+			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);
+			String mimeType = "image/jpeg";
+			CacheControl cc = new CacheControl();
+			cc.setMaxAge(2678400); // 31 days
+			cc.setNoTransform(false);
+			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
+		});
+	}
+
 	@Operation(summary = "Get webcams", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))})})
 	@GET
 	@Path("/webcams")
@@ -313,16 +330,13 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-
-	/**
-	 * crc32 is included to ensure correct version downloaded, and not old version from browser cache (e.g. if rotated image)
-	 */
+	
 	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version (cache blocker)", required = false) @QueryParam("crc32") int crc32,
 			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
 			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,

@@ -71,6 +71,14 @@ public class IOHelper {
 		return getPathRoot().resolve("web/webp").resolve(getFolderName(id)).resolve(id + ".webp");
 	}
 	
+	public static Path getPathOriginalUsers(int id) {
+		return getPathRoot().resolve("original/users").resolve(id + ".jpg");
+	}
+
+	public static Path getPathWebUsers(int id) {
+		return getPathRoot().resolve("web/users").resolve(id + ".jpg");
+	}
+
 	private static String getFolderName(int id) {
 		return String.valueOf(id / 100 * 100);
 	}
@@ -85,14 +93,6 @@ public class IOHelper {
 		}
 		Preconditions.checkArgument(root != null && Files.exists(root), "Invalid root: " + root);
 		return root;
-	}
-
-	protected static Path getPathOriginalUsers(int id) {
-		return getPathRoot().resolve("original/users").resolve(id + ".jpg");
-	}
-
-	protected static Path getPathWebUsers(int id) {
-		return getPathRoot().resolve("web/users").resolve(id + ".jpg");
 	}
 
 	protected static void setFilePermission(Path p) {
