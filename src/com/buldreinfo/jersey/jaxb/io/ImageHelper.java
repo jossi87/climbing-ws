@@ -40,11 +40,11 @@ public class ImageHelper {
 		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
 	}
 
-	public static void saveAvatar(int userId, InputStream is, boolean replaceOriginal) {
+	public static void saveAvatar(int userId, InputStream is) {
 		try {
 			Path original = IOHelper.getPathOriginalUsers(userId);
 			boolean createResized = false;
-			if (replaceOriginal || !Files.exists(original)) {
+			if (!Files.exists(original)) {
 				IOHelper.createDirectories(original.getParent());
 				Files.copy(is, original, StandardCopyOption.REPLACE_EXISTING);
 				IOHelper.setFilePermission(original);
@@ -53,15 +53,23 @@ public class ImageHelper {
 			if (Files.exists(original) ) {
 				Path resized = IOHelper.getPathWebUsers(userId);
 				if (createResized || !Files.exists(resized)) {
-					IOHelper.deleteIfExistsCreateParent(resized);
-					BufferedImage b = ImageReader.newBuilder().withPath(original).build().getJpgBufferedImage();
-					b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, 35, 35, Scalr.OP_ANTIALIAS);
-					Preconditions.checkArgument(ImageIO.write(b, "jpg", resized.toFile()));
-					IOHelper.setFilePermission(resized);
+					saveAvatarThumb(original, resized);
 				}
 			}
+		} catch (IOException e) {
+			logger.warn("saveAvatar(userId={}) failed: {}", userId, e.toString());
+		}
+	}
+
+	public static void saveAvatarThumb(Path original, Path resized) {
+		try {
+			IOHelper.deleteIfExistsCreateParent(resized);
+			BufferedImage b = ImageReader.newBuilder().withPath(original).build().getJpgBufferedImage();
+			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, 50, 50, Scalr.OP_ANTIALIAS);
+			Preconditions.checkArgument(ImageIO.write(b, "jpg", resized.toFile()));
+			IOHelper.setFilePermission(resized);
 		} catch (IOException | InterruptedException e) {
-			logger.warn("saveAvatar(userId={}, replaceOriginal={}) failed: {}", userId, replaceOriginal, e.toString());
+			logger.warn("saveAvatarThumb(original={}, resized={}) failed: {}", original, resized, e.toString());
 		}
 	}
 

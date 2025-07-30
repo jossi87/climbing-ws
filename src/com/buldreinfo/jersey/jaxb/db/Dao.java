@@ -825,7 +825,7 @@ public class Dao {
 			}
 			else {
 				try (InputStream is = URI.create(profile.picture()).toURL().openStream()) {
-					ImageHelper.saveAvatar(authUserId.orElseThrow(), is, true);
+					ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
 					try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 						ps.setString(1, profile.picture());
 						ps.setInt(2, authUserId.orElseThrow());
@@ -3452,7 +3452,7 @@ public class Dao {
 		var avatar = multiPart.getField("avatar");
 		if (avatar != null) {
 			try (InputStream is = avatar.getValueAs(InputStream.class)) {
-				ImageHelper.saveAvatar(authUserId.orElseThrow(), is, true);
+				ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
 				try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
 					ps.setString(1, LocalDateTime.now().toString());
 					ps.setInt(2, authUserId.orElseThrow());
@@ -4168,7 +4168,7 @@ public class Dao {
 		}
 		if (picture != null) {
 			try (InputStream is = URI.create(picture).toURL().openStream()) {
-				ImageHelper.saveAvatar(id, is, true);
+				ImageHelper.saveAvatar(id, is);
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
 			}
