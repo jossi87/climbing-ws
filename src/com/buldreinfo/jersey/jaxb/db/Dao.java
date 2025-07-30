@@ -2143,7 +2143,8 @@ public class Dao {
 					String picture = rst.getString("picture");
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
-					users.add(new Search(name, null, "/user/" + id, null, picture, 0, 0, false, false, null));
+					String mediaurl = picture == null ? null : IOHelper.getFullUrlAvatar(setup, id, picture);
+					users.add(new Search(name, null, "/user/" + id, null, mediaurl, 0, 0, false, false, null));
 				}
 			}
 		}

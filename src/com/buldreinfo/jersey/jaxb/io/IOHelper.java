@@ -11,6 +11,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.google.common.base.Preconditions;
 
 public class IOHelper {
@@ -32,6 +33,10 @@ public class IOHelper {
 		}
 	}
 
+	public static String getFullUrlAvatar(Setup setup, int userId, String picture) {
+		return String.format("%s/com.buldreinfo.jersey.jaxb/v2/avatar?id=%d&picture=%s", setup.url(), userId, picture);
+	}
+
 	public static Path getPathImage(int id, boolean webP) {
 		Path p = null;
 		if (webP) {
@@ -50,11 +55,11 @@ public class IOHelper {
 	public static Path getPathMediaOriginalMp4(int id) {
 		return getPathRoot().resolve("original/mp4").resolve(getFolderName(id)).resolve(id + ".mp4");
 	}
-
+	
 	public static Path getPathMediaWebJpg(int id) {
 		return getPathRoot().resolve("web/jpg").resolve(getFolderName(id)).resolve(id + ".jpg");
 	}
-	
+
 	public static Path getPathMediaWebJpgRegion(int id, int x, int y, int width, int height) {
 		return getPathRoot().resolve("web/jpg_region").resolve(getFolderName(id)).resolve(String.valueOf(id)).resolve(x + "_" + y + "_" + width + "_" + height + ".jpg");
 	}
@@ -66,11 +71,11 @@ public class IOHelper {
 	public static Path getPathMediaWebWebm(int id) {
 		return getPathRoot().resolve("web/webm").resolve(getFolderName(id)).resolve(id + ".webm");
 	}
-
+	
 	public static Path getPathMediaWebWebp(int id) {
 		return getPathRoot().resolve("web/webp").resolve(getFolderName(id)).resolve(id + ".webp");
 	}
-	
+
 	public static Path getPathOriginalUsers(int id) {
 		return getPathRoot().resolve("original/users").resolve(id + ".jpg");
 	}
