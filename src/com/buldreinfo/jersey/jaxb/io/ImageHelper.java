@@ -57,7 +57,18 @@ public class ImageHelper {
 		try {
 			IOHelper.deleteIfExistsCreateParent(resized);
 			BufferedImage b = ImageReader.newBuilder().withPath(original).build().getJpgBufferedImage();
-			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, 50, 50, Scalr.OP_ANTIALIAS);
+			int targetSize = 50;
+			if (b.getWidth() > targetSize && b.getHeight() > targetSize) {
+				var mode = b.getWidth() > b.getHeight() ? Scalr.Mode.FIT_TO_HEIGHT : Scalr.Mode.FIT_TO_WIDTH;
+				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, targetSize, Scalr.OP_ANTIALIAS);
+			}
+			if (b.getWidth() > targetSize || b.getHeight() > targetSize) {
+				int x = Math.max(0, (b.getWidth() - targetSize) / 2);
+		        int y = Math.max(0, (b.getHeight() - targetSize) / 2);
+		        int cropWidth = Math.min(targetSize, b.getWidth() - x);
+		        int cropHeight = Math.min(targetSize, b.getHeight() - y);
+		        b = Scalr.crop(b, x, y, cropWidth, cropHeight);
+			}
 			Preconditions.checkArgument(ImageIO.write(b, "jpg", resized.toFile()));
 			IOHelper.setFilePermission(resized);
 		} catch (IOException | InterruptedException e) {
