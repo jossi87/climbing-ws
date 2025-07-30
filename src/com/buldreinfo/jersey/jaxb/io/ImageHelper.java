@@ -43,19 +43,11 @@ public class ImageHelper {
 	public static void saveAvatar(int userId, InputStream is) {
 		try {
 			Path original = IOHelper.getPathOriginalUsers(userId);
-			boolean createResized = false;
-			if (!Files.exists(original)) {
-				IOHelper.createDirectories(original.getParent());
-				Files.copy(is, original, StandardCopyOption.REPLACE_EXISTING);
-				IOHelper.setFilePermission(original);
-				createResized = true;
-			}
-			if (Files.exists(original) ) {
-				Path resized = IOHelper.getPathWebUsers(userId);
-				if (createResized || !Files.exists(resized)) {
-					saveAvatarThumb(original, resized);
-				}
-			}
+			IOHelper.createDirectories(original.getParent());
+			Files.copy(is, original, StandardCopyOption.REPLACE_EXISTING);
+			IOHelper.setFilePermission(original);
+			Path resized = IOHelper.getPathWebUsers(userId);
+			saveAvatarThumb(original, resized);
 		} catch (IOException e) {
 			logger.warn("saveAvatar(userId={}) failed: {}", userId, e.toString());
 		}
