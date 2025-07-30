@@ -206,8 +206,8 @@ public class V2 {
 	@Path("/avatar")
 	public Response getAvatar(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize,
-			@Parameter(description = "Picture (cache blocker)", required = false) @QueryParam("picture") String picture) {
+			@Parameter(description = "Picture (cache buster)", required = false) @QueryParam("picture") String picture,
+			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);
 			String mimeType = "image/jpeg";
@@ -336,7 +336,7 @@ public class V2 {
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version (cache blocker)", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version (cache buster)", required = false) @QueryParam("crc32") int crc32,
 			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
 			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
