@@ -4973,7 +4973,7 @@ public class Dao {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}
 		var toRemove = previousLinks.stream()
-				.filter(l -> newLinks == null || !newLinks.contains(l))
+				.filter(l -> newLinks == null || newLinks.stream().filter(x -> x.id() == l.id()).findAny().isEmpty())
 				.toList();
 		if (!toRemove.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
@@ -4984,41 +4984,59 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
-		// Insert new links
 		if (newLinks != null) {
-			for (var l : newLinks.stream()
+			var newLinksUpdate = newLinks.stream()
+					.filter(l -> !l.inherited() && l.id() != 0)
+					.toList();
+			var newLinksCreate = newLinks.stream()
 					.filter(l -> !l.inherited() && l.id() == 0)
-					.toList()) {
-				try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-					ps.setString(1, l.url());
-					ps.setString(2, l.title());
-					ps.executeUpdate();
-					try (ResultSet rst = ps.getGeneratedKeys()) {
-						if (rst != null && rst.next()) {
-							int externalLinkId = rst.getInt(1);
-							if (areaId > 0) {
-								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
-									ps2.setInt(1, externalLinkId);
-									ps2.setInt(2, areaId);
-									ps2.execute();
+					.toList();
+			if (!newLinksUpdate.isEmpty()) {
+				// Updating existing links
+				try (PreparedStatement ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
+					for (var l : newLinksUpdate) {
+						ps.setString(1, l.url());
+						ps.setString(2, l.title());
+						ps.setInt(3, l.id());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (!newLinksCreate.isEmpty()) {
+				// Insert new links
+				for (var l : newLinksCreate) {
+					try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+						ps.setString(1, l.url());
+						ps.setString(2, l.title());
+						ps.executeUpdate();
+						try (ResultSet rst = ps.getGeneratedKeys()) {
+							if (rst != null && rst.next()) {
+								int externalLinkId = rst.getInt(1);
+								if (areaId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, areaId);
+										ps2.execute();
+									}
 								}
-							}
-							else if (sectorId > 0) {
-								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
-									ps2.setInt(1, externalLinkId);
-									ps2.setInt(2, sectorId);
-									ps2.execute();
+								else if (sectorId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, sectorId);
+										ps2.execute();
+									}
 								}
-							}
-							else if (problemId > 0) {
-								try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
-									ps2.setInt(1, externalLinkId);
-									ps2.setInt(2, problemId);
-									ps2.execute();
+								else if (problemId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, problemId);
+										ps2.execute();
+									}
 								}
-							}
-							else {
-								throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+								else {
+									throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+								}
 							}
 						}
 					}
