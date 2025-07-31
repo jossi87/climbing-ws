@@ -2648,35 +2648,37 @@ public class Dao {
 	public List<Top> getTop(Connection c, Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
 		List<Top> res = new ArrayList<>();
 		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
-		String sqlStr = "WITH x AS ("
-				+ "  SELECT COUNT(p.id) sum"
-				+ "  FROM area a, sector s, problem p"
-				+ "  WHERE " + condition 
-				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.grade!=0 AND p.broken IS NULL)"
-				+ " SELECT y.user_id, y.name, y.picture, ROUND(SUM(y.sum)/x.sum*100,2) percentage"
-				+ " FROM ("
-				+ "  SELECT 'tick' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum"
-				+ "  FROM area a, sector s, problem p, tick t, user u"
-				+ "  WHERE " + condition
-				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=t.problem_id AND t.user_id=u.id"
-				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
-				+ "  UNION"
-				+ "  SELECT 'fa' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum"
-				+ "  FROM area a, sector s, problem p, fa f, user u"
-				+ "  WHERE " + condition
-				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id"
-				+ "    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)"
-				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
-				+ "  UNION"
-				+ "  SELECT 'fa_aid' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum"
-				+ "  FROM area a, sector s, problem p, fa_aid_user f, user u"
-				+ "  WHERE " + condition
-				+ "    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id"
-				+ "    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)"
-				+ "  GROUP BY u.id, u.firstname, u.lastname, u.picture"
-				+ ") y, x"
-				+ " GROUP BY y.user_id, y.name, y.picture, x.sum"
-				+ " ORDER BY percentage DESC, name";
+		String sqlStr = """
+				WITH x AS (
+				  SELECT COUNT(p.id) sum
+				  FROM area a, sector s, problem p
+				  WHERE %s 
+				    AND a.id=s.area_id AND s.id=p.sector_id AND p.grade!=0 AND p.broken IS NULL)
+				 SELECT y.user_id, y.name, y.avatar_crc32, ROUND(SUM(y.sum)/x.sum*100,2) percentage
+				 FROM (
+				  SELECT 'tick' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
+				  FROM area a, sector s, problem p, tick t, user u
+				  WHERE %s
+				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=t.problem_id AND t.user_id=u.id
+				  GROUP BY u.id, u.firstname, u.lastname, u.picture
+				  UNION
+				  SELECT 'fa' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
+				  FROM area a, sector s, problem p, fa f, user u
+				  WHERE %s
+				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id
+				    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)
+				  GROUP BY u.id, u.firstname, u.lastname, u.picture
+				  UNION
+				  SELECT 'fa_aid' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
+				  FROM area a, sector s, problem p, fa_aid_user f, user u
+				  WHERE %s
+				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id
+				    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)
+				  GROUP BY u.id, u.firstname, u.lastname, u.picture
+				) y, x
+				GROUP BY y.user_id, y.name, y.avatar_crc32, x.sum
+				ORDER BY percentage DESC, name
+				""".formatted(condition, condition, condition, condition);
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			try (ResultSet rst = ps.executeQuery()) {
 				double prevPercentage = 0;
