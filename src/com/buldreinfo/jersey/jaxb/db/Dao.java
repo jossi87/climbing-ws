@@ -2032,8 +2032,9 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
+					long hits = rst.getLong("hits");
+					String pageViews = HitsFormatter.formatHits(hits);
+					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
 				}
 			}
 		}
@@ -2057,8 +2058,9 @@ public class Dao {
 						String externalUrl = rst.getString("external_url");
 						String name = rst.getString("name");
 						String regionName = rst.getString("region_name");
-						String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, pageViews));
+						long hits = rst.getLong("hits");
+						String pageViews = HitsFormatter.formatHits(hits);
+						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, hits, pageViews));
 					}
 				}
 			}
@@ -2087,8 +2089,9 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
+					long hits = rst.getLong("hits");
+					String pageViews = HitsFormatter.formatHits(hits);
+					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
 				}
 			}
 		}
@@ -2124,8 +2127,9 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					int mediaCrc32 = rst.getInt("media_crc32");
-					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, pageViews));
+					long hits = rst.getLong("hits");
+					String pageViews = HitsFormatter.formatHits(hits);
+					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
 				}
 			}
 		}
@@ -2144,7 +2148,7 @@ public class Dao {
 					int id = rst.getInt("id");
 					String name = rst.getString("name");
 					String mediaurl = picture == null ? null : IOHelper.getFullUrlAvatar(setup, id, picture);
-					users.add(new Search(name, null, "/user/" + id, null, mediaurl, 0, 0, false, false, null));
+					users.add(new Search(name, null, "/user/" + id, null, mediaurl, 0, 0, false, false, 0, null));
 				}
 			}
 		}
@@ -2169,6 +2173,8 @@ public class Dao {
 		if (!problems.isEmpty()) {
 			res.addAll(problems);
 		}
+		// Compare areas, sector and problem results by hits
+		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
 		if (!users.isEmpty()) {
 			res.addAll(users);
 		}
