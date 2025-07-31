@@ -3151,6 +3151,15 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
+	public void saveAvatar(Connection c, Optional<Integer> authUserId, InputStream is) throws SQLException {
+		ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
+			ps.setString(1, LocalDateTime.now().toString());
+			ps.setInt(2, authUserId.orElseThrow());
+			ps.executeUpdate();
+		}
+	}
+
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
@@ -3480,7 +3489,7 @@ public class Dao {
 		}
 		return Redirect.fromIdProblem(idProblem);
 	}
-
+	
 	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
@@ -3494,12 +3503,7 @@ public class Dao {
 		var avatar = multiPart.getField("avatar");
 		if (avatar != null) {
 			try (InputStream is = avatar.getValueAs(InputStream.class)) {
-				ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
-				try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
-					ps.setString(1, LocalDateTime.now().toString());
-					ps.setInt(2, authUserId.orElseThrow());
-					ps.executeUpdate();
-				}
+				saveAvatar(c, authUserId, is);
 			}
 		}
 	}

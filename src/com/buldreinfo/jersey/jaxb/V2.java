@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -1089,7 +1090,7 @@ public class V2 {
 	@PUT
 	@Path("/media")
 	public Response putMedia(@Context HttpServletRequest request,
-			@Parameter(description = "Move right", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
 			@Parameter(description = "To sector id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
 			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
@@ -1104,6 +1105,20 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
 			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
+			return Response.ok().build();
+		});
+	}
+	
+	@Operation(summary = "Set media as avatar")
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PUT
+	@Path("/media/avatar")
+	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+			Preconditions.checkArgument(id > 0);
+			try (InputStream is = Files.newInputStream(IOHelper.getPathMediaOriginalJpg(id))) {
+				dao.saveAvatar(c, authUserId, is);
+			}
 			return Response.ok().build();
 		});
 	}
