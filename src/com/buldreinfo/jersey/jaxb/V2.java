@@ -206,7 +206,7 @@ public class V2 {
 	@Path("/avatar")
 	public Response getAvatar(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Picture (cache buster)", required = false) @QueryParam("picture") String picture,
+			@Parameter(description = "Avatar CRC32 (cache buster)", required = false) @QueryParam("avatarCrc32") long avatarCrc32,
 			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);

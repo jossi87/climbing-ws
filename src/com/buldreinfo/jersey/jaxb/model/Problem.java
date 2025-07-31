@@ -131,11 +131,11 @@ public class Problem {
 		this.descent = descent;
 	}
 	
-	public ProblemComment addComment(int id, String date, int idUser, String picture, String name, String message, boolean danger, boolean resolved, List<Media> media) {
+	public ProblemComment addComment(int id, String date, int idUser, long avatarCrc32, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		if (comments == null) {
 			comments = new ArrayList<>();
 		}
-		ProblemComment comment = new ProblemComment(id, date, idUser, picture, name, message, danger, resolved, media);
+		ProblemComment comment = new ProblemComment(id, date, idUser, avatarCrc32, name, message, danger, resolved, media);
 		comments.add(comment);
 		return comment;
 	}
@@ -147,20 +147,20 @@ public class Problem {
 		sections.add(new ProblemSection(id, nr, description, grade, media));
 	}
 	
-	public ProblemTick addTick(int id, int idUser, String picture, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
+	public ProblemTick addTick(int id, int idUser, long avatarCrc32, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
 		if (ticks == null) {
 			ticks = new ArrayList<>();
 		}
-		ProblemTick t = new ProblemTick(id, idUser, picture, date, name, suggestedGrade, noPersonalGrade, comment, stars, writable);
+		ProblemTick t = new ProblemTick(id, idUser, avatarCrc32, date, name, suggestedGrade, noPersonalGrade, comment, stars, writable);
 		ticks.add(t);
 		return t;
 	}
 	
-	public void addTodo(int idUser, String picture, String name) {
+	public void addTodo(int idUser, long avatarCrc32, String name) {
 		if (todos == null) {
 			todos = new ArrayList<>();
 		}
-		todos.add(new ProblemTodo(idUser, picture, name));
+		todos.add(new ProblemTodo(idUser, avatarCrc32, name));
 	}
 	
 	public String getAreaAccessClosed() {

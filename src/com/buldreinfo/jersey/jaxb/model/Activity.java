@@ -31,7 +31,7 @@ public class Activity {
 	private boolean repeat;
 	private int id;
 	private String name;
-	private String picture;
+	private long avatarCrc32;
 	private String description;
 	private String message;
 	private List<User> users;
@@ -53,11 +53,11 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, String picture, String description, int problemRandomMediaId, int problemRandomMediaCrc32) {
+	public void addFa(String name, int userId, long avatarCrc32, String description, int problemRandomMediaId, int problemRandomMediaCrc32) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", picture));
+		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", avatarCrc32));
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.problemRandomMediaCrc32 = problemRandomMediaCrc32;
@@ -98,8 +98,8 @@ public class Activity {
 	public String getName() {
 		return name;
 	}
-	public String getPicture() {
-		return picture;
+	public long getAvatarCrc32() {
+		return avatarCrc32;
 	}
 	public int getProblemId() {
 		return problemId;
@@ -155,17 +155,17 @@ public class Activity {
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
-	public void setGuestbook(int id, String name, String picture, String message) {
+	public void setGuestbook(int id, String name, long avatarCrc32, String message) {
 		this.id = id;
 		this.name = name;
-		this.picture = picture;
+		this.avatarCrc32 = avatarCrc32;
 		this.message = message;
 	}
-	public void setTick(boolean repeat, int id, String name, String picture, String description, int stars, String personalGrade) {
+	public void setTick(boolean repeat, int id, String name, long avatarCrc32, String description, int stars, String personalGrade) {
 		this.repeat = repeat;
 		this.id = id;
 		this.name = name;
-		this.picture = picture;
+		this.avatarCrc32 = avatarCrc32;
 		this.description = description;
 		this.stars = stars;
 		if (GradeConverter.NO_PERSONAL_GRADE.equals(personalGrade)) {

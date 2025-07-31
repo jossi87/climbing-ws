@@ -33,8 +33,8 @@ public class IOHelper {
 		}
 	}
 
-	public static String getFullUrlAvatar(Setup setup, int userId, String picture) {
-		return String.format("%s/com.buldreinfo.jersey.jaxb/v2/avatar?id=%d&picture=%s", setup.url(), userId, picture);
+	public static String getFullUrlAvatar(Setup setup, int userId, long avatarCrc32) {
+		return String.format("%s/com.buldreinfo.jersey.jaxb/v2/avatar?id=%d&avatarCrc32=%d", setup.url(), userId, avatarCrc32);
 	}
 
 	public static Path getPathImage(int id, boolean webP) {
