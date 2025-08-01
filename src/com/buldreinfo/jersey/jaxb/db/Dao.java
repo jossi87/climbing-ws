@@ -2816,32 +2816,34 @@ public class Dao {
 
 	public List<User> getUserSearch(Connection c, Optional<Integer> authUserId, String value) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
-		String searchRegexPattern = "(^|\\W)" + value;
 		List<User> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
-				FROM user
-				WHERE regexp_like(u.firstname,?,'i') OR regexp_like(u.lastname,?,'i')
-				ORDER BY firstname, lastname
-				""")) {
-			ps.setString(1, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String name = rst.getString("name");
-					res.add(User.from(id, name));
+		if (!Strings.isNullOrEmpty(value)) {
+			String searchRegexPattern = "(^|\\W)" + value;
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
+					FROM user
+					WHERE regexp_like(u.firstname,?,'i') OR regexp_like(u.lastname,?,'i')
+					ORDER BY firstname, lastname
+					""")) {
+				ps.setString(1, searchRegexPattern);
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int id = rst.getInt("id");
+						String name = rst.getString("name");
+						res.add(User.from(id, name));
+					}
 				}
 			}
-		}
-		// Add id to users with duplicate name
-		for (User u : res.stream()
-				.collect(Collectors.groupingBy(User::name))
-				.values().stream()
-				.filter(list -> list.size() > 1)
-				.flatMap(List::stream)
-				.collect(Collectors.toList())) {
-			User newUser = User.from(u.id(), u.name() + " (" + u.id() + ")");
-			res.set(res.indexOf(u), newUser);
+			// Add id to users with duplicate name
+			for (User u : res.stream()
+					.collect(Collectors.groupingBy(User::name))
+					.values().stream()
+					.filter(list -> list.size() > 1)
+					.flatMap(List::stream)
+					.collect(Collectors.toList())) {
+				User newUser = User.from(u.id(), u.name() + " (" + u.id() + ")");
+				res.set(res.indexOf(u), newUser);
+			}
 		}
 		return res;
 	}
