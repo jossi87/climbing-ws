@@ -1521,8 +1521,9 @@ public class Dao {
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT CRC32(u.picture) avatar_crc32, u.firstname, u.lastname, u.email_visible_to_all,
-				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails
-				FROM user u LEFT JOIN user_email e ON u.id=e.user_id
+				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
+                       MAX(l.when) last_login
+				FROM (user u LEFT JOIN user_email e ON u.id=e.user_id) LEFT JOIN user_login l ON u.id=l.user_id
 				WHERE u.id=?
 				GROUP BY u.id, u.picture, u.firstname, u.lastname
 				""")) {
@@ -1539,7 +1540,9 @@ public class Dao {
 							.omitEmptyStrings()
 							.splitToList(emailsStr);
 					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
-					res = new Profile(userId, avatarCrc32, firstname, lastname, emailVisibleToAll, emails, userRegions);
+					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
+					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
+					res = new Profile(userId, avatarCrc32, firstname, lastname, emailVisibleToAll, emails, userRegions, lastActivity);
 				}
 			}
 		}
