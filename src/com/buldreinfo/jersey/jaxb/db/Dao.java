@@ -1896,16 +1896,20 @@ public class Dao {
 			}
 		}
 		if (!problemLookup.isEmpty()) {
-			String problemIds = Joiner.on(",").join(problemLookup.keySet());
-			String sqlStr = String.format("SELECT t.problem_id, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name FROM todo t, user u WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s) ORDER BY t.problem_id, u.firstname, u.lastname", problemIds);
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT t.problem_id, u.id, u.firstname, u.lastname
+					FROM todo t, user u
+					WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s)
+					ORDER BY t.problem_id, u.firstname, u.lastname
+					""".formatted(Joiner.on(",").join(problemLookup.keySet())))) {
 				ps.setInt(1, userId);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int problemId = rst.getInt("problem_id");
 						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						problemLookup.get(problemId).getPartners().add(User.from(id, name));
+						String firstname = rst.getString("firstname");
+						String lastname = rst.getString("lastname");
+						problemLookup.get(problemId).getPartners().add(User.from(id, firstname, lastname));
 					}
 				}
 			}
@@ -2598,7 +2602,7 @@ public class Dao {
 			throw new RuntimeException("Invalid arguments");
 		}
 		String sqlStr = "SELECT s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,"
-				+ " u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) user_name"
+				+ " u.id user_id, u.firstname user_firstname, u.lastname user_lastname"
 				+ " FROM (((((region r INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN todo t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
 				+ " WHERE " + condition
 				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
@@ -2636,8 +2640,9 @@ public class Dao {
 					}
 					// Partner
 					int userId = rst.getInt("user_id");
-					String userName = rst.getString("user_name");
-					p.partners().add(User.from(userId, userName));
+					String userFirstname = rst.getString("user_firstname");
+					String userLastname = rst.getString("user_lastname");
+					p.partners().add(User.from(userId, userFirstname, userLastname));
 				}
 			}
 		}
@@ -2820,18 +2825,19 @@ public class Dao {
 		if (!Strings.isNullOrEmpty(value)) {
 			String searchRegexPattern = "(^|\\W)" + value;
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
-					FROM user
+					SELECT u.id, u.firstname, u.lastname
+					FROM user u
 					WHERE regexp_like(u.firstname,?,'i') OR regexp_like(u.lastname,?,'i')
-					ORDER BY firstname, lastname
+					ORDER BY u.firstname, u.lastname
 					""")) {
 				ps.setString(1, searchRegexPattern);
 				ps.setString(2, searchRegexPattern);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						res.add(User.from(id, name));
+						String firstname = rst.getString("firstname");
+						String lastname = rst.getString("lastname");
+						res.add(User.from(id, firstname, lastname));
 					}
 				}
 			}
@@ -2842,8 +2848,7 @@ public class Dao {
 					.filter(list -> list.size() > 1)
 					.flatMap(List::stream)
 					.collect(Collectors.toList())) {
-				User newUser = User.from(u.id(), u.name() + " (" + u.id() + ")");
-				res.set(res.indexOf(u), newUser);
+				res.set(res.indexOf(u), u.withIdAsNameSuffix());
 			}
 		}
 		return res;
