@@ -2826,6 +2826,7 @@ public class Dao {
 					ORDER BY firstname, lastname
 					""")) {
 				ps.setString(1, searchRegexPattern);
+				ps.setString(2, searchRegexPattern);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
