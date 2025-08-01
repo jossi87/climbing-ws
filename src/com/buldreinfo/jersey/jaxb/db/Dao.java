@@ -1231,20 +1231,20 @@ public class Dao {
 		}
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
-			       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-			       group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"avatarCrc32\":', crc32(COALESCE(u.picture,'')), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
-			       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
-			       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
-			       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
-			FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-			WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-			  AND p.id=?
-			  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-			  AND (r.id=? OR ur.user_id IS NOT NULL)
-			GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
-			ORDER BY p.name
-			""")) {
+					SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
+				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				       group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"avatarCrc32\":', crc32(COALESCE(u.picture,'')), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
+				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
+				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
+				FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND p.id=?
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND (r.id=? OR ur.user_id IS NOT NULL)
+				GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
+				ORDER BY p.name
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
@@ -2816,9 +2816,15 @@ public class Dao {
 
 	public List<User> getUserSearch(Connection c, Optional<Integer> authUserId, String value) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
+		String searchRegexPattern = "(^|\\W)" + value;
 		List<User> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name FROM user WHERE CONCAT(' ',firstname, ' ', COALESCE(lastname,'')) LIKE CONCAT(' %',?,'%') ORDER BY firstname, lastname")) {
-			ps.setString(1, value);
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
+				FROM user
+				WHERE regexp_like(u.firstname,?,'i') OR regexp_like(u.lastname,?,'i')
+				ORDER BY firstname, lastname
+				""")) {
+			ps.setString(1, searchRegexPattern);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -2826,6 +2832,16 @@ public class Dao {
 					res.add(User.from(id, name));
 				}
 			}
+		}
+		// Add id to users with duplicate name
+		for (User u : res.stream()
+				.collect(Collectors.groupingBy(User::name))
+				.values().stream()
+				.filter(list -> list.size() > 1)
+				.flatMap(List::stream)
+				.collect(Collectors.toList())) {
+			User newUser = User.from(u.id(), u.name() + " (" + u.id() + ")");
+			res.set(res.indexOf(u), newUser);
 		}
 		return res;
 	}
@@ -3491,7 +3507,7 @@ public class Dao {
 		}
 		return Redirect.fromIdProblem(idProblem);
 	}
-	
+
 	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
