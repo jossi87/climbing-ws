@@ -2827,11 +2827,10 @@ public class Dao {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT u.id, u.firstname, u.lastname
 					FROM user u
-					WHERE regexp_like(u.firstname,?,'i') OR regexp_like(u.lastname,?,'i')
+					WHERE regexp_like(TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))),?,'i')
 					ORDER BY u.firstname, u.lastname
 					""")) {
 				ps.setString(1, searchRegexPattern);
-				ps.setString(2, searchRegexPattern);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
