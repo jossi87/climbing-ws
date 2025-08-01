@@ -6,6 +6,22 @@ import com.buldreinfo.jersey.jaxb.Server;
 
 public class MergeUsers {
 	// WITH u AS (SELECT TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) nm FROM user u GROUP BY TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) HAVING COUNT(TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))))>1) SELECT u2.* FROM u, user u2 WHERE u.nm=TRIM(CONCAT(u2.firstname,' ',COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname
+	/***
+	 * Delete empty users
+	 SELECT *
+	 FROM user
+	 WHERE picture IS NULL
+	   AND id NOT IN (SELECT user_id FROM fa WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM fa_aid_user WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM tick WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT photographer_user_id FROM media WHERE photographer_user_id IS NOT NULL)
+	   AND id NOT IN (SELECT uploader_user_id FROM media WHERE uploader_user_id IS NOT NULL)
+	   AND id NOT IN (SELECT deleted_user_id FROM media WHERE deleted_user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM media_user WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM user_login WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM user_email WHERE user_id IS NOT NULL)
+	   AND id NOT IN (SELECT user_id FROM guestbook WHERE user_id IS NOT NULL);
+	 */
 	private final static int USER_ID_KEEP = -1;
 	private final static int USER_ID_DELETE = -2;
 
