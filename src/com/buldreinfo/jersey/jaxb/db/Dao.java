@@ -1061,8 +1061,8 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,
 				    ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
-				    CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","avatar_crc32":', CRC32(u.picture), '}') photographer,
-				    GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","avatar_crc32":', CRC32(u2.picture), '}') SEPARATOR ', ') tagged
+				    CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","avatarCrc32":', CRC32(u.picture), '}') photographer,
+				    GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","avatarCrc32":', CRC32(u2.picture), '}') SEPARATOR ', ') tagged
 				FROM (SELECT m_sub.id
 				      FROM media m_sub
 				      INNER JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
