@@ -1,3 +1,5 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public record Top(int rank, int userId, String name, long avatarCrc32, double percentage, boolean mine) {}
+import java.util.List;
+
+public record Top(int rank, double percentage, List<TopUser> users) {}
