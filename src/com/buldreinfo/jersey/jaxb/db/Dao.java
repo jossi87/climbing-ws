@@ -107,7 +107,7 @@ import com.buldreinfo.jersey.jaxb.model.TodoSector;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
-import com.buldreinfo.jersey.jaxb.model.TypeNumTicked;
+import com.buldreinfo.jersey.jaxb.model.TypeNumTickedTodo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
@@ -638,7 +638,14 @@ public class Dao {
 			}
 		}
 		Area a = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT r.id region_id, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
+				FROM ((area a INNER JOIN region r ON a.region_id=r.id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				GROUP BY r.id, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
+				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
 			ps.setInt(3, s.idRegion());
@@ -682,7 +689,12 @@ public class Dao {
 		}
 		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
 		Map<Integer, Area.AreaSector> sectorLookup = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, MAX(m.id) media_id, MAX(m.checksum) media_crc32 FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual ORDER BY s.sorting, s.name")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, MAX(m.id) media_id, MAX(m.checksum) media_crc32
+				FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN problem p ON s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1) LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0) LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual ORDER BY s.sorting, s.name
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -731,34 +743,56 @@ public class Dao {
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
 		}
-		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type, COUNT(DISTINCT p.id) num, COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked FROM (((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT s.id,
+				       CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type,
+				       COUNT(DISTINCT p.id) num,
+				       COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR t.id IS NOT NULL THEN p.id END) num_ticked,
+				       COUNT(DISTINCT CASE WHEN f.problem_id IS NOT NULL OR td.id IS NOT NULL THEN p.id END) num_todo
+				FROM area a
+				     INNER JOIN sector s ON a.id=s.area_id
+					 INNER JOIN problem p ON s.id=p.sector_id
+					 INNER JOIN type ty ON p.type_id=ty.id
+					 LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?
+					 LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?
+					 LEFT JOIN todo td ON p.id=td.problem_id AND td.user_id=?
+					 LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE a.id=?
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END
+				ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, reqId);
-			Map<String, TypeNumTicked> lookup = new LinkedHashMap<>();
+			ps.setInt(4, authUserId.orElse(0));
+			ps.setInt(5, reqId);
+			Map<String, TypeNumTickedTodo> lookup = new LinkedHashMap<>();
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int sectorId = rst.getInt("id");
 					String type = rst.getString("type");
 					int num = rst.getInt("num");
 					int numTicked = rst.getInt("num_ticked");
-					TypeNumTicked typeNumTicked = new TypeNumTicked(type, num, numTicked);
+					int numTodo = rst.getInt("num_todo");
+					TypeNumTickedTodo typeNumTicked = new TypeNumTickedTodo(type, num, numTicked, numTodo);
 					// Sector
 					Optional<Area.AreaSector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
 					if (optSector.isPresent()) {
 						optSector.get().getTypeNumTicked().add(typeNumTicked);
 					}
 					// Area
-					TypeNumTicked areaTnt = lookup.get(type);
+					TypeNumTickedTodo areaTnt = lookup.get(type);
 					if (areaTnt == null) {
-						areaTnt = new TypeNumTicked(type, num, numTicked);
+						areaTnt = new TypeNumTickedTodo(type, num, numTicked, numTodo);
 						a.getTypeNumTicked().add(areaTnt);
 						lookup.put(type, areaTnt);
 					}
 					else {
 						areaTnt.addNum(num);
 						areaTnt.addTicked(numTicked);
+						areaTnt.addTodo(numTodo);
 					}
 				}
 			}
