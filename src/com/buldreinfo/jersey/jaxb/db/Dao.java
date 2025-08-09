@@ -1596,7 +1596,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT CRC32(u.picture) avatar_crc32, u.firstname, u.lastname, u.email_visible_to_all,
 				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
-                       MAX(l.when) last_login
+				                   MAX(l.when) last_login
 				FROM (user u LEFT JOIN user_email e ON u.id=e.user_id) LEFT JOIN user_login l ON u.id=l.user_id
 				WHERE u.id=?
 				GROUP BY u.id, u.picture, u.firstname, u.lastname
@@ -3381,7 +3381,9 @@ public class Dao {
 		Path webm = IOHelper.getPathMediaWebWebm(idMedia);
 		Path p = Files.exists(webm)? webm : webp;
 		Preconditions.checkArgument(Files.exists(p));
-		String sqlStr = dateTaken == null? "UPDATE media SET checksum=?, width=?, height=? WHERE id=?" : "UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
+		String sqlStr = dateTaken == null?
+				"UPDATE media SET checksum=?, width=?, height=? WHERE id=?" :
+					"UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 0;
 			if (dateTaken != null) {

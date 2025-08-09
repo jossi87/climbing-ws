@@ -36,7 +36,9 @@ public class Server {
 		try (Connection c = server.bds.getConnection()) {
 			c.setAutoCommit(false);
 			action.run(server.dao, c);
-			c.commit();
+			if (!c.getAutoCommit()) {
+				c.commit();
+			}
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			throw new RuntimeException(e.getMessage(), e);

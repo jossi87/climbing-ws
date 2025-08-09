@@ -1,15 +1,9 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -19,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -136,29 +131,13 @@ public class FixMedia {
 								}
 								if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
 									Files.createDirectories(originalJpg.getParent());
-									Path tmp = Paths.get("C:/temp/" + System.currentTimeMillis() + ".jpg");
+									Path tmp = Files.createTempDirectory("fixMovies").resolve(UUID.randomUUID().toString() + ".jpg");
 									Files.createDirectories(tmp.getParent());
-									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", originalMp4.toString(), "-ss", "00:00:02", "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
 									Process p = new ProcessBuilder().inheritIO().command(commands).start();
 									p.waitFor();
 									Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
-
 									BufferedImage b = ImageIO.read(tmp.toFile());
-									Graphics g = b.getGraphics();
-									g.setFont(new Font("Arial", Font.BOLD, 40));
-									final String str = "VIDEO";
-									final int x = (b.getWidth()/2)-70;
-									final int y = (b.getHeight()/2)-20;
-									FontMetrics fm = g.getFontMetrics();
-									Rectangle2D rect = fm.getStringBounds(str, g);
-									g.setColor(Color.WHITE);
-									g.fillRect(x,
-											y - fm.getAscent(),
-											(int) rect.getWidth(),
-											(int) rect.getHeight());
-									g.setColor(Color.BLUE);
-									g.drawString(str, x, y);
-									g.dispose();
 									ImageHelper.saveImage(dao, c, id, b);
 									Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
 								}
