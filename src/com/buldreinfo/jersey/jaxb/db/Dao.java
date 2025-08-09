@@ -776,17 +776,17 @@ public class Dao {
 					int num = rst.getInt("num");
 					int numTicked = rst.getInt("num_ticked");
 					int numTodo = rst.getInt("num_todo");
-					TypeNumTickedTodo typeNumTicked = new TypeNumTickedTodo(type, num, numTicked, numTodo);
+					TypeNumTickedTodo typeNumTickedTodo = new TypeNumTickedTodo(type, num, numTicked, numTodo);
 					// Sector
 					Optional<Area.AreaSector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
 					if (optSector.isPresent()) {
-						optSector.get().getTypeNumTicked().add(typeNumTicked);
+						optSector.get().getTypeNumTickedTodo().add(typeNumTickedTodo);
 					}
 					// Area
 					TypeNumTickedTodo areaTnt = lookup.get(type);
 					if (areaTnt == null) {
 						areaTnt = new TypeNumTickedTodo(type, num, numTicked, numTodo);
-						a.getTypeNumTicked().add(areaTnt);
+						a.getTypeNumTickedTodo().add(areaTnt);
 						lookup.put(type, areaTnt);
 					}
 					else {

@@ -783,7 +783,7 @@ public class V2 {
 			final Optional<Integer> authUserId = Optional.empty();
 			Area a = dao.getArea(c, setup, authUserId, id, !dontUpdateHits);
 			String description = null;
-			String info = a.getTypeNumTicked() == null || a.getTypeNumTicked().isEmpty()? null : a.getTypeNumTicked()
+			String info = a.getTypeNumTickedTodo() == null || a.getTypeNumTickedTodo().isEmpty()? null : a.getTypeNumTickedTodo()
 					.stream()
 					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
 					.collect(Collectors.joining(", "));
