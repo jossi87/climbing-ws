@@ -1,10 +1,6 @@
 package com.buldreinfo.jersey.jaxb.io;
 
 import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -33,7 +29,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 public class ImageReader {
-	protected static class ImageReaderBuilder {
+	public static class ImageReaderBuilder {
 		private Path path;
 		private byte[] bytes;
 		private String embedVideoUrl;
@@ -127,23 +123,7 @@ public class ImageReader {
 		}
 		Preconditions.checkArgument(imgUrl != null, "imgUrl is null");
 		try (InputStream is = URI.create(imgUrl).toURL().openStream()){
-			BufferedImage b = ImageIO.read(is);
-			Graphics g = b.getGraphics();
-			g.setFont(new Font("Arial", Font.BOLD, 40));
-			final String str = "VIDEO";
-			final int x = (b.getWidth()/2)-70;
-			final int y = (b.getHeight()/2)-20;
-			FontMetrics fm = g.getFontMetrics();
-			Rectangle2D rect = fm.getStringBounds(str, g);
-			g.setColor(Color.WHITE);
-			g.fillRect(x,
-					y - fm.getAscent(),
-					(int) rect.getWidth(),
-					(int) rect.getHeight());
-			g.setColor(Color.BLUE);
-			g.drawString(str, x, y);
-			g.dispose();
-			return b;
+			return ImageIO.read(is);
 		}
 	}
 }
