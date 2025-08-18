@@ -73,6 +73,18 @@ public class TopoGenerator {
 		parent.appendChild(circle);
 	}
 	
+	private static void addPolygon(Document doc, Element parent, String fill, String stroke, String strokeWidth, int x, int y, int r) {
+		Element polygon = doc.createElementNS(xmlns, "polygon");
+		polygon.setAttributeNS(null, "stroke-linecap", "round");
+		polygon.setAttributeNS(null, "stroke", stroke);
+		polygon.setAttributeNS(null, "fill", fill);
+		if (strokeWidth != null) {
+			polygon.setAttributeNS(null, "stroke-width", strokeWidth);
+		}
+		polygon.setAttributeNS(null, "points", "%d,%d,%d,%d,%d,%d".formatted(x, y-r, x-r, y+r, x+r, y+r));
+		parent.appendChild(polygon);
+	}
+	
 	private static void addLine(Document doc, Element parent, String x1, String y1, String x2, String y2, String strokeWidth, String stroke) {
 		Element line = doc.createElementNS(xmlns, "line");
 		line.setAttributeNS(null, "stroke-linecap", "round");
@@ -241,6 +253,13 @@ public class TopoGenerator {
 					for (SvgAnchor svgAnchor : svgAnchors) {
 						addCircle(doc, svgRoot, "#000000", String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.005 * imgMax));
 						addCircle(doc, svgRoot, groupColor, String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.004 * imgMax));
+					}
+				}
+				// Trad belay stations
+				if (svg.tradBelayStations() != null) {
+					List<SvgAnchor> tradBelayStations = gson.fromJson(svg.tradBelayStations(), new TypeToken<List<SvgAnchor>>(){});
+					for (SvgAnchor tradBelayStation : tradBelayStations) {
+						addPolygon(doc, svgRoot, "white", "black", String.valueOf(0.0015 * imgMax), tradBelayStation.x(), tradBelayStation.y(), (int)Math.round(r/2));
 					}
 				}
 			}
