@@ -748,7 +748,7 @@ public class Dao {
 				SELECT s.id,
 				       CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type,
 				       COUNT(DISTINCT p.id) num,
-				       COUNT(DISTINCT t.id) num_ticked,
+				       COUNT(DISTINCT CASE WHEN f.user_id IS NOT NULL OR t.user_id IS NOT NULL THEN p.id END) num_ticked,
 				       COUNT(DISTINCT td.id) num_todo
 				FROM area a
 				     INNER JOIN sector s ON a.id=s.area_id
