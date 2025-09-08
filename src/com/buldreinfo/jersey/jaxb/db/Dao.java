@@ -4887,7 +4887,13 @@ public class Dao {
 					String comment = rst.getString("description");
 					String fa = rst.getString("fa");
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
-						fa = "FA: " + problemIdFirstAidAscentLookup.get(id) + ". FFA: " + fa;
+						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
+						if (fa == null) {
+							fa = faAid;
+						}
+						else {
+							fa = faAid + ". FFA: " + fa;
+						}
 					}
 					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
 					String faDateStr = faDate == null? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
