@@ -92,7 +92,7 @@
 		<dependency>
 			<groupId>org.glassfish.jersey.media</groupId>
 			<artifactId>jersey-media-multipart</artifactId>
-			<version>4.0.0-M3</version>
+			<version>4.0.0-M4</version>
 		</dependency>
 		
 		<dependency>
