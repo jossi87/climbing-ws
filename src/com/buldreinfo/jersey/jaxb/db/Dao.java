@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.db;
 
-import java.awt.Point;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
