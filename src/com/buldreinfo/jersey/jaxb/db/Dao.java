@@ -1239,19 +1239,6 @@ public class Dao {
 		return res;
 	}
 
-	public Point getMediaDimention(Connection c, int id) throws SQLException {
-		Point res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT width, height FROM media WHERE id=?")) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res = new Point(rst.getInt("width"), rst.getInt("height"));
-				}
-			}
-		}
-		return res;
-	}
-
 	public List<PermissionUser> getPermissions(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
 		ensureSuperadminWriteRegion(c, authUserId, idRegion);
 		// Return users

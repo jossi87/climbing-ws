@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -342,48 +343,43 @@ public class V2 {
 			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
 			@Parameter(description = "Image region - height", required = false) @QueryParam("height") int height,
-			@Parameter(description = "Image size - E.g. minDimention=100 can return an image with the size 100x133px", required = false) @QueryParam("minDimention") int minDimention) {
-		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, minDimention={}) initialized", id, crc32, x, y, width, height, minDimention);
-		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
-			final Point dimention = minDimention == 0? null : dao.getMediaDimention(c, id);
-			final boolean cropImage = width > 0 && height > 0;
-			final boolean resizeImage = dimention != null && dimention.getX() > minDimention && dimention.getY() > minDimention;
-			java.nio.file.Path p = null;
-			String mimeType = "image/jpeg";
-			if (cropImage) {
-				p = IOHelper.getPathMediaWebJpgRegion(id, x, y, width, height);
-				if (!Files.exists(p)) {
-					java.nio.file.Path original = IOHelper.getPathMediaOriginalJpg(id);
-					BufferedImage b = Preconditions.checkNotNull(ImageIO.read(original.toFile()), "Could not read " + original.toString());
-					b = Scalr.crop(b, x, y, width, height);
-					Files.createDirectories(p.getParent());
-					ImageIO.write(b, "jpg", p.toFile());
-					b.flush();
-				}
+			@Parameter(description = "Target Width - The image will be resized to fit this exact width (without upscaling).", required = false) @QueryParam("targetWidth") int targetWidth,
+			@Parameter(description = "Minimum Dimension - Ensures the *shortest* edge (min(width, height)) of the returned image is at least this many pixels (without upscaling).", required = false) @QueryParam("minDimension") int minDimension) throws IOException {
+		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, crc32, x, y, width, height, targetWidth, minDimension);
+		CacheControl cc = new CacheControl();
+		cc.setMaxAge(2678400); // 31 days
+		cc.setNoTransform(false);
+		if (width == 0 && height == 0 && targetWidth == 0 && minDimension == 0) {
+			boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+			String mimeType = webP ? "image/webp" : "image/jpeg";
+			return Response.ok(IOHelper.getPathImage(id, webP).toFile(), mimeType).cacheControl(cc).build();
+		}
+		if (width > 0 && height > 0) {
+			var p = IOHelper.getPathMediaWebJpgRegion(id, x, y, width, height);
+			if (!Files.exists(p)) {
+				java.nio.file.Path original = IOHelper.getPathMediaOriginalJpg(id);
+				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(original.toFile()), "Could not read " + original.toString());
+				b = Scalr.crop(b, x, y, width, height);
+				Files.createDirectories(p.getParent());
+				ImageIO.write(b, "jpg", p.toFile());
+				b.flush();
 			}
-			else if (!resizeImage && GlobalFunctions.requestAcceptsWebp(request)) {
-				boolean webP = true;
-				p = IOHelper.getPathImage(id, webP);
-				mimeType = "image/webp";
-			}
-			else {
-				boolean webP = false;
-				p = IOHelper.getPathImage(id, webP);
-			}
-			CacheControl cc = new CacheControl();
-			cc.setMaxAge(2678400); // 31 days
-			cc.setNoTransform(false);
-			if (resizeImage) {
-				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-				Mode mode = dimention.getX() < dimention.getY()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimention);
-				try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-					ImageIO.write(b, "jpg", baos);
-					return Response.ok(baos.toByteArray(), mimeType).cacheControl(cc).build();
-				}
-			}
-			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
-		});
+			return Response.ok(p.toFile(), "image/jpeg").cacheControl(cc).build();
+		}
+		boolean webP = false;
+		var p = IOHelper.getPathImage(id, webP);
+		BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
+		if (targetWidth > 0 && targetWidth < b.getWidth()) {
+			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+		}
+		else if (minDimension > 0 && minDimension < b.getWidth() && minDimension < b.getHeight()) {
+			Mode mode = b.getWidth() < b.getHeight()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimension);
+		}
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			ImageIO.write(b, "jpg", baos);
+			return Response.ok(baos.toByteArray(), "image/jpeg").cacheControl(cc).build();
+		}
 	}
 
 	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
