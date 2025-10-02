@@ -18,6 +18,9 @@ import org.imgscalr.Scalr;
 import com.google.common.base.Preconditions;
 
 public class ImageSaver {
+	public static int IMAGE_WEB_WIDTH = 2560;
+	public static int IMAGE_WEB_HEIGHT = 1440;
+	
 	protected static class ImageSaverBuilder {
 		private BufferedImage bufferedImage;
 		private Path pathOriginalJpg;
@@ -84,10 +87,8 @@ public class ImageSaver {
 				try {
 					// JPG
 					IOHelper.deleteIfExistsCreateParent(builder.pathWebJpg);
-					int targetWidth = 2560;
-					int targetHeight = 1440;
-					if (builder.bufferedImage.getWidth() > targetWidth && builder.bufferedImage.getHeight() > targetHeight) {
-						BufferedImage b = Scalr.resize(builder.bufferedImage, Scalr.Method.ULTRA_QUALITY, targetWidth, targetHeight, Scalr.OP_ANTIALIAS);
+					if (builder.bufferedImage.getWidth() > IMAGE_WEB_WIDTH && builder.bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
+						BufferedImage b = Scalr.resize(builder.bufferedImage, Scalr.Method.ULTRA_QUALITY, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
 						ImageIO.write(b, "jpg", builder.pathWebJpg.toFile());
 					}
 					else {

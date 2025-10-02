@@ -26,9 +26,11 @@ import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
+import com.buldreinfo.jersey.jaxb.helpers.CacheHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.io.ImageSaver;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -92,7 +94,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -211,11 +212,9 @@ public class V2 {
 			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
 		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
 			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);
-			String mimeType = "image/jpeg";
-			CacheControl cc = new CacheControl();
-			cc.setMaxAge(2678400); // 31 days
-			cc.setNoTransform(false);
-			return Response.ok(p.toFile(), mimeType).cacheControl(cc).build();
+			var builder = Response.ok(p.toFile(), "image/jpeg");
+			builder = CacheHelper.applyImmutableLongTermCache(builder);
+			return builder.build();
 		});
 	}
 
@@ -345,15 +344,14 @@ public class V2 {
 			@Parameter(description = "Target Width - The image will be resized to fit this exact width (without upscaling).", required = false) @QueryParam("targetWidth") int targetWidth,
 			@Parameter(description = "Minimum Dimension - Ensures the *shortest* edge (min(width, height)) of the returned image is at least this many pixels (without upscaling).", required = false) @QueryParam("minDimension") int minDimension) throws IOException {
 		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, crc32, x, y, width, height, targetWidth, minDimension);
-		CacheControl cc = new CacheControl();
-		cc.setMaxAge(2678400); // 31 days
-		cc.setNoTransform(false);
 		if (width == 0 && height == 0 && targetWidth == 0 && minDimension == 0) {
 			boolean webP = GlobalFunctions.requestAcceptsWebp(request);
 			String mimeType = webP ? "image/webp" : "image/jpeg";
-			return Response.ok(IOHelper.getPathImage(id, webP).toFile(), mimeType).cacheControl(cc).build();
+			var builder = Response.ok(IOHelper.getPathImage(id, webP).toFile(), mimeType);
+			builder = CacheHelper.applyImmutableLongTermCache(builder);
+			return builder.build();
 		}
-		if (width > 0 && height > 0) {
+		if (width > 0 && height > 0) { // crop
 			var p = IOHelper.getPathMediaWebJpgRegion(id, x, y, width, height);
 			if (!Files.exists(p)) {
 				java.nio.file.Path original = IOHelper.getPathMediaOriginalJpg(id);
@@ -363,10 +361,13 @@ public class V2 {
 				ImageIO.write(b, "jpg", p.toFile());
 				b.flush();
 			}
-			return Response.ok(p.toFile(), "image/jpeg").cacheControl(cc).build();
+			var builder = Response.ok(p.toFile(), "image/jpeg");
+			builder = CacheHelper.applyImmutableLongTermCache(builder);
+			return builder.build();
 		}
+		boolean useWebImageSource = targetWidth <= ImageSaver.IMAGE_WEB_WIDTH && minDimension <= ImageSaver.IMAGE_WEB_HEIGHT && minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
 		boolean webP = false;
-		var p = IOHelper.getPathImage(id, webP);
+		var p = useWebImageSource ? IOHelper.getPathImage(id, webP) : IOHelper.getPathMediaOriginalJpg(id);
 		BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
 		if (targetWidth > 0 && targetWidth < b.getWidth()) {
 			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
@@ -377,7 +378,9 @@ public class V2 {
 		}
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 			ImageIO.write(b, "jpg", baos);
-			return Response.ok(baos.toByteArray(), "image/jpeg").cacheControl(cc).build();
+			var builder = Response.ok(baos.toByteArray(), "image/jpeg");
+			builder = CacheHelper.applyImmutableLongTermCache(builder);
+			return builder.build();
 		}
 	}
 
