@@ -82,7 +82,7 @@
 		<dependency>
 			<groupId>org.glassfish.jersey.core</groupId>
 			<artifactId>jersey-server</artifactId>
-			<version>4.0.0-M4</version>
+			<version>4.0.0</version>
 		</dependency>
 		<dependency>
 		    <groupId>org.glassfish.jersey.inject</groupId>
