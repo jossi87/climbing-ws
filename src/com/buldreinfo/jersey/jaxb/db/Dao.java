@@ -3507,7 +3507,7 @@ public class Dao {
 			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					String region = rst.getString("region");
+					String regionName = rst.getString("region_name");
 					String url = rst.getString("url");
 					String areaName = rst.getString("area_name");
 					String sectorName = rst.getString("sector_name");
@@ -3515,7 +3515,7 @@ public class Dao {
 					int pitch = rst.getInt("pitch");
 					int grade = rst.getInt("grade");
 					String description = rst.getString("description");
-					res.add(new TocPitch(region, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromIdGrade(grade), description));
+					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromIdGrade(grade), description));
 				}
 			}
 		}

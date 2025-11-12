@@ -665,7 +665,7 @@ public class V2 {
 					try (ExcelSheet sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
 						for (var p : pitches) {
 							sheet.incrementRow();
-							sheet.writeString("REGION", p.region());
+							sheet.writeString("REGION", p.regionName());
 							sheet.writeHyperlink("URL", p.url());
 							sheet.writeString("AREA", p.areaName());
 							sheet.writeString("SECTOR", p.sectorName());
