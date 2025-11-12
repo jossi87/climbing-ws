@@ -97,6 +97,7 @@ import com.buldreinfo.jersey.jaxb.model.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Toc;
 import com.buldreinfo.jersey.jaxb.model.TocArea;
+import com.buldreinfo.jersey.jaxb.model.TocPitch;
 import com.buldreinfo.jersey.jaxb.model.TocProblem;
 import com.buldreinfo.jersey.jaxb.model.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.TocSector;
@@ -137,6 +138,115 @@ public class Dao {
 	public Dao() {
 	}
 
+	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		int idMedia = -1;
+		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
+		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0));
+		boolean alreadyExistsInDb = false;
+		boolean isMovie = false;
+		String suffix = null;
+		if (Strings.isNullOrEmpty(m.name())) {
+			// Embed video url
+			Preconditions.checkNotNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
+			Preconditions.checkNotNull(m.embedVideoUrl(), "embedVideoUrl required");
+			// First check if video already exists in system, don't duplicate videos!
+			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
+				ps.setString(1, m.embedVideoUrl());
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						alreadyExistsInDb = true;
+						idMedia = rst.getInt(1);
+					}
+				}
+			}
+			suffix = "mp4";
+			isMovie = true;
+		}
+		else {
+			suffix = "jpg";
+			isMovie = false;
+		}
+
+		/**
+		 * DB
+		 */
+		if (!alreadyExistsInDb) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setBoolean(1, isMovie);
+				ps.setString(2, suffix);
+				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
+				ps.setInt(4, authUserId.orElseThrow());
+				ps.setString(5, GlobalFunctions.stripString(m.description()));
+				ps.setString(6, m.embedVideoUrl());
+				ps.executeUpdate();
+				try (ResultSet rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						idMedia = rst.getInt(1);
+					}
+				}
+			}
+		}
+		Preconditions.checkArgument(idMedia > 0);
+		if (idProblem > 0) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idProblem);
+				setNullablePositiveInteger(ps, 3, pitch);
+				ps.setBoolean(4, trivia);
+				ps.setLong(5, m.embedMilliseconds());
+				ps.execute();
+			}
+		} else if (idSector > 0) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idSector);
+				ps.setBoolean(3, trivia);
+				ps.execute();
+			}
+		} else if (idArea > 0) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idArea);
+				ps.setBoolean(3, trivia);
+				ps.execute();
+			}
+		} else if (idGuestbook > 0) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idGuestbook);
+				ps.execute();
+			}
+		} else {
+			throw new RuntimeException("Server error");
+		}
+		if (!alreadyExistsInDb) {
+			if (m.inPhoto() != null && !m.inPhoto().isEmpty()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
+					for (User u : m.inPhoto()) {
+						ps.setInt(1, idMedia);
+						ps.setInt(2, getExistingOrInsertUser(c, u.name()));
+						ps.execute();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (isMovie) {
+				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
+			}
+			else {
+				try (InputStream is = multiPart.getField(m.name()).getValueAs(InputStream.class)) {
+					byte[] bytes = ByteStreams.toByteArray(is);
+					ImageHelper.saveImage(this, c, idMedia, bytes);
+				}
+			}
+		}
+		return idMedia;
+	}
+
 	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		for (NewMedia m : p.getNewMedia()) {
 			final int idSector = 0;
@@ -145,6 +255,38 @@ public class Dao {
 			addNewMedia(c, authUserId, p.getId(), m.pitch(), m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
 		}
 		fillActivity(c, p.getId());
+	}
+
+	private int addUser(Connection c, String email, String firstname, String lastname, String picture) throws SQLException {
+		int id = -1;
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			ps.setString(1, firstname);
+			ps.setString(2, lastname);
+			ps.setString(3, picture);
+			ps.executeUpdate();
+			try (ResultSet rst = ps.getGeneratedKeys()) {
+				if (rst != null && rst.next()) {
+					id = rst.getInt(1);
+					logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - getInt(1)={}", email, firstname, lastname, picture, id);
+				}
+			}
+		}
+		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
+		if (!Strings.isNullOrEmpty(email)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)")) {
+				ps.setInt(1, id);
+				ps.setString(2, email.toLowerCase());
+				ps.execute();
+			}
+		}
+		if (picture != null) {
+			try (InputStream is = URI.create(picture).toURL().openStream()) {
+				ImageHelper.saveAvatar(id, is);
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+			}
+		}
+		return id;
 	}
 
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
@@ -181,6 +323,50 @@ public class Dao {
 		for (int idProblem : idProblems) {
 			fillActivity(c, idProblem);
 		}
+	}
+
+	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1")) {
+			ps.setInt(1, areaId);
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1")) {
+			ps.setInt(1, problemId);
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureAdminWriteRegion(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, idRegion);
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	public void ensureCoordinatesInDbWithElevationAndId(Connection c, List<Coordinates> coordinates) throws SQLException, InterruptedException {
@@ -225,6 +411,22 @@ public class Dao {
 				}
 			}
 		}
+	}
+
+	private void ensureSuperadminWriteRegion(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, idRegion);
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	public void fillActivity(Connection c, int idProblem) throws SQLException {
@@ -390,6 +592,38 @@ public class Dao {
 			 * Execute psAddActivity
 			 */
 			psAddActivity.executeBatch();
+		}
+	}
+
+	private void fillMissingElevations(Connection c) throws SQLException, InterruptedException {
+		List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
+				}
+			}
+		}
+		if (!coordinatesMissingElevation.isEmpty()) {
+			try {
+				GeoHelper.fillMissingElevations(coordinatesMissingElevation);
+				try (PreparedStatement ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
+					for (Coordinates coord : coordinatesMissingElevation) {
+						ps.setDouble(1, coord.getElevation());
+						ps.setString(2, coord.getElevationSource());
+						ps.setDouble(3, coord.getId());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			} catch (IOException e) {
+				logger.warn(e.getMessage(), e);
+			}
 		}
 	}
 
@@ -914,6 +1148,31 @@ public class Dao {
 		return res;
 	}
 
+	private CompassDirection getCompassDirection(Setup s, int id) {
+		if (id == 0) {
+			return null;
+		}
+		return s.compassDirections()
+				.stream()
+				.filter(cd -> cd.id() == id)
+				.findAny()
+				.get();
+	}
+
+	private List<CompassDirection> getCompassDirections(Connection c) throws SQLException {
+		List<CompassDirection> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String direction = rst.getString("direction");
+					res.add(new CompassDirection(id, direction));
+				}
+			}
+		}
+		return res;
+	}
+
 	public Collection<GradeDistribution> getContentGraph(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = "WITH x AS ("
@@ -1011,6 +1270,101 @@ public class Dao {
 			}
 		}
 		return areasLookup.values();
+	}
+
+	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {
+		if (Strings.isNullOrEmpty(name)) {
+			return 1049; // Unknown
+		}
+		try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")) {
+			ps.setString(1, name);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					return rst.getInt("id");
+				}
+			}
+		}
+		int usId = addUser(c, null, name, null, null);
+		Preconditions.checkArgument(usId > 0);
+		return usId;
+	}
+
+	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId, boolean inherited) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_area ea, external_link e
+				WHERE ea.area_id=? AND ea.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, areaId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title, inherited));
+				}
+			}
+		}
+		return res;
+	}
+
+	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId, boolean inherited) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_problem ep, external_link e
+				WHERE ep.problem_id=? AND ep.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, problemId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title, inherited));
+				}
+			}
+		}
+		return res;
+	}
+
+	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId, boolean inherited) throws SQLException {
+		List<ExternalLink> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.id, e.url, e.title
+				FROM external_link_sector ea, external_link e
+				WHERE ea.sector_id=? AND ea.external_link_id=e.id
+				ORDER BY e.title
+				""")) {
+			ps.setInt(1, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String url = rst.getString("url");
+					String title = rst.getString("title");
+					res.add(new ExternalLink(id, url, title, inherited));
+				}
+			}
+		}
+		return res;
+	}
+
+	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
+		Map<Integer, String> res = new HashMap<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
+			ps.setInt(1, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idProblem = rst.getInt("id");
+					String fa = rst.getString("fa");
+					res.put(idProblem, fa);
+				}
+			}
+		}
+		return res;
 	}
 
 	public List<Integer> getFaYears(Connection c, int regionId) throws SQLException {
@@ -1207,6 +1561,21 @@ public class Dao {
 		return res.values();
 	}
 
+	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
+		List<Grade> res = new ArrayList<>(); 
+		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
+			ps.setString(1, gradeSystem.toString());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int gradeId = rst.getInt("grade_id");
+					String grade = rst.getString("grade");
+					res.add(new Grade(gradeId, grade));
+				}
+			}
+		}
+		return res;
+	}
+
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		Media res = null;
 		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((media m INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE m.id=?")) {
@@ -1232,6 +1601,198 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
+				}
+			}
+		}
+		return res;
+	}
+	
+	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
+		List<Media> media = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.uploader_user_id, m.checksum, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
+			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					int uploaderUserId = rst.getInt("uploader_user_id");
+					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
+					int crc32 = rst.getInt("checksum");
+					String description = rst.getString("description");
+					String location = rst.getString("location");
+					boolean trivia = rst.getBoolean("trivia");
+					if (inherited && trivia) {
+						continue; // Don't inherit trivia image
+					}
+					int pitch = 0;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+				}
+			}
+		}
+		return media;
+	}
+
+	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
+		List<Media> media = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id) INNER JOIN media_guestbook mg ON g.id=mg.guestbook_id) INNER JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL)) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE g.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
+			ps.setInt(1, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					int uploaderUserId = rst.getInt("uploader_user_id");
+					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
+					int crc32 = rst.getInt("checksum");
+					String description = rst.getString("description");
+					String location = rst.getString("location");
+					int pitch = 0;
+					boolean trivia = false;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
+				}
+			}
+		}
+		return media;
+	}
+
+	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
+		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
+		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN media_problem mp ON p.id=mp.problem_id) INNER JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE p.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
+			ps.setInt(1, problemId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					int uploaderUserId = rst.getInt("uploader_user_id");
+					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
+					int crc32 = rst.getInt("checksum");
+					String description = rst.getString("description");
+					String location = rst.getString("location");
+					int pitch = rst.getInt("pitch");
+					boolean trivia = rst.getBoolean("trivia");
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String t = rst.getString("t");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					if (embedUrl != null) {
+						long seconds = Long.parseLong(t);
+						if (seconds > 0) {
+							if (embedUrl.contains("youtu")) {
+								embedUrl += "?start=" + seconds;
+							}
+							else {
+								embedUrl += "#t=" + seconds + "s";
+							}
+						}
+					}
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
+				}
+			}
+		}
+		if (media != null && media.isEmpty()) {
+			media = null;
+		}
+		return media;
+	}
+
+	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
+		List<Media> allMedia = new ArrayList<>();
+		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
+		String sqlStr = "SELECT m.id, m.uploader_user_id, m.checksum, ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN media_sector ms ON s.id=ms.sector_id) INNER JOIN media m ON (ms.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE s.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, idSector);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					int uploaderUserId = rst.getInt("uploader_user_id");
+					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
+					int crc32 = rst.getInt("checksum");
+					String description = rst.getString("description");
+					String location = rst.getString("location");
+					boolean trivia = rst.getBoolean("trivia");
+					if (inherited && trivia) {
+						continue; // Don't inherit trivia image
+					}
+					int pitch = 0;
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					String embedUrl = rst.getString("embed_url");
+					String dateCreated = rst.getString("date_created");
+					String dateTaken = rst.getString("date_taken");
+					String capturer = rst.getString("capturer");
+					String tagged = rst.getString("tagged");
+					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
+					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
+							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
+							enableMoveToIdSector,
+							(svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()? enableMoveToIdProblem : 0),
+							null);
+					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
+						mediaWithRequestedTopoLine.add(m);
+					}
+					allMedia.add(m);
+				}
+			}
+		}
+		// Figure out what to actually return
+		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
+			// Only images without topo lines or images with topo lines for this problem
+			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
+		}
+		else if (!showHiddenMedia && s.gradeSystem().equals(GradeSystem.BOULDER) && optionalIdProblem != 0) {
+			// In bouldering we don't want to show all rocks with lines if this one does not have a line
+			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
+		}
+		return allMedia;
+	}
+
+	private List<MediaSvgElement> getMediaSvgElements(Connection c, int idMedia) throws SQLException {
+		List<MediaSvgElement> res = null;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id=?")) {
+			ps.setInt(1, idMedia);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					if (res == null) {
+						res = new ArrayList<>();
+					}
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					if (path != null) {
+						res.add(MediaSvgElement.fromPath(id, path));
+					}
+					else {
+						int rappelX = rst.getInt("rappel_x");
+						int rappelY = rst.getInt("rappel_y");
+						boolean rappelBolted = rst.getBoolean("rappel_bolted");
+						res.add(MediaSvgElement.fromRappel(id, rappelX, rappelY, rappelBolted));
+					}
 				}
 			}
 		}
@@ -1573,6 +2134,30 @@ public class Dao {
 		}
 		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p={}", authUserId, s.idRegion(), reqId, stopwatch, p);
 		return p;
+	}
+
+	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
+		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
+		Map<Integer, Coordinates> res = new HashMap<>();
+		String in = ",?".repeat(idProblems.size()).substring(1);
+		String sqlStr = "SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation, COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates pc ON p.coordinates_id=pc.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinates c ON so.coordinates_id=c.id) WHERE p.id IN (" + in + ")";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idProblems) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idProblem = rst.getInt("id_problem");
+					int idCoordinates = rst.getInt("coordinates_id");
+					if (idCoordinates > 0) {
+						res.put(idProblem, new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")));
+					}
+				}
+			}
+		}
+		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
+		return res;
 	}
 
 	public Profile getProfile(Connection c, Optional<Integer> authUserId, Setup setup, int reqUserId) throws SQLException {
@@ -1991,6 +2576,32 @@ public class Dao {
 		return res;
 	}
 
+	private Multimap<Integer, Coordinates> getRegionOutlines(Connection c, Collection<Integer> idRegions) throws SQLException {
+		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
+		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
+		String in = ",?".repeat(idRegions.size()).substring(1);
+		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM region_outline ro, coordinates c WHERE ro.region_id IN (" + in + ") AND ro.coordinates_id=c.id ORDER BY ro.sorting";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idRegions) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idRegion = rst.getInt("id_region");
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					res.put(idRegion, new Coordinates(id, latitude, longitude, elevation, elevationSource));
+				}
+			}
+		}
+		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
+		return res;
+	}
+
 	public Collection<V1Region> getRegions(Connection c, String uniqueId, boolean climbingNotBouldering) throws SQLException {
 		final String regionTypeFilter = climbingNotBouldering? "rt.type_id!=1" : "rt.type_id=1";
 		final int idUser = upsertUserReturnId(c, uniqueId);
@@ -2391,6 +3002,162 @@ public class Dao {
 		return s;
 	}
 
+	private List<Coordinates> getSectorOutline(Connection c, int idSector) throws SQLException {
+		Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, Collections.singleton(idSector));
+		if (idSectorOutline == null || idSectorOutline.isEmpty()) {
+			return null;
+		}
+		return Lists.newArrayList(idSectorOutline.get(idSector));
+	}
+
+	private Multimap<Integer, Coordinates> getSectorOutlines(Connection c, Collection<Integer> idSectors) throws SQLException {
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
+		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
+		String in = ",?".repeat(idSectors.size()).substring(1);
+		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM sector_outline so, coordinates c WHERE so.sector_id IN (" + in + ") AND so.coordinates_id=c.id ORDER BY so.sorting";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idSectors) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idSector = rst.getInt("id_sector");
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					res.put(idSector, new Coordinates(id, latitude, longitude, elevation, elevationSource));
+				}
+			}
+		}
+		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}", idSectors.size(), res.size());
+		return res;
+	}
+
+	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
+		List<SectorProblem> res = new ArrayList<>();
+		Map<Integer, String> problemIdFirstAidAscentLookup = null;
+		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
+		}
+		String sqlStr = """
+				SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				       COUNT(DISTINCT ps.id) num_pitches,
+				       COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
+				       COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,
+				       CASE WHEN MAX(svg.problem_id) IS NOT NULL THEN 1 ELSE 0 END has_topo,
+				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,
+				       p.fa_date,
+				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
+				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,
+				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
+				       ty.id type_id, ty.type, ty.subtype,
+				       danger.danger
+				FROM ((((((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN (media_problem mp LEFT JOIN media m ON (mp.media_id=m.id AND mp.trivia=0 AND m.deleted_user_id IS NULL)) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo ON (p.id=todo.problem_id AND todo.user_id=?)) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN (SELECT DISTINCT problem_id problem_id FROM svg) svg ON p.id=svg.problem_id
+				WHERE p.sector_id=?
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, todo.id, ty.id, ty.type, ty.subtype, danger.danger
+				ORDER BY p.nr
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setInt(3, authUserId.orElse(0));
+			ps.setInt(4, authUserId.orElse(0));
+			ps.setInt(5, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String broken = rst.getString("broken");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					int nr = rst.getInt("nr");
+					int grade = rst.getInt("grade");
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					String name = rst.getString("name");
+					String rock = rst.getString("rock");
+					String comment = rst.getString("description");
+					String fa = rst.getString("fa");
+					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
+						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
+						if (fa == null) {
+							fa = faAid;
+						}
+						else {
+							fa = faAid + ". FFA: " + fa;
+						}
+					}
+					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
+					String faDateStr = faDate == null? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
+					int numPitches = rst.getInt("num_pitches");
+					boolean hasImages = rst.getInt("num_images")>0;
+					boolean hasMovies = rst.getInt("num_movies")>0;
+					boolean hasTopo = rst.getBoolean("has_topo");
+					int numTicks = rst.getInt("num_ticks");
+					double stars = rst.getDouble("stars");
+					boolean ticked = rst.getBoolean("ticked");
+					boolean todo = rst.getBoolean("todo");
+					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					boolean danger = rst.getBoolean("danger");
+					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faDateStr, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
+				}
+			}
+		}
+		return res;
+	}
+
+	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, Slope> res = new HashMap<>();
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
+		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
+		String sqlStr = """
+				SELECT s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude),
+				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
+				FROM %s s, coordinates c
+				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
+				ORDER BY s.sector_id, s.sorting
+				""".formatted(
+						approachNotDescent ? "sector_approach" : "sector_descent",
+								",?".repeat(idSectors.size()).substring(1)
+						);
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int idSector : idSectors) {
+				ps.setInt(parameterIndex++, idSector);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				int prevIdSector = 0;
+				double distance = 0;
+				while (rst.next()) {
+					int idSector = rst.getInt("id_sector");
+					if (prevIdSector != idSector) {
+						prevIdSector = idSector;
+						distance = 0;
+					}
+					int id = rst.getInt("id");
+					double latitude = rst.getDouble("latitude");
+					double longitude = rst.getDouble("longitude");
+					double elevation = rst.getDouble("elevation");
+					String elevationSource = rst.getString("elevation_source");
+					distance += rst.getDouble("m");
+					Coordinates coords = new Coordinates(id, latitude, longitude, elevation, elevationSource);
+					coords.setDistance(distance);
+					idSectorCoordinates.put(idSector, coords);
+				}
+			}
+		}
+		for (int idSector : idSectorCoordinates.keySet()) {
+			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
+			res.put(idSector, Slope.from(coordinates));
+		}
+		logger.debug("getSectorSlopes(approachNotDescent={}, idSectors.size()={}) - res.size()={}, duration={}", approachNotDescent, idSectors.size(), res.size(), stopwatch);
+		return res;
+	}
+
 	public List<Setup> getSetups(Connection c) throws SQLException {
 		List<Setup> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
@@ -2489,6 +3256,65 @@ public class Dao {
 			}
 		}
 		return Lists.newArrayList(regionLookup.values());
+	}
+
+	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia, int mediaWidth, int mediaHeight) throws SQLException {
+		List<Svg> res = null;
+		String sqlStr = """
+				WITH x AS (
+				  SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr,
+						 ps.nr pitch, psg.grade problem_section_grade, psg.group problem_section_grade_group,
+				         s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
+				         MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous
+				  FROM (((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?))
+				    LEFT JOIN problem_section ps ON (ps.problem_id=p.id AND ps.nr=s.pitch)) LEFT JOIN grade psg ON ps.grade=psg.grade_id AND psg.t=?)
+				    LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?)
+				    LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id
+				  WHERE s.media_id=? AND p.trash IS NULL
+				  GROUP BY p.id, p.name, pt.subtype, p.nr,
+				           ps.id, ps.nr, psg.grade, psg.group,
+				           s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger
+				)
+				SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr,
+					   x.pitch, x.problem_section_grade, x.problem_section_grade_group,
+				       x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
+				FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=?
+				ORDER BY x.nr
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setString(3, s.gradeSystem().toString());
+			ps.setInt(4, authUserId.orElse(0));
+			ps.setInt(5, idMedia);
+			ps.setString(6, s.gradeSystem().toString());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					if (res == null) {
+						res = new ArrayList<>();
+					}
+					int problemId = rst.getInt("problem_id");
+					String problemName = rst.getString("problem_name");
+					int pitch = rst.getInt("pitch");
+					String problemGrade = rst.getString(pitch == 0? "problem_grade" : "problem_section_grade");
+					int problemGradeGroup = rst.getInt(pitch == 0? "problem_grade_group" : "problem_section_grade_group");
+					String problemSubtype = rst.getString("problem_subtype");
+					int nr = rst.getInt("nr");
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					boolean hasAnchor = rst.getBoolean("has_anchor");
+					String texts = rst.getString("texts");
+					String anchors = rst.getString("anchors");
+					String tradBelayStations = rst.getString("trad_belay_stations");
+					boolean primary = rst.getBoolean("prim");
+					boolean isTicked = rst.getBoolean("is_ticked");
+					boolean isTodo = rst.getBoolean("is_todo");
+					boolean isDangerous = rst.getBoolean("is_dangerous");
+					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, pitch, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
+				}
+			}
+		}
+		return res;
 	}
 
 	public Ticks getTicks(Connection c, Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
@@ -2653,6 +3479,46 @@ public class Dao {
 			r.areas().forEach(a -> a.orderSectors());
 		});
 		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		return res;
+	}
+
+	public List<TocPitch> getTocPitches(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		List<TocPitch> res = new ArrayList<>();
+		String sqlStr = """
+				SELECT r.name region_name, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name problem_name, ps.nr pitch, ps.grade, ps.description
+				FROM area a INNER JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)
+				JOIN problem_section ps ON p.id=ps.problem_id
+				JOIN grade g
+				JOIN type ty ON p.type_id=ty.id
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE (a.region_id=? OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, ps.grade, ps.description
+				ORDER BY r.name, a.name, s.sorting, s.name, p.nr, ps.nr
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setInt(3, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String region = rst.getString("region");
+					String url = rst.getString("url");
+					String areaName = rst.getString("area_name");
+					String sectorName = rst.getString("sector_name");
+					String problemName = rst.getString("problem_name");
+					int pitch = rst.getInt("pitch");
+					int grade = rst.getInt("grade");
+					String description = rst.getString("description");
+					res.add(new TocPitch(region, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromIdGrade(grade), description));
+				}
+			}
+		}
 		return res;
 	}
 
@@ -3393,6 +4259,22 @@ public class Dao {
 		logger.debug("setMediaMetadata(idMedia={}, height={}, width={}, dateTaken={}) - success", idMedia, height, width, dateTaken);
 	}
 
+	private void setNullablePositiveDouble(PreparedStatement ps, int parameterIndex, double value) throws SQLException {
+		if (value > 0) {
+			ps.setDouble(parameterIndex, value);
+		} else {
+			ps.setNull(parameterIndex, Types.DOUBLE);
+		}
+	}
+
+	private void setNullablePositiveInteger(PreparedStatement ps, int parameterIndex, int value) throws SQLException {
+		if (value > 0) {
+			ps.setInt(parameterIndex, value);
+		} else {
+			ps.setNull(parameterIndex, Types.INTEGER);
+		}
+	}
+
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		final boolean orderByGrade = s.gradeSystem().equals(GradeSystem.BOULDER);
 		final LocalDate dt = Strings.isNullOrEmpty(p.getFaDate())? null : LocalDate.parse(p.getFaDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -3818,6 +4700,19 @@ public class Dao {
 		return res;
 	}
 
+	private void setSectorProblemOrder(Connection c, List<SectorProblemOrder> lst) throws SQLException {
+		if (!lst.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
+				for (SectorProblemOrder x : lst) {
+					ps.setInt(1, x.nr());
+					ps.setInt(2, x.id());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+	}
+
 	public void setTick(Connection c, Optional<Integer> authUserId, Setup setup, Tick t) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		// Remove from project list (if existing)
@@ -3947,6 +4842,80 @@ public class Dao {
 			ps.setInt(1, id);
 			ps.execute();
 		}
+	}
+
+	/**
+	 * When upserting a problem, the user can change the nr.
+	 * This function will move other problems in this sector to make place for this update/insert.
+	 * Ignore sectors with custom ordering (this is often the case when numbers are set to match a topo-image/pdf)
+	 * We don't need to update this problems nr, it will be updated later by the endpoint.
+	 */
+	private void tryFixSectorOrdering(Connection c, int sectorId, int problemId, int problemNewNr) throws SQLException {
+		List<SectorProblemOrder> lst = new ArrayList<>();
+		if (problemId > 0) {
+			// Existing problem, check if user changed nr
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM problem p_input, x,
+					     problem p
+					WHERE p_input.id=? AND p_input.nr!=?
+					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
+					  AND p_input.sector_id=p.sector_id
+					  AND p.id!=p_input.id
+					ORDER BY p.nr
+					""";
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				ps.setInt(2, problemId);
+				ps.setInt(3, problemNewNr);
+				try (ResultSet rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) {
+							++nr;
+						}
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
+					}
+				}
+			}
+		}
+		else if (problemNewNr != 0) {
+			// New problem with specific nr
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM x, problem p
+					WHERE x.num_problems=x.max_num
+					  AND x.sector_id=p.sector_id
+					ORDER BY p.nr
+					""";
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				try (ResultSet rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) {
+							++nr;
+						}
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
+					}
+				}
+			}
+		}
+		setSectorProblemOrder(c, lst);
 	}
 
 	public void updateMediaInfo(Connection c, Optional<Integer> authUserId, MediaInfo m) throws SQLException {
@@ -4083,6 +5052,94 @@ public class Dao {
 		fillActivity(c, co.idProblem());
 	}
 
+	private void upsertExternalLinks(Connection c, List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
+		// Delete removed links
+		List<ExternalLink> previousLinks = null;
+		if (areaId > 0) {
+			previousLinks = getExternalLinksArea(c, areaId, false);
+		}
+		else if (sectorId > 0) {
+			previousLinks = getExternalLinksSector(c, sectorId, false);
+		}
+		else if (problemId > 0) {
+			previousLinks = getExternalLinksProblem(c, problemId, false);
+		}
+		else {
+			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+		}
+		var toRemove = previousLinks.stream()
+				.filter(l -> newLinks == null || newLinks.stream().filter(x -> x.id() == l.id()).findAny().isEmpty())
+				.toList();
+		if (!toRemove.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
+				for (var link : toRemove) {
+					ps.setInt(1, link.id());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		if (newLinks != null) {
+			var newLinksUpdate = newLinks.stream()
+					.filter(l -> !l.inherited() && l.id() != 0)
+					.toList();
+			var newLinksCreate = newLinks.stream()
+					.filter(l -> !l.inherited() && l.id() == 0)
+					.toList();
+			if (!newLinksUpdate.isEmpty()) {
+				// Updating existing links
+				try (PreparedStatement ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
+					for (var l : newLinksUpdate) {
+						ps.setString(1, l.url());
+						ps.setString(2, l.title());
+						ps.setInt(3, l.id());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (!newLinksCreate.isEmpty()) {
+				// Insert new links
+				for (var l : newLinksCreate) {
+					try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+						ps.setString(1, l.url());
+						ps.setString(2, l.title());
+						ps.executeUpdate();
+						try (ResultSet rst = ps.getGeneratedKeys()) {
+							if (rst != null && rst.next()) {
+								int externalLinkId = rst.getInt(1);
+								if (areaId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, areaId);
+										ps2.execute();
+									}
+								}
+								else if (sectorId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, sectorId);
+										ps2.execute();
+									}
+								}
+								else if (problemId > 0) {
+									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
+										ps2.setInt(1, externalLinkId);
+										ps2.setInt(2, problemId);
+										ps2.execute();
+									}
+								}
+								else {
+									throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(c, authUserId, setup.idRegion());
 		// Clear existing
@@ -4179,1022 +5236,6 @@ public class Dao {
 				ps.setString(8, svg.texts());
 				ps.setInt(9, svg.id());
 				ps.execute();
-			}
-		}
-	}
-
-	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		int idMedia = -1;
-		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
-		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0));
-		boolean alreadyExistsInDb = false;
-		boolean isMovie = false;
-		String suffix = null;
-		if (Strings.isNullOrEmpty(m.name())) {
-			// Embed video url
-			Preconditions.checkNotNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
-			Preconditions.checkNotNull(m.embedVideoUrl(), "embedVideoUrl required");
-			// First check if video already exists in system, don't duplicate videos!
-			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
-				ps.setString(1, m.embedVideoUrl());
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						alreadyExistsInDb = true;
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-			suffix = "mp4";
-			isMovie = true;
-		}
-		else {
-			suffix = "jpg";
-			isMovie = false;
-		}
-
-		/**
-		 * DB
-		 */
-		if (!alreadyExistsInDb) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, isMovie);
-				ps.setString(2, suffix);
-				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
-				ps.setInt(4, authUserId.orElseThrow());
-				ps.setString(5, GlobalFunctions.stripString(m.description()));
-				ps.setString(6, m.embedVideoUrl());
-				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-		}
-		Preconditions.checkArgument(idMedia > 0);
-		if (idProblem > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idProblem);
-				setNullablePositiveInteger(ps, 3, pitch);
-				ps.setBoolean(4, trivia);
-				ps.setLong(5, m.embedMilliseconds());
-				ps.execute();
-			}
-		} else if (idSector > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idSector);
-				ps.setBoolean(3, trivia);
-				ps.execute();
-			}
-		} else if (idArea > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idArea);
-				ps.setBoolean(3, trivia);
-				ps.execute();
-			}
-		} else if (idGuestbook > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idGuestbook);
-				ps.execute();
-			}
-		} else {
-			throw new RuntimeException("Server error");
-		}
-		if (!alreadyExistsInDb) {
-			if (m.inPhoto() != null && !m.inPhoto().isEmpty()) {
-				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
-					for (User u : m.inPhoto()) {
-						ps.setInt(1, idMedia);
-						ps.setInt(2, getExistingOrInsertUser(c, u.name()));
-						ps.execute();
-					}
-					ps.executeBatch();
-				}
-			}
-			if (isMovie) {
-				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
-			}
-			else {
-				try (InputStream is = multiPart.getField(m.name()).getValueAs(InputStream.class)) {
-					byte[] bytes = ByteStreams.toByteArray(is);
-					ImageHelper.saveImage(this, c, idMedia, bytes);
-				}
-			}
-		}
-		return idMedia;
-	}
-
-	private int addUser(Connection c, String email, String firstname, String lastname, String picture) throws SQLException {
-		int id = -1;
-		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-			ps.setString(1, firstname);
-			ps.setString(2, lastname);
-			ps.setString(3, picture);
-			ps.executeUpdate();
-			try (ResultSet rst = ps.getGeneratedKeys()) {
-				if (rst != null && rst.next()) {
-					id = rst.getInt(1);
-					logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - getInt(1)={}", email, firstname, lastname, picture, id);
-				}
-			}
-		}
-		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
-		if (!Strings.isNullOrEmpty(email)) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)")) {
-				ps.setInt(1, id);
-				ps.setString(2, email.toLowerCase());
-				ps.execute();
-			}
-		}
-		if (picture != null) {
-			try (InputStream is = URI.create(picture).toURL().openStream()) {
-				ImageHelper.saveAvatar(id, is);
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
-			}
-		}
-		return id;
-	}
-
-	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1")) {
-			ps.setInt(1, areaId);
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1")) {
-			ps.setInt(1, problemId);
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureAdminWriteRegion(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, idRegion);
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void ensureSuperadminWriteRegion(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkArgument(idRegion > 0, "Insufficient credentials");
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, idRegion);
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	private void fillMissingElevations(Connection c) throws SQLException, InterruptedException {
-		List<Coordinates> coordinatesMissingElevation = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
-				}
-			}
-		}
-		if (!coordinatesMissingElevation.isEmpty()) {
-			try {
-				GeoHelper.fillMissingElevations(coordinatesMissingElevation);
-				try (PreparedStatement ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
-					for (Coordinates coord : coordinatesMissingElevation) {
-						ps.setDouble(1, coord.getElevation());
-						ps.setString(2, coord.getElevationSource());
-						ps.setDouble(3, coord.getId());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			} catch (IOException e) {
-				logger.warn(e.getMessage(), e);
-			}
-		}
-	}
-
-	private CompassDirection getCompassDirection(Setup s, int id) {
-		if (id == 0) {
-			return null;
-		}
-		return s.compassDirections()
-				.stream()
-				.filter(cd -> cd.id() == id)
-				.findAny()
-				.get();
-	}
-
-	private List<CompassDirection> getCompassDirections(Connection c) throws SQLException {
-		List<CompassDirection> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String direction = rst.getString("direction");
-					res.add(new CompassDirection(id, direction));
-				}
-			}
-		}
-		return res;
-	}
-
-	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {
-		if (Strings.isNullOrEmpty(name)) {
-			return 1049; // Unknown
-		}
-		try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")) {
-			ps.setString(1, name);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					return rst.getInt("id");
-				}
-			}
-		}
-		int usId = addUser(c, null, name, null, null);
-		Preconditions.checkArgument(usId > 0);
-		return usId;
-	}
-
-	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId, boolean inherited) throws SQLException {
-		List<ExternalLink> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT e.id, e.url, e.title
-				FROM external_link_area ea, external_link e
-				WHERE ea.area_id=? AND ea.external_link_id=e.id
-				ORDER BY e.title
-				""")) {
-			ps.setInt(1, areaId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String url = rst.getString("url");
-					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title, inherited));
-				}
-			}
-		}
-		return res;
-	}
-
-	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId, boolean inherited) throws SQLException {
-		List<ExternalLink> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT e.id, e.url, e.title
-				FROM external_link_problem ep, external_link e
-				WHERE ep.problem_id=? AND ep.external_link_id=e.id
-				ORDER BY e.title
-				""")) {
-			ps.setInt(1, problemId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String url = rst.getString("url");
-					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title, inherited));
-				}
-			}
-		}
-		return res;
-	}
-
-	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId, boolean inherited) throws SQLException {
-		List<ExternalLink> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT e.id, e.url, e.title
-				FROM external_link_sector ea, external_link e
-				WHERE ea.sector_id=? AND ea.external_link_id=e.id
-				ORDER BY e.title
-				""")) {
-			ps.setInt(1, sectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String url = rst.getString("url");
-					String title = rst.getString("title");
-					res.add(new ExternalLink(id, url, title, inherited));
-				}
-			}
-		}
-		return res;
-	}
-
-	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
-		Map<Integer, String> res = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
-			ps.setInt(1, sectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idProblem = rst.getInt("id");
-					String fa = rst.getString("fa");
-					res.put(idProblem, fa);
-				}
-			}
-		}
-		return res;
-	}
-
-	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
-		List<Grade> res = new ArrayList<>(); 
-		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
-			ps.setString(1, gradeSystem.toString());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int gradeId = rst.getInt("grade_id");
-					String grade = rst.getString("grade");
-					res.add(new Grade(gradeId, grade));
-				}
-			}
-		}
-		return res;
-	}
-
-	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
-		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((media m INNER JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?) INNER JOIN area a ON ma.area_id=a.id) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id GROUP BY m.id, m.uploader_user_id, m.checksum, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id")) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					int crc32 = rst.getInt("checksum");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					boolean trivia = rst.getBoolean("trivia");
-					if (inherited && trivia) {
-						continue; // Don't inherit trivia image
-					}
-					int pitch = 0;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
-				}
-			}
-		}
-		return media;
-	}
-
-	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
-		List<Media> media = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, m.description, CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM (((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id) INNER JOIN media_guestbook mg ON g.id=mg.guestbook_id) INNER JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL)) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE g.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, m.id")) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					int crc32 = rst.getInt("checksum");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
-				}
-			}
-		}
-		return media;
-	}
-
-	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
-		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
-		try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.uploader_user_id, m.checksum, CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN media_problem mp ON p.id=mp.problem_id) INNER JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE p.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id")) {
-			ps.setInt(1, problemId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					int crc32 = rst.getInt("checksum");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = rst.getInt("pitch");
-					boolean trivia = rst.getBoolean("trivia");
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String t = rst.getString("t");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					if (embedUrl != null) {
-						long seconds = Long.parseLong(t);
-						if (seconds > 0) {
-							if (embedUrl.contains("youtu")) {
-								embedUrl += "?start=" + seconds;
-							}
-							else {
-								embedUrl += "#t=" + seconds + "s";
-							}
-						}
-					}
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
-				}
-			}
-		}
-		if (media != null && media.isEmpty()) {
-			media = null;
-		}
-		return media;
-	}
-
-	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
-		List<Media> allMedia = new ArrayList<>();
-		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
-		String sqlStr = "SELECT m.id, m.uploader_user_id, m.checksum, ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN media_sector ms ON s.id=ms.sector_id) INNER JOIN media m ON (ms.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE s.id=? GROUP BY m.id, m.uploader_user_id, m.checksum, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, idSector);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					int crc32 = rst.getInt("checksum");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					boolean trivia = rst.getBoolean("trivia");
-					if (inherited && trivia) {
-						continue; // Don't inherit trivia image
-					}
-					int pitch = 0;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
-							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
-							enableMoveToIdSector,
-							(svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()? enableMoveToIdProblem : 0),
-							null);
-					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
-						mediaWithRequestedTopoLine.add(m);
-					}
-					allMedia.add(m);
-				}
-			}
-		}
-		// Figure out what to actually return
-		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
-			// Only images without topo lines or images with topo lines for this problem
-			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
-		}
-		else if (!showHiddenMedia && s.gradeSystem().equals(GradeSystem.BOULDER) && optionalIdProblem != 0) {
-			// In bouldering we don't want to show all rocks with lines if this one does not have a line
-			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
-		}
-		return allMedia;
-	}
-
-	private List<MediaSvgElement> getMediaSvgElements(Connection c, int idMedia) throws SQLException {
-		List<MediaSvgElement> res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id=?")) {
-			ps.setInt(1, idMedia);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					if (res == null) {
-						res = new ArrayList<>();
-					}
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					if (path != null) {
-						res.add(MediaSvgElement.fromPath(id, path));
-					}
-					else {
-						int rappelX = rst.getInt("rappel_x");
-						int rappelY = rst.getInt("rappel_y");
-						boolean rappelBolted = rst.getBoolean("rappel_bolted");
-						res.add(MediaSvgElement.fromRappel(id, rappelX, rappelY, rappelBolted));
-					}
-				}
-			}
-		}
-		return res;
-	}
-
-	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
-		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
-		Map<Integer, Coordinates> res = new HashMap<>();
-		String in = ",?".repeat(idProblems.size()).substring(1);
-		String sqlStr = "SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation, COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates pc ON p.coordinates_id=pc.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinates c ON so.coordinates_id=c.id) WHERE p.id IN (" + in + ")";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idProblems) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idProblem = rst.getInt("id_problem");
-					int idCoordinates = rst.getInt("coordinates_id");
-					if (idCoordinates > 0) {
-						res.put(idProblem, new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")));
-					}
-				}
-			}
-		}
-		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
-		return res;
-	}
-
-	private Multimap<Integer, Coordinates> getRegionOutlines(Connection c, Collection<Integer> idRegions) throws SQLException {
-		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
-		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
-		String in = ",?".repeat(idRegions.size()).substring(1);
-		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM region_outline ro, coordinates c WHERE ro.region_id IN (" + in + ") AND ro.coordinates_id=c.id ORDER BY ro.sorting";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idRegions) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idRegion = rst.getInt("id_region");
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					res.put(idRegion, new Coordinates(id, latitude, longitude, elevation, elevationSource));
-				}
-			}
-		}
-		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
-		return res;
-	}
-
-	private List<Coordinates> getSectorOutline(Connection c, int idSector) throws SQLException {
-		Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, Collections.singleton(idSector));
-		if (idSectorOutline == null || idSectorOutline.isEmpty()) {
-			return null;
-		}
-		return Lists.newArrayList(idSectorOutline.get(idSector));
-	}
-
-	private Multimap<Integer, Coordinates> getSectorOutlines(Connection c, Collection<Integer> idSectors) throws SQLException {
-		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
-		String in = ",?".repeat(idSectors.size()).substring(1);
-		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM sector_outline so, coordinates c WHERE so.sector_id IN (" + in + ") AND so.coordinates_id=c.id ORDER BY so.sorting";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idSectors) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idSector = rst.getInt("id_sector");
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					res.put(idSector, new Coordinates(id, latitude, longitude, elevation, elevationSource));
-				}
-			}
-		}
-		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}", idSectors.size(), res.size());
-		return res;
-	}
-
-	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
-		List<SectorProblem> res = new ArrayList<>();
-		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
-			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
-		}
-		String sqlStr = """
-				SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       COUNT(DISTINCT ps.id) num_pitches,
-				       COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
-				       COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,
-				       CASE WHEN MAX(svg.problem_id) IS NOT NULL THEN 1 ELSE 0 END has_topo,
-				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,
-				       p.fa_date,
-				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
-				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,
-				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
-				       ty.id type_id, ty.type, ty.subtype,
-				       danger.danger
-				FROM ((((((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN (media_problem mp LEFT JOIN media m ON (mp.media_id=m.id AND mp.trivia=0 AND m.deleted_user_id IS NULL)) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo ON (p.id=todo.problem_id AND todo.user_id=?)) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN (SELECT DISTINCT problem_id problem_id FROM svg) svg ON p.id=svg.problem_id
-				WHERE p.sector_id=?
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, todo.id, ty.id, ty.type, ty.subtype, danger.danger
-				ORDER BY p.nr
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, sectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String broken = rst.getString("broken");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					int grade = rst.getInt("grade");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					String name = rst.getString("name");
-					String rock = rst.getString("rock");
-					String comment = rst.getString("description");
-					String fa = rst.getString("fa");
-					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
-						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
-						if (fa == null) {
-							fa = faAid;
-						}
-						else {
-							fa = faAid + ". FFA: " + fa;
-						}
-					}
-					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-					String faDateStr = faDate == null? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-					int numPitches = rst.getInt("num_pitches");
-					boolean hasImages = rst.getInt("num_images")>0;
-					boolean hasMovies = rst.getInt("num_movies")>0;
-					boolean hasTopo = rst.getBoolean("has_topo");
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					boolean todo = rst.getBoolean("todo");
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faDateStr, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
-				}
-			}
-		}
-		return res;
-	}
-
-	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, Slope> res = new HashMap<>();
-		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinates> idSectorCoordinates = ArrayListMultimap.create();
-		String sqlStr = """
-				SELECT s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, st_distance_sphere(point(longitude, latitude),
-				       point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
-				FROM %s s, coordinates c
-				WHERE s.sector_id IN (%s) AND s.coordinates_id=c.id
-				ORDER BY s.sector_id, s.sorting
-				""".formatted(
-						approachNotDescent ? "sector_approach" : "sector_descent",
-								",?".repeat(idSectors.size()).substring(1)
-						);
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idSectors) {
-				ps.setInt(parameterIndex++, idSector);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				int prevIdSector = 0;
-				double distance = 0;
-				while (rst.next()) {
-					int idSector = rst.getInt("id_sector");
-					if (prevIdSector != idSector) {
-						prevIdSector = idSector;
-						distance = 0;
-					}
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					String elevationSource = rst.getString("elevation_source");
-					distance += rst.getDouble("m");
-					Coordinates coords = new Coordinates(id, latitude, longitude, elevation, elevationSource);
-					coords.setDistance(distance);
-					idSectorCoordinates.put(idSector, coords);
-				}
-			}
-		}
-		for (int idSector : idSectorCoordinates.keySet()) {
-			List<Coordinates> coordinates = Lists.newArrayList(idSectorCoordinates.get(idSector));
-			res.put(idSector, Slope.from(coordinates));
-		}
-		logger.debug("getSectorSlopes(approachNotDescent={}, idSectors.size()={}) - res.size()={}, duration={}", approachNotDescent, idSectors.size(), res.size(), stopwatch);
-		return res;
-	}
-
-	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia, int mediaWidth, int mediaHeight) throws SQLException {
-		List<Svg> res = null;
-		String sqlStr = """
-				WITH x AS (
-				  SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, pt.subtype problem_subtype, p.nr,
-						 ps.nr pitch, psg.grade problem_section_grade, psg.group problem_section_grade_group,
-				         s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
-				         MAX(CASE WHEN t.user_id=? OR fa.user_id THEN 1 ELSE 0 END) is_ticked, CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, danger is_dangerous
-				  FROM (((((((svg s INNER JOIN problem p ON s.problem_id=p.id) INNER JOIN type pt ON p.type_id=pt.id) LEFT JOIN fa ON (p.id=fa.problem_id AND fa.user_id=?))
-				    LEFT JOIN problem_section ps ON (ps.problem_id=p.id AND ps.nr=s.pitch)) LEFT JOIN grade psg ON ps.grade=psg.grade_id AND psg.t=?)
-				    LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo t2 ON p.id=t2.problem_id AND t2.user_id=?)
-				    LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id
-				  WHERE s.media_id=? AND p.trash IS NULL
-				  GROUP BY p.id, p.name, pt.subtype, p.nr,
-				           ps.id, ps.nr, psg.grade, psg.group,
-				           s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger
-				)
-				SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr,
-					   x.pitch, x.problem_section_grade, x.problem_section_grade_group,
-				       x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
-				FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=?
-				ORDER BY x.nr
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setString(3, s.gradeSystem().toString());
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, idMedia);
-			ps.setString(6, s.gradeSystem().toString());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					if (res == null) {
-						res = new ArrayList<>();
-					}
-					int problemId = rst.getInt("problem_id");
-					String problemName = rst.getString("problem_name");
-					int pitch = rst.getInt("pitch");
-					String problemGrade = rst.getString(pitch == 0? "problem_grade" : "problem_section_grade");
-					int problemGradeGroup = rst.getInt(pitch == 0? "problem_grade_group" : "problem_section_grade_group");
-					String problemSubtype = rst.getString("problem_subtype");
-					int nr = rst.getInt("nr");
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					boolean hasAnchor = rst.getBoolean("has_anchor");
-					String texts = rst.getString("texts");
-					String anchors = rst.getString("anchors");
-					String tradBelayStations = rst.getString("trad_belay_stations");
-					boolean primary = rst.getBoolean("prim");
-					boolean isTicked = rst.getBoolean("is_ticked");
-					boolean isTodo = rst.getBoolean("is_todo");
-					boolean isDangerous = rst.getBoolean("is_dangerous");
-					res.add(new Svg(false, id, problemId, problemName, problemGrade, problemGradeGroup, problemSubtype, nr, pitch, path, hasAnchor, texts, anchors, tradBelayStations, primary, isTicked, isTodo, isDangerous));
-				}
-			}
-		}
-		return res;
-	}
-
-	private void setNullablePositiveDouble(PreparedStatement ps, int parameterIndex, double value) throws SQLException {
-		if (value > 0) {
-			ps.setDouble(parameterIndex, value);
-		} else {
-			ps.setNull(parameterIndex, Types.DOUBLE);
-		}
-	}
-
-	private void setNullablePositiveInteger(PreparedStatement ps, int parameterIndex, int value) throws SQLException {
-		if (value > 0) {
-			ps.setInt(parameterIndex, value);
-		} else {
-			ps.setNull(parameterIndex, Types.INTEGER);
-		}
-	}
-
-	private void setSectorProblemOrder(Connection c, List<SectorProblemOrder> lst) throws SQLException {
-		if (!lst.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
-				for (SectorProblemOrder x : lst) {
-					ps.setInt(1, x.nr());
-					ps.setInt(2, x.id());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-	}
-
-	/**
-	 * When upserting a problem, the user can change the nr.
-	 * This function will move other problems in this sector to make place for this update/insert.
-	 * Ignore sectors with custom ordering (this is often the case when numbers are set to match a topo-image/pdf)
-	 * We don't need to update this problems nr, it will be updated later by the endpoint.
-	 */
-	private void tryFixSectorOrdering(Connection c, int sectorId, int problemId, int problemNewNr) throws SQLException {
-		List<SectorProblemOrder> lst = new ArrayList<>();
-		if (problemId > 0) {
-			// Existing problem, check if user changed nr
-			String sqlStr = """
-					WITH x AS (
-					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
-					  FROM problem p
-					  WHERE p.sector_id=?
-					  GROUP BY p.sector_id
-					)
-					SELECT p.id
-					FROM problem p_input, x,
-					     problem p
-					WHERE p_input.id=? AND p_input.nr!=?
-					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
-					  AND p_input.sector_id=p.sector_id
-					  AND p.id!=p_input.id
-					ORDER BY p.nr
-					""";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				ps.setInt(2, problemId);
-				ps.setInt(3, problemNewNr);
-				try (ResultSet rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) {
-							++nr;
-						}
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
-				}
-			}
-		}
-		else if (problemNewNr != 0) {
-			// New problem with specific nr
-			String sqlStr = """
-					WITH x AS (
-					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
-					  FROM problem p
-					  WHERE p.sector_id=?
-					  GROUP BY p.sector_id
-					)
-					SELECT p.id
-					FROM x, problem p
-					WHERE x.num_problems=x.max_num
-					  AND x.sector_id=p.sector_id
-					ORDER BY p.nr
-					""";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				try (ResultSet rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) {
-							++nr;
-						}
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
-				}
-			}
-		}
-		setSectorProblemOrder(c, lst);
-	}
-
-	private void upsertExternalLinks(Connection c, List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
-		// Delete removed links
-		List<ExternalLink> previousLinks = null;
-		if (areaId > 0) {
-			previousLinks = getExternalLinksArea(c, areaId, false);
-		}
-		else if (sectorId > 0) {
-			previousLinks = getExternalLinksSector(c, sectorId, false);
-		}
-		else if (problemId > 0) {
-			previousLinks = getExternalLinksProblem(c, problemId, false);
-		}
-		else {
-			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
-		}
-		var toRemove = previousLinks.stream()
-				.filter(l -> newLinks == null || newLinks.stream().filter(x -> x.id() == l.id()).findAny().isEmpty())
-				.toList();
-		if (!toRemove.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
-				for (var link : toRemove) {
-					ps.setInt(1, link.id());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		if (newLinks != null) {
-			var newLinksUpdate = newLinks.stream()
-					.filter(l -> !l.inherited() && l.id() != 0)
-					.toList();
-			var newLinksCreate = newLinks.stream()
-					.filter(l -> !l.inherited() && l.id() == 0)
-					.toList();
-			if (!newLinksUpdate.isEmpty()) {
-				// Updating existing links
-				try (PreparedStatement ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
-					for (var l : newLinksUpdate) {
-						ps.setString(1, l.url());
-						ps.setString(2, l.title());
-						ps.setInt(3, l.id());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			if (!newLinksCreate.isEmpty()) {
-				// Insert new links
-				for (var l : newLinksCreate) {
-					try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-						ps.setString(1, l.url());
-						ps.setString(2, l.title());
-						ps.executeUpdate();
-						try (ResultSet rst = ps.getGeneratedKeys()) {
-							if (rst != null && rst.next()) {
-								int externalLinkId = rst.getInt(1);
-								if (areaId > 0) {
-									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)")) {
-										ps2.setInt(1, externalLinkId);
-										ps2.setInt(2, areaId);
-										ps2.execute();
-									}
-								}
-								else if (sectorId > 0) {
-									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_sector (external_link_id, sector_id) VALUES (?, ?)")) {
-										ps2.setInt(1, externalLinkId);
-										ps2.setInt(2, sectorId);
-										ps2.execute();
-									}
-								}
-								else if (problemId > 0) {
-									try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)")) {
-										ps2.setInt(1, externalLinkId);
-										ps2.setInt(2, problemId);
-										ps2.execute();
-									}
-								}
-								else {
-									throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
-								}
-							}
-						}
-					}
-				}
 			}
 		}
 	}

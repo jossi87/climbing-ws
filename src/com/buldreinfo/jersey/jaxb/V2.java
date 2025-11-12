@@ -58,6 +58,7 @@ import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Toc;
 import com.buldreinfo.jersey.jaxb.model.TocArea;
+import com.buldreinfo.jersey.jaxb.model.TocPitch;
 import com.buldreinfo.jersey.jaxb.model.TocProblem;
 import com.buldreinfo.jersey.jaxb.model.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.TocSector;
@@ -656,6 +657,22 @@ public class V2 {
 									sheet.writeString("DESCRIPTION", p.description());
 								}
 							}
+						}
+					}
+				}
+				List<TocPitch> pitches = dao.getTocPitches(c, authUserId, setup);
+				if (!pitches.isEmpty()) {
+					try (ExcelSheet sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
+						for (var p : pitches) {
+							sheet.incrementRow();
+							sheet.writeString("REGION", p.region());
+							sheet.writeHyperlink("URL", p.url());
+							sheet.writeString("AREA", p.areaName());
+							sheet.writeString("SECTOR", p.sectorName());
+							sheet.writeString("PROBLEM", p.problemName());
+							sheet.writeInt("PITCH", p.pitch());
+							sheet.writeString("GRADE", p.grade());
+							sheet.writeString("DESCRIPTION", p.description());
 						}
 					}
 				}
