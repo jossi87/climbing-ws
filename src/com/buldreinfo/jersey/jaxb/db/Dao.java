@@ -810,7 +810,7 @@ public class Dao {
 					FROM activity a, media m, media_problem mp 
 					WHERE a.id IN (%s) 
 					 AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id
-					ORDER BY mp.sorting, m.id
+					ORDER BY m.is_movie, mp.sorting, m.id
 					""".formatted(Joiner.on(",").join(mediaActivitityIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
