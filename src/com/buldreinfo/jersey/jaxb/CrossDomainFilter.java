@@ -32,8 +32,8 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 			logger.warn("from is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
 		}
 		else {
-			if (from.equals("localhost:3000")) {
-				from = "http://localhost:3000";
+			if (from.equals("localhost:3001")) {
+				from = "http://localhost:3001";
 			}
 			else if (from.equals("localhost:8080")) {
 				from = "http://localhost:8080";
