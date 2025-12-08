@@ -49,7 +49,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 						.collect(Collectors.toList())) {
 					LEGAL_ORIGINS.add("https://" + domain);
 				}
-				LEGAL_ORIGINS.add("http://localhost:3000");
+				LEGAL_ORIGINS.add("http://localhost:3001");
 				LEGAL_ORIGINS.add("http://localhost:8080");
 			}
 			if (LEGAL_ORIGINS.contains(from)) {
