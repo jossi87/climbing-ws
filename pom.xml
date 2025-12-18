@@ -70,9 +70,9 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-dbcp2</artifactId>
-			<version>2.14.0</version>
+		    <groupId>com.zaxxer</groupId>
+		    <artifactId>HikariCP</artifactId>
+		    <version>7.0.2</version> 
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.containers</groupId>
