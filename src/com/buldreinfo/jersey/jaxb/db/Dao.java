@@ -111,7 +111,6 @@ import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.TypeNumTickedTodo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
-import com.buldreinfo.jersey.jaxb.model.v1.V1Region;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -2600,122 +2599,6 @@ public class Dao {
 		}
 		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
 		return res;
-	}
-
-	public Collection<V1Region> getRegions(Connection c, String uniqueId, boolean climbingNotBouldering) throws SQLException {
-		final String regionTypeFilter = climbingNotBouldering? "rt.type_id!=1" : "rt.type_id=1";
-		final int idUser = upsertUserReturnId(c, uniqueId);
-		Map<Integer, V1Region> regionMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Area> areaMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Sector> sectorMap = new HashMap<>();
-		Map<Integer, com.buldreinfo.jersey.jaxb.model.v1.V1Problem> problemMap = new HashMap<>();
-		// Regions
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id, r.name FROM region r INNER JOIN region_type rt ON r.id=rt.region_id WHERE " + regionTypeFilter)) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String name = rst.getString("name");
-					V1Region r = new V1Region(id, name, new ArrayList<>());
-					regionMap.put(r.id(), r);
-				}
-			}
-		}
-		// Areas
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.region_id, a.id, a.name, a.description, c.latitude, c.longitude FROM (((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY a.region_id, a.id, a.name, a.description, c.latitude, c.longitude")) {
-			ps.setInt(1, idUser);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int regionId = rst.getInt("region_id");
-					V1Region r = regionMap.get(regionId);
-					if (r != null) {
-						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						String comment = rst.getString("description");
-						double latitude = rst.getDouble("latitude");
-						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Area a = new com.buldreinfo.jersey.jaxb.model.v1.V1Area(regionId, id, name, comment, latitude, longitude, new ArrayList<>());
-						r.areas().add(a);
-						areaMap.put(a.id(), a);
-					}
-				}
-			}
-		}
-		// Sectors
-		try (PreparedStatement ps = c.prepareStatement("SELECT s.area_id, s.id, s.name, s.description, c.latitude, c.longitude FROM ((((sector s INNER JOIN area a ON a.id=s.area_id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.area_id, s.id, s.name, s.description, c.latitude, c.longitude")) {
-			ps.setInt(1, idUser);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					com.buldreinfo.jersey.jaxb.model.v1.V1Area a = areaMap.get(areaId);
-					if (a != null) {
-						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						String comment = rst.getString("description");
-						double latitude = rst.getDouble("latitude");
-						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = new com.buldreinfo.jersey.jaxb.model.v1.V1Sector(areaId, id, name, comment, latitude, longitude, new ArrayList<>(), new ArrayList<>());
-						a.sectors().add(s);
-						sectorMap.put(s.id(), s);
-					}
-				}
-			}
-		}
-		// Problems
-		try (PreparedStatement ps = c.prepareStatement("SELECT p.sector_id, p.id, p.nr, p.name, p.description, p.grade, TRIM(CONCAT(IFNULL(p.fa_date,''), ' ', GROUP_CONCAT(DISTINCT CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) ORDER BY u.firstname SEPARATOR ', '))) fa, c.latitude, c.longitude FROM (((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY p.sector_id, p.id, p.nr, p.name, p.description, p.grade, p.fa_date, c.latitude, c.longitude")) {
-			ps.setInt(1, idUser);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int sectorId = rst.getInt("sector_id");
-					com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = sectorMap.get(sectorId);
-					if (s != null) {
-						int id = rst.getInt("id");
-						int nr = rst.getInt("nr");
-						String name = rst.getString("name");
-						String comment = rst.getString("description");
-						int grade = rst.getInt("grade");
-						String fa = rst.getString("fa");
-						double latitude = rst.getDouble("latitude");
-						double longitude = rst.getDouble("longitude");
-						com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = new com.buldreinfo.jersey.jaxb.model.v1.V1Problem(sectorId, id, nr, name, comment, grade, fa, latitude, longitude, new ArrayList<>());
-						s.problems().add(p);
-						problemMap.put(p.id(), p);
-					}
-				}
-			}
-		}
-		// Media (sectors)
-		try (PreparedStatement ps = c.prepareStatement("SELECT ms.sector_id, m.id, m.is_movie FROM (((((media m INNER JOIN media_sector ms ON m.id=ms.media_id AND m.deleted_user_id IS NULL AND m.embed_url IS NULL) INNER JOIN sector s ON ms.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND m.id NOT IN (SELECT media_id FROM svg) GROUP BY ms.sector_id, m.id, m.is_movie ORDER BY m.is_movie, m.id")) {
-			ps.setInt(1, idUser);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int sectorId = rst.getInt("sector_id");
-					com.buldreinfo.jersey.jaxb.model.v1.V1Sector s = sectorMap.get(sectorId);
-					if (s != null) {
-						int id = rst.getInt("id");
-						boolean isMovie = rst.getBoolean("is_movie");
-						s.media().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, 0));
-					}
-				}
-			}
-		}
-		// Media (problems)
-		try (PreparedStatement ps = c.prepareStatement("SELECT mp.problem_id, m.id, m.is_movie, mp.milliseconds t FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id AND m.deleted_user_id IS NULL AND m.embed_url IS NULL) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE " + regionTypeFilter + " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY mp.problem_id, m.id, m.is_movie, mp.milliseconds ORDER BY m.is_movie, m.id")) {
-			ps.setInt(1, idUser);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int problemId = rst.getInt("problem_id");
-					com.buldreinfo.jersey.jaxb.model.v1.V1Problem p = problemMap.get(problemId);
-					if (p != null) {
-						int id = rst.getInt("id");
-						boolean isMovie = rst.getBoolean("is_movie");
-						int t = rst.getInt("t");
-						p.media().add(new com.buldreinfo.jersey.jaxb.model.v1.V1Media(id, isMovie, t));
-					}
-				}
-			}
-		}
-		// Return
-		return regionMap.values();
 	}
 
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
@@ -5274,27 +5157,5 @@ public class Dao {
 				}
 			}
 		}
-	}
-
-	private int upsertUserReturnId(Connection c, String uniqueId) throws SQLException {
-		int idUser = 0;
-		if (Strings.isNullOrEmpty(uniqueId)) {
-			return idUser;
-		}
-		String sqlStr = "INSERT INTO android_user (unique_id, last_sync) VALUES (?, now()) ON DUPLICATE KEY UPDATE last_sync=now()";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setString(1, uniqueId);
-			ps.execute();
-		}
-		sqlStr = "SELECT user_id FROM android_user au WHERE unique_id=?";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setString(1, uniqueId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					idUser = rst.getInt(1);
-				}
-			}
-		}
-		return idUser;
 	}
 }
