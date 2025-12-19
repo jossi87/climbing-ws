@@ -25,7 +25,7 @@ public class Activity {
 	private String grade;
 	private boolean noPersonalGrade;
 	private int problemRandomMediaId;
-	private int problemRandomMediaCrc32;
+	private long problemRandomMediaCrc32;
 	private List<ActivityMedia> media;
 	private int stars;
 	private boolean repeat;
@@ -53,7 +53,7 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, long avatarCrc32, String description, int problemRandomMediaId, int problemRandomMediaCrc32) {
+	public void addFa(String name, int userId, long avatarCrc32, String description, int problemRandomMediaId, long problemRandomMediaCrc32) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
@@ -62,7 +62,7 @@ public class Activity {
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.problemRandomMediaCrc32 = problemRandomMediaCrc32;
 	}
-	public void addMedia(int id, int crc32, boolean isMovie, String embedUrl) {
+	public void addMedia(int id, long crc32, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
@@ -107,7 +107,7 @@ public class Activity {
 	public String getProblemName() {
 		return problemName;
 	}
-	public int getProblemRandomMediaCrc32() {
+	public long getProblemRandomMediaCrc32() {
 		return problemRandomMediaCrc32;
 	}
 	public int getProblemRandomMediaId() {

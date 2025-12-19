@@ -25,11 +25,11 @@ public class Area {
 		private Slope approach;
 		private Slope descent;
 		private final int randomMediaId;
-		private final int randomMediaCrc32;
+		private final long randomMediaCrc32;
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, int randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaCrc32) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -96,7 +96,7 @@ public class Area {
 			return problems;
 		}
 
-		public int getRandomMediaCrc32() {
+		public long getRandomMediaCrc32() {
 			return randomMediaCrc32;
 		}
 		
@@ -204,7 +204,7 @@ public class Area {
 		this.pageViews = pageViews;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, int randomMediaCrc32) {
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaCrc32) {
 		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaCrc32);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
