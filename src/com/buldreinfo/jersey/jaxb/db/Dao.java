@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -124,6 +127,7 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.zaxxer.hikari.HikariDataSource;
 
 public class Dao {
 	private static final String ACTIVITY_TYPE_FA = "FA";
@@ -2601,211 +2605,164 @@ public class Dao {
 		return res;
 	}
 
-	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
+	public List<Search> getSearch(HikariDataSource ds, Optional<Integer> authUserId, Setup setup, String search) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		
 		String searchRegexPattern = "(^|\\W)" + search;
-		List<Search> res = new ArrayList<>();
-		// Areas
-		Set<Integer> areaIdsVisible = new HashSet<>();
-		List<Search> areas = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, a.hits
-				FROM area a INNER JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				LEFT JOIN media_area ma ON a.id=ma.area_id
-				LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND regexp_like(a.name,?,'i')
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits
-				ORDER BY a.hits DESC, a.name LIMIT 8
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setString(4, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					areaIdsVisible.add(id);
-					String name = rst.getString("name");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int mediaId = rst.getInt("media_id");
-					int mediaCrc32 = rst.getInt("media_crc32");
-					long hits = rst.getLong("hits");
-					String pageViews = HitsFormatter.formatHits(hits);
-					areas.add(new Search(name, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-				}
-			}
-		}
-		// External Areas
-		List<Search> externalAreas = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name, a_external.hits
-				FROM region r
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN region_type rt_external ON rt.type_id=rt_external.type_id
-				JOIN region r_external ON rt_external.region_id=r_external.id
-				JOIN area a_external ON r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0
-				WHERE r.id=?
-				  AND r.id!=r_external.id
-				  AND regexp_like(a_external.name,?,'i')
-				GROUP BY r_external.url, a_external.id, a_external.name, r_external.name, a_external.hits
-				ORDER BY a_external.hits DESC, a_external.name LIMIT 3
-				""")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setString(2, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					if (!areaIdsVisible.contains(id)) {
-						String externalUrl = rst.getString("external_url");
-						String name = rst.getString("name");
-						String regionName = rst.getString("region_name");
-						long hits = rst.getLong("hits");
-						String pageViews = HitsFormatter.formatHits(hits);
-						externalAreas.add(new Search(name, regionName, null, externalUrl, null, 0, 0, false, false, hits, pageViews));
-					}
-				}
-			}
-		}
-		// Sectors
-		List<Search> sectors = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, s.hits
-				FROM area a
-				JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN sector s ON a.id=s.area_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				LEFT JOIN media_sector ms ON s.id=ms.sector_id
-				LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND regexp_like(s.name,?,'i')
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits
-				ORDER BY s.hits DESC, a.name, s.name LIMIT 8
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setString(4, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String areaName = rst.getString("area_name");
-					String sectorName = rst.getString("sector_name");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int mediaId = rst.getInt("media_id");
-					int mediaCrc32 = rst.getInt("media_crc32");
-					long hits = rst.getLong("hits");
-					String pageViews = HitsFormatter.formatHits(hits);
-					sectors.add(new Search(sectorName, areaName, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-				}
-			}
-		}
-		// Problems
-		List<Search> problems = new ArrayList<>();
-		String sqlStr = """
-				SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock,
-				        ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
-				        p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, p.hits
-				FROM area a INNER JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON s.id=p.sector_id
-				JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
-				JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
-				JOIN tick t ON p.id=t.problem_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND (regexp_like(p.name,?,'i') OR regexp_like(p.rock,?,'i'))
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits
-				ORDER BY p.hits DESC, p.name, p.grade LIMIT 8
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setString(4, searchRegexPattern);
-			ps.setString(5, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String areaName = rst.getString("area_name");
-					String sectorName = rst.getString("sector_name");
-					int id = rst.getInt("id");
-					String name = rst.getString("name");
-					String rock = rst.getString("rock");
-					int grade = rst.getInt("grade");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int mediaId = rst.getInt("media_id");
-					int mediaCrc32 = rst.getInt("media_crc32");
-					long hits = rst.getLong("hits");
-					String pageViews = HitsFormatter.formatHits(hits);
-					problems.add(new Search(name + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]", areaName + " / " + sectorName + (rock == null? "" : " (rock: " + rock + ")"), "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-				}
-			}
-		}
-		// Users
-		List<Search> users = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT CRC32(picture) avatar_crc32, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
-				FROM user
-				WHERE regexp_like(CONCAT(' ',firstname,' ',COALESCE(lastname,'')),?,'i')
-				ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8
-				""")) {
-			ps.setString(1, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					long avatarCrc32 = rst.getLong("avatar_crc32");
-					int id = rst.getInt("id");
-					String name = rst.getString("name");
-					String mediaurl = avatarCrc32 == 0 ? null : IOHelper.getFullUrlAvatar(setup, id, avatarCrc32);
-					users.add(new Search(name, null, "/user/" + id, null, mediaurl, 0, 0, false, false, 0, null));
-				}
-			}
-		}
-		// Truncate result to max 9
-		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
-			if (problems.size() > 5) {
-				problems.remove(problems.size() - 1);
-			} else if (areas.size() > 2) {
-				areas.remove(areas.size() - 1);
-			} else if (sectors.size() > 2) {
-				sectors.remove(sectors.size() - 1);
-			} else if (users.size() > 1) {
-				users.remove(users.size() - 1);
-			}
-		}
-		if (!areas.isEmpty()) {
-			res.addAll(areas);
-		}
-		if (!sectors.isEmpty()) {
-			res.addAll(sectors);
-		}
-		if (!problems.isEmpty()) {
-			res.addAll(problems);
-		}
-		// Compare areas, sector and problem results by hits
-		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
-		if (!users.isEmpty()) {
-			res.addAll(users);
-		}
-		if (!externalAreas.isEmpty()) {
-			res.addAll(externalAreas);
-		}
-		
-		logger.debug("getSearch(authUserId={}, setup={}, search={}) - res.size()={}, duration={})", authUserId, setup, search, res.size(), stopwatch);
-		return res;
+		int userId = authUserId.orElse(0);
+	    try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+	        CompletableFuture<List<Search>> areasFuture = CompletableFuture.supplyAsync(() -> {
+	            List<Search> list = new ArrayList<>();
+	            try (Connection c = ds.getConnection(); 
+	                 PreparedStatement ps = c.prepareStatement("""
+	                    SELECT a.id, a.name, a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, a.hits
+	                    FROM area a INNER JOIN region r ON a.region_id=r.id
+	                    JOIN region_type rt ON r.id=rt.region_id
+	                    LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+	                    LEFT JOIN media_area ma ON a.id=ma.area_id
+	                    LEFT JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL)
+	                      AND regexp_like(a.name,?,'i')
+	                      AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+	                    GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits
+	                    ORDER BY a.hits DESC, a.name LIMIT 8
+	                    """)) {
+	                ps.setInt(1, userId); ps.setInt(2, setup.idRegion()); ps.setInt(3, setup.idRegion()); ps.setString(4, searchRegexPattern);
+	                try (ResultSet rst = ps.executeQuery()) {
+	                    while (rst.next()) {
+	                        long hits = rst.getLong("hits");
+	                        list.add(new Search(rst.getString("name"), null, "/area/" + rst.getInt("id"), null, null, rst.getInt("media_id"), rst.getInt("media_crc32"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), hits, HitsFormatter.formatHits(hits)));
+	                    }
+	                }
+	            } catch (SQLException e) { throw new RuntimeException(e); }
+	            return list;
+	        }, executor);
+	        CompletableFuture<List<Search>> externalAreasFuture = CompletableFuture.supplyAsync(() -> {
+	            List<Search> list = new ArrayList<>();
+	            try (Connection c = ds.getConnection(); 
+	                 PreparedStatement ps = c.prepareStatement("""
+	                    SELECT a_external.id, CONCAT(r_external.url,'/area/',a_external.id) external_url, a_external.name, r_external.name region_name, a_external.hits
+	                    FROM region r JOIN region_type rt ON r.id=rt.region_id
+	                    JOIN region_type rt_external ON rt.type_id=rt_external.type_id
+	                    JOIN region r_external ON rt_external.region_id=r_external.id
+	                    JOIN area a_external ON r_external.id=a_external.region_id AND a_external.locked_admin=0 AND a_external.locked_superadmin=0
+	                    WHERE r.id=? AND r.id!=r_external.id AND regexp_like(a_external.name,?,'i')
+	                    GROUP BY r_external.url, a_external.id, a_external.name, r_external.name, a_external.hits
+	                    ORDER BY a_external.hits DESC, a_external.name LIMIT 3
+	                    """)) {
+	                ps.setInt(1, setup.idRegion()); ps.setString(2, searchRegexPattern);
+	                try (ResultSet rst = ps.executeQuery()) {
+	                    while (rst.next()) {
+	                        long hits = rst.getLong("hits");
+	                        list.add(new Search(rst.getString("name"), rst.getString("region_name"), null, rst.getString("external_url"), null, 0, 0, false, false, hits, HitsFormatter.formatHits(hits)));
+	                    }
+	                }
+	            } catch (SQLException e) { throw new RuntimeException(e); }
+	            return list;
+	        }, executor);
+	        CompletableFuture<List<Search>> sectorsFuture = CompletableFuture.supplyAsync(() -> {
+	            List<Search> list = new ArrayList<>();
+	            try (Connection c = ds.getConnection(); 
+	                 PreparedStatement ps = c.prepareStatement("""
+	                    SELECT s.id, a.name area_name, s.name sector_name, s.locked_admin, s.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, s.hits
+	                    FROM area a JOIN region r ON a.region_id=r.id
+	                    JOIN region_type rt ON r.id=rt.region_id JOIN sector s ON a.id=s.area_id
+	                    LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+	                    LEFT JOIN media_sector ms ON s.id=ms.sector_id
+	                    LEFT JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL) AND regexp_like(s.name,?,'i')
+	                      AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+	                    GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits
+	                    ORDER BY s.hits DESC, a.name, s.name LIMIT 8
+	                    """)) {
+	                ps.setInt(1, userId); ps.setInt(2, setup.idRegion()); ps.setInt(3, setup.idRegion()); ps.setString(4, searchRegexPattern);
+	                try (ResultSet rst = ps.executeQuery()) {
+	                    while (rst.next()) {
+	                        long hits = rst.getLong("hits");
+	                        list.add(new Search(rst.getString("sector_name"), rst.getString("area_name"), "/sector/" + rst.getInt("id"), null, null, rst.getInt("media_id"), rst.getInt("media_crc32"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), hits, HitsFormatter.formatHits(hits)));
+	                    }
+	                }
+	            } catch (SQLException e) { throw new RuntimeException(e); }
+	            return list;
+	        }, executor);
+	        CompletableFuture<List<Search>> problemsFuture = CompletableFuture.supplyAsync(() -> {
+	            List<Search> list = new ArrayList<>();
+	            try (Connection c = ds.getConnection(); 
+	                 PreparedStatement ps = c.prepareStatement("""
+	                    SELECT a.name area_name, s.name sector_name, p.id, p.name, p.rock,
+	                           ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
+	                           p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(m.checksum) media_crc32, p.hits
+	                    FROM area a INNER JOIN region r ON a.region_id=r.id
+	                    JOIN region_type rt ON r.id=rt.region_id JOIN sector s ON a.id=s.area_id JOIN problem p ON s.id=p.sector_id
+	                    JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+	                    JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
+	                    JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL JOIN tick t ON p.id=t.problem_id
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL) AND (regexp_like(p.name,?,'i') OR regexp_like(p.rock,?,'i'))
+	                      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+	                    GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits
+	                    ORDER BY p.hits DESC, p.name, p.grade LIMIT 8
+	                    """)) {
+	                ps.setInt(1, userId); ps.setInt(2, setup.idRegion()); ps.setInt(3, setup.idRegion()); ps.setString(4, searchRegexPattern); ps.setString(5, searchRegexPattern);
+	                try (ResultSet rst = ps.executeQuery()) {
+	                    while (rst.next()) {
+	                        long hits = rst.getLong("hits");
+	                        String gradeStr = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+	                        String subTitle = rst.getString("area_name") + " / " + rst.getString("sector_name") + (rst.getString("rock") == null ? "" : " (rock: " + rst.getString("rock") + ")");
+	                        list.add(new Search(rst.getString("name") + " [" + gradeStr + "]", subTitle, "/problem/" + rst.getInt("id"), null, null, rst.getInt("media_id"), rst.getInt("media_crc32"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), hits, HitsFormatter.formatHits(hits)));
+	                    }
+	                }
+	            } catch (SQLException e) { throw new RuntimeException(e); }
+	            return list;
+	        }, executor);
+	        CompletableFuture<List<Search>> usersFuture = CompletableFuture.supplyAsync(() -> {
+	            List<Search> list = new ArrayList<>();
+	            try (Connection c = ds.getConnection(); 
+	                 PreparedStatement ps = c.prepareStatement("""
+	                    SELECT CRC32(picture) avatar_crc32, id, TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) name
+	                    FROM user WHERE regexp_like(CONCAT(' ',firstname,' ',COALESCE(lastname,'')),?,'i')
+	                    ORDER BY TRIM(CONCAT(firstname, ' ', COALESCE(lastname,''))) LIMIT 8
+	                    """)) {
+	                ps.setString(1, searchRegexPattern);
+	                try (ResultSet rst = ps.executeQuery()) {
+	                    while (rst.next()) {
+	                        long avatarCrc32 = rst.getLong("avatar_crc32");
+	                        int id = rst.getInt("id");
+	                        String mediaUrl = avatarCrc32 == 0 ? null : IOHelper.getFullUrlAvatar(setup, id, avatarCrc32);
+	                        list.add(new Search(rst.getString("name"), null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
+	                    }
+	                }
+	            } catch (SQLException e) { throw new RuntimeException(e); }
+	            return list;
+	        }, executor);
+	        List<Search> areas = areasFuture.join();
+	        List<Search> externalAreas = externalAreasFuture.join();
+	        List<Search> sectors = sectorsFuture.join();
+	        List<Search> problems = problemsFuture.join();
+	        List<Search> users = usersFuture.join();
+
+	        // Post-processing logic (Filtering External Areas)
+	        Set<Integer> visibleIds = areas.stream().map(s -> Integer.parseInt(s.url().split("/")[2])).collect(Collectors.toSet());
+	        List<Search> filteredExternal = externalAreas.stream().filter(e -> !visibleIds.contains(Integer.parseInt(e.externalurl().substring(e.externalurl().lastIndexOf("/") + 1)))).toList();
+
+	        // Truncate logic
+	        while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
+	            if (problems.size() > 5) problems.remove(problems.size() - 1);
+	            else if (areas.size() > 2) areas.remove(areas.size() - 1);
+	            else if (sectors.size() > 2) sectors.remove(sectors.size() - 1);
+	            else if (users.size() > 1) users.remove(users.size() - 1);
+	        }
+
+	        // Final Sort and Assemble
+	        List<Search> res = new ArrayList<>();
+	        res.addAll(areas); res.addAll(sectors); res.addAll(problems);
+	        res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
+	        res.addAll(users); res.addAll(filteredExternal);
+
+	        logger.debug("getSearch(search={}) - res.size()={}, duration={})", search, res.size(), stopwatch);
+	        return res;
+	    }
 	}
 
 	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
