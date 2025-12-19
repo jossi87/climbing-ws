@@ -563,7 +563,7 @@ public class Dao {
 						long avatarCrc32 = rst.getLong("avatar_crc32");
 						String description = rst.getString("description");
 						int problemRandomMediaId = rst.getInt("random_media_id");
-						long problemRandomMediaCrc32 = rst.getInt("random_media_crc32");
+						long problemRandomMediaCrc32 = rst.getLong("random_media_crc32");
 						a.addFa(name, userId, avatarCrc32, description, problemRandomMediaId, problemRandomMediaCrc32);
 					}
 				}
@@ -583,7 +583,7 @@ public class Dao {
 						int id = rst.getInt("id");
 						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
 						int mediaId = rst.getInt("media_id");
-						long mediaCrc32 = rst.getInt("media_crc32");
+						long mediaCrc32 = rst.getLong("media_crc32");
 						boolean isMovie = rst.getBoolean("is_movie");
 						String embedUrl = rst.getString("embed_url");
 						a.addMedia(mediaId, mediaCrc32, isMovie, embedUrl);
@@ -714,7 +714,7 @@ public class Dao {
 					CompassDirection wallDirectionCalculated = getCompassDirection(s, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(s, rst.getInt("compass_direction_id_manual"));
 					int randomMediaId = rst.getInt("media_id");
-					long randomMediaCrc32 = rst.getInt("media_crc32");
+					long randomMediaCrc32 = rst.getLong("media_crc32");
 					if (randomMediaId == 0) {
 						boolean inherited = false;
 						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
@@ -1145,7 +1145,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id_media");
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
 					int idArea = rst.getInt("id_area");
@@ -1216,7 +1216,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = null;
 					int pitch = 0;
@@ -1621,7 +1621,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -1657,7 +1657,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -1699,7 +1699,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -2110,7 +2110,7 @@ public class Dao {
 	                long hits = rst.getLong("hits");
 	                String pageViews = (hits > 0) ? HitsFormatter.formatHits(hits) : null;
 	                int mediaId = rst.getInt("media_id");
-	                long mediaCrc32 = rst.getInt("media_crc32");
+	                long mediaCrc32 = rst.getLong("media_crc32");
 	                boolean lockedAdmin = rst.getBoolean("locked_admin");
 	                boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 	                switch (type) {
@@ -4480,7 +4480,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
@@ -4514,7 +4514,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -4545,7 +4545,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = rst.getInt("pitch");
@@ -4594,7 +4594,7 @@ public class Dao {
 					int idMedia = rst.getInt("id");
 					int uploaderUserId = rst.getInt("uploader_user_id");
 					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long crc32 = rst.getInt("checksum");
+					long crc32 = rst.getLong("checksum");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
