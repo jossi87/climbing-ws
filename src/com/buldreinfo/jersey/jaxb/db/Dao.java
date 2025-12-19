@@ -1952,7 +1952,7 @@ public class Dao {
 		List<Search> users = new ArrayList<>();
 		Set<Integer> areaIdsVisible = new HashSet<>();
 		String sqlStr = """
-				 		WITH req AS (
+				WITH req AS (
 					SELECT ? auth_user_id, ? region_id, ? search_regex
 				)
 				-- Areas
@@ -2018,7 +2018,9 @@ public class Dao {
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin, MAX(m.id), MAX(m.checksum), p.hits, 
 				        NULL, 
-				        ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)), 
+				        -- Subquery ensures we only count each tick once regardless of media joins
+				        (SELECT ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) 
+				         FROM tick t WHERE t.problem_id = p.id), 
 				        p.rock
 				 FROM area a
 				 JOIN sector s ON a.id=s.area_id
