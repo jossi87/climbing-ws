@@ -131,6 +131,8 @@ public class Server {
 		hikariConfig.setMinimumIdle(10);
 		hikariConfig.setConnectionTimeout(10000);
 		hikariConfig.setLeakDetectionThreshold(4000);
+		// GROUP_CONCAT has a max length 1024 characters by default (getActivity needs more characters)
+		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
 		try (Connection c = ds.getConnection()) {
 			dao.getSetups(c).forEach(s -> {

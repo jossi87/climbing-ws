@@ -394,204 +394,155 @@ public class Dao {
 	}
 
 	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
-		// GROUP_CONCAT has a max length 1024 characters by default, use avoid exception
-		try (PreparedStatement ps = c.prepareStatement("SET SESSION group_concat_max_len = 1000000")) {
-			ps.execute();
-		}
-
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
-		/**
-		 * Fetch activities to return
-		 */
-		final Set<Integer> faActivitityIds = new HashSet<>();
-		final Set<Integer> tickActivitityIds = new HashSet<>();
-		final Set<Integer> tickRepeatActivitityIds = new HashSet<>();
-		final Set<Integer> mediaActivitityIds = new HashSet<>();
-		final Set<Integer> guestbookActivitityIds = new HashSet<>();
+		final Set<Integer> faIds = new HashSet<>();
+		final Set<Integer> tickIds = new HashSet<>();
+		final Set<Integer> repeatIds = new HashSet<>();
+		final Set<Integer> mediaIds = new HashSet<>();
+		final Set<Integer> gbIds = new HashSet<>();
+
 		String sqlStr = """
-				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, t.subtype problem_subtype, p.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
-				FROM ((((((activity x INNER JOIN problem p ON x.problem_id=p.id) INNER JOIN type t ON p.type_id=t.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
+				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
+				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
+				       t.subtype problem_subtype, p.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
+				FROM (
+				    SELECT id, type, activity_timestamp, problem_id 
+				    FROM activity 
+				    ORDER BY activity_timestamp DESC, id DESC 
+				    LIMIT 500 
+				) x
+				JOIN problem p ON x.problem_id=p.id 
+				JOIN type t ON p.type_id=t.id 
+				JOIN sector s ON p.sector_id=s.id 
+				JOIN area a ON s.area_id=a.id 
+				JOIN region r ON a.region_id=r.id 
+				JOIN region_type rt ON r.id=rt.region_id 
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				  """ +
-				  ((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0)? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") + // Only look at activity for the last three months when loading frontpage, this improves speed significantly
-				  (lowerGrade == 0? "" : " AND p.grade>=" + lowerGrade + " ") +
-				  (fa? "" : " AND x.type!='FA' ") +
-				  (comments? "" : " AND x.type!='GUESTBOOK' ") +
-				  (ticks? "" : " AND x.type!='TICK' AND x.type!='TICK_REPEAT' ") +
-				  (media? "" : " AND x.type!='MEDIA' ") +
-				  (idArea==0? "" : " AND a.id=" + idArea + " ") +
-				  (idSector==0? "" : " AND s.id=" + idSector + " ") +
-				  		"""
-				  		GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
-				  		ORDER BY -x.activity_timestamp, x.problem_id DESC LIMIT 100
-				  		""";
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				""" +
+				((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0) ? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") +
+				(lowerGrade == 0 ? "" : " AND p.grade>=" + lowerGrade + " ") +
+				(fa ? "" : " AND x.type!='FA' ") +
+				(comments ? "" : " AND x.type!='GUESTBOOK' ") +
+				(ticks ? "" : " AND x.type NOT IN ('TICK','TICK_REPEAT') ") +
+				(media ? "" : " AND x.type!='MEDIA' ") +
+				(idArea == 0 ? "" : " AND a.id=" + idArea + " ") +
+				(idSector == 0 ? "" : " AND s.id=" + idSector + " ") +
+						"""
+						GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
+						ORDER BY x.activity_timestamp DESC, x.problem_id DESC LIMIT 100
+						""";
+
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					LocalDateTime activityTimestamp = rst.getObject("activity_timestamp", LocalDateTime.class);
-					int areaId = rst.getInt("area_id");
-					String areaName = rst.getString("area_name");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin"); 
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					int sectorId = rst.getInt("sector_id");
-					String sectorName = rst.getString("sector_name");
-					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-					int problemId = rst.getInt("problem_id");
-					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
-					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					String problemName = rst.getString("problem_name");
-					String problemSubtype = rst.getString("problem_subtype");
+					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
 					String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
-					Set<Integer> activityIds = new HashSet<>();
-					String activities = rst.getString("activities");
-					for (String activity : activities.split(",")) {
-						String[] str = activity.split("-");
-						int idActivity = Integer.parseInt(str[0]);
-						String type = str[1];
-						activityIds.add(idActivity);
-						switch (type) {
-						case ACTIVITY_TYPE_FA -> faActivitityIds.add(idActivity);
-						case ACTIVITY_TYPE_TICK -> tickActivitityIds.add(idActivity);
-						case ACTIVITY_TYPE_TICK_REPEAT -> tickRepeatActivitityIds.add(idActivity);
-						case ACTIVITY_TYPE_GUESTBOOK -> guestbookActivitityIds.add(idActivity);
-						case ACTIVITY_TYPE_MEDIA -> mediaActivitityIds.add(idActivity);
-						default -> throw new IllegalArgumentException("Invalid type: " + type + " on idActivity=" + idActivity + " (acitivities=" + activities + ")");
+					Set<Integer> currentActivityIds = new HashSet<>();
+					String raw = rst.getString("activities");
+					if (raw != null) {
+						for (String entry : raw.split(",")) {
+							String[] parts = entry.split("-");
+							int id = Integer.parseInt(parts[0]);
+							String type = parts[1];
+							currentActivityIds.add(id);
+							switch (type) {
+							case "FA" -> faIds.add(id);
+							case "TICK" -> tickIds.add(id);
+							case "TICK_REPEAT" -> repeatIds.add(id);
+							case "GUESTBOOK" -> gbIds.add(id);
+							case "MEDIA" -> mediaIds.add(id);
+							}
 						}
 					}
-
-					String timeAgo = TimeAgo.getTimeAgo(activityTimestamp.toLocalDate());
-					res.add(new Activity(activityIds, timeAgo, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, problemLockedAdmin, problemLockedSuperadmin, problemName, problemSubtype, grade));
+					res.add(new Activity(currentActivityIds, TimeAgo.getTimeAgo(ts.toLocalDate()), 
+							rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
+							rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+							rst.getString("problem_name"), rst.getString("problem_subtype"), grade));
 				}
 			}
 		}
-
-		if (!tickActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, t.comment description, t.stars, t.grade 
-					FROM activity a, tick t, user u
-					WHERE a.id IN (%s) 
-					  AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id
-					""".formatted(Joiner.on(",").join(tickActivitityIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int id = rst.getInt("id");
-						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-						int userId = rst.getInt("user_id");
-						String name = rst.getString("name");
-						long avatarCrc32 = rst.getLong("avatar_crc32");
-						String description = rst.getString("description");
-						int stars = rst.getInt("stars");
-						String personalGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
-						a.setTick(false, userId, name, avatarCrc32, description, stars, personalGrade);
-					}
-				}
+		Map<Integer, Activity> activityLookup = new HashMap<>();
+		for (Activity act : res) {
+			for (Integer id : act.getActivityIds()) {
+				activityLookup.put(id, act);
 			}
 		}
-
-		if (!tickRepeatActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, r.comment description, t.stars, t.grade 
-					FROM activity a, tick t, tick_repeat r, user u 
-					WHERE a.id IN (%s) 
-					  AND a.user_id=u.id AND a.problem_id=t.problem_id AND a.tick_repeat_id=r.id AND t.id=r.tick_id AND u.id=t.user_id
-					""".formatted(Joiner.on(",").join(tickRepeatActivitityIds)))) {
+		if (!tickIds.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, t.comment description, t.stars, t.grade FROM activity a, tick t, user u WHERE a.id IN (" + Joiner.on(",").join(tickIds) + ") AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
-						int id = rst.getInt("id");
-						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-						int userId = rst.getInt("user_id");
-						String name = rst.getString("name");
-						long avatarCrc32 = rst.getLong("avatar_crc32");
-						String description = rst.getString("description");
-						int stars = rst.getInt("stars");
-						String personalGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
-						a.setTick(true, userId, name, avatarCrc32, description, stars, personalGrade);
-					}
-				}
-			}
-		}
-
-		if (!guestbookActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, g.message, mg.media_id, m.checksum 
-					FROM (((activity a INNER JOIN guestbook g ON a.guestbook_id=g.id) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id) LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) 
-					WHERE a.id IN (%s)
-					""".formatted(Joiner.on(",").join(guestbookActivitityIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int id = rst.getInt("id");
-						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-						int userId = rst.getInt("user_id");
-						String name = rst.getString("name");
-						long avatarCrc32 = rst.getLong("avatar_crc32");
-						String message = rst.getString("message");
-						a.setGuestbook(userId, name, avatarCrc32, message);
-
-						int mediaId = rst.getInt("media_id");
-						long crc32 = rst.getInt("checksum");
-						if (mediaId > 0) {
-							boolean isMovie = false;
-							String embedUrl = null;
-							a.addMedia(mediaId, crc32, isMovie, embedUrl);
+						Activity a = activityLookup.get(rst.getInt("id"));
+						if (a != null) {
+							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
 						}
 					}
 				}
 			}
 		}
-
-		if (!faActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CRC32(u.picture) avatar_crc32, p.description, MAX(m.id) random_media_id, MAX(m.checksum) random_media_crc32 
-					FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) 
-					WHERE a.id IN (%s) 
-					GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description
-					ORDER BY u.firstname, u.lastname
-					""".formatted(Joiner.on(",").join(faActivitityIds)))) {
+		if (!repeatIds.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, r.comment description, t.stars, t.grade FROM activity a, tick t, tick_repeat r, user u WHERE a.id IN (" + Joiner.on(",").join(repeatIds) + ") AND a.user_id=u.id AND a.problem_id=t.problem_id AND a.tick_repeat_id=r.id AND t.id=r.tick_id AND u.id=t.user_id")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
-						int id = rst.getInt("id");
-						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-						String name = rst.getString("name");
-						int userId = rst.getInt("user_id");
-						long avatarCrc32 = rst.getLong("avatar_crc32");
-						String description = rst.getString("description");
-						int problemRandomMediaId = rst.getInt("random_media_id");
-						long problemRandomMediaCrc32 = rst.getLong("random_media_crc32");
-						a.addFa(name, userId, avatarCrc32, description, problemRandomMediaId, problemRandomMediaCrc32);
+						Activity a = activityLookup.get(rst.getInt("id"));
+						if (a != null) {
+							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+						}
 					}
 				}
 			}
 		}
-
-		if (!mediaActivitityIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, m.id media_id, m.checksum media_crc32, m.is_movie, m.embed_url 
-					FROM activity a, media m, media_problem mp 
-					WHERE a.id IN (%s) 
-					 AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id
-					ORDER BY m.is_movie, mp.sorting, m.id
-					""".formatted(Joiner.on(",").join(mediaActivitityIds)))) {
+		if (!gbIds.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, g.message, mg.media_id, m.checksum FROM (((activity a INNER JOIN guestbook g ON a.guestbook_id=g.id) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id) LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) WHERE a.id IN (" + Joiner.on(",").join(gbIds) + ")")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
-						int id = rst.getInt("id");
-						Activity a = res.stream().filter(x -> x.getActivityIds().contains(id)).findAny().get();
-						int mediaId = rst.getInt("media_id");
-						long mediaCrc32 = rst.getLong("media_crc32");
-						boolean isMovie = rst.getBoolean("is_movie");
-						String embedUrl = rst.getString("embed_url");
-						a.addMedia(mediaId, mediaCrc32, isMovie, embedUrl);
+						Activity a = activityLookup.get(rst.getInt("id"));
+						if (a != null) {
+							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("message"));
+							int mediaId = rst.getInt("media_id");
+							if (mediaId > 0) {
+								a.addMedia(mediaId, rst.getLong("checksum"), false, null);
+							}
+						}
 					}
 				}
 			}
 		}
-		logger.debug("getActivity(authUserId={}, setup={}) - res.size()={}, duration={}", authUserId, setup, res.size(), stopwatch);
+		if (!faIds.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CRC32(u.picture) avatar_crc32, p.description, MAX(m.id) mid, MAX(m.checksum) mcrc FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) WHERE a.id IN (" + Joiner.on(",").join(faIds) + ") GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description")) {
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						Activity a = activityLookup.get(rst.getInt("id"));
+						if (a != null) {
+							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("mid"), rst.getLong("mcrc"));
+						}
+					}
+				}
+			}
+		}
+		if (!mediaIds.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, m.id media_id, m.checksum media_crc32, m.is_movie, m.embed_url FROM activity a, media m, media_problem mp WHERE a.id IN (" + Joiner.on(",").join(mediaIds) + ") AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id")) {
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						Activity a = activityLookup.get(rst.getInt("id"));
+						if (a != null) {
+							a.addMedia(rst.getInt("media_id"), rst.getLong("media_crc32"), rst.getBoolean("is_movie"), rst.getString("embed_url"));
+						}
+					}
+				}
+			}
+		}
+		logger.debug("getActivity() - res.size()={}, duration={}", res.size(), stopwatch);
 		return res;
 	}
 
@@ -880,7 +831,7 @@ public class Dao {
 				}
 			}
 		}
-		c.commit(); // Commit in synchronised function to avoid multiple parallel transactions inserting the same user...
+		c.commit();
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 		return authUserId;
 	}
@@ -1995,13 +1946,13 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		String searchRegexPattern = "(^|\\W)" + search;
 		List<Search> areas = new ArrayList<>();
-	    List<Search> externalAreas = new ArrayList<>();
-	    List<Search> sectors = new ArrayList<>();
-	    List<Search> problems = new ArrayList<>();
-	    List<Search> users = new ArrayList<>();
-	    Set<Integer> areaIdsVisible = new HashSet<>();
-	    String sqlStr = """
-	    		WITH req AS (
+		List<Search> externalAreas = new ArrayList<>();
+		List<Search> sectors = new ArrayList<>();
+		List<Search> problems = new ArrayList<>();
+		List<Search> users = new ArrayList<>();
+		Set<Integer> areaIdsVisible = new HashSet<>();
+		String sqlStr = """
+				 		WITH req AS (
 					SELECT ? auth_user_id, ? region_id, ? search_regex
 				)
 				-- Areas
@@ -2021,9 +1972,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.hits
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				-- External Areas
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
 				        0, 0, 0, 0, a_ext.hits, 
@@ -2038,9 +1989,9 @@ public class Dao {
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY r_ext.url, a_ext.id, a_ext.name, r_ext.name, a_ext.hits
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-				
+
 				UNION ALL
-				
+
 				-- Sectors
 				(SELECT 
 				    'SECTOR' result_type, s.id, s.name, a.name, 
@@ -2060,9 +2011,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				 GROUP BY s.id, a.name, s.name, s.locked_admin, s.locked_superadmin, s.hits
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				-- Problems
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin, MAX(m.id), MAX(m.checksum), p.hits, 
@@ -2085,9 +2036,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				 GROUP BY a.name, s.name, p.id, p.name, p.rock, p.grade, p.locked_admin, p.locked_superadmin, p.hits
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				-- Users
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
 				        0, 0, 0, CRC32(u.picture), 0, 
@@ -2096,84 +2047,84 @@ public class Dao {
 				 CROSS JOIN req
 				 WHERE REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
 				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8);
-	    		""";
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        ps.setInt(1, authUserId.orElse(0));
-	        ps.setInt(2, setup.idRegion());
-	        ps.setString(3, searchRegexPattern);
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                String type = rst.getString("result_type");
-	                int id = rst.getInt("id");
-	                String title = rst.getString("main_title");
-	                String subTitle = rst.getString("sub_title");
-	                long hits = rst.getLong("hits");
-	                String pageViews = (hits > 0) ? HitsFormatter.formatHits(hits) : null;
-	                int mediaId = rst.getInt("media_id");
-	                long mediaCrc32 = rst.getLong("media_crc32");
-	                boolean lockedAdmin = rst.getBoolean("locked_admin");
-	                boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-	                switch (type) {
-	                    case "AREA" -> {
-	                        areaIdsVisible.add(id);
-	                        areas.add(new Search(title, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-	                    }
-	                    case "EXTERNAL" -> {
-	                        externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), null, 0, 0, false, false, hits, pageViews));
-	                    }
-	                    case "SECTOR" -> {
-	                        sectors.add(new Search(title, subTitle, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-	                    }
-	                    case "PROBLEM" -> {
-	                        int grade = rst.getInt("grade");
-	                        String rock = rst.getString("rock");
-	                        String fullTitle = title + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]";
-	                        String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
-	                        problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
-	                    }
-	                    case "USER" -> {
-	                        long avatarCrc32 = rst.getLong("media_crc32"); 
-	                        String mediaUrl = (avatarCrc32 == 0) ? null : IOHelper.getFullUrlAvatar(setup, id, avatarCrc32);
-	                        users.add(new Search(title, null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
-	                    }
-	                }
-	            }
-	        }
-	    }
-	    // Truncate logic
-	    while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
-	        if (problems.size() > 5) {
-	        	problems.remove(problems.size() - 1);
-	        }
-	        else if (areas.size() > 2) {
-	        	areas.remove(areas.size() - 1);
-	        }
-	        else if (sectors.size() > 2) {
-	        	sectors.remove(sectors.size() - 1);
-	        }
-	        else if (users.size() > 1) {
-	        	users.remove(users.size() - 1);
-	        }
-	    }
-	    // Filter External Areas
-	    List<Search> filteredExternal = externalAreas.stream()
-	            .filter(ea -> {
-	                try {
-	                    String url = ea.externalurl();
-	                    int extId = Integer.parseInt(url.substring(url.lastIndexOf("/") + 1));
-	                    return !areaIdsVisible.contains(extId);
-	                } catch (Exception e) { return true; }
-	            }).toList();
-	    // Assemble and Final Sort
-	    List<Search> res = new ArrayList<>();
-	    res.addAll(areas);
-	    res.addAll(sectors);
-	    res.addAll(problems);
-	    res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
-	    res.addAll(users);
-	    res.addAll(filteredExternal);
-        logger.debug("getSearch(search={}) - res.size()={}, duration={})", search, res.size(), stopwatch);
-        return res;
+				 		""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
+			ps.setString(3, searchRegexPattern);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String type = rst.getString("result_type");
+					int id = rst.getInt("id");
+					String title = rst.getString("main_title");
+					String subTitle = rst.getString("sub_title");
+					long hits = rst.getLong("hits");
+					String pageViews = (hits > 0) ? HitsFormatter.formatHits(hits) : null;
+					int mediaId = rst.getInt("media_id");
+					long mediaCrc32 = rst.getLong("media_crc32");
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					switch (type) {
+					case "AREA" -> {
+						areaIdsVisible.add(id);
+						areas.add(new Search(title, null, "/area/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
+					}
+					case "EXTERNAL" -> {
+						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), null, 0, 0, false, false, hits, pageViews));
+					}
+					case "SECTOR" -> {
+						sectors.add(new Search(title, subTitle, "/sector/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
+					}
+					case "PROBLEM" -> {
+						int grade = rst.getInt("grade");
+						String rock = rst.getString("rock");
+						String fullTitle = title + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]";
+						String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
+						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, null, mediaId, mediaCrc32, lockedAdmin, lockedSuperadmin, hits, pageViews));
+					}
+					case "USER" -> {
+						long avatarCrc32 = rst.getLong("media_crc32"); 
+						String mediaUrl = (avatarCrc32 == 0) ? null : IOHelper.getFullUrlAvatar(setup, id, avatarCrc32);
+						users.add(new Search(title, null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
+					}
+					}
+				}
+			}
+		}
+		// Truncate logic
+		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
+			if (problems.size() > 5) {
+				problems.remove(problems.size() - 1);
+			}
+			else if (areas.size() > 2) {
+				areas.remove(areas.size() - 1);
+			}
+			else if (sectors.size() > 2) {
+				sectors.remove(sectors.size() - 1);
+			}
+			else if (users.size() > 1) {
+				users.remove(users.size() - 1);
+			}
+		}
+		// Filter External Areas
+		List<Search> filteredExternal = externalAreas.stream()
+				.filter(ea -> {
+					try {
+						String url = ea.externalurl();
+						int extId = Integer.parseInt(url.substring(url.lastIndexOf("/") + 1));
+						return !areaIdsVisible.contains(extId);
+					} catch (Exception e) { return true; }
+				}).toList();
+		// Assemble and Final Sort
+		List<Search> res = new ArrayList<>();
+		res.addAll(areas);
+		res.addAll(sectors);
+		res.addAll(problems);
+		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
+		res.addAll(users);
+		res.addAll(filteredExternal);
+		logger.debug("getSearch(search={}) - res.size()={}, duration={})", search, res.size(), stopwatch);
+		return res;
 	}
 
 	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
@@ -2543,7 +2494,7 @@ public class Dao {
 		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
-	
+
 	public List<TocPitch> getTocPitches(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		List<TocPitch> res = new ArrayList<>();
 		String sqlStr = """
