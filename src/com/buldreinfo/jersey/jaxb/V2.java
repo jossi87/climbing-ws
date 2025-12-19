@@ -1036,10 +1036,10 @@ public class V2 {
 	@Path("/search")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) {
-		return Server.buildResponseWithDsAndAuth(request, (dao, ds, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
 			Preconditions.checkNotNull(search, "Invalid search: " + search);
-			List<Search> res = dao.getSearch(ds, authUserId, setup, search);
+			List<Search> res = dao.getSearch(c, authUserId, setup, search);
 			return Response.ok().entity(res).build();
 		});
 	}

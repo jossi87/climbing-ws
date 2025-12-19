@@ -16,7 +16,6 @@ import com.buldreinfo.jersey.jaxb.function.Consumer;
 import com.buldreinfo.jersey.jaxb.function.Function;
 import com.buldreinfo.jersey.jaxb.function.FunctionDb;
 import com.buldreinfo.jersey.jaxb.function.FunctionDbUser;
-import com.buldreinfo.jersey.jaxb.function.FunctionDsUser;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -71,18 +70,6 @@ public class Server {
 		}
 	}
 
-	protected static Response buildResponseWithDsAndAuth(HttpServletRequest request, FunctionDsUser<HikariDataSource, Response> function) {
-	    Server server = getServer();
-	    Setup setup = server.getSetup(request);
-	    try (Connection authConn = server.ds.getConnection()) {
-	        Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, authConn, request, setup);
-	        return function.get(server.dao, server.ds, setup, authUserId);
-	    } catch (Exception e) {
-	    	logger.error(e.getMessage(), e);
-	        return Response.serverError().build();
-	    }
-	}
-	
 	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
