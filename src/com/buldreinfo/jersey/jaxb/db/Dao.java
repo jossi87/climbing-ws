@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -1944,7 +1945,8 @@ public class Dao {
 
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		String searchRegexPattern = "(^|\\W)" + search;
+		String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
+		String searchRegexPattern = "(^|\\W)" + quotedSearch;
 		List<Search> areas = new ArrayList<>();
 		List<Search> externalAreas = new ArrayList<>();
 		List<Search> sectors = new ArrayList<>();
