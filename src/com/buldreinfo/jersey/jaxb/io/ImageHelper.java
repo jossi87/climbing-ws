@@ -37,7 +37,7 @@ public class ImageHelper {
 		.withPathWebJpg(IOHelper.getPathMediaWebJpg(idMedia))
 		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
+		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), exifReader.getDateTaken());
 	}
 
 	public static void saveAvatar(int userId, InputStream is) {
@@ -83,7 +83,7 @@ public class ImageHelper {
 		.withPathWebJpg(IOHelper.getPathMediaWebJpg(idMedia))
 		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, bufferedImage.getHeight(), bufferedImage.getWidth(), null);
+		dao.setMediaMetadata(c, idMedia, bufferedImage.getWidth(), bufferedImage.getHeight(), null);
 	}
 
 	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
@@ -99,7 +99,7 @@ public class ImageHelper {
 		.withPathWebJpg(IOHelper.getPathMediaWebJpg(idMedia))
 		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), exifReader.getDateTaken());
+		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), exifReader.getDateTaken());
 	}
 
 	public static void saveImageFromEmbedVideo(Dao dao, Connection c, int idMedia, String embedVideoUrl) throws IOException, SQLException, InterruptedException {
@@ -110,6 +110,6 @@ public class ImageHelper {
 		.withPathWebJpg(IOHelper.getPathMediaWebJpg(idMedia))
 		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getHeight(), imageReader.getJpgBufferedImage().getWidth(), null);
+		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), null);
 	}
 }

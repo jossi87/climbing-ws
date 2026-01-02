@@ -64,7 +64,6 @@ import com.buldreinfo.jersey.jaxb.model.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
-import com.buldreinfo.jersey.jaxb.model.TopRank;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;

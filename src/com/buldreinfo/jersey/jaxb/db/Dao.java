@@ -3250,7 +3250,7 @@ public class Dao {
 		return Redirect.fromIdArea(idArea);
 	}
 
-	public void setMediaMetadata(Connection c, int idMedia, int height, int width, LocalDateTime dateTaken) throws SQLException, IOException {
+	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken) throws SQLException, IOException {
 		Path webp = IOHelper.getPathMediaWebWebp(idMedia);
 		Path webm = IOHelper.getPathMediaWebWebm(idMedia);
 		Path p = Files.exists(webm)? webm : webp;
@@ -3269,7 +3269,7 @@ public class Dao {
 			ps.setInt(++ix, idMedia);
 			ps.execute();
 		}
-		logger.debug("setMediaMetadata(idMedia={}, height={}, width={}, dateTaken={}) - success", idMedia, height, width, dateTaken);
+		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
