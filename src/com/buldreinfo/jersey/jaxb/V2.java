@@ -704,7 +704,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = TopRank.class)))})})
+	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Top.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/top")
