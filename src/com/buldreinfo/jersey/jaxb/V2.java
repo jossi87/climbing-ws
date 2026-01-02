@@ -63,6 +63,7 @@ import com.buldreinfo.jersey.jaxb.model.TocProblem;
 import com.buldreinfo.jersey.jaxb.model.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
+import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.TopRank;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -713,7 +714,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			var res = dao.getTop(c, authUserId, idArea, idSector);
+			Top res = dao.getTop(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
