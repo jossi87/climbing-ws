@@ -1,5 +1,5 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-import java.util.List;
+import java.util.Collection;
 
-public record Top(int rank, double percentage, List<TopUser> users) {}
+public record Top(Collection<TopRank> rows, int numUsers) {}

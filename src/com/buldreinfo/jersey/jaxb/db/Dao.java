@@ -106,6 +106,7 @@ import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.TodoProblem;
 import com.buldreinfo.jersey.jaxb.model.TodoSector;
 import com.buldreinfo.jersey.jaxb.model.Top;
+import com.buldreinfo.jersey.jaxb.model.TopRank;
 import com.buldreinfo.jersey.jaxb.model.TopUser;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
@@ -2605,8 +2606,8 @@ public class Dao {
 		return res;
 	}
 
-	public Collection<Top> getTop(Connection c, Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
-		Map<Double, Top> topByPercentage = new LinkedHashMap<>();
+	public Top getTop(Connection c, Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
+		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
 		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
 		String sqlStr = """
 				WITH x AS (
@@ -2639,12 +2640,14 @@ public class Dao {
 				GROUP BY y.user_id, y.name, y.avatar_crc32, x.sum
 				ORDER BY percentage DESC, name
 				""".formatted(condition, condition, condition, condition);
+		Set<Integer> uniqueUserIds = new HashSet<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			try (ResultSet rst = ps.executeQuery()) {
 				double prevPercentage = 0;
 				int rank = 0;
 				while (rst.next()) {
 					int userId = rst.getInt("user_id");
+					uniqueUserIds.add(userId);
 					String name = rst.getString("name");
 					long avatarCrc32 = rst.getLong("avatar_crc32");
 					double percentage = rst.getDouble("percentage");
@@ -2655,14 +2658,15 @@ public class Dao {
 					boolean mine = authUserId.orElse(0) == userId;
 					var top = topByPercentage.get(percentage);
 					if (top == null) {
-						top = new Top(rank, percentage, new ArrayList<>());
+						top = new TopRank(rank, percentage, new ArrayList<>());
 						topByPercentage.put(percentage, top);
 					}
 					top.users().add(new TopUser(userId, name, avatarCrc32, mine));
 				}
 			}
 		}
-		return topByPercentage.values();
+		var rows = topByPercentage.values();
+		return new Top(rows, uniqueUserIds.size());
 	}
 
 	public List<Trash> getTrash(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {

@@ -63,7 +63,7 @@ import com.buldreinfo.jersey.jaxb.model.TocProblem;
 import com.buldreinfo.jersey.jaxb.model.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
-import com.buldreinfo.jersey.jaxb.model.Top;
+import com.buldreinfo.jersey.jaxb.model.TopRank;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
@@ -703,7 +703,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Top.class)))})})
+	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = TopRank.class)))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/top")
@@ -713,7 +713,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Collection<Top> res = dao.getTop(c, authUserId, idArea, idSector);
+			var res = dao.getTop(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
