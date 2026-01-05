@@ -20,7 +20,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
-import org.imgscalr.Scalr.Mode;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
@@ -331,7 +330,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
 	@GET
 	@Path("/images")
@@ -366,23 +365,37 @@ public class V2 {
 			builder = CacheHelper.applyImmutableLongTermCache(builder);
 			return builder.build();
 		}
-		boolean useWebImageSource = targetWidth <= ImageSaver.IMAGE_WEB_WIDTH && minDimension <= ImageSaver.IMAGE_WEB_HEIGHT && minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
-		boolean webP = false;
-		var p = useWebImageSource ? IOHelper.getPathImage(id, webP) : IOHelper.getPathMediaOriginalJpg(id);
-		BufferedImage b = Preconditions.checkNotNull(ImageIO.read(p.toFile()), "Could not read " + p.toString());
-		if (targetWidth > 0 && targetWidth < b.getWidth()) {
-			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+		var p = IOHelper.getPathMediaWebJpgResized(id, targetWidth, minDimension);
+		if (!Files.exists(p)) {
+			boolean useWebSource = targetWidth > 0 
+					? targetWidth <= ImageSaver.IMAGE_WEB_WIDTH 
+					: minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
+			var source = useWebSource ? IOHelper.getPathMediaWebJpg(id) : IOHelper.getPathMediaOriginalJpg(id);
+			BufferedImage b = ImageIO.read(source.toFile());
+			if (b == null) {
+				throw new IOException("Could not read source: " + source);
+			}
+			if (targetWidth > 0 && targetWidth < b.getWidth()) {
+				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+			}
+			else if (minDimension > 0) {
+				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				if (minDimension < (mode == Scalr.Mode.FIT_TO_WIDTH ? b.getWidth() : b.getHeight())) {
+					b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+				}
+			}
+			IOHelper.createDirectories(p.getParent());
+			var tempFile = p.getParent().resolve(p.getFileName().toString() + ".tmp");
+		    try {
+		        ImageIO.write(b, "jpg", tempFile.toFile());
+		        // Atomic move ensures the "real" file is either fully there or not there at all
+		        Files.move(tempFile, p, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+		    } finally {
+		        Files.deleteIfExists(tempFile); // Cleanup if something crashed
+		        b.flush();
+		    }
 		}
-		else if (minDimension > 0 && minDimension < b.getWidth() && minDimension < b.getHeight()) {
-			Mode mode = b.getWidth() < b.getHeight()? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-			b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, mode, minDimension);
-		}
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-			ImageIO.write(b, "jpg", baos);
-			var builder = Response.ok(baos.toByteArray(), "image/jpeg");
-			builder = CacheHelper.applyImmutableLongTermCache(builder);
-			return builder.build();
-		}
+		return CacheHelper.applyImmutableLongTermCache(Response.ok(p.toFile(), "image/jpeg")).build();
 	}
 
 	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
@@ -1085,7 +1098,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
+
 	@Operation(summary = "Update visible regions")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1123,7 +1136,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
+
 	@Operation(summary = "Set media as avatar")
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
