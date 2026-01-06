@@ -24,19 +24,10 @@ import jakarta.ws.rs.ext.Provider;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
-	private Gson gson;
-
-	private Gson getGson() {
-		if (gson == null) {
-			final GsonBuilder gsonBuilder = new GsonBuilder();
-			gson = gsonBuilder.create();
-		}
-		return gson;
-	}
+	private final Gson gson = new GsonBuilder().create();
 
 	@Override
-	public boolean isReadable(Class<?> type, Type genericType,
-			java.lang.annotation.Annotation[] annotations, MediaType mediaType) {
+	public boolean isReadable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
 		return true;
 	}
 
@@ -49,7 +40,7 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 			} else {
 				jsonType = genericType;
 			}
-			return getGson().fromJson(streamReader, jsonType);
+			return gson.fromJson(streamReader, jsonType);
 		}
 	}
 
@@ -69,10 +60,11 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 			Type jsonType;
 			if (type.equals(genericType)) {
 				jsonType = type;
-			} else {
+			}
+			else {
 				jsonType = genericType;
 			}
-			getGson().toJson(object, jsonType, writer);
+			gson.toJson(object, jsonType, writer);
 		}
 	}
 }
