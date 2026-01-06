@@ -33,10 +33,30 @@ public class IOHelper {
 		}
 	}
 
+	public static void deleteResizedCache(int id) throws IOException {
+	    Path parentDir = getPathMediaWebJpgResizedParent(id);
+	    if (!Files.exists(parentDir)) {
+	        return;
+	    }
+	    // Pattern: id_w... (e.g., 123_w300_m0.jpg)
+	    String prefix = id + "_w";
+	    try (var stream = Files.list(parentDir)) {
+	        stream.filter(path -> path.getFileName().toString().startsWith(prefix))
+	              .forEach(path -> {
+	                  try {
+	                      Files.deleteIfExists(path);
+	                      logger.debug("Deleted cached resize: {}", path);
+	                  } catch (IOException e) {
+	                      logger.error("Failed to delete cached resize: " + path, e);
+	                  }
+	              });
+	    }
+	}
+
 	public static String getFullUrlAvatar(Setup setup, int userId, long avatarCrc32) {
 		return String.format("%s/com.buldreinfo.jersey.jaxb/v2/avatar?id=%d&avatarCrc32=%d", setup.url(), userId, avatarCrc32);
 	}
-
+	
 	public static Path getPathImage(int id, boolean webP) {
 		Path p = null;
 		if (webP) {
@@ -47,7 +67,7 @@ public class IOHelper {
 		Preconditions.checkArgument(Files.exists(p), p.toString() + " does not exist");
 		return p;
 	}
-	
+
 	public static Path getPathMediaOriginalJpg(int id) {
 		return getPathRoot().resolve("original/jpg").resolve(getFolderName(id)).resolve(id + ".jpg");
 	}
@@ -55,20 +75,18 @@ public class IOHelper {
 	public static Path getPathMediaOriginalMp4(int id) {
 		return getPathRoot().resolve("original/mp4").resolve(getFolderName(id)).resolve(id + ".mp4");
 	}
-
+	
 	public static Path getPathMediaWebJpg(int id) {
 		return getPathRoot().resolve("web/jpg").resolve(getFolderName(id)).resolve(id + ".jpg");
 	}
-	
+
 	public static Path getPathMediaWebJpgRegion(int id, int x, int y, int width, int height) {
 		return getPathRoot().resolve("web/jpg_region").resolve(getFolderName(id)).resolve(String.valueOf(id)).resolve(x + "_" + y + "_" + width + "_" + height + ".jpg");
 	}
 
 	public static Path getPathMediaWebJpgResized(int id, int targetWidth, int minDimension) {
 	    String filename = String.format("%d_w%d_m%d.jpg", id, targetWidth, minDimension);
-	    return getPathRoot().resolve("web/jpg_resized")
-	                       .resolve(getFolderName(id))
-	                       .resolve(filename);
+	    return getPathMediaWebJpgResizedParent(id).resolve(filename);
 	}
 
 	public static Path getPathMediaWebMp4(int id) {
@@ -78,11 +96,11 @@ public class IOHelper {
 	public static Path getPathMediaWebWebm(int id) {
 		return getPathRoot().resolve("web/webm").resolve(getFolderName(id)).resolve(id + ".webm");
 	}
-	
+
 	public static Path getPathMediaWebWebp(int id) {
 		return getPathRoot().resolve("web/webp").resolve(getFolderName(id)).resolve(id + ".webp");
 	}
-
+	
 	public static Path getPathOriginalUsers(int id) {
 		return getPathRoot().resolve("original/users").resolve(id + ".jpg");
 	}
@@ -93,6 +111,10 @@ public class IOHelper {
 
 	private static String getFolderName(int id) {
 		return String.valueOf(id / 100 * 100);
+	}
+
+	private static Path getPathMediaWebJpgResizedParent(int id) {
+	    return getPathRoot().resolve("web/jpg_resized").resolve(getFolderName(id));
 	}
 
 	private static Path getPathRoot() {

@@ -38,6 +38,7 @@ public class ImageHelper {
 		.withPathWebWebP(IOHelper.getPathMediaWebWebp(idMedia))
 		.save();
 		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), exifReader.getDateTaken());
+		IOHelper.deleteResizedCache(idMedia);
 	}
 
 	public static void saveAvatar(int userId, InputStream is) {
