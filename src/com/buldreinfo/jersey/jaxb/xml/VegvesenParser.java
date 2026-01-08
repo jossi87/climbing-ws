@@ -64,30 +64,28 @@ public class VegvesenParser {
 				// If we have an item element, we create a new item
 				String elementName = startElement.getName().getLocalPart();
 				switch (elementName) {
-				case "cctvCameraMetadataRecord":
-					camera = new Webcam();
-					break;
-				case "cctvCameraIdentification":
+				case "cctvCameraMetadataRecord" -> camera = new Webcam();
+				case "cctvCameraIdentification" -> {
 					event = eventReader.nextEvent();
 					if (camera != null && isCharacherString(event)) {
 						camera.setId(event.asCharacters().getData());
 					}
-					break;
-				case "cctvCameraRecordVersionTime":
+				}
+				case "cctvCameraRecordVersionTime" -> {
 					if (camera != null) {
 						event = eventReader.nextEvent();
 						camera.setLastUpdated(event.asCharacters().getData());
 					}
-					break;
-				case "cctvCameraSiteLocalDescription":
+				}
+				case "cctvCameraSiteLocalDescription" -> {
 					if (camera != null) {
 						eventReader.nextEvent();
 						eventReader.nextEvent();
 						event = eventReader.nextEvent();
 						camera.setName(event.asCharacters().getData());
 					}
-					break;
-				case "stillImageUrl":
+				}
+				case "stillImageUrl" -> {
 					event = eventReader.nextEvent();
 					if (camera != null && event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkAddress")) {
 						event = eventReader.nextEvent();
@@ -109,21 +107,19 @@ public class VegvesenParser {
 							}
 						}
 					}
-					break;
-				case "latitude":
+				}
+				case "latitude" -> {
 					if (camera != null) {
 						event = eventReader.nextEvent();
 						camera.setLat(Double.parseDouble(event.asCharacters().getData()));
 					}
-					break;
-				case "longitude":
+				}
+				case "longitude" -> {
 					if (camera != null) {
 						event = eventReader.nextEvent();
 						camera.setLng(Double.parseDouble(event.asCharacters().getData()));
 					}
-					break;
-				default:
-					break;
+				}
 				}
 			}
 			// If we reach the end of an item element, we add it to the list

@@ -90,39 +90,39 @@ public class GradeDistribution {
 			rows.add(row);		
 		}
 		switch (type) {
-		case "Boulder":
+		case "Boulder" -> {
 			this.prim += num;
 			row.setNumBoulder(num);
-			break;
-		case "Bolt":
+		}
+		case "Bolt" -> {
 			this.prim += num;
 			row.setNumSport(num);
-			break;
-		case "Trad":
+		}
+		case "Trad" -> {
 			this.sec += num;
 			row.setNumTrad(num);
-			break;
-		case "Mixed":
+		}
+		case "Mixed" -> {
 			this.sec += num;
 			row.setNumMixed(num);
-			break;
-		case "Top rope":
+		}
+		case "Top rope" -> {
 			this.sec += num;
 			row.setNumTopRope(num);
-			break;
-		case "Aid":
+		}
+		case "Aid" -> {
 			this.sec += num;
 			row.setNumAid(num);
-			break;
-		case "Aid/Trad":
+		}
+		case "Aid/Trad" -> {
 			this.sec += num;
 			row.setNumAidTrad(num);
-			break;
-		case "Ice":
+		}
+		case "Ice" -> {
 			this.prim += num;
 			row.setNumIce(num);
-			break;
-		default: throw new RuntimeException("Invalid type: " + type);
+		}
+		default -> throw new IllegalArgumentException("Invalid type: " + type);
 		}
 		this.num += num;
 	}

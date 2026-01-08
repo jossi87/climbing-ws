@@ -117,7 +117,7 @@ public class V2 {
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.deleteMedia(c, authUserId, id);
 			return Response.ok().build();
 		});
@@ -210,7 +210,7 @@ public class V2 {
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Avatar CRC32 (cache buster)", required = false) @QueryParam("avatarCrc32") long avatarCrc32,
 			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
-		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
+		return Server.buildResponse(() -> {
 			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);
 			var builder = Response.ok(p.toFile(), "image/jpeg");
 			builder = CacheHelper.applyImmutableLongTermCache(builder);
@@ -250,7 +250,7 @@ public class V2 {
 	public Response getElevation(@Context HttpServletRequest request,
 			@Parameter(description = "latitude", required = true) @QueryParam("latitude") double latitude,
 			@Parameter(description = "longitude", required = true) @QueryParam("longitude") double longitude) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (_, _, _, authUserId) -> {
 			Preconditions.checkArgument(authUserId.isPresent(), "Service requires logged in user");
 			int elevation = GeoHelper.getElevation(latitude, longitude);
 			return Response.ok().entity(elevation).build();
@@ -405,7 +405,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Media res = dao.getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
@@ -501,7 +501,7 @@ public class V2 {
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			List<Media> res = dao.getProfileMediaProblem(c, authUserId, id, captured);
 			if (captured) {
 				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
@@ -543,7 +543,7 @@ public class V2 {
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getRobotsTxt(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSql(request, (dao, c, setup) -> {
+		return Server.buildResponseWithSql(request, (_, _, setup) -> {
 			List<String> lines = Lists.newArrayList(
 					"User-agent: *",
 					"Disallow: */pdf", // Disallow all pdf-calls
@@ -725,7 +725,7 @@ public class V2 {
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Top res = dao.getTop(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
@@ -751,7 +751,7 @@ public class V2 {
 	public Response getUsersSearch(@Context HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			List<User> res = dao.getUserSearch(c, authUserId, value);
 			return Response.ok().entity(res).build();
 		});
@@ -763,7 +763,7 @@ public class V2 {
 	@Path("/users/ticks")
 	@Produces(MIME_TYPE_XLSX)
 	public Response getUsersTicks(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			byte[] bytes = dao.getUserTicks(c, authUserId);
 			String fn = GlobalFunctions.getFilename("Ticks", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
@@ -1021,7 +1021,7 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
@@ -1093,7 +1093,7 @@ public class V2 {
 	public Response postTodo(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.toggleTodo(c, authUserId, idProblem);
 			return Response.ok().build();
 		});
@@ -1107,7 +1107,7 @@ public class V2 {
 			@Parameter(description = "Region id", required = true) @QueryParam("regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.setUserRegion(c, authUserId, regionId, delete);
 			return Response.ok().build();
 		});
@@ -1130,7 +1130,7 @@ public class V2 {
 				(!left && toIdArea == 0 && toIdSector > 0 && toIdProblem == 0) ||
 				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem > 0),
 				"Invalid arguments");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
 			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
 			return Response.ok().build();
@@ -1142,7 +1142,7 @@ public class V2 {
 	@PUT
 	@Path("/media/avatar")
 	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Preconditions.checkArgument(id > 0);
 			try (InputStream is = Files.newInputStream(IOHelper.getPathMediaOriginalJpg(id))) {
 				dao.saveAvatar(c, authUserId, is);
@@ -1156,7 +1156,7 @@ public class V2 {
 	@PUT
 	@Path("/media/info")
 	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.updateMediaInfo(c, authUserId, m);
 			return Response.ok().build();
 		});

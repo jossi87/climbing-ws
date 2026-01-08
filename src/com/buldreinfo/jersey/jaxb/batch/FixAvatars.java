@@ -36,7 +36,7 @@ public class FixAvatars {
 	
 	private List<Task> getTasks() {
 		List<Task> res = new ArrayList<>();
-		Server.runSql((dao, c) -> {
+		Server.runSql((_, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("SELECT u.id, u.picture FROM user u WHERE u.picture IS NOT NULL ORDER BY u.id");
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {

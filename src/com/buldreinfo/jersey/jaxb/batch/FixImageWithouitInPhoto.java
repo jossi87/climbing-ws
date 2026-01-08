@@ -23,7 +23,7 @@ public class FixImageWithouitInPhoto {
 	private static final int MIN_MEDIA_ID = 25254; // TODO
 
 	public static void main(String[] args) {
-		Server.runSql((dao, c) -> {
+		Server.runSql((_, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) AND m.id NOT IN (SELECT media_id FROM media_user) AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id")) {
 				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();

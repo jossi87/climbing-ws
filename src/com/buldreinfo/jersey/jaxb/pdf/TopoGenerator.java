@@ -186,13 +186,13 @@ public class TopoGenerator {
 				// Init colors
 				String groupColor = null;
 				switch (svg.problemGradeGroup()) {
-				case 0: groupColor = COLOR_WHITE; break;
-				case 1: groupColor = "#00FF00"; break;
-				case 2: groupColor = "#0000FF"; break;
-				case 3: groupColor = "#FFFF00"; break;
-				case 4: groupColor = "#FF0000"; break;
-				case 5: groupColor = "#FF00FF"; break;
-				default: groupColor = "#000000"; break;
+				case 0 -> groupColor = COLOR_WHITE;
+				case 1 -> groupColor = "#00FF00";
+				case 2 -> groupColor = "#0000FF";
+				case 3 -> groupColor = "#FFFF00";
+				case 4 -> groupColor = "#FF0000";
+				case 5 -> groupColor = "#FF00FF";
+				default -> groupColor = "#000000";
 				}
 				String textColor = COLOR_WHITE;
 				if (svg.ticked()) {
