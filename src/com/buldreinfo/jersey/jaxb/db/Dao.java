@@ -403,7 +403,7 @@ public class Dao {
 		final Set<Integer> repeatIds = new HashSet<>();
 		final Set<Integer> mediaIds = new HashSet<>();
 		final Set<Integer> gbIds = new HashSet<>();
-
+		boolean limitResults = lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0;
 		String sqlStr = """
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
@@ -413,7 +413,7 @@ public class Dao {
 				    SELECT id, type, activity_timestamp, problem_id 
 				    FROM activity 
 				    ORDER BY activity_timestamp DESC, id DESC 
-				    LIMIT 500 
+				    %s
 				) x
 				JOIN problem p ON x.problem_id=p.id 
 				JOIN type t ON p.type_id=t.id 
@@ -427,8 +427,8 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				""" +
-				((lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0) ? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") +
+				""".formatted((limitResults ? "LIMIT 500" : "")) +
+				(limitResults ? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") +
 				(lowerGrade == 0 ? "" : " AND p.grade>=" + lowerGrade + " ") +
 				(fa ? "" : " AND x.type!='FA' ") +
 				(comments ? "" : " AND x.type!='GUESTBOOK' ") +
@@ -440,7 +440,6 @@ public class Dao {
 						GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
 						ORDER BY x.activity_timestamp DESC, x.problem_id DESC LIMIT 100
 						""";
-
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
