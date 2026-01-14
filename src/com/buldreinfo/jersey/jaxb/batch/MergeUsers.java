@@ -79,13 +79,7 @@ public class MergeUsers {
 				ps.setInt(2, USER_ID_DELETE);
 				ps.execute();
 			}
-			// android_user
-			try (PreparedStatement ps = c.prepareStatement("UPDATE android_user SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// android_user
+			// user_login
 			try (PreparedStatement ps = c.prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?")) {
 				ps.setInt(1, USER_ID_KEEP);
 				ps.setInt(2, USER_ID_DELETE);
