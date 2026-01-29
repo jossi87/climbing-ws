@@ -1073,8 +1073,8 @@ public class Dao {
 				      AND s_sub.locked_superadmin=0
 				      AND a_sub.locked_admin=0
 				      AND a_sub.locked_superadmin=0
-				    GROUP BY m_sub.id                                -- 2. Group by Media ID
-				    HAVING AVG(t_sub.stars) >= 2                     -- 3. Filter Average Stars
+				    GROUP BY m_sub.id
+				    HAVING AVG(t_sub.stars) >= 2
 				    ORDER BY RAND()
 				    LIMIT 1
 				    -- SUBQUERY END
