@@ -1077,7 +1077,6 @@ public class Dao {
 				    HAVING AVG(t_sub.stars) >= 2
 				    ORDER BY RAND()
 				    LIMIT 1
-				    -- SUBQUERY END
 				) random_id
 				JOIN media m ON m.id=random_id.id
 				JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)
@@ -2026,7 +2025,6 @@ public class Dao {
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin, MAX(m.id), MAX(m.checksum), p.hits, 
 				        NULL, 
-				        -- Subquery ensures we only count each tick once regardless of media joins
 				        (SELECT ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) 
 				         FROM tick t WHERE t.problem_id = p.id), 
 				        p.rock
