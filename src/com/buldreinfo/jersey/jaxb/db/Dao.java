@@ -1045,44 +1045,50 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageRandomMedia res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,
-				    ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
-				    CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","avatarCrc32":', CRC32(u.picture), '}') photographer,
-				    GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","avatarCrc32":', CRC32(u2.picture), '}') SEPARATOR ', ') tagged
-				FROM (SELECT m_sub.id
-				      FROM media m_sub
-				      INNER JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
-				      INNER JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
-				      INNER JOIN sector s_sub ON p_sub.sector_id=s_sub.id
-				      INNER JOIN area a_sub ON s_sub.area_id=a_sub.id
-				      INNER JOIN region r_sub ON a_sub.region_id=r_sub.id
-				      WHERE r_sub.id=?
-				        AND m_sub.deleted_user_id IS NULL
-				        AND a_sub.trash IS NULL
-				        AND s_sub.trash IS NULL
-				        AND p_sub.trash IS NULL
-				        AND a_sub.access_closed IS NULL
-				        AND s_sub.access_closed IS NULL
-				        AND m_sub.is_movie=0
-				        AND mp_sub.trivia=0
-				        AND p_sub.locked_admin=0
-				        AND p_sub.locked_superadmin=0
-				        AND s_sub.locked_admin=0
-				        AND s_sub.locked_superadmin=0
-				        AND a_sub.locked_admin=0
-				        AND a_sub.locked_superadmin=0
-				      ORDER BY RAND()
-				      LIMIT 1) random_id
-				     INNER JOIN media m ON m.id=random_id.id
-				     INNER JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)
-				     INNER JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0
-				     INNER JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
-				     INNER JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
-				     INNER JOIN region r ON a.region_id=r.id
-				     INNER JOIN user u ON m.photographer_user_id=u.id
-				     LEFT JOIN tick t ON p.id=t.problem_id
-				     LEFT JOIN media_user mu ON m.id=mu.media_id
-				     LEFT JOIN user u2 ON mu.user_id=u2.id
+				SELECT avg(t.stars) avg_stars, m.id id_media, m.checksum, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,
+				       ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
+				       CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","avatarCrc32":', CRC32(u.picture), '}') photographer,
+				       GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","avatarCrc32":', CRC32(u2.picture), '}') SEPARATOR ', ') tagged
+				FROM (
+				    SELECT m_sub.id
+				    FROM media m_sub
+				    JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
+				    JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
+				    JOIN sector s_sub ON p_sub.sector_id=s_sub.id
+				    JOIN area a_sub ON s_sub.area_id=a_sub.id
+				    JOIN region r_sub ON a_sub.region_id=r_sub.id
+				    JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+				    WHERE r_sub.id=?
+				      AND m_sub.deleted_user_id IS NULL
+				      AND a_sub.trash IS NULL
+				      AND s_sub.trash IS NULL
+				      AND p_sub.trash IS NULL
+				      AND a_sub.access_closed IS NULL
+				      AND s_sub.access_closed IS NULL
+				      AND m_sub.is_movie=0
+				      AND mp_sub.trivia=0
+				      AND p_sub.locked_admin=0
+				      AND p_sub.locked_superadmin=0
+				      AND s_sub.locked_admin=0
+				      AND s_sub.locked_superadmin=0
+				      AND a_sub.locked_admin=0
+				      AND a_sub.locked_superadmin=0
+				    GROUP BY m_sub.id                                -- 2. Group by Media ID
+				    HAVING AVG(t_sub.stars) >= 2                     -- 3. Filter Average Stars
+				    ORDER BY RAND()
+				    LIMIT 1
+				    -- SUBQUERY END
+				) random_id
+				JOIN media m ON m.id=random_id.id
+				JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)
+				JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0
+				JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
+				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
+				JOIN region r ON a.region_id=r.id
+				JOIN user u ON m.photographer_user_id=u.id
+				JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN media_user mu ON m.id=mu.media_id
+				LEFT JOIN user u2 ON mu.user_id=u2.id
 				WHERE r.id=?
 				  AND m.deleted_user_id IS NULL
 				  AND a.trash IS NULL
