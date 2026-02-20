@@ -414,8 +414,16 @@ public class Dao {
 				    FROM activity a1
 				    JOIN problem p1 ON a1.problem_id = p1.id
 				    JOIN sector s1 ON p1.sector_id = s1.id
-				    JOIN area ar1 ON s1.area_id = ar1.id AND ar1.region_id = ?
-				    WHERE (? = TRUE OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
+				    JOIN area ar1 ON s1.area_id = ar1.id
+				    WHERE ar1.region_id IN (
+				        SELECT r.id 
+				        FROM region r 
+				        JOIN region_type rt ON r.id = rt.region_id 
+				        LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = ?)
+				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = ?)
+				          AND (r.id = ? OR ur.user_id IS NOT NULL)
+				    )
+				      AND (? = TRUE OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
 				      AND (? = TRUE OR a1.type != 'FA')
 				      AND (? = TRUE OR a1.type != 'GUESTBOOK')
 				      AND (? = TRUE OR a1.type NOT IN ('TICK','TICK_REPEAT'))
@@ -430,12 +438,8 @@ public class Dao {
 				JOIN type t ON p.type_id=t.id 
 				JOIN sector s ON p.sector_id=s.id 
 				JOIN area a ON s.area_id=a.id 
-				JOIN region r ON a.region_id=r.id 
-				JOIN region_type rt ON r.id=rt.region_id 
-				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, 
@@ -446,6 +450,8 @@ public class Dao {
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, setup.idRegion());
 			ps.setInt(ix++, setup.idRegion());
 			ps.setBoolean(ix++, disableDateLimit);
 			ps.setBoolean(ix++, fa);
@@ -459,8 +465,6 @@ public class Dao {
 			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
