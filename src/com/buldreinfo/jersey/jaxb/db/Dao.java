@@ -403,17 +403,26 @@ public class Dao {
 		final Set<Integer> repeatIds = new HashSet<>();
 		final Set<Integer> mediaIds = new HashSet<>();
 		final Set<Integer> gbIds = new HashSet<>();
-		boolean limitResults = lowerGrade == 0 && fa && comments && ticks && media && idArea == 0 && idSector == 0;
+		boolean disableDateLimit = (idArea > 0 || idSector > 0);
 		String sqlStr = """
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
 				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
 				       t.subtype problem_subtype, p.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
 				FROM (
-				    SELECT id, type, activity_timestamp, problem_id 
-				    FROM activity 
-				    ORDER BY activity_timestamp DESC, id DESC 
-				    %s
+				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
+				    FROM activity a1
+				    JOIN problem p1 ON a1.problem_id = p1.id
+				    JOIN sector s1 ON p1.sector_id = s1.id
+				    WHERE (? = TRUE OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
+				      AND (? = TRUE OR a1.type != 'FA')
+				      AND (? = TRUE OR a1.type != 'GUESTBOOK')
+				      AND (? = TRUE OR a1.type NOT IN ('TICK','TICK_REPEAT'))
+				      AND (? = TRUE OR a1.type != 'MEDIA')
+				      AND (? = 0 OR p1.grade >= ?)
+				      AND (? = 0 OR s1.area_id = ?)
+				      AND (? = 0 OR s1.id = ?)
+				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC LIMIT 500
 				) x
 				JOIN problem p ON x.problem_id=p.id 
 				JOIN type t ON p.type_id=t.id 
@@ -427,23 +436,27 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				""".formatted((limitResults ? "LIMIT 500" : "")) +
-				(limitResults ? " AND x.activity_timestamp>DATE_SUB(NOW(),INTERVAL 3 MONTH) " : "") +
-				(lowerGrade == 0 ? "" : " AND p.grade>=" + lowerGrade + " ") +
-				(fa ? "" : " AND x.type!='FA' ") +
-				(comments ? "" : " AND x.type!='GUESTBOOK' ") +
-				(ticks ? "" : " AND x.type NOT IN ('TICK','TICK_REPEAT') ") +
-				(media ? "" : " AND x.type!='MEDIA' ") +
-				(idArea == 0 ? "" : " AND a.id=" + idArea + " ") +
-				(idSector == 0 ? "" : " AND s.id=" + idSector + " ") +
-						"""
-						GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, s.id, s.locked_admin, s.locked_superadmin, s.name, x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade
-						ORDER BY x.activity_timestamp DESC, x.problem_id DESC LIMIT 100
-						""";
+				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, 
+				         s.id, s.locked_admin, s.locked_superadmin, s.name, 
+				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, t.subtype
+				ORDER BY x.activity_timestamp DESC, x.problem_id DESC LIMIT 100
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
+			int pIdx = 1;
+			ps.setBoolean(pIdx++, disableDateLimit);
+			ps.setBoolean(pIdx++, fa);
+			ps.setBoolean(pIdx++, comments);
+			ps.setBoolean(pIdx++, ticks);
+			ps.setBoolean(pIdx++, media);
+			ps.setInt(pIdx++, lowerGrade);
+			ps.setInt(pIdx++, lowerGrade);
+			ps.setInt(pIdx++, idArea);
+			ps.setInt(pIdx++, idArea);
+			ps.setInt(pIdx++, idSector);
+			ps.setInt(pIdx++, idSector);
+			ps.setInt(pIdx++, authUserId.orElse(0));
+			ps.setInt(pIdx++, setup.idRegion());
+			ps.setInt(pIdx++, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
@@ -457,11 +470,11 @@ public class Dao {
 							String type = parts[1];
 							currentActivityIds.add(id);
 							switch (type) {
-							case "FA" -> faIds.add(id);
-							case "TICK" -> tickIds.add(id);
-							case "TICK_REPEAT" -> repeatIds.add(id);
-							case "GUESTBOOK" -> gbIds.add(id);
-							case "MEDIA" -> mediaIds.add(id);
+								case "FA" -> faIds.add(id);
+								case "TICK" -> tickIds.add(id);
+								case "TICK_REPEAT" -> repeatIds.add(id);
+								case "GUESTBOOK" -> gbIds.add(id);
+								case "MEDIA" -> mediaIds.add(id);
 							}
 						}
 					}
