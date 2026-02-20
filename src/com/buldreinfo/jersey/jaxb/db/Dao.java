@@ -403,7 +403,7 @@ public class Dao {
 		final Set<Integer> repeatIds = new HashSet<>();
 		final Set<Integer> mediaIds = new HashSet<>();
 		final Set<Integer> gbIds = new HashSet<>();
-		boolean disableDateLimit = lowerGrade != 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+		boolean disableDateLimit = lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
 		String sqlStr = """
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
@@ -414,6 +414,7 @@ public class Dao {
 				    FROM activity a1
 				    JOIN problem p1 ON a1.problem_id = p1.id
 				    JOIN sector s1 ON p1.sector_id = s1.id
+				    JOIN area ar1 ON s1.area_id = ar1.id AND ar1.region_id = ?
 				    WHERE (? = TRUE OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
 				      AND (? = TRUE OR a1.type != 'FA')
 				      AND (? = TRUE OR a1.type != 'GUESTBOOK')
@@ -422,7 +423,8 @@ public class Dao {
 				      AND (? = 0 OR p1.grade >= ?)
 				      AND (? = 0 OR s1.area_id = ?)
 				      AND (? = 0 OR s1.id = ?)
-				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC LIMIT 500
+				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
+				    LIMIT 500
 				) x
 				JOIN problem p ON x.problem_id=p.id 
 				JOIN type t ON p.type_id=t.id 
@@ -439,24 +441,26 @@ public class Dao {
 				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, 
 				         s.id, s.locked_admin, s.locked_superadmin, s.name, 
 				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, t.subtype
-				ORDER BY x.activity_timestamp DESC, x.problem_id DESC LIMIT 100
+				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
+				LIMIT 100
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int pIdx = 1;
-			ps.setBoolean(pIdx++, disableDateLimit);
-			ps.setBoolean(pIdx++, fa);
-			ps.setBoolean(pIdx++, comments);
-			ps.setBoolean(pIdx++, ticks);
-			ps.setBoolean(pIdx++, media);
-			ps.setInt(pIdx++, lowerGrade);
-			ps.setInt(pIdx++, lowerGrade);
-			ps.setInt(pIdx++, idArea);
-			ps.setInt(pIdx++, idArea);
-			ps.setInt(pIdx++, idSector);
-			ps.setInt(pIdx++, idSector);
-			ps.setInt(pIdx++, authUserId.orElse(0));
-			ps.setInt(pIdx++, setup.idRegion());
-			ps.setInt(pIdx++, setup.idRegion());
+			int ix = 1;
+			ps.setInt(ix++, setup.idRegion());
+			ps.setBoolean(ix++, disableDateLimit);
+			ps.setBoolean(ix++, fa);
+			ps.setBoolean(ix++, comments);
+			ps.setBoolean(ix++, ticks);
+			ps.setBoolean(ix++, media);
+			ps.setInt(ix++, lowerGrade);
+			ps.setInt(ix++, lowerGrade);
+			ps.setInt(ix++, idArea);
+			ps.setInt(ix++, idArea);
+			ps.setInt(ix++, idSector);
+			ps.setInt(ix++, idSector);
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(ix++, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
