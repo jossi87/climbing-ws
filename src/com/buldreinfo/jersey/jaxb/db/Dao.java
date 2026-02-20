@@ -403,7 +403,7 @@ public class Dao {
 		final Set<Integer> repeatIds = new HashSet<>();
 		final Set<Integer> mediaIds = new HashSet<>();
 		final Set<Integer> gbIds = new HashSet<>();
-		boolean disableDateLimit = (idArea > 0 || idSector > 0);
+		boolean disableDateLimit = lowerGrade != 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
 		String sqlStr = """
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
