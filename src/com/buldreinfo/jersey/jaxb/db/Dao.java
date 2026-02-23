@@ -2646,43 +2646,66 @@ public class Dao {
 	}
 
 	public Top getTop(Connection c, Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
-		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
-		String condition = (sectorId>0? "s.id=" + sectorId : "a.id=" + areaId);
+		String columnCondition = (sectorId > 0) ? "s.id" : "a.id";
+		int filterId = (sectorId > 0) ? sectorId : areaId;
 		String sqlStr = """
-				WITH x AS (
-				  SELECT COUNT(p.id) sum
-				  FROM area a, sector s, problem p
-				  WHERE %s 
-				    AND a.id=s.area_id AND s.id=p.sector_id AND p.grade!=0 AND p.broken IS NULL)
-				 SELECT y.user_id, y.name, y.avatar_crc32, ROUND(SUM(y.sum)/x.sum*100,2) percentage
-				 FROM (
-				  SELECT 'tick' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
-				  FROM area a, sector s, problem p, tick t, user u
-				  WHERE %s
-				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=t.problem_id AND t.user_id=u.id
-				  GROUP BY u.id, u.firstname, u.lastname, u.picture
-				  UNION
-				  SELECT 'fa' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
-				  FROM area a, sector s, problem p, fa f, user u
-				  WHERE %s
-				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id
-				    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)
-				  GROUP BY u.id, u.firstname, u.lastname, u.picture
-				  UNION
-				  SELECT 'fa_aid' t, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, COUNT(p.id) sum
-				  FROM area a, sector s, problem p, fa_aid_user f, user u
-				  WHERE %s
-				    AND a.id=s.area_id AND s.id=p.sector_id AND p.id=f.problem_id AND f.user_id=u.id
-				    AND (p.id, u.id) NOT IN (SELECT problem_id, user_id FROM tick)
-				  GROUP BY u.id, u.firstname, u.lastname, u.picture
-				) y, x
-				GROUP BY y.user_id, y.name, y.avatar_crc32, x.sum
-				ORDER BY percentage DESC, name
-				""".formatted(condition, condition, condition, condition);
+		        WITH total_problems AS (
+		            SELECT COUNT(DISTINCT p.id) AS sum
+		            FROM area a
+		            JOIN sector s ON a.id = s.area_id
+		            JOIN problem p ON s.id = p.sector_id AND p.broken IS NULL
+		            LEFT JOIN fa f ON p.id = f.problem_id
+		            LEFT JOIN tick t ON p.id = t.problem_id
+		            LEFT JOIN fa_aid_user aid ON p.id = aid.problem_id
+		            WHERE %1$s = ? 
+		              AND (p.grade != 0 OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
+		        ),
+		        user_completions AS (
+		            SELECT f.user_id, p.id AS problem_id
+		            FROM problem p
+		            JOIN sector s ON p.sector_id = s.id
+		            JOIN area a ON s.area_id = a.id
+		            JOIN fa f ON p.id = f.problem_id
+		            WHERE %1$s = ? AND p.broken IS NULL AND f.user_id IS NOT NULL
+		            
+		            UNION
+		            
+		            SELECT t.user_id, p.id AS problem_id
+		            FROM problem p
+		            JOIN sector s ON p.sector_id = s.id
+		            JOIN area a ON s.area_id = a.id
+		            JOIN tick t ON p.id = t.problem_id
+		            WHERE %1$s = ? AND p.broken IS NULL AND t.user_id IS NOT NULL
+		            
+		            UNION
+		            
+		            SELECT aid.user_id, p.id AS problem_id
+		            FROM problem p
+		            JOIN sector s ON p.sector_id = s.id
+		            JOIN area a ON s.area_id = a.id
+		            JOIN fa_aid_user aid ON p.id = aid.problem_id
+		            WHERE %1$s = ? AND p.broken IS NULL AND aid.user_id IS NOT NULL
+		        )
+		        SELECT 
+		            u.id AS user_id,
+		            TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+		            CRC32(u.picture) AS avatar_crc32,
+		            ROUND((COUNT(DISTINCT uc.problem_id) / NULLIF(tp.sum, 0)) * 100, 2) AS percentage
+		        FROM user_completions uc
+		        JOIN user u ON uc.user_id = u.id
+		        CROSS JOIN total_problems tp
+		        GROUP BY u.id, u.firstname, u.lastname, u.picture, tp.sum
+		        ORDER BY percentage DESC, name ASC;
+		        """.formatted(columnCondition);
+		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
 		Set<Integer> uniqueUserIds = new HashSet<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, filterId);
+		    ps.setInt(2, filterId);
+		    ps.setInt(3, filterId);
+		    ps.setInt(4, filterId);
 			try (ResultSet rst = ps.executeQuery()) {
-				double prevPercentage = 0;
+				double prevPercentage = -1.0;
 				int rank = 0;
 				while (rst.next()) {
 					int userId = rst.getInt("user_id");
