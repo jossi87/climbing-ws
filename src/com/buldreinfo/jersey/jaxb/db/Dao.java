@@ -408,7 +408,9 @@ public class Dao {
 				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
 				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
 				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
-				       t.subtype problem_subtype, p.grade, GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
+				       ty.subtype problem_subtype,
+				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
+				       GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
 				FROM (
 				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
 				    FROM activity a1
@@ -434,8 +436,9 @@ public class Dao {
 				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
 				    LIMIT 500
 				) x
-				JOIN problem p ON x.problem_id=p.id 
-				JOIN type t ON p.type_id=t.id 
+				JOIN problem p ON x.problem_id=p.id
+				LEFT JOIN tick t ON p.id=t.problem_id
+				JOIN type ty ON p.type_id=ty.id 
 				JOIN sector s ON p.sector_id=s.id 
 				JOIN area a ON s.area_id=a.id 
 				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
@@ -444,7 +447,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, 
 				         s.id, s.locked_admin, s.locked_superadmin, s.name, 
-				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, t.subtype
+				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, ty.subtype
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
 				LIMIT 100
 				""";
