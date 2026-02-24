@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 public class S3BucketUploadBatch {
     private static final Logger logger = LogManager.getLogger();
-    private static final String LOCAL_MEDIA_ROOT = "G:/My Drive/web/buldreinfo/buldreinfo_media";
+    private static final String LOCAL_MEDIA_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
     public static void main(String[] args) {
         new S3BucketUploadBatch().run();
     }
