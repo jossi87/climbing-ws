@@ -4,8 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,6 +36,7 @@ import org.imgscalr.Scalr.Rotation;
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -46,8 +45,8 @@ import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -122,7 +121,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
-import com.google.common.hash.Hashing;
 import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -2116,7 +2114,11 @@ public class Dao {
 					}
 					case "USER" -> {
 						long avatarCrc32 = rst.getLong("media_crc32"); 
-						String mediaUrl = (avatarCrc32 == 0) ? null : IOHelper.getFullUrlAvatar(setup, id, avatarCrc32);
+						String mediaUrl = null;
+						if (avatarCrc32 != 0) {
+						    String objectKey = S3KeyGenerator.getWebUserAvatar(id);
+						    mediaUrl = StorageManager.getInstance().getPublicUrl(objectKey, avatarCrc32);
+						}
 						users.add(new Search(title, null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
 					}
 					}
@@ -3315,26 +3317,23 @@ public class Dao {
 		return Redirect.fromIdArea(idArea);
 	}
 
-	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken) throws SQLException, IOException {
-		Path webp = IOHelper.getPathMediaWebWebp(idMedia);
-		Path webm = IOHelper.getPathMediaWebWebm(idMedia);
-		Path p = Files.exists(webm)? webm : webp;
-		Preconditions.checkArgument(Files.exists(p));
-		String sqlStr = dateTaken == null?
-				"UPDATE media SET checksum=?, width=?, height=? WHERE id=?" :
-					"UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 0;
-			if (dateTaken != null) {
-				ps.setObject(++ix, dateTaken);
-			}
-			ps.setInt(++ix, com.google.common.io.Files.asByteSource(p.toFile()).hash(Hashing.crc32()).asInt());
-			ps.setInt(++ix, width);
-			ps.setInt(++ix, height);
-			ps.setInt(++ix, idMedia);
-			ps.execute();
-		}
-		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
+	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken) throws SQLException {
+	    int cacheBuster = (int) (System.currentTimeMillis() / 1000L);
+	    String sqlStr = dateTaken == null ?
+	            "UPDATE media SET checksum=?, width=?, height=? WHERE id=?" :
+	            "UPDATE media SET date_taken=?, checksum=?, width=?, height=? WHERE id=?";
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        int ix = 0;
+	        if (dateTaken != null) {
+	            ps.setObject(++ix, dateTaken);
+	        }
+	        ps.setInt(++ix, cacheBuster);
+	        ps.setInt(++ix, width);
+	        ps.setInt(++ix, height);
+	        ps.setInt(++ix, idMedia);
+	        ps.executeUpdate();
+	    }
+	    logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}, version={}) - success", idMedia, width, height, dateTaken, cacheBuster);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {

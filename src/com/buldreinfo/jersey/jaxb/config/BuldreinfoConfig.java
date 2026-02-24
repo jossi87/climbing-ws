@@ -14,6 +14,8 @@ public class BuldreinfoConfig {
 	public final static String PROPERTY_KEY_AUTH0_CLIENT_SECRET = "auth0.secret";
 	public final static String PROPERTY_KEY_GOOGLE_APIKEY = "google.apikey";
 	public final static String PROPERTY_KEY_VEGVESEN_AUTH = "vegvesen.auth";
+	public final static String PROPERTY_KEY_AKAMAI_ACCESS_KEY = "akamai.access_key";
+	public final static String PROPERTY_KEY_AKAMAI_SECRET_KEY = "akamai.secret_key";
 	private static BuldreinfoConfig config = null;
 	public static synchronized BuldreinfoConfig getConfig() {
 		BuldreinfoConfig result = config;

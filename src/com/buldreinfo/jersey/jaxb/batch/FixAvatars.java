@@ -2,9 +2,6 @@ package com.buldreinfo.jersey.jaxb.batch;
 
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -16,8 +13,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.google.common.base.Stopwatch;
 
 public class FixAvatars {
@@ -52,24 +51,33 @@ public class FixAvatars {
 	private void run(List<Task> tasks) throws InterruptedException {
 		var stopwatch = Stopwatch.createStarted();
 		var executor = Executors.newFixedThreadPool(16);
+		StorageManager storage = StorageManager.getInstance();
 		tasks.forEach(t -> {
 			executor.submit(() -> {
-				Path original = IOHelper.getPathOriginalUsers(t.id);
-				Path resized = IOHelper.getPathWebUsers(t.id);
-				if (!Files.exists(original) && t.picture.startsWith("http")) {
-					try (InputStream is = URI.create(t.picture).toURL().openStream()) {
-						Files.copy(is, original, StandardCopyOption.REPLACE_EXISTING);
+				String originalKey = S3KeyGenerator.getOriginalUserAvatar(t.id);
+				String resizedKey = S3KeyGenerator.getWebUserAvatar(t.id);
+				
+				try {
+					boolean originalExists = storage.exists(originalKey);
+					if (!originalExists && t.picture.startsWith("http")) {
+						try (InputStream is = URI.create(t.picture).toURL().openStream()) {
+							byte[] bytes = is.readAllBytes();
+							storage.uploadBytes(originalKey, bytes, StorageType.JPG);
+							originalExists = true;
+						} catch (Exception e) {
+							logger.warn("Could not download image on userId={}, error={}", t.id, e.getMessage());
+						}
 					}
-					catch (Exception e) {
-						logger.warn("Could not download image on userId={}, error={}", t.id, e.getMessage());
+					if (originalExists && !storage.exists(resizedKey)) {
+						byte[] originalBytes = storage.downloadBytes(originalKey);
+						ImageHelper.saveAvatarThumb(t.id, originalBytes);
 					}
-				}
-				if (Files.exists(original) && !Files.exists(resized)) {
-					ImageHelper.saveAvatarThumb(original, resized);
+				} catch (Exception e) {
+					logger.error("Failed to process avatar for userId={}: {}", t.id, e.getMessage());
 				}
 			});
 		});
-		executor.shutdown(); // Tell executor to not accept any more jobs
+		executor.shutdown();
 		executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
 		logger.info("run(tasks.size()={}) - duration={}", tasks.size(), stopwatch);
 	}

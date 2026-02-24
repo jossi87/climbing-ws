@@ -5,7 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,22 +14,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
+import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.CacheHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageSaver;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -203,7 +203,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get avatar by user id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get avatar by user id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
 	@GET
 	@Path("/avatar")
 	public Response getAvatar(@Context HttpServletRequest request,
@@ -211,8 +211,9 @@ public class V2 {
 			@Parameter(description = "Avatar CRC32 (cache buster)", required = false) @QueryParam("avatarCrc32") long avatarCrc32,
 			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
 		return Server.buildResponse(() -> {
-			java.nio.file.Path p = fullSize ? IOHelper.getPathOriginalUsers(id) : IOHelper.getPathWebUsers(id);
-			var builder = Response.ok(p.toFile(), "image/jpeg");
+			String objectKey = fullSize ? S3KeyGenerator.getOriginalUserAvatar(id) : S3KeyGenerator.getWebUserAvatar(id);
+			String publicUrl = StorageManager.getInstance().getPublicUrl(objectKey, avatarCrc32);
+			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
 			builder = CacheHelper.applyImmutableLongTermCache(builder);
 			return builder.build();
 		});
@@ -331,71 +332,62 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "image/*", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
 	@GET
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Checksum - not used in ws, but necessary to include on client when an image is changed (e.g. rotated) to avoid cached version (cache buster)", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Checksum cache buster", required = false) @QueryParam("crc32") int crc32,
 			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
 			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
 			@Parameter(description = "Image region - height", required = false) @QueryParam("height") int height,
-			@Parameter(description = "Target Width - The image will be resized to fit this exact width (without upscaling).", required = false) @QueryParam("targetWidth") int targetWidth,
-			@Parameter(description = "Minimum Dimension - Ensures the *shortest* edge (min(width, height)) of the returned image is at least this many pixels (without upscaling).", required = false) @QueryParam("minDimension") int minDimension) throws IOException {
+			@Parameter(description = "Target Width", required = false) @QueryParam("targetWidth") int targetWidth,
+			@Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension) {
 		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, crc32, x, y, width, height, targetWidth, minDimension);
-		if (width == 0 && height == 0 && targetWidth == 0 && minDimension == 0) {
-			boolean webP = GlobalFunctions.requestAcceptsWebp(request);
-			String mimeType = webP ? "image/webp" : "image/jpeg";
-			var builder = Response.ok(IOHelper.getPathImage(id, webP).toFile(), mimeType);
-			builder = CacheHelper.applyImmutableLongTermCache(builder);
-			return builder.build();
-		}
-		if (width > 0 && height > 0) { // crop
-			var p = IOHelper.getPathMediaWebJpgRegion(id, x, y, width, height);
-			if (!Files.exists(p)) {
-				java.nio.file.Path original = IOHelper.getPathMediaOriginalJpg(id);
-				BufferedImage b = Preconditions.checkNotNull(ImageIO.read(original.toFile()), "Could not read " + original.toString());
-				b = Scalr.crop(b, x, y, width, height);
-				Files.createDirectories(p.getParent());
-				ImageIO.write(b, "jpg", p.toFile());
-				b.flush();
-			}
-			var builder = Response.ok(p.toFile(), "image/jpeg");
-			builder = CacheHelper.applyImmutableLongTermCache(builder);
-			return builder.build();
-		}
-		var p = IOHelper.getPathMediaWebJpgResized(id, targetWidth, minDimension);
-		if (!Files.exists(p)) {
-			boolean useWebSource = targetWidth > 0 
-					? targetWidth <= ImageSaver.IMAGE_WEB_WIDTH 
-					: minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
-			var source = useWebSource ? IOHelper.getPathMediaWebJpg(id) : IOHelper.getPathMediaOriginalJpg(id);
-			BufferedImage b = ImageIO.read(source.toFile());
-			if (b == null) {
-				throw new IOException("Could not read source: " + source);
-			}
-			if (targetWidth > 0 && targetWidth < b.getWidth()) {
-				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-			}
-			else if (minDimension > 0) {
-				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				if (minDimension < (mode == Scalr.Mode.FIT_TO_WIDTH ? b.getWidth() : b.getHeight())) {
-					b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+		return Server.buildResponse(() -> {
+			StorageManager storage = StorageManager.getInstance();
+			String finalObjectKey;
+			if (width == 0 && height == 0 && targetWidth == 0 && minDimension == 0) {
+				boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+				finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
+			} 
+			else if (width > 0 && height > 0) {
+				finalObjectKey = S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
+				if (!storage.exists(finalObjectKey)) {
+					String originalKey = S3KeyGenerator.getOriginalJpg(id);
+					BufferedImage b = Preconditions.checkNotNull(storage.downloadImage(originalKey), "Could not read " + originalKey);
+					b = Scalr.crop(b, x, y, width, height);
+					storage.uploadImage(finalObjectKey, b, StorageType.JPG);
+					b.flush();
+				}
+			} 
+			else {
+				finalObjectKey = S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
+				if (!storage.exists(finalObjectKey)) {
+					boolean useWebSource = targetWidth > 0 ? targetWidth <= ImageSaver.IMAGE_WEB_WIDTH : minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
+					String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+					BufferedImage b = storage.downloadImage(sourceKey);
+					if (b == null) {
+						throw new IOException("Could not read source: " + sourceKey);
+					}
+					if (targetWidth > 0 && targetWidth < b.getWidth()) {
+						b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+					}
+					else if (minDimension > 0) {
+						Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+						if (minDimension < (mode == Scalr.Mode.FIT_TO_WIDTH ? b.getWidth() : b.getHeight())) {
+							b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+						}
+					}
+					storage.uploadImage(finalObjectKey, b, StorageType.JPG);
+					b.flush();
 				}
 			}
-			IOHelper.createDirectories(p.getParent());
-			var tempFile = p.getParent().resolve(p.getFileName().toString() + ".tmp");
-		    try {
-		        ImageIO.write(b, "jpg", tempFile.toFile());
-		        // Atomic move ensures the "real" file is either fully there or not there at all
-		        Files.move(tempFile, p, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-		    } finally {
-		        Files.deleteIfExists(tempFile); // Cleanup if something crashed
-		        b.flush();
-		    }
-		}
-		return CacheHelper.applyImmutableLongTermCache(Response.ok(p.toFile(), "image/jpeg")).build();
+			String publicUrl = storage.getPublicUrl(finalObjectKey, crc32);
+			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
+			return CacheHelper.applyImmutableLongTermCache(builder).build();
+		});
 	}
 
 	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
@@ -1142,13 +1134,14 @@ public class V2 {
 	@PUT
 	@Path("/media/avatar")
 	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
-			Preconditions.checkArgument(id > 0);
-			try (InputStream is = Files.newInputStream(IOHelper.getPathMediaOriginalJpg(id))) {
-				dao.saveAvatar(c, authUserId, is);
-			}
-			return Response.ok().build();
-		});
+	    return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
+	        Preconditions.checkArgument(id > 0);
+	        String originalKey = S3KeyGenerator.getOriginalJpg(id);
+	        try (InputStream is = StorageManager.getInstance().getInputStream(originalKey)) {
+	            dao.saveAvatar(c, authUserId, is);
+	        }
+	        return Response.ok().build();
+	    });
 	}
 
 	@Operation(summary = "Update media info")

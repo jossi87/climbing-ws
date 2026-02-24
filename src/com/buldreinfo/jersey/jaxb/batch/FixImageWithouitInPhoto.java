@@ -1,7 +1,7 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
 import java.awt.Desktop;
-import java.nio.file.Path;
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,7 +14,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.google.common.base.Strings;
 
 public class FixImageWithouitInPhoto {
@@ -24,15 +25,25 @@ public class FixImageWithouitInPhoto {
 
 	public static void main(String[] args) {
 		Server.runSql((_, c) -> {
-			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) AND m.id NOT IN (SELECT media_id FROM media_user) AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id")) {
+			String sqlQuery = """
+				SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a 
+				WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id 
+				AND s.area_id=a.id AND a.region_id NOT IN (2,3,5,6,7,8,9,10,13,14,15) 
+				AND m.id NOT IN (SELECT media_id FROM media_user) 
+				AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id
+				""";
+				
+			try (PreparedStatement ps = c.prepareStatement(sqlQuery)) {
 				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();
 						Scanner scanner = new Scanner(System.in)) {
+					StorageManager storage = StorageManager.getInstance();
 					List<String> updates = new ArrayList<>();
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						final Path jpg = IOHelper.getPathMediaWebJpg(id);
-						Desktop.getDesktop().open(jpg.toFile());
+						String objectKey = S3KeyGenerator.getWebJpg(id);
+						String publicUrl = storage.getPublicUrl(objectKey, 0L);
+						Desktop.getDesktop().browse(URI.create(publicUrl));
 						int userId = getUser(c, id, scanner);
 						if (userId == END_SIGNAL) {
 							break;
@@ -45,6 +56,8 @@ public class FixImageWithouitInPhoto {
 						System.out.println(sql);
 					}
 				}
+			} catch (Exception e) {
+				logger.error("Error in batch process: " + e.getMessage(), e);
 			}
 		});
 	}

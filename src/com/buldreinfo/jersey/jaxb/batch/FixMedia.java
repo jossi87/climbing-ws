@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -25,8 +24,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
-import com.buldreinfo.jersey.jaxb.io.IOHelper;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -53,18 +54,22 @@ public class FixMedia {
 			return this;
 		}
 	}
+
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-10-04-git-9078dc0c52-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
+
 	public static void main(String[] args) {
 		new FixMedia();
 	}
+
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = new ArrayList<>();
 
 	public FixMedia() {
 		Server.runSql((dao, c) -> {
 			c.setAutoCommit(true);
+			StorageManager storage = StorageManager.getInstance();
 			List<Movie> movies = new ArrayList<>();
 			// movies.add(new Movie(Path.of("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()); // TODO
 			List<Integer> newIdMedia = Lists.newArrayList();
@@ -74,7 +79,6 @@ public class FixMedia {
 					dao.fillActivity(c, idProblem);
 				}
 			}
-			// Create all formats and set checksum
 			String sqlStr = "SELECT id, width, height, suffix, embed_url FROM media WHERE is_movie=1";
 			if (!newIdMedia.isEmpty()) {
 				sqlStr += " AND id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
@@ -83,70 +87,56 @@ public class FixMedia {
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					final int id = rst.getInt("id");
-					final int width = rst.getInt("width");
-					final int height = rst.getInt("height");
-					final String suffix = rst.getString("suffix");
 					final String embedUrl = rst.getString("embed_url");
-					final Path originalMp4 = IOHelper.getPathMediaOriginalMp4(id);
-					final Path originalJpg = IOHelper.getPathMediaOriginalJpg(id);
-					final Path jpg = IOHelper.getPathMediaWebJpg(id);
-					final Path mp4 = IOHelper.getPathMediaWebMp4(id);
-					final Path webm = IOHelper.getPathMediaWebWebm(id);
-					final Path webp = IOHelper.getPathMediaWebWebp(id);
+
 					executor.submit(() -> {
+						Path tempFile = null;
 						try {
-							Preconditions.checkNotNull(suffix, "suffix cannot be null");
+							// Original Video (yt-dlp or S3 download)
+							tempFile = Files.createTempFile("original_" + id, ".mp4");
 							if (embedUrl != null) {
-								// Try to download original video from embed url
-								if (!Files.exists(originalMp4)) {
-									IOHelper.createDirectories(originalMp4.getParent());
-									String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", originalMp4.toString()};
-									Process p = new ProcessBuilder().inheritIO().command(commands).start();
-									p.waitFor();
-									logger.debug("Embedded video " + embedUrl + " downloaded to " + originalMp4.toString());
-									if (!Files.exists(originalMp4) || Files.size(originalMp4) == 0) {
-										warnings.add(originalMp4.toString() + " does not exist (could not download " + embedUrl + ")");
-									}
-								}
-								if (!Files.exists(originalJpg)) {
+								String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", tempFile.toString()};
+								new ProcessBuilder().inheritIO().command(commands).start().waitFor();
+								if (Files.exists(tempFile) && Files.size(tempFile) > 0) {
+									storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), Files.readAllBytes(tempFile), StorageType.MP4);
 									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
 								}
 							}
 							else {
-								if (!Files.exists(webm) || Files.size(webm) == 0) {
-									Preconditions.checkArgument(Files.exists(originalMp4) && Files.size(originalMp4) > 0, originalMp4.toString() + " is required");
-									logger.debug("Create " + webm);
-									IOHelper.deleteIfExistsCreateParent(webm);
-									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
-									Process p = new ProcessBuilder().inheritIO().command(commands).start();
-									p.waitFor();
-								}
-								if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-									Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, webm.toString() + " is required");
-									logger.debug("Create " + mp4);
-									IOHelper.deleteIfExistsCreateParent(mp4);
-									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-									Process p = new ProcessBuilder().inheritIO().command(commands).start();
-									p.waitFor();
-								}
-								if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-									Files.createDirectories(originalJpg.getParent());
-									Path tmp = Files.createTempDirectory("fixMovies").resolve(UUID.randomUUID().toString() + ".jpg");
-									Files.createDirectories(tmp.getParent());
-									String[] commands = {LOCAL_FFMPEG_PATH, "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-									Process p = new ProcessBuilder().inheritIO().command(commands).start();
-									p.waitFor();
-									Preconditions.checkArgument(Files.exists(tmp), tmp + " does not exist");
-									BufferedImage b = ImageIO.read(tmp.toFile());
-									ImageHelper.saveImage(dao, c, id, b);
-									Preconditions.checkArgument(Files.exists(originalJpg) && Files.size(originalJpg)>0, originalJpg.toString() + " does not exist (or is 0 byte)");
-								}
+								byte[] originalData = storage.downloadBytes(S3KeyGenerator.getOriginalMp4(id));
+								Files.write(tempFile, originalData);
 							}
-							if (width == 0 || height == 0 || !Files.exists(jpg) || Files.size(jpg) == 0 || !Files.exists(webp) || Files.size(webp) == 0) {
-								throw new RuntimeException("Scaled versions dont exist, this is an error");
+							// WEBM
+							Path webmTmp = Files.createTempFile("web_" + id, ".webm");
+							String[] webmCmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", tempFile.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webmTmp.toString()};
+							new ProcessBuilder().inheritIO().command(webmCmd).start().waitFor();
+							storage.uploadBytes(S3KeyGenerator.getWebWebm(id), Files.readAllBytes(webmTmp), StorageType.WEBM);
+							Files.deleteIfExists(webmTmp);
+							// MP4
+							Path mp4Tmp = Files.createTempFile("web_" + id, ".mp4");
+							String[] mp4Cmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", tempFile.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4Tmp.toString()};
+							new ProcessBuilder().inheritIO().command(mp4Cmd).start().waitFor();
+							storage.uploadBytes(S3KeyGenerator.getWebMp4(id), Files.readAllBytes(mp4Tmp), StorageType.MP4);
+							Files.deleteIfExists(mp4Tmp);
+							// Thumb
+							Path thumbTmp = Files.createTempFile("thumb_" + id, ".jpg");
+							String[] thumbCmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-sseof", "-10", "-i", tempFile.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", thumbTmp.toString()};
+							new ProcessBuilder().inheritIO().command(thumbCmd).start().waitFor();
+							if (Files.exists(thumbTmp)) {
+								BufferedImage b = ImageIO.read(thumbTmp.toFile());
+								ImageHelper.saveImage(dao, c, id, b);
+								Files.deleteIfExists(thumbTmp);
 							}
+
 						} catch (Exception e) {
-							warnings.add("id=" + id + ", originalMp4=" + originalMp4.toString() + ": " + e.getMessage());
+							warnings.add("id=" + id + ": " + e.getMessage());
+						} finally {
+							try {
+								if (tempFile != null) {
+									Files.deleteIfExists(tempFile);
+								}
+							} catch (IOException _) {
+							}
 						}
 					});
 				}
@@ -162,37 +152,26 @@ public class FixMedia {
 
 	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
 		Preconditions.checkArgument(Files.exists(src), src.toString() + " does not exist");
-		Preconditions.checkArgument(idPhotographerUserId > 0, "Invalid idPhotographerUserId=" + idPhotographerUserId);
-		Preconditions.checkArgument(idUploaderUserId > 0, "Invalid idUploaderUserId=" + idUploaderUserId);
-		Preconditions.checkArgument(!idProblemMsMap.isEmpty(), idProblemMsMap + " is empty");
-		Preconditions.checkArgument(!inPhoto.isEmpty(), inPhoto + " is empty");
-		// DB - add media
 		int idMedia = 0;
 		final String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
-		Preconditions.checkArgument(suffix.equals("mp4") || suffix.equals("mov"), "Invalid suffix on " + src.toString() + ": " + suffix);
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, suffix);
 			ps.setInt(2, idPhotographerUserId);
 			ps.setInt(3, idUploaderUserId);
 			ps.executeUpdate();
 			try (ResultSet rst = ps.getGeneratedKeys()) {
-				if (rst != null && rst.next()) {
-					idMedia = rst.getInt(1);
-				}
+				if (rst != null && rst.next()) idMedia = rst.getInt(1);
 			}
 		}
-		Preconditions.checkArgument(idMedia>0);
-		// DB - connect to problem
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, milliseconds) VALUES (?, ?, ?)")) {
-			for (int idProblem : idProblemMsMap.keySet()) {
+			for (Map.Entry<Integer, Long> entry : idProblemMsMap.entrySet()) {
 				ps.setInt(1, idMedia);
-				ps.setInt(2, idProblem);
-				ps.setLong(3, idProblemMsMap.get(idProblem));
+				ps.setInt(2, entry.getKey());
+				ps.setLong(3, entry.getValue());
 				ps.addBatch();
 			}
 			ps.executeBatch();
 		}
-		// DB - add inPhoto
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
 			for (int idUser : inPhoto) {
 				ps.setInt(1, idMedia);
@@ -201,12 +180,7 @@ public class FixMedia {
 			}
 			ps.executeBatch();
 		}
-		// IO
-		final Path dst = IOHelper.getPathMediaOriginalMp4(idMedia);
-		Preconditions.checkArgument(!Files.exists(dst), dst.toString() + " already exists");
-		Preconditions.checkArgument(Files.exists(dst.getParent().getParent()), dst.getParent().getParent().toString() + " does not exist");
-		Files.createDirectories(dst.getParent());
-		Files.copy(src, dst);
+		StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(idMedia), Files.readAllBytes(src), StorageType.MP4);
 		return idMedia;
 	}
 }
