@@ -40,7 +40,7 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 - Choose "Eclipse IDE for Enterprise Java and Web Developers"
 - "Checkout projects from Git" (<https://github.com/jossi87/climbing-ws>)
 - Install Tomcat server: File -> New -> Other -> Tomcat v10.1 Server
-- Edit buldreinfo.properties in "com.buldreinfo.jersey.jaxb.config" (all values are required for the server to run, just add wathever you want to "auth0.secret", "google.apikey" and "vegvesen.auth")
+- Edit buldreinfo.properties in "com.buldreinfo.jersey.jaxb.config" (all values are required for the server to run, just add wathever you want to the remaining poroperties)
 
 ```sh
 db.hostname=localhost
@@ -50,6 +50,8 @@ db.password=YOUR_PASSWORD
 auth0.secret=WhateverYouWant
 google.apikey=WhateverYouWant
 vegvesen.auth=WhateverYouWant
+akamai.access_key=WhateverYouWant
+akamai.secret_key=WhateverYouWant
 ```
 
 ### Run Project
@@ -88,3 +90,4 @@ password of `brattelinjer` - **change this before deploying publicly**.
 
 - Jostein Oeygarden (<jostein.oygarden@gmail.com>)
 - Project Link: <https://github.com/jossi87/climbing-ws>
+
