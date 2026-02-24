@@ -62,7 +62,7 @@ public class S3BucketUploadBatch {
     private void shutdownExecutor() {
         executor.shutdown();
         try {
-            if (!executor.awaitTermination(48, TimeUnit.HOURS)) {
+            if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
                 executor.shutdownNow();
             }
         } catch (InterruptedException e) {
