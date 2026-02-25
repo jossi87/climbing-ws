@@ -9,11 +9,6 @@ public final class S3KeyGenerator {
         return "original/mp4/%s/%d.mp4".formatted(getFolderName(id), id);
     }
 
-    @Deprecated // TODO REMOVE
-    public static String getOriginalUserAvatar(int id) {
-        return "original/users/%d.jpg".formatted(id);
-    }
-
     public static String getWebJpg(int id) {
         return "web/jpg/%s/%d.jpg".formatted(getFolderName(id), id);
     }
