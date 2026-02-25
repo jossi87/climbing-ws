@@ -37,8 +37,19 @@ public final class StorageManager {
     	return INSTANCE;
     }
 
-    private final S3Client s3Client;
+    public static String getPublicUrl(String objectKey, long cacheBuster) {
+        if (objectKey != null && objectKey.startsWith("/")) {
+            objectKey = objectKey.substring(1);
+        }
+        String url = PUBLIC_BASE_URL + objectKey;
+        if (cacheBuster != 0L) {
+            url += "?v=" + cacheBuster;
+        }
+        return url;
+    }
 
+    private final S3Client s3Client;
+    
     private StorageManager() {
     	BuldreinfoConfig config = BuldreinfoConfig.getConfig();
         AwsBasicCredentials credentials = AwsBasicCredentials.create(
@@ -52,7 +63,7 @@ public final class StorageManager {
                 .region(Region.of("se-sto-1"))
                 .build();
     }
-    
+
     public void deleteResizedCache(String prefix) {
         ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
                 .bucket(BUCKET_NAME)
@@ -81,14 +92,14 @@ public final class StorageManager {
             return response.readAllBytes();
         }
     }
-
+    
     public BufferedImage downloadImage(String objectKey) throws IOException {
         byte[] data = downloadBytes(objectKey);
         try (var is = new ByteArrayInputStream(data)) {
             return ImageIO.read(is);
         }
     }
-    
+
     public boolean exists(String objectKey) {
         try {
             s3Client.headObject(HeadObjectRequest.builder()
@@ -106,17 +117,6 @@ public final class StorageManager {
                 .bucket(BUCKET_NAME)
                 .key(objectKey)
                 .build());
-    }
-
-    public String getPublicUrl(String objectKey, long cacheBuster) {
-        if (objectKey != null && objectKey.startsWith("/")) {
-            objectKey = objectKey.substring(1);
-        }
-        String url = PUBLIC_BASE_URL + objectKey;
-        if (cacheBuster != 0L) {
-            url += "?v=" + cacheBuster;
-        }
-        return url;
     }
 
     public S3Client getS3Client() {

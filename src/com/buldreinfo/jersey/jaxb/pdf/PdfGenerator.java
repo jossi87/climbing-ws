@@ -19,8 +19,29 @@ import javax.xml.transform.TransformerException;
 import org.apache.batik.transcoder.TranscoderException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.openpdf.text.Anchor;
+import org.openpdf.text.BadElementException;
+import org.openpdf.text.Chunk;
+import org.openpdf.text.Document;
+import org.openpdf.text.DocumentException;
+import org.openpdf.text.Element;
+import org.openpdf.text.Font;
+import org.openpdf.text.Image;
+import org.openpdf.text.Paragraph;
+import org.openpdf.text.Phrase;
+import org.openpdf.text.Rectangle;
+import org.openpdf.text.pdf.ColumnText;
+import org.openpdf.text.pdf.PdfContentByte;
+import org.openpdf.text.pdf.PdfDestination;
+import org.openpdf.text.pdf.PdfOutline;
+import org.openpdf.text.pdf.PdfPCell;
+import org.openpdf.text.pdf.PdfPCellEvent;
+import org.openpdf.text.pdf.PdfPTable;
+import org.openpdf.text.pdf.PdfPageEventHelper;
+import org.openpdf.text.pdf.PdfWriter;
 
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
@@ -51,26 +72,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import org.openpdf.text.Anchor;
-import org.openpdf.text.BadElementException;
-import org.openpdf.text.Chunk;
-import org.openpdf.text.Document;
-import org.openpdf.text.DocumentException;
-import org.openpdf.text.Element;
-import org.openpdf.text.Font;
-import org.openpdf.text.Image;
-import org.openpdf.text.Paragraph;
-import org.openpdf.text.Phrase;
-import org.openpdf.text.Rectangle;
-import org.openpdf.text.pdf.ColumnText;
-import org.openpdf.text.pdf.PdfContentByte;
-import org.openpdf.text.pdf.PdfDestination;
-import org.openpdf.text.pdf.PdfOutline;
-import org.openpdf.text.pdf.PdfPCell;
-import org.openpdf.text.pdf.PdfPCellEvent;
-import org.openpdf.text.pdf.PdfPTable;
-import org.openpdf.text.pdf.PdfPageEventHelper;
-import org.openpdf.text.pdf.PdfWriter;
 
 public class PdfGenerator implements AutoCloseable {
 	private class MyFooter extends PdfPageEventHelper {
@@ -714,7 +715,7 @@ public class PdfGenerator implements AutoCloseable {
 		Image img = null;
 		if ((mediaSvgs == null || mediaSvgs.isEmpty()) && (svgs == null || svgs.isEmpty())) {
 			if (mediaIdProcessed.add(mediaId)) {
-				URL url = URI.create(GlobalFunctions.getUrlJpgToImage(mediaId)).toURL();
+				URL url = URI.create(StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l)).toURL();
 				img = Image.getInstance(url);
 			}
 		}

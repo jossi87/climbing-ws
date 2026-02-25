@@ -25,7 +25,8 @@ import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.Svg;
@@ -150,7 +151,7 @@ public class TopoGenerator {
 
 		// Image
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = GlobalFunctions.getUrlJpgToImage(mediaId);
+		String url = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l);
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "height", "100%");

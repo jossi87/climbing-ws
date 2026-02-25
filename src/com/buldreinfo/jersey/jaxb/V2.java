@@ -212,7 +212,7 @@ public class V2 {
 			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
 		return Server.buildResponse(() -> {
 			String objectKey = fullSize ? S3KeyGenerator.getOriginalUserAvatar(id) : S3KeyGenerator.getWebUserAvatar(id);
-			String publicUrl = StorageManager.getInstance().getPublicUrl(objectKey, avatarCrc32);
+			String publicUrl = StorageManager.getPublicUrl(objectKey, avatarCrc32);
 			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
 			builder = CacheHelper.applyImmutableLongTermCache(builder);
 			return builder.build();
@@ -384,7 +384,7 @@ public class V2 {
 					b.flush();
 				}
 			}
-			String publicUrl = storage.getPublicUrl(finalObjectKey, crc32);
+			String publicUrl = StorageManager.getPublicUrl(finalObjectKey, crc32);
 			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
 			return CacheHelper.applyImmutableLongTermCache(builder).build();
 		});
@@ -787,6 +787,7 @@ public class V2 {
 					setup.title(),
 					description,
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.crc32()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.height()));
 			return Response.ok().entity(html).build();
@@ -819,6 +820,7 @@ public class V2 {
 					a.getName(),
 					description,
 					(m == null? 0 : m.id()),
+					(m == null? 0 : m.crc32()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -869,6 +871,7 @@ public class V2 {
 					title,
 					description,
 					(m == null? 0 : m.id()),
+					(m == null? 0 : m.crc32()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -911,6 +914,7 @@ public class V2 {
 					title,
 					description,
 					(m == null? 0 : m.id()),
+					(m == null? 0 : m.crc32()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -1191,11 +1195,11 @@ public class V2 {
 		});
 	}
 
-	private String getHtml(Setup setup, String url, String title, String description, int mediaId, int mediaWidth, int mediaHeight) {
+	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaChecksum, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
-			String image = setup.url() + "/buldreinfo_media/jpg/" + String.valueOf(mediaId/100*100) + "/" + mediaId + ".jpg";
-			ogImage = "<meta property=\"og:image\" content=\"" + image + "\" />" + 
+			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaChecksum);
+			ogImage = "<meta property=\"og:image\" content=\"" + imageUrl + "\" />" + 
 					"<meta property=\"og:image:width\" content=\"" + mediaWidth + "\" />" + 
 					"<meta property=\"og:image:height\" content=\"" + mediaHeight + "\" />";
 		}

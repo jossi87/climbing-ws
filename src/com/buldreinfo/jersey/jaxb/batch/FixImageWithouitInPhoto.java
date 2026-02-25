@@ -37,12 +37,11 @@ public class FixImageWithouitInPhoto {
 				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();
 						Scanner scanner = new Scanner(System.in)) {
-					StorageManager storage = StorageManager.getInstance();
 					List<String> updates = new ArrayList<>();
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						String objectKey = S3KeyGenerator.getWebJpg(id);
-						String publicUrl = storage.getPublicUrl(objectKey, 0L);
+						String publicUrl = StorageManager.getPublicUrl(objectKey, 0L);
 						Desktop.getDesktop().browse(URI.create(publicUrl));
 						int userId = getUser(c, id, scanner);
 						if (userId == END_SIGNAL) {

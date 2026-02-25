@@ -2117,7 +2117,7 @@ public class Dao {
 						String mediaUrl = null;
 						if (avatarCrc32 != 0) {
 						    String objectKey = S3KeyGenerator.getWebUserAvatar(id);
-						    mediaUrl = StorageManager.getInstance().getPublicUrl(objectKey, avatarCrc32);
+						    mediaUrl = StorageManager.getPublicUrl(objectKey, avatarCrc32);
 						}
 						users.add(new Search(title, null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
 					}
