@@ -508,7 +508,7 @@ public class Dao {
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, t.comment description, t.stars, t.grade
 					FROM activity a
 					JOIN tick t ON a.problem_id=t.problem_id
-					JOIN user u ON t.user_id=u.id
+					JOIN user u ON t.user_id=u.id AND a.user_id=u.id
 					LEFT JOIN media m ON u.media_id=m.id
 					WHERE a.id IN (%s)
 					""".formatted(Joiner.on(",").join(tickIds)))) {
@@ -591,7 +591,13 @@ public class Dao {
 			}
 		}
 		if (!mediaIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.is_movie, m.embed_url FROM activity a, media m, media_problem mp WHERE a.id IN (" + Joiner.on(",").join(mediaIds) + ") AND a.media_id=m.id AND m.id=mp.media_id AND a.problem_id=mp.problem_id")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT a.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.is_movie, m.embed_url
+					FROM activity a
+					JOIN media m ON a.media_id=m.id
+					JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id
+					WHERE a.id IN (%s)
+					""".formatted(Joiner.on(",").join(mediaIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
