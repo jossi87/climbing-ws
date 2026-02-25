@@ -72,6 +72,11 @@ public class S3BucketDownloadBatch {
 			long s3Size = s3Object.size();
 			if (Files.exists(localPath)) {
 				long localSize = Files.size(localPath);
+				if (s3Size == 0 && localSize > 0) {
+					logger.warn("SAFETY TRIGGERED: Cloud file is 0 bytes, but local file is {} bytes. Skipping download to prevent data loss: {}", localSize, key);
+					skipCount.incrementAndGet();
+					return;
+				}
 				if (localSize == s3Size) {
 					int currentSkips = skipCount.incrementAndGet();
 					if (currentSkips % 10_000 == 0) {
@@ -80,7 +85,8 @@ public class S3BucketDownloadBatch {
 					return; 
 				}
 				logger.info("Size mismatch detected (S3: {} vs Local: {}) for: {}", s3Size, localSize, key);
-			} else {
+			}
+			else {
 				Files.createDirectories(localPath.getParent());
 				logger.info("New file found in cloud: {}", key);
 			}

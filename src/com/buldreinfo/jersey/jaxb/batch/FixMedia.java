@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,9 +26,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
-import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -38,17 +37,21 @@ public class FixMedia {
 		private int idPhotographerUserId;
 		private final Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
 		private List<Integer> inPhoto = new ArrayList<>();
+
 		public Movie(Path path) {
 			this.path = path;
 		}
-		public Movie withIdPhotographerUserId(int idPhotographerUserId) {
-			this.idPhotographerUserId = idPhotographerUserId;
+
+		public Movie withIdPhotographerUserId(int id) {
+			this.idPhotographerUserId = id;
 			return this;
 		}
-		public Movie withInPhoto(int inPhoto) {
-			this.inPhoto.add(inPhoto);
+
+		public Movie withInPhoto(int userId) {
+			this.inPhoto.add(userId);
 			return this;
 		}
+
 		public Movie withProblem(int idProblem, long ms) {
 			this.idProblemMsMap.put(idProblem, ms);
 			return this;
@@ -56,6 +59,7 @@ public class FixMedia {
 	}
 
 	private static Logger logger = LogManager.getLogger();
+	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-10-04-git-9078dc0c52-full_build/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
 
@@ -69,7 +73,6 @@ public class FixMedia {
 	public FixMedia() {
 		Server.runSql((dao, c) -> {
 			c.setAutoCommit(true);
-			StorageManager storage = StorageManager.getInstance();
 			List<Movie> movies = new ArrayList<>();
 			// movies.add(new Movie(Path.of("")).withProblem(, 0l).withIdPhotographerUserId().withInPhoto()); // TODO
 			List<Integer> newIdMedia = Lists.newArrayList();
@@ -88,79 +91,78 @@ public class FixMedia {
 				while (rst.next()) {
 					final int id = rst.getInt("id");
 					final String embedUrl = rst.getString("embed_url");
-
+					final Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
+					final Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
+					final Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
+					final Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
 					executor.submit(() -> {
-						Path tempFile = null;
 						try {
-							// Original Video (yt-dlp or S3 download)
-							tempFile = Files.createTempFile("original_" + id, ".mp4");
 							if (embedUrl != null) {
-								String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", tempFile.toString()};
-								new ProcessBuilder().inheritIO().command(commands).start().waitFor();
-								if (Files.exists(tempFile) && Files.size(tempFile) > 0) {
-									storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), Files.readAllBytes(tempFile), StorageType.MP4);
+								if (!Files.exists(originalMp4)) {
+									logger.info("Downloading embed video for ID " + id);
+									Files.createDirectories(originalMp4.getParent());
+									String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", originalMp4.toString()};
+									new ProcessBuilder().inheritIO().command(commands).start().waitFor();
+								}
+								if (!Files.exists(originalJpg)) {
 									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
 								}
 							}
-							else {
-								byte[] originalData = storage.downloadBytes(S3KeyGenerator.getOriginalMp4(id));
-								Files.write(tempFile, originalData);
+							if (!Files.exists(webm) || Files.size(webm) == 0) {
+								Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing for ID " + id);
+								logger.info("Generating WebM for ID " + id);
+								Files.createDirectories(webm.getParent());
+								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 							}
-							// WEBM
-							Path webmTmp = Files.createTempFile("web_" + id, ".webm");
-							String[] webmCmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", tempFile.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webmTmp.toString()};
-							new ProcessBuilder().inheritIO().command(webmCmd).start().waitFor();
-							storage.uploadBytes(S3KeyGenerator.getWebWebm(id), Files.readAllBytes(webmTmp), StorageType.WEBM);
-							Files.deleteIfExists(webmTmp);
-							// MP4
-							Path mp4Tmp = Files.createTempFile("web_" + id, ".mp4");
-							String[] mp4Cmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-i", tempFile.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4Tmp.toString()};
-							new ProcessBuilder().inheritIO().command(mp4Cmd).start().waitFor();
-							storage.uploadBytes(S3KeyGenerator.getWebMp4(id), Files.readAllBytes(mp4Tmp), StorageType.MP4);
-							Files.deleteIfExists(mp4Tmp);
-							// Thumb
-							Path thumbTmp = Files.createTempFile("thumb_" + id, ".jpg");
-							String[] thumbCmd = {LOCAL_FFMPEG_PATH, "-nostdin", "-sseof", "-10", "-i", tempFile.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", thumbTmp.toString()};
-							new ProcessBuilder().inheritIO().command(thumbCmd).start().waitFor();
-							if (Files.exists(thumbTmp)) {
-								BufferedImage b = ImageIO.read(thumbTmp.toFile());
-								ImageHelper.saveImage(dao, c, id, b);
-								Files.deleteIfExists(thumbTmp);
+							if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+								Preconditions.checkArgument(Files.exists(webm), "WebM missing for ID " + id);
+								logger.info("Generating Web optimized MP4 for ID " + id);
+								Files.createDirectories(mp4.getParent());
+								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 							}
-
-						} catch (Exception e) {
-							warnings.add("id=" + id + ": " + e.getMessage());
-						} finally {
-							try {
-								if (tempFile != null) {
-									Files.deleteIfExists(tempFile);
+							if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
+								Path tmp = Files.createTempDirectory("fix_" + id).resolve(id + ".jpg");
+								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+								if (Files.exists(tmp)) {
+									BufferedImage b = ImageIO.read(tmp.toFile());
+									ImageHelper.saveImage(dao, c, id, b); 
 								}
-							} catch (IOException _) {
 							}
+						} catch (Exception e) {
+							warnings.add("Error processing ID=" + id + ": " + e.getMessage());
 						}
 					});
 				}
 			}
 			executor.shutdown();
-			executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
-			for (String warning : warnings) {
-				logger.warn(warning);
-			}
+			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 		});
+		for (String w : warnings) {
+			logger.warn(w);
+		}
 		logger.debug("Done");
 	}
 
+	private Path getLocalPath(String s3Key) {
+		return Paths.get(LOCAL_BUCKET_ROOT, s3Key);
+	}
+
 	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
-		Preconditions.checkArgument(Files.exists(src), src.toString() + " does not exist");
+		Preconditions.checkArgument(Files.exists(src), "Source file " + src + " not found.");
 		int idMedia = 0;
-		final String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
+		String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, suffix);
 			ps.setInt(2, idPhotographerUserId);
 			ps.setInt(3, idUploaderUserId);
 			ps.executeUpdate();
 			try (ResultSet rst = ps.getGeneratedKeys()) {
-				if (rst != null && rst.next()) idMedia = rst.getInt(1);
+				if (rst != null && rst.next()) {
+					idMedia = rst.getInt(1);
+				}
 			}
 		}
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, milliseconds) VALUES (?, ?, ?)")) {
@@ -180,7 +182,10 @@ public class FixMedia {
 			}
 			ps.executeBatch();
 		}
-		StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(idMedia), Files.readAllBytes(src), StorageType.MP4);
+		Path dst = getLocalPath(S3KeyGenerator.getOriginalMp4(idMedia));
+		Files.createDirectories(dst.getParent());
+		Files.copy(src, dst);
+		logger.info("New movie added to DB and copied to local G: drive as ID " + idMedia);
 		return idMedia;
 	}
 }
