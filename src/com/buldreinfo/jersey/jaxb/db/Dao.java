@@ -1280,18 +1280,27 @@ public class Dao {
 		// Return users
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.id,
-				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
-				       (SELECT DATE_FORMAT(MAX(l.when), '%Y.%m.%d')
-				        FROM user_login l
-				        WHERE l.user_id=u.id AND l.region_id=?) last_login,
-				       ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				FROM user u
-				JOIN user_region ur ON u.id=ur.user_id
-				LEFT JOIN media m ON u.media_id=m.id
-				WHERE ur.region_id=?
-				ORDER BY COALESCE(ur.superadmin_write, 0) DESC, COALESCE(ur.superadmin_read, 0) DESC, COALESCE(ur.admin_write, 0) DESC, COALESCE(ur.admin_read, 0) DESC, name
+				SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				FROM (
+				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+				  FROM user u
+				  LEFT JOIN media m ON u.media_id=m.id
+				  JOIN user_login l ON u.id=l.user_id
+				  LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id
+				  WHERE l.region_id=?
+				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
+				  
+				  UNION
+				  
+				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+				  FROM user u
+				  LEFT JOIN media m ON u.media_id=m.id
+				  JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
+				  JOIN user_login l ON u.id=l.user_id
+				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
+				) x
+				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				ORDER BY COALESCE(x.superadmin_write, 0) DESC, COALESCE(x.superadmin_read, 0) DESC, COALESCE(x.admin_write, 0) DESC, COALESCE(x.admin_read, 0) DESC, x.name
 				""")) {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
