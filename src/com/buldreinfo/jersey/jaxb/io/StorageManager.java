@@ -37,13 +37,13 @@ public final class StorageManager {
     	return INSTANCE;
     }
 
-    public static String getPublicUrl(String objectKey, long cacheBuster) {
+    public static String getPublicUrl(String objectKey, long versionStamp) {
         if (objectKey != null && objectKey.startsWith("/")) {
             objectKey = objectKey.substring(1);
         }
         String url = PUBLIC_BASE_URL + objectKey;
-        if (cacheBuster != 0L) {
-            url += "?v=" + cacheBuster;
+        if (versionStamp != 0L) {
+            url += "?v=" + versionStamp;
         }
         return url;
     }

@@ -25,11 +25,11 @@ public class Area {
 		private Slope approach;
 		private Slope descent;
 		private final int randomMediaId;
-		private final long randomMediaCrc32;
+		private final long randomMediaVersionStamp;
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
 
-		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaCrc32) {
+		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaVersionStamp) {
 			this.areaName = null;
 			this.id = id;
 			this.sorting = sorting;
@@ -45,7 +45,7 @@ public class Area {
 			this.wallDirectionCalculated = wallDirectionCalculated;
 			this.wallDirectionManual = wallDirectionManual;
 			this.randomMediaId = randomMediaId;
-			this.randomMediaCrc32 = randomMediaCrc32;
+			this.randomMediaVersionStamp = randomMediaVersionStamp;
 		}
 
 		public String getAccessClosed() {
@@ -96,8 +96,8 @@ public class Area {
 			return problems;
 		}
 
-		public long getRandomMediaCrc32() {
-			return randomMediaCrc32;
+		public long getRandomMediaVersionStamp() {
+			return randomMediaVersionStamp;
 		}
 		
 		public int getRandomMediaId() {
@@ -204,8 +204,8 @@ public class Area {
 		this.pageViews = pageViews;
 	}
 
-	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaCrc32) {
-		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaCrc32);
+	public AreaSector addSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, int randomMediaId, long randomMediaVersionStamp) {
+		AreaSector s = new AreaSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaVersionStamp);
 		sectors.add(s);
 		sectorOrder.add(new AreaSectorOrder(id, name, sorting));
 		return s;

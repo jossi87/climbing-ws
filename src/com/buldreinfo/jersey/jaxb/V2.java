@@ -337,14 +337,14 @@ public class V2 {
 	@Path("/images")
 	public Response getImages(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Checksum cache buster", required = false) @QueryParam("crc32") int crc32,
+			@Parameter(description = "Version stamp (cache buster)", required = false) @QueryParam("versionStamp") int versionStamp,
 			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
 			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
 			@Parameter(description = "Image region - height", required = false) @QueryParam("height") int height,
 			@Parameter(description = "Target Width", required = false) @QueryParam("targetWidth") int targetWidth,
 			@Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension) {
-		logger.debug("getImages(id={}, crc32={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, crc32, x, y, width, height, targetWidth, minDimension);
+		logger.debug("getImages(id={}, versionStamp={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, versionStamp, x, y, width, height, targetWidth, minDimension);
 		return Server.buildResponse(() -> {
 			StorageManager storage = StorageManager.getInstance();
 			String finalObjectKey;
@@ -384,7 +384,7 @@ public class V2 {
 					b.flush();
 				}
 			}
-			String publicUrl = StorageManager.getPublicUrl(finalObjectKey, crc32);
+			String publicUrl = StorageManager.getPublicUrl(finalObjectKey, versionStamp);
 			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
 			return CacheHelper.applyImmutableLongTermCache(builder).build();
 		});
@@ -787,7 +787,7 @@ public class V2 {
 					setup.title(),
 					description,
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
-					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.crc32()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.versionStamp()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.height()));
 			return Response.ok().entity(html).build();
@@ -820,7 +820,7 @@ public class V2 {
 					a.getName(),
 					description,
 					(m == null? 0 : m.id()),
-					(m == null? 0 : m.crc32()),
+					(m == null? 0 : m.versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -871,7 +871,7 @@ public class V2 {
 					title,
 					description,
 					(m == null? 0 : m.id()),
-					(m == null? 0 : m.crc32()),
+					(m == null? 0 : m.versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -914,7 +914,7 @@ public class V2 {
 					title,
 					description,
 					(m == null? 0 : m.id()),
-					(m == null? 0 : m.crc32()),
+					(m == null? 0 : m.versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -1195,10 +1195,10 @@ public class V2 {
 		});
 	}
 
-	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaChecksum, int mediaWidth, int mediaHeight) {
+	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
-			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaChecksum);
+			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
 			ogImage = "<meta property=\"og:image\" content=\"" + imageUrl + "\" />" + 
 					"<meta property=\"og:image:width\" content=\"" + mediaWidth + "\" />" + 
 					"<meta property=\"og:image:height\" content=\"" + mediaHeight + "\" />";
