@@ -1210,7 +1210,8 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					res = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null, downloadUrl);
 				}
 			}
 		}
@@ -1616,7 +1617,8 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/area/" + areaId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url, downloadUrl);
 					res.add(m);
 				}
 			}
@@ -1652,7 +1654,8 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/sector/" + sectorId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url, downloadUrl);
 					res.add(m);
 				}
 			}
@@ -1694,7 +1697,8 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					String url = "/problem/" + problemId;
-					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url, downloadUrl);
 					res.add(m);
 				}
 			}
@@ -4521,7 +4525,8 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null, downloadUrl));
 				}
 			}
 		}
@@ -4552,7 +4557,8 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null, downloadUrl));
 				}
 			}
 		}
@@ -4596,7 +4602,8 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
+					media.add(new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null, downloadUrl));
 				}
 			}
 		}
@@ -4636,11 +4643,12 @@ public class Dao {
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
+					String downloadUrl = StorageManager.getPublicUrl(S3KeyGenerator.getDownload(idMedia, tyId), crc32);
 					Media m = new Media(idMedia, uploadedByMe, crc32, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
 							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
 							enableMoveToIdSector,
 							(svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()? enableMoveToIdProblem : 0),
-							null);
+							null, downloadUrl);
 					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
 						mediaWithRequestedTopoLine.add(m);
 					}
