@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.ArrayList;
@@ -200,22 +199,6 @@ public class V2 {
 			};
 			String fn = GlobalFunctions.getFilename(area.getName(), "pdf");
 			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
-		});
-	}
-
-	@Operation(summary = "Get avatar by user id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
-	@GET
-	@Path("/avatar")
-	public Response getAvatar(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Avatar CRC32 (cache buster)", required = false) @QueryParam("avatarCrc32") long avatarCrc32,
-			@Parameter(description = "Full size", required = false) @QueryParam("fullSize") boolean fullSize) {
-		return Server.buildResponse(() -> {
-			String objectKey = fullSize ? S3KeyGenerator.getOriginalUserAvatar(id) : S3KeyGenerator.getWebUserAvatar(id);
-			String publicUrl = StorageManager.getPublicUrl(objectKey, avatarCrc32);
-			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
-			builder = CacheHelper.applyImmutableLongTermCache(builder);
-			return builder.build();
 		});
 	}
 
@@ -1138,14 +1121,12 @@ public class V2 {
 	@PUT
 	@Path("/media/avatar")
 	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-	    return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
-	        Preconditions.checkArgument(id > 0);
-	        String originalKey = S3KeyGenerator.getOriginalJpg(id);
-	        try (InputStream is = StorageManager.getInstance().getInputStream(originalKey)) {
-	            dao.saveAvatar(c, authUserId, is);
-	        }
-	        return Response.ok().build();
-	    });
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
+			Preconditions.checkArgument(id > 0);
+			String originalKey = S3KeyGenerator.getOriginalJpg(id);
+			dao.saveUserAvatar(c, authUserId, () -> StorageManager.getInstance().getInputStream(originalKey));
+			return Response.ok().build();
+		});
 	}
 
 	@Operation(summary = "Update media info")

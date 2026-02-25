@@ -9,6 +9,7 @@ public final class S3KeyGenerator {
         return "original/mp4/%s/%d.mp4".formatted(getFolderName(id), id);
     }
 
+    @Deprecated // TODO REMOVE
     public static String getOriginalUserAvatar(int id) {
         return "original/users/%d.jpg".formatted(id);
     }
@@ -32,10 +33,6 @@ public final class S3KeyGenerator {
     
     public static String getWebMp4(int id) {
         return "web/mp4/%s/%d.mp4".formatted(getFolderName(id), id);
-    }
-
-    public static String getWebUserAvatar(int id) {
-        return "web/users/%d.jpg".formatted(id);
     }
 
     public static String getWebWebm(int id) {

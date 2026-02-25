@@ -1,3 +1,3 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-public record Search(String title, String description, String url, String externalurl, String mediaurl, int mediaid, long crc32, boolean lockedadmin, boolean lockedsuperadmin, long hits, String pageViews) {}
+public record Search(String title, String description, String url, String externalUrl, int mediaId, long mediaVersionStamp, boolean lockedAdmin, boolean lockedSuperadmin, long hits, String pageViews) {}

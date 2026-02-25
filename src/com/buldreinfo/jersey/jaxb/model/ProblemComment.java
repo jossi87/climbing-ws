@@ -6,26 +6,25 @@ public class ProblemComment {
 	private final int id;
 	private final String date;
 	private final int idUser;
-	private final long avatarCrc32;
+	private final int mediaId;
+	private final long mediaVersionStamp;
 	private final String name;
 	private final String message;
 	private final boolean danger;
 	private final boolean resolved;
 	private final List<Media> media;
 	private boolean editable = false;
-	public ProblemComment(int id, String date, int idUser, long avatarCrc32, String name, String message, boolean danger, boolean resolved, List<Media> media) {
+	public ProblemComment(int id, String date, int idUser, int mediaId, long mediaVersionStamp, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		this.id = id;
 		this.date = date;
 		this.idUser = idUser;
-		this.avatarCrc32 = avatarCrc32;
+		this.mediaId = mediaId;
+		this.mediaVersionStamp = mediaVersionStamp;
 		this.name = name;
 		this.message = message;
 		this.danger = danger;
 		this.resolved = resolved;
 		this.media = media;
-	}
-	public long getAvatarCrc32() {
-		return avatarCrc32;
 	}
 	public String getDate() {
 		return date;
@@ -38,6 +37,12 @@ public class ProblemComment {
 	}
 	public List<Media> getMedia() {
 		return media;
+	}
+	public int getMediaId() {
+		return mediaId;
+	}
+	public long getMediaVersionStamp() {
+		return mediaVersionStamp;
 	}
 	public String getMessage() {
 		return message;

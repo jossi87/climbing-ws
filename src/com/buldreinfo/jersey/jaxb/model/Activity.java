@@ -31,7 +31,8 @@ public class Activity {
 	private boolean repeat;
 	private int id;
 	private String name;
-	private long avatarCrc32;
+	private int mediaId;
+	private long mediaVersionStamp;
 	private String description;
 	private String message;
 	private List<User> users;
@@ -53,11 +54,11 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, long avatarCrc32, String description, int problemRandomMediaId, long problemRandomMediaVersionStamp) {
+	public void addFa(String name, int userId, int mediaId, long mediaVersionStamp, String description, int problemRandomMediaId, long problemRandomMediaVersionStamp) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", avatarCrc32));
+		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
 		this.description = description;
 		this.problemRandomMediaId = problemRandomMediaId;
 		this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
@@ -92,14 +93,17 @@ public class Activity {
 	public List<ActivityMedia> getMedia() {
 		return media;
 	}
+	public int getMediaId() {
+		return mediaId;
+	}
+	public long getMediaVersionStamp() {
+		return mediaVersionStamp;
+	}
 	public String getMessage() {
 		return message;
 	}
 	public String getName() {
 		return name;
-	}
-	public long getAvatarCrc32() {
-		return avatarCrc32;
 	}
 	public int getProblemId() {
 		return problemId;
@@ -107,11 +111,11 @@ public class Activity {
 	public String getProblemName() {
 		return problemName;
 	}
-	public long getProblemRandomMediaVersionStamp() {
-		return problemRandomMediaVersionStamp;
-	}
 	public int getProblemRandomMediaId() {
 		return problemRandomMediaId;
+	}
+	public long getProblemRandomMediaVersionStamp() {
+		return problemRandomMediaVersionStamp;
 	}
 	public String getProblemSubtype() {
 		return problemSubtype;
@@ -155,17 +159,18 @@ public class Activity {
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
-	public void setGuestbook(int id, String name, long avatarCrc32, String message) {
+	public void setGuestbook(int id, String name, int mediaId, long mediaVersionStamp, String message) {
 		this.id = id;
 		this.name = name;
-		this.avatarCrc32 = avatarCrc32;
+		this.mediaVersionStamp = mediaVersionStamp;
 		this.message = message;
 	}
-	public void setTick(boolean repeat, int id, String name, long avatarCrc32, String description, int stars, String personalGrade) {
+	public void setTick(boolean repeat, int id, String name, int mediaId, long mediaVersionStamp, String description, int stars, String personalGrade) {
 		this.repeat = repeat;
 		this.id = id;
 		this.name = name;
-		this.avatarCrc32 = avatarCrc32;
+		this.mediaId = mediaId;
+		this.mediaVersionStamp = mediaVersionStamp;
 		this.description = description;
 		this.stars = stars;
 		if (GradeConverter.NO_PERSONAL_GRADE.equals(personalGrade)) {

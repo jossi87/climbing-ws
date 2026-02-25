@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -25,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -36,7 +39,6 @@ import org.imgscalr.Scalr.Rotation;
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
-import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -46,7 +48,6 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
-import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -142,7 +143,8 @@ public class Dao {
 			final int idSector = 0;
 			final int idArea = 0;
 			final int idGuestbook = 0;
-			addNewMedia(c, authUserId, p.getId(), m.pitch(), m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
+			final int idUserAvatar = 0;
+			addNewMedia(c, authUserId, p.getId(), m.pitch(), m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 		}
 		fillActivity(c, p.getId());
 	}
@@ -479,11 +481,11 @@ public class Dao {
 							String type = parts[1];
 							currentActivityIds.add(id);
 							switch (type) {
-								case "FA" -> faIds.add(id);
-								case "TICK" -> tickIds.add(id);
-								case "TICK_REPEAT" -> repeatIds.add(id);
-								case "GUESTBOOK" -> gbIds.add(id);
-								case "MEDIA" -> mediaIds.add(id);
+							case "FA" -> faIds.add(id);
+							case "TICK" -> tickIds.add(id);
+							case "TICK_REPEAT" -> repeatIds.add(id);
+							case "GUESTBOOK" -> gbIds.add(id);
+							case "MEDIA" -> mediaIds.add(id);
 							}
 						}
 					}
@@ -502,36 +504,60 @@ public class Dao {
 			}
 		}
 		if (!tickIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, t.comment description, t.stars, t.grade FROM activity a, tick t, user u WHERE a.id IN (" + Joiner.on(",").join(tickIds) + ") AND a.user_id=u.id AND a.problem_id=t.problem_id AND u.id=t.user_id")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, t.comment description, t.stars, t.grade
+					FROM activity a
+					JOIN tick t ON a.problem_id=t.problem_id
+					JOIN user u ON t.user_id=u.id
+					LEFT JOIN media m ON u.media_id=m.id
+					WHERE a.id IN (%s)
+					""".formatted(Joiner.on(",").join(tickIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
 						}
 					}
 				}
 			}
 		}
 		if (!repeatIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, r.comment description, t.stars, t.grade FROM activity a, tick t, tick_repeat r, user u WHERE a.id IN (" + Joiner.on(",").join(repeatIds) + ") AND a.user_id=u.id AND a.problem_id=t.problem_id AND a.tick_repeat_id=r.id AND t.id=r.tick_id AND u.id=t.user_id")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, r.comment description, t.stars, t.grade
+					FROM activity a
+					JOIN user u ON a.user_id=u.id
+					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
+					JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
+					LEFT JOIN media m ON u.media_id=m.id
+					WHERE a.id IN (%s)
+					""".formatted(Joiner.on(",").join(repeatIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
 						}
 					}
 				}
 			}
 		}
 		if (!gbIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32, g.message, mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp FROM (((activity a INNER JOIN guestbook g ON a.guestbook_id=g.id) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id) LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) WHERE a.id IN (" + Joiner.on(",").join(gbIds) + ")")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, g.message, mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					FROM activity a
+					JOIN guestbook g ON a.guestbook_id=g.id
+					JOIN user u ON g.user_id=u.id
+					LEFT JOIN media ma ON u.media_id=ma.id
+					JOIN media_guestbook mg ON g.id=mg.guestbook_id
+					LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)
+					WHERE a.id IN (%s)
+					""".formatted(Joiner.on(",").join(gbIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getLong("avatar_crc32"), rst.getString("message"));
+							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("message"));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								a.addMedia(mediaId, rst.getLong("media_version_stamp"), false, null);
@@ -542,12 +568,23 @@ public class Dao {
 			}
 		}
 		if (!faIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, CRC32(u.picture) avatar_crc32, p.description, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp FROM ((((activity a INNER JOIN problem p ON a.problem_id=p.id) LEFT JOIN fa ON p.id=fa.problem_id) LEFT JOIN user u ON fa.user_id=u.id) LEFT JOIN media_problem mp ON p.id=mp.problem_id) LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0) WHERE a.id IN (" + Joiner.on(",").join(faIds) + ") GROUP BY a.id, u.firstname, u.lastname, u.id, u.picture, p.description")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, p.description, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp
+					FROM activity a
+					JOIN problem p ON a.problem_id=p.id
+					LEFT JOIN fa ON p.id=fa.problem_id
+					LEFT JOIN user u ON fa.user_id=u.id
+					LEFT JOIN media ma ON u.media_id=ma.id
+					LEFT JOIN media_problem mp ON p.id=mp.problem_id
+					LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)
+					WHERE a.id IN (%s)
+					GROUP BY a.id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at, p.description
+					""".formatted(Joiner.on(",").join(faIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getLong("avatar_crc32"), rst.getString("description"), rst.getInt("media_id"), rst.getLong("media_version_stamp"));
+							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("description"), rst.getInt("media_id"), rst.getLong("media_version_stamp"));
 						}
 					}
 				}
@@ -575,11 +612,15 @@ public class Dao {
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
-				       CRC32(u.picture) avatar_crc32,
+				       MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp,
 				       DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login
-				FROM ((user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id) LEFT JOIN user_email e ON u.id=e.user_id)
+				FROM user u
+				JOIN user_login l ON u.id=l.user_id
+				            LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id)
+				LEFT JOIN user_email e ON u.id=e.user_id
 				WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)
-				GROUP BY u.id, u.firstname, u.lastname, u.picture
+				GROUP BY u.id, u.firstname, u.lastname
 				ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))
 				""")) {
 			ps.setInt(1, idRegion);
@@ -593,10 +634,11 @@ public class Dao {
 							.trimResults()
 							.omitEmptyStrings()
 							.splitToList(emailsStr);
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String lastLogin = rst.getString("last_login");
 					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.add(new Administrator(userId, name, emails, avatarCrc32, timeAgo));
+					res.add(new Administrator(userId, name, emails, mediaId, mediaVersionStamp, timeAgo));
 				}
 			}
 		}
@@ -819,39 +861,50 @@ public class Dao {
 		return res;
 	}
 
+	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
+		String name = UUID.randomUUID().toString();
+		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l);
+		final int pitch = 0;
+		final int idProblem = 0;
+		final int idSector = 0;
+		final int idArea = 0;
+		final int idGuestbook = 0;
+		addNewMedia(c, authUserId, idProblem, pitch, false, idSector, idArea, idGuestbook, authUserId.get().intValue(), m, inputStreamSupplier);
+	}
+
 	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
 		Optional<Integer> authUserId = Optional.empty();
-		String picture = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT e.user_id, u.picture FROM user_email e, user u WHERE e.user_id=u.id AND lower(e.email)=?")) {
-			ps.setString(1, profile.email());
+		boolean hasAvatar = false;
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
+				FROM user_email e
+				JOIN user u ON e.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE lower(e.email)=?
+				""")) {
+			ps.setString(1, profile.email().toLowerCase());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					authUserId = Optional.of(rst.getInt("user_id"));
-					picture = rst.getString("picture");
+					hasAvatar = rst.getBoolean("has_avatar");
 				}
 			}
 		}
 		if (authUserId.isEmpty()) {
-			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname(), profile.picture()));
+			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
 		}
-		else if (profile.picture() != null && (picture == null || !picture.equals(profile.picture()))) {
-			if (picture != null && picture.contains("fbsbx.com") && !profile.picture().contains("fbsbx.com")) {
-				logger.debug("Dont change from facebook-image, new image is most likely avatar with text...");
-			}
-			else if (picture != null && !picture.startsWith("https")) {
-				logger.debug("User has uploaded an avatar, don't replace this with social media image");
-			}
-			else {
-				try (InputStream is = URI.create(profile.picture()).toURL().openStream()) {
-					ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
-					try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
-						ps.setString(1, profile.picture());
-						ps.setInt(2, authUserId.orElseThrow());
-						ps.executeUpdate();
+		if (!hasAvatar && profile.picture() != null) {
+			try {
+				saveUserAvatar(c, authUserId, () -> {
+					try {
+						return URI.create(profile.picture()).toURL().openStream();
+					} catch (IOException e) {
+						logger.error(e.getMessage(), e);
+						throw new UncheckedIOException(e);
 					}
-				} catch (Exception e) {
-					logger.warn(e.getMessage(), e);
-				}
+				});
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
 			}
 		}
 		c.commit();
@@ -1069,8 +1122,8 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT avg(t.stars) avg_stars, m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem,
 				       ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
-				       CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","avatarCrc32":', CRC32(u.picture), '}') photographer,
-				       GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","avatarCrc32":', CRC32(u2.picture), '}') SEPARATOR ', ') tagged
+				       CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '","mediaId":', COALESCE(ma.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at),0), '}') photographer,
+				       GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","mediaId":', COALESCE(ma2.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at),0), '}') SEPARATOR ', ') tagged
 				FROM (
 				    SELECT m_sub.id
 				    FROM media m_sub
@@ -1107,9 +1160,11 @@ public class Dao {
 				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
 				JOIN region r ON a.region_id=r.id
 				JOIN user u ON m.photographer_user_id=u.id
+				LEFT JOIN media ma ON u.media_id=ma.id
 				JOIN tick t ON p.id=t.problem_id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u2 ON mu.user_id=u2.id
+				LEFT JOIN media ma2 ON u2.media_id=ma2.id
 				WHERE r.id=?
 				  AND m.deleted_user_id IS NULL
 				  AND a.trash IS NULL
@@ -1117,7 +1172,7 @@ public class Dao {
 				  AND p.trash IS NULL
 				  AND a.access_closed IS NULL
 				  AND s.access_closed IS NULL
-				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname;
+				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname
 				""")) {
 			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, setup.idRegion());
@@ -1222,10 +1277,26 @@ public class Dao {
 		// Return users
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT x.id, x.name, CRC32(x.picture) avatar_crc32, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				FROM (SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.picture, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write FROM (user u INNER JOIN user_login l ON u.id=l.user_id) LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id WHERE l.region_id=? GROUP BY u.id, u.firstname, u.lastname, u.picture UNION SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.picture, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write FROM user u, user_region ur, user_login l
-				WHERE u.id=ur.user_id AND ur.region_id=? AND u.id=l.user_id GROUP BY u.id, u.firstname, u.lastname, u.picture) x
-				GROUP BY x.id, x.name, x.picture, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				FROM (
+				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+				  FROM user u
+				  LEFT JOIN media m ON u.media_id=m.id
+				  JOIN user_login l ON u.id=l.user_id
+				  LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id
+				  WHERE l.region_id=?
+				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
+				  
+				  UNION
+				  
+				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+				  FROM user u
+				  LEFT JOIN media m ON u.media_id=m.id
+				  JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
+				  JOIN user_login l ON u.id=l.user_id
+				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
+				) x
+				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
 				ORDER BY IFNULL(x.superadmin_write,0) DESC, IFNULL(x.superadmin_read,0) DESC, IFNULL(x.admin_write,0) DESC, IFNULL(x.admin_read,0) DESC, x.name
 				""")) {
 			ps.setInt(1, idRegion);
@@ -1235,14 +1306,15 @@ public class Dao {
 				while (rst.next()) {
 					int userId = rst.getInt("id");
 					String name = rst.getString("name");
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String lastLogin = rst.getString("last_login");
 					boolean adminRead = rst.getBoolean("admin_read");
 					boolean adminWrite = rst.getBoolean("admin_write");
 					boolean superadminRead = rst.getBoolean("superadmin_read");
 					boolean superadminWrite = rst.getBoolean("superadmin_write");
 					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
-					res.add(new PermissionUser(userId, name, avatarCrc32, timeAgo, adminRead, adminWrite, superadminRead, superadminWrite, authUserId.orElse(0)==userId));
+					res.add(new PermissionUser(userId, name, mediaId, mediaVersionStamp, timeAgo, adminRead, adminWrite, superadminRead, superadminWrite, authUserId.orElse(0)==userId));
 				}
 			}
 		}
@@ -1270,13 +1342,25 @@ public class Dao {
 		}
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
+				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
 				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       group_concat(DISTINCT CONCAT('{\"id\":', u.id, ',\"name\":\"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '\",\"avatarCrc32\":', crc32(COALESCE(u.picture,'')), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+				       group_concat(DISTINCT CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '","mediaId":', COALESCE(m.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at),0), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
 				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
 				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
 				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
-				FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				FROM area a
+				JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)
+				JOIN type ty ON p.type_id=ty.id
+				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id
+				LEFT JOIN coordinates c ON p.coordinates_id=c.id
+				LEFT JOIN fa f ON p.id=f.problem_id
+				LEFT JOIN user u ON f.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND p.id=?
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
@@ -1401,9 +1485,11 @@ public class Dao {
 		// Ascents
 		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT t.id id_tick, u.id id_user, CRC32(u.picture) avatar_crc32, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade
-				FROM tick t, user u
-				WHERE t.problem_id=? AND t.user_id=u.id
+				SELECT t.id id_tick, u.id id_user, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade
+				FROM tick t
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE t.problem_id=?
 				ORDER BY t.date DESC, t.id DESC
 				""")) {
 			ps.setInt(1, p.getId());
@@ -1411,7 +1497,8 @@ public class Dao {
 				while (rst.next()) {
 					int id = rst.getInt("id_tick");
 					int idUser = rst.getInt("id_user");
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String date = rst.getString("date");
 					String name = rst.getString("name");
 					String comment = rst.getString("comment");
@@ -1426,7 +1513,7 @@ public class Dao {
 						grade = s.gradeConverter().getGradeFromIdGrade(idGrade);
 					}
 					boolean writable = idUser == authUserId.orElse(0);
-					ProblemTick t = p.addTick(id, idUser, avatarCrc32, date, name, grade, noPersonalGrade, comment, stars, writable);
+					ProblemTick t = p.addTick(id, idUser, mediaId, mediaVersionStamp, date, name, grade, noPersonalGrade, comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
@@ -1450,26 +1537,31 @@ public class Dao {
 		}
 		// Todos
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.id, CRC32(u.picture) avatar_crc32, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name
-				FROM todo t, user u
-				WHERE t.user_id=u.id AND t.problem_id=?
+				SELECT u.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name
+				FROM todo t
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE t.problem_id=?
 				ORDER BY u.firstname, u.lastname
 				""")) {
 			ps.setInt(1, p.getId());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idUser = rst.getInt("id");
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String name = rst.getString("name");
-					p.addTodo(idUser, avatarCrc32, name);
+					p.addTodo(idUser, mediaId, mediaVersionStamp, name);
 				}
 			}
 		}
 		// Comments
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, CRC32(u.picture) avatar_crc32, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
-				FROM guestbook g, user u
-				WHERE g.problem_id=? AND g.user_id=u.id
+				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
+				FROM guestbook g
+				JOIN user u ON g.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE g.problem_id=?
 				ORDER BY g.post_time DESC
 				""")) {
 			ps.setInt(1, p.getId());
@@ -1478,13 +1570,14 @@ public class Dao {
 					int id = rst.getInt("id");
 					String date = rst.getString("date");
 					int idUser = rst.getInt("user_id");
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String name = rst.getString("name");
 					String message = rst.getString("message");
 					boolean danger = rst.getBoolean("danger");
 					boolean resolved = rst.getBoolean("resolved");
 					List<Media> media = getMediaGuestbook(c, authUserId, id);
-					p.addComment(id, date, idUser, avatarCrc32, name, message, danger, resolved, media);
+					p.addComment(id, date, idUser, mediaId, mediaVersionStamp, name, message, danger, resolved, media);
 				}
 				if (p.getComments() != null && !p.getComments().isEmpty()) {
 					// Enable editing on last comment in thread if it is written by authenticated user
@@ -1524,8 +1617,11 @@ public class Dao {
 		// First aid ascent
 		if (!s.gradeSystem().equals(GradeSystem.BOULDER)) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, CRC32(u.picture) avatar_crc32
-					FROM (fa_aid a LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id) LEFT JOIN user u ON au.user_id=u.id
+					SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					FROM fa_aid a
+					LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id
+					LEFT JOIN user u ON au.user_id=u.id
+					LEFT JOIN media m ON u.media_id=m.id
 					WHERE a.problem_id=?
 					""")) {
 				ps.setInt(1, p.getId());
@@ -1542,8 +1638,9 @@ public class Dao {
 						int userId = rst.getInt("id");
 						if (userId != 0) {
 							String userName = rst.getString("name");
-							long avatarCrc32 = rst.getLong("avatar_crc32");
-							User user = User.from(userId, userName, avatarCrc32);
+							int mediaId = rst.getInt("media_id");
+							long mediaVersionStamp = rst.getLong("media_version_stamp");
+							User user = User.from(userId, userName, mediaId, mediaVersionStamp);
 							faAid.users().add(user);
 						}
 					}
@@ -1559,20 +1656,25 @@ public class Dao {
 		Preconditions.checkArgument(userId > 0);
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT CRC32(u.picture) avatar_crc32, u.firstname, u.lastname, u.email_visible_to_all,
+				SELECT u.firstname, u.lastname, u.email_visible_to_all,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
 				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
-				                   MAX(l.when) last_login
-				FROM (user u LEFT JOIN user_email e ON u.id=e.user_id) LEFT JOIN user_login l ON u.id=l.user_id
+				       MAX(l.when) last_login
+				FROM user u
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN user_email e ON u.id=e.user_id
+				LEFT JOIN user_login l ON u.id=l.user_id
 				WHERE u.id=?
-				GROUP BY u.id, u.picture, u.firstname, u.lastname
+				GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
 				""")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					long avatarCrc32 = rst.getLong("avatar_crc32");
 					String firstname = rst.getString("firstname");
 					String lastname = rst.getString("lastname");
 					boolean emailVisibleToAll = rst.getBoolean("email_visible_to_all");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					String emailsStr = rst.getString("emails");
 					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
 							.trimResults()
@@ -1581,7 +1683,7 @@ public class Dao {
 					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
 					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
 					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
-					res = new Profile(userId, avatarCrc32, firstname, lastname, emailVisibleToAll, emails, userRegions, lastActivity);
+					res = new Profile(userId, firstname, lastname, emailVisibleToAll, mediaId, mediaVersionStamp, emails, userRegions, lastActivity);
 				}
 			}
 		}
@@ -1663,10 +1765,49 @@ public class Dao {
 	public List<Media> getProfileMediaProblem(Connection c, Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
 		String sqlStr = null;
 		if (captured) {
-			sqlStr = "SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id  FROM ((((((((media m INNER JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY m.id, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.id DESC";
+			sqlStr = """
+					SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
+					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description,
+					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
+					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t,
+					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id
+					FROM media m
+					JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
+					JOIN media_problem mp ON m.id=mp.media_id
+					JOIN problem p ON mp.problem_id=p.id
+					JOIN sector s ON p.sector_id=s.id
+					JOIN area a ON s.area_id=a.id
+					JOIN region r ON a.region_id=r.id
+					LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+					LEFT JOIN media_user mu ON m.id=mu.media_id
+					LEFT JOIN user u ON mu.user_id=u.id
+					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+					GROUP BY m.id, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+					ORDER BY m.id DESC
+					""";
 		}
 		else {
-			sqlStr = "SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id FROM ((((((((user u INNER JOIN media_user mu ON u.id=? AND u.id=mu.user_id) INNER JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY u.firstname, u.lastname, u.picture, m.id, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname ORDER BY m.id DESC";
+			sqlStr = """
+					SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged,
+					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description,
+					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location,
+					       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
+					       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t,
+					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id
+					FROM user u
+					JOIN media_user mu ON u.id=? AND u.id=mu.user_id
+					JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL
+					JOIN user c ON m.photographer_user_id=c.id
+					JOIN media_problem mp ON m.id=mp.media_id
+					JOIN problem p ON mp.problem_id=p.id
+					JOIN sector s ON p.sector_id=s.id
+					JOIN area a ON s.area_id=a.id
+					JOIN region r ON a.region_id=r.id
+					LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+					GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
+					ORDER BY m.id DESC
+					""";
 		}
 		List<Media> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -2071,12 +2212,13 @@ public class Dao {
 
 				-- Users
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
-				        0, 0, 0, CRC32(u.picture) media_version_stamp, 0, 
+				        0, 0, 0, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
 				        NULL, 0, NULL
 				 FROM user u
+				 LEFT JOIN media m ON u.media_id=m.id
 				 CROSS JOIN req
 				 WHERE REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
-				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8);
+				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
 				 		""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -2097,28 +2239,23 @@ public class Dao {
 					switch (type) {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
-						areas.add(new Search(title, null, "/area/" + id, null, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						areas.add(new Search(title, null, "/area/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "EXTERNAL" -> {
-						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), null, 0, 0, false, false, hits, pageViews));
+						externalAreas.add(new Search(title, subTitle, rst.getString("external_url"), null, 0, 0, false, false, hits, pageViews));
 					}
 					case "SECTOR" -> {
-						sectors.add(new Search(title, subTitle, "/sector/" + id, null, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						sectors.add(new Search(title, subTitle, "/sector/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "PROBLEM" -> {
 						int grade = rst.getInt("grade");
 						String rock = rst.getString("rock");
 						String fullTitle = title + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]";
 						String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
-						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "USER" -> {
-						String mediaUrl = null;
-						if (mediaVersionStamp != 0) {
-						    String objectKey = S3KeyGenerator.getWebUserAvatar(id);
-						    mediaUrl = StorageManager.getPublicUrl(objectKey, mediaVersionStamp);
-						}
-						users.add(new Search(title, null, "/user/" + id, null, mediaUrl, 0, 0, false, false, 0, null));
+						users.add(new Search(title, null, "/user/" + id, null, mediaId, mediaVersionStamp, false, false, 0, null));
 					}
 					}
 				}
@@ -2143,10 +2280,12 @@ public class Dao {
 		List<Search> filteredExternal = externalAreas.stream()
 				.filter(ea -> {
 					try {
-						String url = ea.externalurl();
+						String url = ea.externalUrl();
 						int extId = Integer.parseInt(url.substring(url.lastIndexOf("/") + 1));
 						return !areaIdsVisible.contains(extId);
-					} catch (Exception e) { return true; }
+					} catch (Exception e) {
+						return true;
+					}
 				}).toList();
 		// Assemble and Final Sort
 		List<Search> res = new ArrayList<>();
@@ -2653,61 +2792,62 @@ public class Dao {
 		String columnCondition = (sectorId > 0) ? "s.id" : "a.id";
 		int filterId = (sectorId > 0) ? sectorId : areaId;
 		String sqlStr = """
-		        WITH total_problems AS (
-		            SELECT COUNT(DISTINCT p.id) AS sum
-		            FROM area a
-		            JOIN sector s ON a.id = s.area_id
-		            JOIN problem p ON s.id = p.sector_id AND p.broken IS NULL
-		            LEFT JOIN fa f ON p.id = f.problem_id
-		            LEFT JOIN tick t ON p.id = t.problem_id
-		            LEFT JOIN fa_aid_user aid ON p.id = aid.problem_id
-		            WHERE %1$s = ? 
-		              AND (p.grade != 0 OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
-		        ),
-		        user_completions AS (
-		            SELECT f.user_id, p.id AS problem_id
-		            FROM problem p
-		            JOIN sector s ON p.sector_id = s.id
-		            JOIN area a ON s.area_id = a.id
-		            JOIN fa f ON p.id = f.problem_id
-		            WHERE %1$s = ? AND p.broken IS NULL AND f.user_id IS NOT NULL
-		            
-		            UNION
-		            
-		            SELECT t.user_id, p.id AS problem_id
-		            FROM problem p
-		            JOIN sector s ON p.sector_id = s.id
-		            JOIN area a ON s.area_id = a.id
-		            JOIN tick t ON p.id = t.problem_id
-		            WHERE %1$s = ? AND p.broken IS NULL AND t.user_id IS NOT NULL
-		            
-		            UNION
-		            
-		            SELECT aid.user_id, p.id AS problem_id
-		            FROM problem p
-		            JOIN sector s ON p.sector_id = s.id
-		            JOIN area a ON s.area_id = a.id
-		            JOIN fa_aid_user aid ON p.id = aid.problem_id
-		            WHERE %1$s = ? AND p.broken IS NULL AND aid.user_id IS NOT NULL
-		        )
-		        SELECT 
-		            u.id AS user_id,
-		            TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
-		            CRC32(u.picture) AS avatar_crc32,
-		            ROUND((COUNT(DISTINCT uc.problem_id) / NULLIF(tp.sum, 0)) * 100, 2) AS percentage
-		        FROM user_completions uc
-		        JOIN user u ON uc.user_id = u.id
-		        CROSS JOIN total_problems tp
-		        GROUP BY u.id, u.firstname, u.lastname, u.picture, tp.sum
-		        ORDER BY percentage DESC, name ASC;
-		        """.formatted(columnCondition);
+				WITH total_problems AS (
+				    SELECT COUNT(DISTINCT p.id) AS sum
+				    FROM area a
+				    JOIN sector s ON a.id = s.area_id
+				    JOIN problem p ON s.id = p.sector_id AND p.broken IS NULL
+				    LEFT JOIN fa f ON p.id = f.problem_id
+				    LEFT JOIN tick t ON p.id = t.problem_id
+				    LEFT JOIN fa_aid_user aid ON p.id = aid.problem_id
+				    WHERE %1$s = ? 
+				      AND (p.grade != 0 OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
+				),
+				user_completions AS (
+				    SELECT f.user_id, p.id AS problem_id
+				    FROM problem p
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    JOIN fa f ON p.id = f.problem_id
+				    WHERE %1$s = ? AND p.broken IS NULL AND f.user_id IS NOT NULL
+
+				    UNION
+
+				    SELECT t.user_id, p.id AS problem_id
+				    FROM problem p
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    JOIN tick t ON p.id = t.problem_id
+				    WHERE %1$s = ? AND p.broken IS NULL AND t.user_id IS NOT NULL
+
+				    UNION
+
+				    SELECT aid.user_id, p.id AS problem_id
+				    FROM problem p
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    JOIN fa_aid_user aid ON p.id = aid.problem_id
+				    WHERE %1$s = ? AND p.broken IS NULL AND aid.user_id IS NOT NULL
+				)
+				SELECT 
+				    u.id AS user_id,
+				    TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+				    m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+				    ROUND((COUNT(DISTINCT uc.problem_id) / NULLIF(tp.sum, 0)) * 100, 2) AS percentage
+				FROM user_completions uc
+				JOIN user u ON uc.user_id = u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				CROSS JOIN total_problems tp
+				GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at, tp.sum
+				ORDER BY percentage DESC, name ASC
+				""".formatted(columnCondition);
 		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
 		Set<Integer> uniqueUserIds = new HashSet<>();
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, filterId);
-		    ps.setInt(2, filterId);
-		    ps.setInt(3, filterId);
-		    ps.setInt(4, filterId);
+			ps.setInt(2, filterId);
+			ps.setInt(3, filterId);
+			ps.setInt(4, filterId);
 			try (ResultSet rst = ps.executeQuery()) {
 				double prevPercentage = -1.0;
 				int rank = 0;
@@ -2715,7 +2855,8 @@ public class Dao {
 					int userId = rst.getInt("user_id");
 					uniqueUserIds.add(userId);
 					String name = rst.getString("name");
-					long avatarCrc32 = rst.getLong("avatar_crc32");
+					int mediaId = rst.getInt("media_id");
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
 					double percentage = rst.getDouble("percentage");
 					if (prevPercentage != percentage) {
 						rank++;
@@ -2727,7 +2868,7 @@ public class Dao {
 						top = new TopRank(rank, percentage, new ArrayList<>());
 						topByPercentage.put(percentage, top);
 					}
-					top.users().add(new TopUser(userId, name, avatarCrc32, mine));
+					top.users().add(new TopUser(userId, name, mediaId, mediaVersionStamp, mine));
 				}
 			}
 		}
@@ -3196,15 +3337,6 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public void saveAvatar(Connection c, Optional<Integer> authUserId, InputStream is) throws SQLException {
-		ImageHelper.saveAvatar(authUserId.orElseThrow(), is);
-		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET picture=? WHERE id=?")) {
-			ps.setString(1, LocalDateTime.now().toString());
-			ps.setInt(2, authUserId.orElseThrow());
-			ps.executeUpdate();
-		}
-	}
-
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
@@ -3306,7 +3438,8 @@ public class Dao {
 				final int pitch = 0;
 				final int idSector = 0;
 				final int idGuestbook = 0;
-				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
+				final int idUserAvatar = 0;
+				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 			}
 		}
 		upsertExternalLinks(c, a.getExternalLinks(), idArea, 0, 0);
@@ -3317,20 +3450,20 @@ public class Dao {
 	}
 
 	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken) throws SQLException {
-	    String sqlStr = dateTaken == null ?
-	            "UPDATE media SET width=?, height=? WHERE id=?" :
-	            "UPDATE media SET date_taken=?, width=?, height=? WHERE id=?";
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        int ix = 0;
-	        if (dateTaken != null) {
-	            ps.setObject(++ix, dateTaken);
-	        }
-	        ps.setInt(++ix, width);
-	        ps.setInt(++ix, height);
-	        ps.setInt(++ix, idMedia);
-	        ps.executeUpdate();
-	    }
-	    logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
+		String sqlStr = dateTaken == null ?
+				"UPDATE media SET width=?, height=? WHERE id=?" :
+					"UPDATE media SET date_taken=?, width=?, height=? WHERE id=?";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int ix = 0;
+			if (dateTaken != null) {
+				ps.setObject(++ix, dateTaken);
+			}
+			ps.setInt(++ix, width);
+			ps.setInt(++ix, height);
+			ps.setInt(++ix, idMedia);
+			ps.executeUpdate();
+		}
+		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
@@ -3421,7 +3554,8 @@ public class Dao {
 				final int idSector = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(c, authUserId, idProblem, m.pitch(), m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
+				final int idUserAvatar = 0;
+				addNewMedia(c, authUserId, idProblem, m.pitch(), m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 			}
 		}
 		// FA
@@ -3447,7 +3581,7 @@ public class Dao {
 						}
 					}
 				} else { // New user
-					int idUser = addUser(c, null, x.name(), null, null);
+					int idUser = addUser(c, null, x.name(), null);
 					Preconditions.checkArgument(idUser > 0);
 					try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
@@ -3512,7 +3646,7 @@ public class Dao {
 						for (User u : faAid.users()) {
 							int idUser = u.id();
 							if (idUser <= 0) {
-								idUser = addUser(c, null, u.name(), null, null);
+								idUser = addUser(c, null, u.name(), null);
 							}
 							Preconditions.checkArgument(idUser > 0);
 							ps.setInt(1, faAid.problemId());
@@ -3532,7 +3666,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException {
+	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=? WHERE id=?")) {
@@ -3544,9 +3678,7 @@ public class Dao {
 		}
 		var avatar = multiPart.getField("avatar");
 		if (avatar != null) {
-			try (InputStream is = avatar.getValueAs(InputStream.class)) {
-				saveAvatar(c, authUserId, is);
-			}
+			saveUserAvatar(c, authUserId, () -> avatar.getValueAs(InputStream.class));
 		}
 	}
 
@@ -3743,7 +3875,8 @@ public class Dao {
 				final int idProblem = 0;
 				final int idArea = 0;
 				final int idGuestbook = 0;
-				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
+				final int idUserAvatar = 0;
+				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 			}
 		}
 		upsertExternalLinks(c, s.getExternalLinks(), 0, idSector, 0);
@@ -3968,7 +4101,8 @@ public class Dao {
 								final int idProblem = 0;
 								final int idSector = 0;
 								final int idArea = 0;
-								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), m, multiPart);
+								final int idUserAvatar = 0;
+								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 							}
 						}
 					}
@@ -4013,7 +4147,8 @@ public class Dao {
 								final int idProblem = 0;
 								final int idSector = 0;
 								final int idArea = 0;
-								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, idGuestbook, m, multiPart);
+								final int idUserAvatar = 0;
+								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 							}
 						}
 					}
@@ -4123,14 +4258,15 @@ public class Dao {
 		}
 	}
 
-	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, NewMedia m, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, int idUserAvatar, NewMedia m, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		int idMedia = -1;
-		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, m);
-		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0));
+		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, idUserAvatar={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, idUserAvatar, m);
+		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
+				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0 && idUserAvatar == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0 && idUserAvatar == 0)
+				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar > 0));
 		boolean alreadyExistsInDb = false;
 		boolean isMovie = false;
 		String suffix = null;
@@ -4185,27 +4321,38 @@ public class Dao {
 				ps.setLong(5, m.embedMilliseconds());
 				ps.execute();
 			}
-		} else if (idSector > 0) {
+		}
+		else if (idSector > 0) {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)")) {
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idSector);
 				ps.setBoolean(3, trivia);
 				ps.execute();
 			}
-		} else if (idArea > 0) {
+		}
+		else if (idArea > 0) {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)")) {
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idArea);
 				ps.setBoolean(3, trivia);
 				ps.execute();
 			}
-		} else if (idGuestbook > 0) {
+		}
+		else if (idGuestbook > 0) {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
 				ps.setInt(1, idMedia);
 				ps.setInt(2, idGuestbook);
 				ps.execute();
 			}
-		} else {
+		}
+		else if (idUserAvatar > 0) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE user SET media_id=? WHERE id=?")) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, idUserAvatar);
+				ps.execute();
+			}
+		}
+		else {
 			throw new RuntimeException("Server error");
 		}
 		if (!alreadyExistsInDb) {
@@ -4223,7 +4370,7 @@ public class Dao {
 				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
 			}
 			else {
-				try (InputStream is = multiPart.getField(m.name()).getValueAs(InputStream.class)) {
+				try (InputStream is = inputStreamSupplier.get()) {
 					byte[] bytes = ByteStreams.toByteArray(is);
 					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
@@ -4232,17 +4379,16 @@ public class Dao {
 		return idMedia;
 	}
 
-	private int addUser(Connection c, String email, String firstname, String lastname, String picture) throws SQLException {
+	private int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
 		int id = -1;
-		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname, picture) VALUES (?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, firstname);
 			ps.setString(2, lastname);
-			ps.setString(3, picture);
 			ps.executeUpdate();
 			try (ResultSet rst = ps.getGeneratedKeys()) {
 				if (rst != null && rst.next()) {
 					id = rst.getInt(1);
-					logger.debug("addUser(email={}, firstname={}, lastname={}, picture={}) - getInt(1)={}", email, firstname, lastname, picture, id);
+					logger.debug("addUser(email={}, firstname={}, lastname={}) - getInt(1)={}", email, firstname, lastname, id);
 				}
 			}
 		}
@@ -4252,13 +4398,6 @@ public class Dao {
 				ps.setInt(1, id);
 				ps.setString(2, email.toLowerCase());
 				ps.execute();
-			}
-		}
-		if (picture != null) {
-			try (InputStream is = URI.create(picture).toURL().openStream()) {
-				ImageHelper.saveAvatar(id, is);
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
 			}
 		}
 		return id;
@@ -4393,7 +4532,7 @@ public class Dao {
 				}
 			}
 		}
-		int usId = addUser(c, null, name, null, null);
+		int usId = addUser(c, null, name, null);
 		Preconditions.checkArgument(usId > 0);
 		return usId;
 	}
