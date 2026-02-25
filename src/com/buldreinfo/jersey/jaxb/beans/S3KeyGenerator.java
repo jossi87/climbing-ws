@@ -1,14 +1,6 @@
 package com.buldreinfo.jersey.jaxb.beans;
 
 public final class S3KeyGenerator {
-    public static String getDownload(int idMedia, int idType) {
-		return switch (idType) {
-		case 1 -> getOriginalJpg(idMedia);
-		case 2 -> getWebMp4(idMedia);
-		default -> throw new IllegalArgumentException("Unexpected value: " + idType);
-		};
-	}
-
     public static String getOriginalJpg(int id) {
         return "original/jpg/%s/%d.jpg".formatted(getFolderName(id), id);
     }
