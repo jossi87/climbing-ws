@@ -611,17 +611,20 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
-				       MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp,
-				       DATE_FORMAT(MAX(l.when),'%Y.%m.%d') last_login
-				FROM user u
-				JOIN user_login l ON u.id=l.user_id
-				            LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN user_region ur ON (u.id=ur.user_id AND l.region_id=ur.region_id)
-				LEFT JOIN user_email e ON u.id=e.user_id
-				WHERE l.region_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)
-				GROUP BY u.id, u.firstname, u.lastname
-				ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))
+				       CASE WHEN u.email_visible_to_all=1 THEN (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') FROM user_email e WHERE e.user_id=u.id) END emails,
+				       m.id media_id, 
+					   UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+				       DATE_FORMAT(l_agg.last_login_raw, '%Y.%m.%d') last_login
+				FROM (SELECT l.user_id, MAX(l.when) last_login_raw
+				      FROM user_login l
+				      JOIN user_region ur ON l.user_id=ur.user_id AND l.region_id=ur.region_id
+				      WHERE l.region_id=?
+				        AND (ur.admin_write=1 OR ur.superadmin_write=1)
+				      GROUP BY user_id
+				) l_agg
+				JOIN user u ON u.id=l_agg.user_id
+				LEFT JOIN media m ON u.media_id=m.id
+				ORDER BY name;
 				""")) {
 			ps.setInt(1, idRegion);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -1277,27 +1280,18 @@ public class Dao {
 		// Return users
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				FROM (
-				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM user u
-				  LEFT JOIN media m ON u.media_id=m.id
-				  JOIN user_login l ON u.id=l.user_id
-				  LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id
-				  WHERE l.region_id=?
-				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
-				  
-				  UNION
-				  
-				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM user u
-				  LEFT JOIN media m ON u.media_id=m.id
-				  JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
-				  JOIN user_login l ON u.id=l.user_id
-				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
-				) x
-				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				ORDER BY IFNULL(x.superadmin_write,0) DESC, IFNULL(x.superadmin_read,0) DESC, IFNULL(x.admin_write,0) DESC, IFNULL(x.admin_read,0) DESC, x.name
+				SELECT u.id,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+				       (SELECT DATE_FORMAT(MAX(l.when), '%Y.%m.%d')
+				        FROM user_login l
+				        WHERE l.user_id=u.id AND l.region_id=?) last_login,
+				       ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+				FROM user u
+				JOIN user_region ur ON u.id=ur.user_id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE ur.region_id=?
+				ORDER BY COALESCE(ur.superadmin_write, 0) DESC, COALESCE(ur.superadmin_read, 0) DESC, COALESCE(ur.admin_write, 0) DESC, COALESCE(ur.admin_read, 0) DESC, name
 				""")) {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
@@ -1656,16 +1650,16 @@ public class Dao {
 		Preconditions.checkArgument(userId > 0);
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.firstname, u.lastname, u.email_visible_to_all,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
-				       CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') END emails,
-				       MAX(l.when) last_login
+				SELECT u.firstname, u.lastname, u.email_visible_to_all, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
+				        FROM user_email e 
+				        WHERE e.user_id=u.id) emails,
+					   (SELECT MAX(l.when)
+				        FROM user_login l 
+				        WHERE l.user_id=u.id) last_login
 				FROM user u
 				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN user_email e ON u.id=e.user_id
-				LEFT JOIN user_login l ON u.id=l.user_id
-				WHERE u.id=?
-				GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
+				WHERE u.id=?;
 				""")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
