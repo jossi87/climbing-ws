@@ -173,6 +173,7 @@ public class FixMedia {
 		Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
 
 		if (embedUrl != null) {
+			// OriginalMp4
 			if (!Files.exists(originalMp4)) {
 				logger.info("Downloading embed video with id={} to {}", id, originalMp4);
 				Files.createDirectories(originalMp4.getParent());
@@ -182,13 +183,19 @@ public class FixMedia {
 				};
 				new ProcessBuilder().inheritIO().command(commands).start().waitFor();
 			}
+			if (!Files.exists(originalMp4)) {
+				warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
+			}
+			// Thumbnail
 			if (!Files.exists(originalJpg)) {
 				Server.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
 			}
+			if (!Files.exists(originalJpg)) {
+				warnings.add("Failed to download embedded video thumbnail with id=" + id + " to originalJpg=" + originalJpg);
+			}
+			// We don't want to create scaled versions of embedded videos, return
 			return;
 		}
-
-		// Local Files Flow
 		if (!Files.exists(webm) || Files.size(webm) == 0) {
 			Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id);
 			logger.info("Generating WebM for id={} to {}", id, webm);
