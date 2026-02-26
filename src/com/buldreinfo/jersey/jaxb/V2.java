@@ -363,8 +363,7 @@ public class V2 {
 	                        storage.uploadImage(finalObjectKey, b, StorageType.JPG);
 	                        b.flush();
 	                    }
-	                    String downloadName = original ? getDownloadName(id, finalObjectKey) : null;
-	                    return createRedirect(finalObjectKey, versionStamp, downloadName);
+	                    return createRedirect(finalObjectKey, versionStamp);
 	                });
 	            }
 	        }
@@ -373,9 +372,7 @@ public class V2 {
 	            finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
 	        }
 	    }
-
-	    String downloadName = original ? getDownloadName(id, finalObjectKey) : null;
-	    return createRedirect(finalObjectKey, versionStamp, downloadName);
+	    return createRedirect(finalObjectKey, versionStamp);
 	}
 
 	@Operation(summary = "Get metadata", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))})})
@@ -1168,21 +1165,16 @@ public class V2 {
 		});
 	}
 
-	private Response createRedirect(String key, int version, String downloadName) {
-	    String publicUrl = StorageManager.getPublicUrl(key, version, downloadName);
+	private Response createRedirect(String key, int version) {
+	    String publicUrl = StorageManager.getPublicUrl(key, version);
 	    var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
 	    return CacheHelper.applyImmutableLongTermCache(builder).build();
-	}
-
-	private String getDownloadName(int id, String key) {
-	    String extension = key.substring(key.lastIndexOf(".") + 1);
-	    return "climb_" + id + "." + extension;
 	}
 
 	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
-			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp, null);
+			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
 			ogImage = "<meta property=\"og:image\" content=\"" + imageUrl + "\" />" + 
 					"<meta property=\"og:image:width\" content=\"" + mediaWidth + "\" />" + 
 					"<meta property=\"og:image:height\" content=\"" + mediaHeight + "\" />";

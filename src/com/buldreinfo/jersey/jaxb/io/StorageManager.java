@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.util.List;
 
@@ -39,7 +38,7 @@ public final class StorageManager {
 		return INSTANCE;
 	}
 
-	public static String getPublicUrl(String objectKey, long versionStamp, String downloadName) {
+	public static String getPublicUrl(String objectKey, long versionStamp) {
 		if (objectKey != null && objectKey.startsWith("/")) {
 			objectKey = objectKey.substring(1);
 		}
@@ -48,17 +47,6 @@ public final class StorageManager {
 		if (versionStamp != 0L) {
 			url.append(separator).append("v=").append(versionStamp);
 			separator = '&';
-		}
-		if (downloadName != null) {
-			String disposition = "attachment; filename=\"" + downloadName + "\"";
-			try {
-				// Encode the string so it's safe for a URL query parameter
-				String encodedDisposition = java.net.URLEncoder.encode(disposition, "UTF-8");
-				url.append(separator).append("response-content-disposition=").append(encodedDisposition);
-			} catch (UnsupportedEncodingException e) {
-				// Fallback if encoding fails
-				url.append(separator).append("response-content-disposition=attachment");
-			}
 		}
 		return url.toString();
 	}
