@@ -18,6 +18,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -63,6 +64,13 @@ public final class StorageManager {
                 .region(Region.of("se-sto-1"))
                 .build();
     }
+    
+    public void deleteObject(String objectKey) {
+		s3Client.deleteObject(DeleteObjectRequest.builder()
+				.bucket(BUCKET_NAME)
+				.key(objectKey)
+				.build());
+	}
 
     public void deleteResizedCache(String prefix) {
         ListObjectsV2Request listRequest = ListObjectsV2Request.builder()

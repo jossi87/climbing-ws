@@ -103,7 +103,7 @@ public class S3BucketUploadBatch {
 					shouldUpload = false;
 					int currentSkips = skipCount.incrementAndGet();
 					if (currentSkips % 10_000 == 0) {
-						logger.info("Sync Progress: {} files already verified and skipped", currentSkips);
+						logger.info("Sync Progress: {} files verified and skipped", currentSkips);
 					}
 				} else {
 					if (!sameMime) {
@@ -124,13 +124,10 @@ public class S3BucketUploadBatch {
 					.contentType(mimeType)
 					.acl(ObjectCannedACL.PUBLIC_READ)
 					.build();
-
 			storage.getS3Client().putObject(putRequest, RequestBody.fromFile(file));
 			totalBytesUploaded.addAndGet(localSize);
 			int currentUploads = uploadCount.incrementAndGet();
-			if (currentUploads % 100 == 0 || localSize > 50 * 1024 * 1024) {
-				logger.info("Upload Progress: {} files. Current: {} ({} MB) Type: {}", currentUploads, relativePath, localSize / (1024 * 1024), mimeType);
-			}
+			logger.info("Upload Progress: {} files. Current: {} ({} MB) Type: {}", currentUploads, relativePath, localSize / (1024 * 1024), mimeType);
 		} catch (Exception e) {
 			logger.error("Failed to process {}: {}", file, e.getMessage());
 		}

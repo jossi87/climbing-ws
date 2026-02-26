@@ -80,7 +80,7 @@ public class S3BucketDownloadBatch {
 				if (localSize == s3Size) {
 					int currentSkips = skipCount.incrementAndGet();
 					if (currentSkips % 10_000 == 0) {
-						logger.info("Sync Progress: {} files already verified and skipped", currentSkips);
+						logger.info("Sync Progress: {} files verified and skipped", currentSkips);
 					}
 					return; 
 				}
@@ -88,16 +88,12 @@ public class S3BucketDownloadBatch {
 			}
 			else {
 				Files.createDirectories(localPath.getParent());
-				logger.info("New file found in cloud: {}", key);
 			}
 			try (InputStream in = storage.getInputStream(key)) {
 				Files.copy(in, localPath, StandardCopyOption.REPLACE_EXISTING);
 				totalBytesDownloaded.addAndGet(s3Size);
 				int currentDownloads = downloadCount.incrementAndGet();
-				if (currentDownloads % 100 == 0 || s3Size > 50 * 1024 * 1024) {
-					logger.info("Download Progress: {} files. Current: {} ({} MB)", 
-							currentDownloads, key, s3Size / (1024 * 1024));
-				}
+				logger.info("Download Progress: {} files. Current: {} ({} MB)", currentDownloads, key, s3Size / (1024 * 1024));
 			}
 		} catch (Exception e) {
 			logger.error("Failed to sync {}: {}", s3Object.key(), e.getMessage());
