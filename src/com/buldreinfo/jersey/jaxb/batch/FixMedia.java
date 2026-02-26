@@ -178,9 +178,14 @@ public class FixMedia {
 				logger.info("Downloading embed video with id={} to {}", id, originalMp4);
 				Files.createDirectories(originalMp4.getParent());
 				String[] commands = {
-					LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
-					embedUrl, "-S", "ext:mp4:m4a", "--merge-output-format", "mp4", "-o", originalMp4.toString()
-				};
+					    LOCAL_YT_DLP_PATH, 
+					    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+					    "--referer", "https://buldreinfo.com/",
+					    embedUrl, 
+					    "-S", "ext:mp4:m4a", 
+					    "--merge-output-format", "mp4", 
+					    "-o", originalMp4.toString()
+					};
 				new ProcessBuilder().inheritIO().command(commands).start().waitFor();
 			}
 			if (!Files.exists(originalMp4)) {
@@ -200,7 +205,11 @@ public class FixMedia {
 			Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id);
 			logger.info("Generating WebM for id={} to {}", id, webm);
 			Files.createDirectories(webm.getParent());
-			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), 
+	                "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", 
+	                "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", 
+	                "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", 
+	                "-codec:a", "libvorbis", "-b:a", "128k", "-ar", "44100", webm.toString()};
 			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 		}
 
