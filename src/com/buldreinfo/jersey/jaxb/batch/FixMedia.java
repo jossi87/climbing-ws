@@ -64,6 +64,9 @@ public class FixMedia {
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
 
 	public static void main(String[] args) {
+		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_BUCKET_ROOT)), LOCAL_BUCKET_ROOT + " does not exist");
+		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_FFMPEG_PATH)), LOCAL_FFMPEG_PATH + " does not exist");
+		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_YT_DLP_PATH)), LOCAL_YT_DLP_PATH + " does not exist");
 		new FixMedia();
 	}
 
@@ -99,7 +102,7 @@ public class FixMedia {
 						try {
 							if (embedUrl != null) {
 								if (!Files.exists(originalMp4)) {
-									logger.info("Downloading embed video for ID " + id);
+									logger.info("Downloading embed video with id={} to {}", id, originalMp4);
 									Files.createDirectories(originalMp4.getParent());
 									String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", originalMp4.toString()};
 									new ProcessBuilder().inheritIO().command(commands).start().waitFor();
@@ -107,32 +110,34 @@ public class FixMedia {
 								if (!Files.exists(originalJpg)) {
 									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
 								}
+								return; // Don't need to create scaled version on embedded videos
 							}
 							if (!Files.exists(webm) || Files.size(webm) == 0) {
-								Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing for ID " + id);
-								logger.info("Generating WebM for ID " + id);
+								Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id + ", originalMp4=" + originalMp4);
+								logger.info("Generating WebM for id={} to {}", id, webm);
 								Files.createDirectories(webm.getParent());
 								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
 								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 							}
 							if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-								Preconditions.checkArgument(Files.exists(webm), "WebM missing for ID " + id);
-								logger.info("Generating Web optimized MP4 for ID " + id);
+								Preconditions.checkArgument(Files.exists(webm), "WebM missing: id=" + id + ", webm=" + webm);
+								logger.info("Generating WebMp4 for id={} to {}", id, mp4);
 								Files.createDirectories(mp4.getParent());
 								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
 								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 							}
 							if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-								Path tmp = Files.createTempDirectory("fix_" + id).resolve(id + ".jpg");
+								Path tmp = Files.createTempFile("fix_" + id + "_", ".jpg");
 								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
 								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
-								if (Files.exists(tmp)) {
+								if (Files.exists(tmp) && Files.size(tmp) > 0) {
 									BufferedImage b = ImageIO.read(tmp.toFile());
-									ImageHelper.saveImage(dao, c, id, b); 
+									ImageHelper.saveImage(dao, c, id, b);
+									Files.deleteIfExists(tmp);
 								}
 							}
 						} catch (Exception e) {
-							warnings.add("Error processing ID=" + id + ": " + e.getMessage());
+							warnings.add("Error processing id=" + id + ": " + e.getMessage());
 						}
 					});
 				}
@@ -185,7 +190,7 @@ public class FixMedia {
 		Path dst = getLocalPath(S3KeyGenerator.getOriginalMp4(idMedia));
 		Files.createDirectories(dst.getParent());
 		Files.copy(src, dst);
-		logger.info("New movie added to DB and copied to local G: drive as ID " + idMedia);
+		logger.info("New movie added to DB and copied to local drive with idMedia={} and dst={}", idMedia, dst);
 		return idMedia;
 	}
 }

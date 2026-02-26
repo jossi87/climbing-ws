@@ -72,7 +72,7 @@ public class S3BucketDownloadBatch {
 			long s3Size = s3Object.size();
 			if (Files.exists(localPath)) {
 				long localSize = Files.size(localPath);
-				if (s3Size == 0 && localSize > 0) {
+				if (s3Size == 0) {
 					logger.warn("SAFETY TRIGGERED: Cloud file is 0 bytes, but local file is {} bytes. Skipping download to prevent data loss: {}", localSize, key);
 					skipCount.incrementAndGet();
 					return;
