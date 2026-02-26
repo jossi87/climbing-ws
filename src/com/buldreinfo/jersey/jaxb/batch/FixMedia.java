@@ -37,41 +37,34 @@ public class FixMedia {
 		private int idPhotographerUserId;
 		private final Map<Integer, Long> idProblemMsMap = new LinkedHashMap<>();
 		private List<Integer> inPhoto = new ArrayList<>();
-
 		public Movie(Path path) {
 			this.path = path;
 		}
-
 		public Movie withIdPhotographerUserId(int id) {
 			this.idPhotographerUserId = id;
 			return this;
 		}
-
 		public Movie withInPhoto(int userId) {
 			this.inPhoto.add(userId);
 			return this;
 		}
-
 		public Movie withProblem(int idProblem, long ms) {
 			this.idProblemMsMap.put(idProblem, ms);
 			return this;
 		}
 	}
-
 	private record MediaTask(int id, String embedUrl) {}
-
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
-
+	private final static List<Integer> PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE = List.of(36365,36368,36370,36374,36379,36380,36381,36383,36388,38412,39003);
 	public static void main(String[] args) {
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_BUCKET_ROOT)), LOCAL_BUCKET_ROOT + " does not exist");
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_FFMPEG_PATH)), LOCAL_FFMPEG_PATH + " does not exist");
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_YT_DLP_PATH)), LOCAL_YT_DLP_PATH + " does not exist");
 		new FixMedia();
 	}
-
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = new ArrayList<>();
 
@@ -171,25 +164,25 @@ public class FixMedia {
 		Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
 		Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
 		Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
-
 		if (embedUrl != null) {
 			// OriginalMp4
-			if (!Files.exists(originalMp4)) {
-				logger.info("Downloading embed video with id={} to {}", id, originalMp4);
-				Files.createDirectories(originalMp4.getParent());
-				String[] commands = {
-					    LOCAL_YT_DLP_PATH, 
-					    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
-					    "--referer", "https://buldreinfo.com/",
-					    embedUrl, 
-					    "-S", "ext:mp4:m4a", 
-					    "--merge-output-format", "mp4", 
-					    "-o", originalMp4.toString()
-					};
-				new ProcessBuilder().inheritIO().command(commands).start().waitFor();
-			}
-			if (!Files.exists(originalMp4)) {
-				warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
+			if (!PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE.contains(id)) {
+				if (!Files.exists(originalMp4)) {
+					logger.info("Downloading embed video with id={} to {}", id, originalMp4);
+					Files.createDirectories(originalMp4.getParent());
+					String[] commands = {
+						    LOCAL_YT_DLP_PATH, 
+						    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+						    embedUrl, 
+						    "-S", "ext:mp4:m4a", 
+						    "--merge-output-format", "mp4", 
+						    "-o", originalMp4.toString()
+						};
+					new ProcessBuilder().inheritIO().command(commands).start().waitFor();
+				}
+				if (!Files.exists(originalMp4)) {
+					warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
+				}
 			}
 			// Thumbnail
 			if (!Files.exists(originalJpg)) {
