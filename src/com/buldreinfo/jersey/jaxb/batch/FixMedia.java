@@ -60,7 +60,7 @@ public class FixMedia {
 
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
-	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-2023-10-04-git-9078dc0c52-full_build/bin/ffmpeg.exe";
+	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
 
 	public static void main(String[] args) {
@@ -101,16 +101,32 @@ public class FixMedia {
 					executor.submit(() -> {
 						try {
 							if (embedUrl != null) {
+								// OriginalMp4
 								if (!Files.exists(originalMp4)) {
 									logger.info("Downloading embed video with id={} to {}", id, originalMp4);
 									Files.createDirectories(originalMp4.getParent());
-									String[] commands = {LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, embedUrl, "-f", "mp4", "-o", originalMp4.toString()};
+									String[] commands = {
+										    LOCAL_YT_DLP_PATH, 
+										    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+										    embedUrl, 
+										    "-S", "ext:mp4:m4a", 
+										    "--merge-output-format", "mp4", 
+										    "-o", originalMp4.toString()
+										};
 									new ProcessBuilder().inheritIO().command(commands).start().waitFor();
 								}
+								if (!Files.exists(originalMp4)) {
+									warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
+								}
+								// Thumbnail
 								if (!Files.exists(originalJpg)) {
 									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
 								}
-								return; // Don't need to create scaled version on embedded videos
+								if (!Files.exists(originalJpg)) {
+									warnings.add("Failed to download embedded video thumbnail with id=" + id + " to originalJpg=" + originalJpg);
+								}
+								// We don't want to create scaled versions of embedded videos, return
+								return;
 							}
 							if (!Files.exists(webm) || Files.size(webm) == 0) {
 								Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id + ", originalMp4=" + originalMp4);
@@ -120,7 +136,7 @@ public class FixMedia {
 								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 							}
 							if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-								Preconditions.checkArgument(Files.exists(webm), "WebM missing: id=" + id + ", webm=" + webm);
+								Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, "WebM missing or empty: id=" + id);
 								logger.info("Generating WebMp4 for id={} to {}", id, mp4);
 								Files.createDirectories(mp4.getParent());
 								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};

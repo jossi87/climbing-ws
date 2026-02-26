@@ -2221,7 +2221,7 @@ public class Dao {
 
 				-- Users
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
-				        0, 0, 0, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
+				        0, 0, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 0, 
 				        NULL, 0, NULL
 				 FROM user u
 				 LEFT JOIN media m ON u.media_id=m.id
