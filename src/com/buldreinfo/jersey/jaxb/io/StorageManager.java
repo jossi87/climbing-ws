@@ -38,15 +38,21 @@ public final class StorageManager {
     	return INSTANCE;
     }
 
-    public static String getPublicUrl(String objectKey, long versionStamp) {
+    public static String getPublicUrl(String objectKey, long versionStamp, String downloadName) {
         if (objectKey != null && objectKey.startsWith("/")) {
             objectKey = objectKey.substring(1);
         }
-        String url = PUBLIC_BASE_URL + objectKey;
+        StringBuilder url = new StringBuilder(PUBLIC_BASE_URL).append(objectKey);
+        char separator = '?';
         if (versionStamp != 0L) {
-            url += "?v=" + versionStamp;
+            url.append(separator).append("v=").append(versionStamp);
+            separator = '&';
         }
-        return url;
+        if (downloadName != null) {
+            url.append(separator).append("response-content-disposition=attachment;filename=\"")
+               .append(downloadName).append("\"");
+        }
+        return url.toString();
     }
 
     private final S3Client s3Client;

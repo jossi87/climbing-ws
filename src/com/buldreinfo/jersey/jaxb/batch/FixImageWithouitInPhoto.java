@@ -41,7 +41,7 @@ public class FixImageWithouitInPhoto {
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						String objectKey = S3KeyGenerator.getWebJpg(id);
-						String publicUrl = StorageManager.getPublicUrl(objectKey, 0L);
+						String publicUrl = StorageManager.getPublicUrl(objectKey, 0L, null);
 						Desktop.getDesktop().browse(URI.create(publicUrl));
 						int userId = getUser(c, id, scanner);
 						if (userId == END_SIGNAL) {

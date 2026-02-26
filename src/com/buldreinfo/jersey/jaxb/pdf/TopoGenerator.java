@@ -151,7 +151,7 @@ public class TopoGenerator {
 
 		// Image
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l);
+		String url = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l, null);
 		image.setAttributeNS(null, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "height", "100%");

@@ -715,7 +715,7 @@ public class PdfGenerator implements AutoCloseable {
 		Image img = null;
 		if ((mediaSvgs == null || mediaSvgs.isEmpty()) && (svgs == null || svgs.isEmpty())) {
 			if (mediaIdProcessed.add(mediaId)) {
-				URL url = URI.create(StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l)).toURL();
+				URL url = URI.create(StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), 0l, null)).toURL();
 				img = Image.getInstance(url);
 			}
 		}
