@@ -28,19 +28,24 @@ public class GlobalFunctions {
 		return res;
 	}
 
+	public static boolean requestAcceptsWebm(HttpServletRequest request) {
+		final String acceptHeader = request.getHeader("Accept");
+		return acceptHeader != null && acceptHeader.contains("video/webm");
+	}
+
+	public static boolean requestAcceptsWebp(HttpServletRequest request) {
+		final String acceptHeader = request.getHeader("Accept");
+		return acceptHeader != null && acceptHeader.contains("image/webp");
+	}
+
 	public static String stripString(String str) {
 		if (str == null) {
 			return null;
 		}
 		return Strings.emptyToNull(str.strip());
 	}
-
+	
 	private static String removeIllegalCharacters(String str) {
 		return str.trim().replaceAll("[\\\\/:*?\"<>|] ", "_");
-	}
-
-	public static boolean requestAcceptsWebp(HttpServletRequest request) {
-		final String acceptHeader = request.getHeader("Accept");
-		return acceptHeader != null && acceptHeader.contains("image/webp");
 	}
 }

@@ -58,6 +58,8 @@ public class FixMedia {
 		}
 	}
 
+	private record MediaTask(int id, String embedUrl) {}
+
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
@@ -73,7 +75,8 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = new ArrayList<>();
 
-	public FixMedia() {
+	private FixMedia() {
+		List<MediaTask> tasks = new ArrayList<>();
 		Server.runSql((dao, c) -> {
 			c.setAutoCommit(true);
 			List<Movie> movies = new ArrayList<>();
@@ -85,90 +88,37 @@ public class FixMedia {
 					dao.fillActivity(c, idProblem);
 				}
 			}
-			String sqlStr = "SELECT id, width, height, suffix, embed_url FROM media WHERE is_movie=1";
+			String sqlStr = "SELECT id, embed_url FROM media WHERE is_movie=1";
 			if (!newIdMedia.isEmpty()) {
 				sqlStr += " AND id IN (" + newIdMedia.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
 			}
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					final int id = rst.getInt("id");
-					final String embedUrl = rst.getString("embed_url");
-					final Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
-					final Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
-					final Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
-					final Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
-					executor.submit(() -> {
-						try {
-							if (embedUrl != null) {
-								// OriginalMp4
-								if (!Files.exists(originalMp4)) {
-									logger.info("Downloading embed video with id={} to {}", id, originalMp4);
-									Files.createDirectories(originalMp4.getParent());
-									String[] commands = {
-										    LOCAL_YT_DLP_PATH, 
-										    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
-										    embedUrl, 
-										    "-S", "ext:mp4:m4a", 
-										    "--merge-output-format", "mp4", 
-										    "-o", originalMp4.toString()
-										};
-									new ProcessBuilder().inheritIO().command(commands).start().waitFor();
-								}
-								if (!Files.exists(originalMp4)) {
-									warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
-								}
-								// Thumbnail
-								if (!Files.exists(originalJpg)) {
-									ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl);
-								}
-								if (!Files.exists(originalJpg)) {
-									warnings.add("Failed to download embedded video thumbnail with id=" + id + " to originalJpg=" + originalJpg);
-								}
-								// We don't want to create scaled versions of embedded videos, return
-								return;
-							}
-							if (!Files.exists(webm) || Files.size(webm) == 0) {
-								Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id + ", originalMp4=" + originalMp4);
-								logger.info("Generating WebM for id={} to {}", id, webm);
-								Files.createDirectories(webm.getParent());
-								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
-								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
-							}
-							if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-								Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, "WebM missing or empty: id=" + id);
-								logger.info("Generating WebMp4 for id={} to {}", id, mp4);
-								Files.createDirectories(mp4.getParent());
-								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
-							}
-							if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-								Path tmp = Files.createTempFile("fix_" + id + "_", ".jpg");
-								String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-								new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
-								if (Files.exists(tmp) && Files.size(tmp) > 0) {
-									BufferedImage b = ImageIO.read(tmp.toFile());
-									ImageHelper.saveImage(dao, c, id, b);
-									Files.deleteIfExists(tmp);
-								}
-							}
-						} catch (Exception e) {
-							warnings.add("Error processing id=" + id + ": " + e.getMessage());
-						}
-					});
+					tasks.add(new MediaTask(rst.getInt("id"), rst.getString("embed_url")));
 				}
 			}
-			executor.shutdown();
-			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 		});
+		for (MediaTask task : tasks) {
+			executor.submit(() -> {
+				try {
+					processTask(task);
+				} catch (Exception e) {
+					warnings.add("Error processing id=" + task.id() + ": " + e.getMessage());
+				}
+			});
+		}
+		executor.shutdown();
+		try {
+			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+		} catch (InterruptedException e) {
+			logger.error("Executor interrupted", e);
+			Thread.currentThread().interrupt();
+		}
 		for (String w : warnings) {
 			logger.warn(w);
 		}
 		logger.debug("Done");
-	}
-
-	private Path getLocalPath(String s3Key) {
-		return Paths.get(LOCAL_BUCKET_ROOT, s3Key);
 	}
 
 	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
@@ -208,5 +158,62 @@ public class FixMedia {
 		Files.copy(src, dst);
 		logger.info("New movie added to DB and copied to local drive with idMedia={} and dst={}", idMedia, dst);
 		return idMedia;
+	}
+
+	private Path getLocalPath(String s3Key) {
+		return Paths.get(LOCAL_BUCKET_ROOT, s3Key);
+	}
+
+	private void processTask(MediaTask task) throws Exception {
+		int id = task.id();
+		String embedUrl = task.embedUrl();
+		Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
+		Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
+		Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
+		Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
+
+		if (embedUrl != null) {
+			if (!Files.exists(originalMp4)) {
+				logger.info("Downloading embed video with id={} to {}", id, originalMp4);
+				Files.createDirectories(originalMp4.getParent());
+				String[] commands = {
+					LOCAL_YT_DLP_PATH, "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+					embedUrl, "-S", "ext:mp4:m4a", "--merge-output-format", "mp4", "-o", originalMp4.toString()
+				};
+				new ProcessBuilder().inheritIO().command(commands).start().waitFor();
+			}
+			if (!Files.exists(originalJpg)) {
+				Server.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
+			}
+			return;
+		}
+
+		// Local Files Flow
+		if (!Files.exists(webm) || Files.size(webm) == 0) {
+			Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id);
+			logger.info("Generating WebM for id={} to {}", id, webm);
+			Files.createDirectories(webm.getParent());
+			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", "-codec:a", "libvorbis", "-b:a", "128k", webm.toString()};
+			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+		}
+
+		if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+			Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, "WebM missing or empty: id=" + id);
+			logger.info("Generating WebMp4 for id={} to {}", id, mp4);
+			Files.createDirectories(mp4.getParent());
+			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
+			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+		}
+
+		if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
+			Path tmp = Files.createTempFile("fix_" + id + "_", ".jpg");
+			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
+			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+			if (Files.exists(tmp) && Files.size(tmp) > 0) {
+				BufferedImage b = ImageIO.read(tmp.toFile());
+				Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, id, b));
+				Files.deleteIfExists(tmp);
+			}
+		}
 	}
 }

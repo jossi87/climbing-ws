@@ -2,7 +2,6 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.CacheHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.io.ImageSaver;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
@@ -315,64 +313,6 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get media by id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
-	@GET
-	@Path("/images")
-	public Response getImages(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Version stamp (cache buster)", required = false) @QueryParam("versionStamp") int versionStamp,
-			@Parameter(description = "Image region - x", required = false) @QueryParam("x") int x,
-			@Parameter(description = "Image region - y", required = false) @QueryParam("y") int y,
-			@Parameter(description = "Image region - width", required = false) @QueryParam("width") int width,
-			@Parameter(description = "Image region - height", required = false) @QueryParam("height") int height,
-			@Parameter(description = "Target Width", required = false) @QueryParam("targetWidth") int targetWidth,
-			@Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension) {
-		logger.debug("getImages(id={}, versionStamp={}, x={}, y={}, width={}, height={}, targetWidth={}, minDimention={}) initialized", id, versionStamp, x, y, width, height, targetWidth, minDimension);
-		return Server.buildResponse(() -> {
-			StorageManager storage = StorageManager.getInstance();
-			String finalObjectKey;
-			if (width == 0 && height == 0 && targetWidth == 0 && minDimension == 0) {
-				boolean webP = GlobalFunctions.requestAcceptsWebp(request);
-				finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
-			} 
-			else if (width > 0 && height > 0) {
-				finalObjectKey = S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
-				if (!storage.exists(finalObjectKey)) {
-					String originalKey = S3KeyGenerator.getOriginalJpg(id);
-					BufferedImage b = Preconditions.checkNotNull(storage.downloadImage(originalKey), "Could not read " + originalKey);
-					b = Scalr.crop(b, x, y, width, height);
-					storage.uploadImage(finalObjectKey, b, StorageType.JPG);
-					b.flush();
-				}
-			} 
-			else {
-				finalObjectKey = S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
-				if (!storage.exists(finalObjectKey)) {
-					boolean useWebSource = targetWidth > 0 ? targetWidth <= ImageSaver.IMAGE_WEB_WIDTH : minDimension <= ImageSaver.IMAGE_WEB_WIDTH;
-					String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b == null) {
-						throw new IOException("Could not read source: " + sourceKey);
-					}
-					if (targetWidth > 0 && targetWidth < b.getWidth()) {
-						b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-					}
-					else if (minDimension > 0) {
-						Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-						if (minDimension < (mode == Scalr.Mode.FIT_TO_WIDTH ? b.getWidth() : b.getHeight())) {
-							b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
-						}
-					}
-					storage.uploadImage(finalObjectKey, b, StorageType.JPG);
-					b.flush();
-				}
-			}
-			String publicUrl = StorageManager.getPublicUrl(finalObjectKey, versionStamp);
-			var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
-			return CacheHelper.applyImmutableLongTermCache(builder).build();
-		});
-	}
-
 	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -384,6 +324,55 @@ public class V2 {
 			Media res = dao.getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
+	}
+
+	@Operation(summary = "Get media file by id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
+	@GET
+	@Path("/media/file")
+	public Response getMediaFile(@Context HttpServletRequest request,
+	        @Parameter(description = "Media id", required = true) @QueryParam("id") int id,
+	        @Parameter(description = "Is movie (true) or image (false)", required = true) @QueryParam("isMovie") boolean isMovie,
+	        @Parameter(description = "Version stamp (cache buster)", required = false) @QueryParam("versionStamp") int versionStamp,
+	        @Parameter(description = "Download original source", required = false) @QueryParam("original") boolean original,
+	        @Parameter(description = "Target Width", required = false) @QueryParam("targetWidth") int targetWidth,
+	        @Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension) {
+	    String finalObjectKey;
+	    if (isMovie) {
+            finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+	    }
+	    else {
+	        if (original) {
+	            finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
+	        }
+	        else if (targetWidth > 0 || minDimension > 0) {
+	            finalObjectKey = S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
+	            StorageManager storage = StorageManager.getInstance();
+	            if (!storage.exists(finalObjectKey)) {
+	                return Server.buildResponse(() -> {
+	                    boolean useWebSource = targetWidth > 0 ? targetWidth <= 1280 : minDimension <= 1280;
+	                    String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+	                    BufferedImage b = storage.downloadImage(sourceKey);
+	                    if (b != null) {
+	                        if (targetWidth > 0 && targetWidth < b.getWidth()) {
+	                            b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+	                        }
+	                        else if (minDimension > 0) {
+	                            Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+	                            b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+	                        }
+	                        storage.uploadImage(finalObjectKey, b, StorageType.JPG);
+	                        b.flush();
+	                    }
+	                    return createRedirect(finalObjectKey, versionStamp);
+	                });
+	            }
+	        }
+	        else {
+	            boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+	            finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
+	        }
+	    }
+	    return createRedirect(finalObjectKey, versionStamp);
 	}
 
 	@Operation(summary = "Get metadata", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))})})
@@ -1174,6 +1163,12 @@ public class V2 {
 			dao.trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
 		});
+	}
+
+	private Response createRedirect(String key, int version) {
+	    String publicUrl = StorageManager.getPublicUrl(key, version);
+	    var builder = Response.status(Response.Status.FOUND).location(URI.create(publicUrl));
+	    return CacheHelper.applyImmutableLongTermCache(builder).build();
 	}
 
 	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
