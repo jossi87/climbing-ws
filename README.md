@@ -40,7 +40,12 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 - Choose "Eclipse IDE for Enterprise Java and Web Developers"
 - "Checkout projects from Git" (<https://github.com/jossi87/climbing-ws>)
 - Install Tomcat server: File -> New -> Other -> Tomcat v10.1 Server
-- Edit buldreinfo.properties in "com.buldreinfo.jersey.jaxb.config" (all values are required for the server to run, just add wathever you want to the remaining poroperties)
+### Configuration
+
+- Create a file named `buldreinfo.properties` in `src/main/resources/com/buldreinfo/jersey/jaxb/config/`. 
+- You can use `buldreinfo.properties.example` as a template.
+- This file is ignored by Git to prevent accidental leaks of secrets.
+- All values are required for the server to run.
 
 ```sh
 db.hostname=localhost
