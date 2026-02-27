@@ -3,9 +3,6 @@ package com.buldreinfo.jersey.jaxb.config;
 import java.io.InputStream;
 import java.util.Properties;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-
 public class BuldreinfoConfig {
 	public final static String PROPERTY_KEY_DB_HOSTNAME = "db.hostname";
 	public final static String PROPERTY_KEY_DB_DATABASE = "db.database";
@@ -17,6 +14,7 @@ public class BuldreinfoConfig {
 	public final static String PROPERTY_KEY_AKAMAI_ACCESS_KEY = "akamai.access_key";
 	public final static String PROPERTY_KEY_AKAMAI_SECRET_KEY = "akamai.secret_key";
 	private static BuldreinfoConfig config = null;
+
 	public static synchronized BuldreinfoConfig getConfig() {
 		BuldreinfoConfig result = config;
 		if (result == null) {
@@ -29,20 +27,24 @@ public class BuldreinfoConfig {
 	
 	public BuldreinfoConfig() {
 		try (InputStream input = BuldreinfoConfig.class.getResourceAsStream("buldreinfo.properties")) {
-			Preconditions.checkArgument(input != null, "input is null");
+			if (input == null) {
+				throw new IllegalArgumentException("input is null");
+			}
             this.prop = new Properties();
             prop.load(input);
-            Preconditions.checkArgument(prop != null, "properties is null");
-            
         } catch (Exception e) {
         	throw new RuntimeException(e.getMessage(), e);
         }
 	}
 	
 	public String getProperty(String key) {
-		Preconditions.checkArgument(prop != null, "properties is null");
+		if (prop == null) {
+			throw new IllegalArgumentException("properties is null");
+		}
 		String value = prop.getProperty(key);
-		Preconditions.checkNotNull(Strings.emptyToNull(value), "Could not find property with key=" + key);
+		if (value == null || value.trim().isEmpty()) {
+			throw new NullPointerException("Could not find property with key=" + key);
+		}
 		return value;
 	}
 }
