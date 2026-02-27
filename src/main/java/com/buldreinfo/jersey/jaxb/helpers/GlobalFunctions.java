@@ -21,7 +21,7 @@ public class GlobalFunctions {
 
 	public static Path getPathLeafletPrint() {
 		String path = SystemUtils.IS_OS_WINDOWS ?
-				"C:/Users/JosteinØygarden/git/climbing-web/leaflet-puppeteer-print/index.js" :
+				"C:/Users/JosteinØygarden/git/climbing/climbing-web/leaflet-puppeteer-print/index.js" :
 					"/var/lib/jenkins/workspace/climbing-web/leaflet-puppeteer-print/index.js";
 		Path res = Paths.get(path);
 		Preconditions.checkArgument(Files.exists(res), res.toString() + " does not exist");
