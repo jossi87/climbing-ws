@@ -2251,7 +2251,7 @@ public class Dao {
 						areas.add(new Search(title, null, "/area/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "EXTERNAL" -> {
-						externalAreas.add(new Search(title, subTitle, rst.getString("external_url"), null, 0, 0, false, false, hits, pageViews));
+						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), 0, 0, false, false, hits, pageViews));
 					}
 					case "SECTOR" -> {
 						sectors.add(new Search(title, subTitle, "/sector/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
