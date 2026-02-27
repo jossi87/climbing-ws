@@ -3797,13 +3797,14 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			String coordinateIds = s.getOutline().stream()
-					.map(Coordinates::getId)
-					.map(String::valueOf)
-					.collect(Collectors.joining(","));
-			String sqlStr = String.format("DELETE FROM sector_outline WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			List<Integer> ids = s.getOutline().stream().map(Coordinates::getId).toList();
+			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+			String sqlStr = "DELETE FROM sector_outline WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
 			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 				ps.setInt(1, idSector);
+				for (int i = 0; i < ids.size(); i++) {
+					ps.setInt(i + 2, ids.get(i));
+				}
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
@@ -3826,13 +3827,14 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			String coordinateIds = s.getApproach().coordinates().stream()
-					.map(Coordinates::getId)
-					.map(String::valueOf)
-					.collect(Collectors.joining(","));
-			String sqlStr = String.format("DELETE FROM sector_approach WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			List<Integer> ids = s.getApproach().coordinates().stream().map(Coordinates::getId).toList();
+			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+			String sqlStr = "DELETE FROM sector_approach WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
 			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 				ps.setInt(1, idSector);
+				for (int i = 0; i < ids.size(); i++) {
+					ps.setInt(i + 2, ids.get(i));
+				}
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
@@ -3855,13 +3857,14 @@ public class Dao {
 				ps.execute();
 			}
 		} else {
-			String coordinateIds = s.getDescent().coordinates().stream()
-					.map(Coordinates::getId)
-					.map(String::valueOf)
-					.collect(Collectors.joining(","));
-			String sqlStr = String.format("DELETE FROM sector_descent WHERE sector_id=? AND coordinates_id NOT IN (%s)", coordinateIds);
+			List<Integer> ids = s.getDescent().coordinates().stream().map(Coordinates::getId).toList();
+			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+			String sqlStr = "DELETE FROM sector_descent WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
 			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 				ps.setInt(1, idSector);
+				for (int i = 0; i < ids.size(); i++) {
+					ps.setInt(i + 2, ids.get(i));
+				}
 				ps.execute();
 			}
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_descent (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
@@ -5289,12 +5292,22 @@ public class Dao {
 
 	private void upsertTickRepeats(Connection c, int idTick, List<TickRepeat> repeats) throws SQLException {
 		// Deleted removed ascents
-		String repeatIdsToKeep = repeats == null? null : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).map(String::valueOf).collect(Collectors.joining(","));
-		String sqlStr = Strings.isNullOrEmpty(repeatIdsToKeep) ? "DELETE FROM tick_repeat WHERE tick_id=?" :
-			"DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + repeatIdsToKeep + ")";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, idTick);
-			ps.execute();
+		List<Integer> idsToKeep = repeats == null ? List.of() : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).toList();
+		if (idsToKeep.isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM tick_repeat WHERE tick_id=?")) {
+				ps.setInt(1, idTick);
+				ps.execute();
+			}
+		} else {
+			String placeholders = String.join(",", Collections.nCopies(idsToKeep.size(), "?"));
+			String sqlStr = "DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + placeholders + ")";
+			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, idTick);
+				for (int i = 0; i < idsToKeep.size(); i++) {
+					ps.setInt(i + 2, idsToKeep.get(i));
+				}
+				ps.execute();
+			}
 		}
 		// Upsert repeats
 		if (repeats != null && !repeats.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb;
 
+import java.io.IOException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -12,15 +13,24 @@ import com.google.common.collect.Sets;
 import jakarta.annotation.Priority;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.container.ContainerResponseContext;
 import jakarta.ws.rs.container.ContainerResponseFilter;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
-public class CrossDomainFilter implements ContainerResponseFilter {
+public class CrossDomainFilter implements ContainerRequestFilter, ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
 	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
+
+	@Override
+	public void filter(ContainerRequestContext creq) throws IOException {
+		if (creq.getMethod().equals("OPTIONS")) {
+			creq.abortWith(Response.ok().build());
+		}
+	}
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
@@ -48,6 +58,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 						.map(Setup::domain)
 						.collect(Collectors.toList())) {
 					LEGAL_ORIGINS.add("https://" + domain);
+					LEGAL_ORIGINS.add("https://www." + domain);
 				}
 				LEGAL_ORIGINS.add("http://localhost:3001");
 				LEGAL_ORIGINS.add("http://localhost:8080");
@@ -62,7 +73,7 @@ public class CrossDomainFilter implements ContainerResponseFilter {
 				cres.getHeaders().add("Vary", "Cookie");
 			}
 			else {
-				logger.fatal("Invalid from: " + from + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
+				logger.warn("Invalid from: " + from + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
 			}
 		}
 	}
