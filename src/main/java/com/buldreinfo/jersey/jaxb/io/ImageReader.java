@@ -26,7 +26,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-public class ImageReader {
+public class ImageReader implements AutoCloseable {
     public static class ImageReaderBuilder {
         private byte[] bytes;
         private String embedVideoUrl;
@@ -81,6 +81,13 @@ public class ImageReader {
 
     public BufferedImage getJpgBufferedImage() {
         return jpgBufferedImage;
+    }
+
+    @Override
+    public void close() {
+        if (jpgBufferedImage != null) {
+            jpgBufferedImage.flush();
+        }
     }
 
     private BufferedImage convertToJpg(BufferedImage b) {

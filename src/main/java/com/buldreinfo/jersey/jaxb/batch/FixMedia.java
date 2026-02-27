@@ -220,7 +220,11 @@ public class FixMedia {
 			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
 			if (Files.exists(tmp) && Files.size(tmp) > 0) {
 				BufferedImage b = ImageIO.read(tmp.toFile());
-				Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, id, b));
+				try {
+					Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, id, b));
+				} finally {
+					b.flush();
+				}
 				Files.deleteIfExists(tmp);
 			}
 		}

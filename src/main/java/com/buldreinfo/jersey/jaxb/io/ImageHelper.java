@@ -16,18 +16,20 @@ public class ImageHelper {
 		String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
 		byte[] bytes = storage.downloadBytes(originalKey);
 		ExifReader exifReader = new ExifReader(bytes);
-		ImageReader imageReader = ImageReader.newBuilder()
+		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
 				.withRotation(rotation)
-				.build();
-		ImageSaver.newBuilder()
-		.withBufferedImage(imageReader.getJpgBufferedImage())
-		.withMetadata(exifReader.getOutputSet())
-		.withKeyOriginalJpg(originalKey)
-		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), exifReader.getDateTaken());
+				.build()) {
+			BufferedImage image = imageReader.getJpgBufferedImage();
+			ImageSaver.newBuilder()
+			.withBufferedImage(image)
+			.withMetadata(exifReader.getOutputSet())
+			.withKeyOriginalJpg(originalKey)
+			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
+			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
+			.save();
+			dao.setMediaMetadata(c, idMedia, image.getWidth(), image.getHeight(), exifReader.getDateTaken());
+		}
 		storage.deleteResizedCache(S3KeyGenerator.getWebJpgResizedPrefix(idMedia));
 	}
 
@@ -43,28 +45,32 @@ public class ImageHelper {
 
 	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
-		ImageReader imageReader = ImageReader.newBuilder()
+		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
 				.withRotation(exifReader.getRotation())
-				.build();
-		ImageSaver.newBuilder()
-		.withBufferedImage(imageReader.getJpgBufferedImage())
-		.withMetadata(exifReader.getOutputSet())
-		.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
-		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), exifReader.getDateTaken());
+				.build()) {
+			BufferedImage image = imageReader.getJpgBufferedImage();
+			ImageSaver.newBuilder()
+			.withBufferedImage(image)
+			.withMetadata(exifReader.getOutputSet())
+			.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
+			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
+			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
+			.save();
+			dao.setMediaMetadata(c, idMedia, image.getWidth(), image.getHeight(), exifReader.getDateTaken());
+		}
 	}
 
 	public static void saveImageFromEmbedVideo(Dao dao, Connection c, int idMedia, String embedVideoUrl) throws IOException, SQLException, InterruptedException {
-		ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build();
-		ImageSaver.newBuilder()
-		.withBufferedImage(imageReader.getJpgBufferedImage())
-		.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
-		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-		.save();
-		dao.setMediaMetadata(c, idMedia, imageReader.getJpgBufferedImage().getWidth(), imageReader.getJpgBufferedImage().getHeight(), null);
+		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build()) {
+			BufferedImage image = imageReader.getJpgBufferedImage();
+			ImageSaver.newBuilder()
+			.withBufferedImage(image)
+			.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
+			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
+			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
+			.save();
+			dao.setMediaMetadata(c, idMedia, image.getWidth(), image.getHeight(), null);
+		}
 	}
 }
