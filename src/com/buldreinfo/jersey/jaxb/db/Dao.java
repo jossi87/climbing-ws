@@ -1168,10 +1168,10 @@ public class Dao {
 				JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
 				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
 				JOIN region r ON a.region_id=r.id
-				JOIN user u ON m.photographer_user_id=u.id
+				LEFT JOIN user u ON m.photographer_user_id=u.id AND u.id!=1049 -- Ignore Unknown-user
 				LEFT JOIN media ma ON u.media_id=ma.id
 				JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN media_user mu ON m.id=mu.media_id
+				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 -- Ignore Unknown-user
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
 				WHERE r.id=?
