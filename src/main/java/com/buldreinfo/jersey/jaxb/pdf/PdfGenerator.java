@@ -96,7 +96,7 @@ public class PdfGenerator implements AutoCloseable {
 			this.watermark = watermark;
 		}
 		@Override
-		public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
+		public void cellLayout(@SuppressWarnings("unused") PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
 			var textCanvas = canvases[PdfPTable.TEXTCANVAS];
 			var phrase = new Phrase(watermark, FONT_WATERMARK);
 			var x = (position.getLeft() + position.getRight()) / 2;

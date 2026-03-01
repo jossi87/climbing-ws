@@ -2291,7 +2291,7 @@ public class Dao {
 						String url = ea.externalUrl();
 						int extId = Integer.parseInt(url.substring(url.lastIndexOf("/") + 1));
 						return !areaIdsVisible.contains(extId);
-					} catch (Exception e) {
+					} catch (Exception _) {
 						return true;
 					}
 				}).toList();
@@ -3674,7 +3674,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public void setProfile(Connection c, Optional<Integer> authUserId, Setup setup, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=? WHERE id=?")) {
@@ -4741,7 +4741,7 @@ public class Dao {
 						}
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(idMedia, uploadedByMe, versionStamp, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
 				}
@@ -4781,7 +4781,7 @@ public class Dao {
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia, width, height);
+					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					Media m = new Media(idMedia, uploadedByMe, versionStamp, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
 							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
@@ -5039,7 +5039,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia, int mediaWidth, int mediaHeight) throws SQLException {
+	private List<Svg> getSvgs(Connection c, Setup s, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		List<Svg> res = null;
 		String sqlStr = """
 				WITH x AS (

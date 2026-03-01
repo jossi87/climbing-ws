@@ -26,11 +26,13 @@ import jakarta.ws.rs.ext.Provider;
 public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
 	private final Gson gson = new GsonBuilder().create();
 
+	@SuppressWarnings("unused")
 	@Override
 	public boolean isReadable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
 		return true;
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public Object readFrom(Class<Object> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) throws IOException {
 		try (InputStreamReader streamReader = new InputStreamReader(entityStream)) {
@@ -44,16 +46,19 @@ public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, 
 		}
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
 		return true;
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public long getSize(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
 		return -1;
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public void writeTo(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
 		try (OutputStreamWriter writer = new OutputStreamWriter(entityStream)) {

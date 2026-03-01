@@ -59,7 +59,7 @@ public class S3BucketDownloadBatch {
             if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
                 executor.shutdownNow();
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

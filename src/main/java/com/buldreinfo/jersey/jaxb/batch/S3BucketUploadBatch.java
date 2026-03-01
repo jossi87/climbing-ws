@@ -65,7 +65,7 @@ public class S3BucketUploadBatch {
 			if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
 				executor.shutdownNow();
 			}
-		} catch (InterruptedException e) {
+		} catch (InterruptedException _) {
 			executor.shutdownNow();
 			Thread.currentThread().interrupt();
 		}
@@ -87,7 +87,7 @@ public class S3BucketUploadBatch {
 						try {
 							String probed = Files.probeContentType(file);
 							return (probed != null) ? probed : "application/octet-stream";
-						} catch (IOException e) {
+						} catch (IOException _) {
 							return "application/octet-stream";
 						}
 					});
@@ -112,7 +112,7 @@ public class S3BucketUploadBatch {
 						logger.info("Updating {} due to size change.", relativePath);
 					}
 				}
-			} catch (NoSuchKeyException e) {
+			} catch (NoSuchKeyException _) {
 				// Not in bucket yet
 			}
 			if (!shouldUpload) {

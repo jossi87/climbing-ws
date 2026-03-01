@@ -162,6 +162,7 @@ public class Activity {
 	public void setGuestbook(int id, String name, int mediaId, long mediaVersionStamp, String message) {
 		this.id = id;
 		this.name = name;
+		this.mediaId = mediaId;
 		this.mediaVersionStamp = mediaVersionStamp;
 		this.message = message;
 	}

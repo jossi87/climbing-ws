@@ -91,7 +91,7 @@ public class ExifReader {
 		String exifStr = null;
 		try {
 			exifStr = field.getStringValue();
-		} catch (ImagingException e) {
+		} catch (ImagingException _) {
 			exifStr = ((String[])field.getValue())[0];
 		}
 		if (exifStr != null) {

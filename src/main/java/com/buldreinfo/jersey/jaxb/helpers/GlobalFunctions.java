@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.net.http.HttpClient;
 
 import org.apache.commons.lang3.SystemUtils;
 
@@ -14,6 +15,10 @@ import com.google.common.base.Strings;
 import jakarta.servlet.http.HttpServletRequest;
 
 public class GlobalFunctions {
+	public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+			.followRedirects(HttpClient.Redirect.NORMAL)
+			.build();
+
 	public static String getFilename(String purpose, String ext) {
 		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
 		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, removeIllegalCharacters(purpose), ext);

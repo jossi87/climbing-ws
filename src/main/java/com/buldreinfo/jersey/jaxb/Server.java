@@ -103,7 +103,11 @@ public class Server {
 			}
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
-			return Response.serverError().build();
+			return switch (e) {
+				case IllegalArgumentException ex -> Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+				case java.sql.SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+				default -> Response.serverError().build();
+			};
 		}
 	}
 

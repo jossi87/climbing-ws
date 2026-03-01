@@ -19,7 +19,6 @@ import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -114,6 +113,7 @@ public class V2 {
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
+		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.deleteMedia(c, authUserId, id);
 			return Response.ok().build();
@@ -754,8 +754,7 @@ public class V2 {
 					frontpageNumTicks.numTicks(),
 					frontpageNumMedia.numImages(),
 					frontpageNumMedia.numMovies());
-			String html = getHtml(setup,
-					setup.url(),
+			String html = getHtml(setup.url(),
 					setup.title(),
 					description,
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
@@ -787,8 +786,7 @@ public class V2 {
 				description = String.format("Climbing in %s (%s)", a.getName(), info);
 			}
 			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().get(0) : null;
-			String html = getHtml(setup,
-					setup.url() + "/area/" + a.getId(),
+			String html = getHtml(setup.url() + "/area/" + a.getId(),
 					a.getName(),
 					description,
 					(m == null? 0 : m.id()),
@@ -838,8 +836,7 @@ public class V2 {
 					m = p.getMedia().get(0);
 				}
 			}
-			String html = getHtml(setup,
-					setup.url() + "/problem/" + p.getId(),
+			String html = getHtml(setup.url() + "/problem/" + p.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -857,7 +854,6 @@ public class V2 {
 	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
 			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
-			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch,
 			@Parameter(description = "Dont update hits", required = false) @QueryParam("dontUpdateHits") boolean dontUpdateHits) {
 		return getWithoutJsProblemMedia(request, id, mediaId, dontUpdateHits);
 	}
@@ -881,8 +877,7 @@ public class V2 {
 					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().get(0) : null;
-			String html = getHtml(setup,
-					setup.url() + "/sector/" + s.getId(),
+			String html = getHtml(setup.url() + "/sector/" + s.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -938,6 +933,7 @@ public class V2 {
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
+		Preconditions.checkArgument(u.userId() > 0, "Invalid userId");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			dao.upsertPermissionUser(c, setup.idRegion(), authUserId, u);
 			return Response.ok().build();
@@ -1005,8 +1001,8 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			dao.setProfile(c, authUserId, setup, profile, multiPart);
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
+			dao.setProfile(c, authUserId, profile, multiPart);
 			return Response.ok().build();
 		});
 	}
@@ -1110,8 +1106,8 @@ public class V2 {
 	@PUT
 	@Path("/media/avatar")
 	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
+		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
-			Preconditions.checkArgument(id > 0);
 			String originalKey = S3KeyGenerator.getOriginalJpg(id);
 			dao.saveUserAvatar(c, authUserId, () -> StorageManager.getInstance().getInputStream(originalKey));
 			return Response.ok().build();
@@ -1123,6 +1119,7 @@ public class V2 {
 	@PUT
 	@Path("/media/info")
 	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) {
+		Preconditions.checkArgument(m.mediaId() > 0, "Invalid mediaId");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			dao.updateMediaInfo(c, authUserId, m);
 			return Response.ok().build();
@@ -1137,6 +1134,7 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia,
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
+		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			dao.rotateMedia(c, setup.idRegion(), authUserId, idMedia, degrees);
 			return Response.ok().build();
@@ -1157,7 +1155,7 @@ public class V2 {
 				(idArea > 0 && idSector == 0 && idProblem == 0) ||
 				(idArea == 0 && idSector > 0 && idProblem == 0) ||
 				(idArea == 0 && idSector == 0 && idProblem > 0) ||
-				(idArea == 0 && idSector == 0 && idProblem == 0),
+				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0),
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			dao.trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
@@ -1171,7 +1169,7 @@ public class V2 {
 	    return CacheHelper.applyImmutableLongTermCache(builder).build();
 	}
 
-	private String getHtml(Setup setup, String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
+	private String getHtml(String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
 		String ogImage = "";
 		if (mediaId > 0) {
 			String imageUrl = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);

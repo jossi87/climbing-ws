@@ -117,7 +117,7 @@ public final class StorageManager {
 					.key(objectKey)
 					.build());
 			return true;
-		} catch (NoSuchKeyException e) {
+		} catch (NoSuchKeyException _) {
 			return false;
 		}
 	}

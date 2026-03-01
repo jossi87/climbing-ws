@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.xml;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -33,20 +32,18 @@ public class VegvesenParser {
 	}
 
 	public List<Webcam> getCameras() throws Exception {
-		try (HttpClient client = HttpClient.newHttpClient()) {
-			String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
-			HttpRequest request = HttpRequest.newBuilder()
-					.uri(URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"))
-					.header("Authorization", "Basic " + new String(Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8))))
-					.GET()
-					.build();
-			HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
-			Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
-			try (InputStream is = response.body()) {
-				List<Webcam> res = parseCameras(is);
-				logger.debug("getCameras() - res.size()={}", res.size());
-				return res;		
-			}
+		String auth = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_VEGVESEN_AUTH);
+		HttpRequest request = HttpRequest.newBuilder()
+				.uri(URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"))
+				.header("Authorization", "Basic " + new String(Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8))))
+				.GET()
+				.build();
+		HttpResponse<InputStream> response = com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofInputStream());
+		Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
+		try (InputStream is = response.body()) {
+			List<Webcam> res = parseCameras(is);
+			logger.debug("getCameras() - res.size()={}", res.size());
+			return res;		
 		}
 	}
 
