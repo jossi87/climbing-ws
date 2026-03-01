@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +32,7 @@ public class CacheHelper {
 	            MAX_AGE_SECONDS
 	        );
 	        builder.header("Cache-Control", cacheControlHeader);
-	        builder.expires(new Date(System.currentTimeMillis() + (MAX_AGE_SECONDS * 1000L))); // For legacy browsers
+	        builder.expires(Date.from(Instant.now().plusSeconds(MAX_AGE_SECONDS))); // For legacy browsers
 	        return builder;
 	    }
 }

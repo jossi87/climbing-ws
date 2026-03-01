@@ -65,10 +65,8 @@ import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 import com.buldreinfo.jersey.jaxb.xml.VegvesenParser;
 import com.buldreinfo.jersey.jaxb.xml.Webcam;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -509,11 +507,11 @@ public class V2 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getRobotsTxt(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (_, _, setup) -> {
-			List<String> lines = Lists.newArrayList(
+			List<String> lines = List.of(
 					"User-agent: *",
 					"Disallow: */pdf", // Disallow all pdf-calls
 					"Sitemap: " + setup.url() + "/sitemap.txt");
-			return Response.ok().entity(Joiner.on("\r\n").join(lines)).build();
+			return Response.ok().entity(String.join("\r\n", lines)).build();
 		});
 	}
 
@@ -550,7 +548,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) {
 					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeArea(meta, area, gradeDistribution, Lists.newArrayList(sector));
+						generator.writeArea(meta, area, gradeDistribution, List.of(sector));
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);
@@ -821,7 +819,7 @@ public class V2 {
 			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
 			String description = p.getComment();
 			if (p.getFa() != null && !p.getFa().isEmpty()) {
-				String fa = Joiner.on(", ").join(p.getFa().stream().map(x -> x.name().trim()).collect(Collectors.toList()));
+				String fa = p.getFa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
 				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
 			}
 			Media m = null;

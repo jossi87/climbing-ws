@@ -7,7 +7,9 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -32,9 +34,7 @@ import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.SvgAnchor;
 import com.buldreinfo.jersey.jaxb.model.SvgText;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -171,9 +171,12 @@ public class TopoGenerator {
 			}
 		}
 		if (svgs != null && !svgs.isEmpty()) {
-			List<Element> texts = Lists.newArrayList(); // Text always on top
+			List<Element> texts = new ArrayList<>(); // Text always on top
 			for (Svg svg : svgs) {
-				List<String> parts = Lists.newArrayList(Splitter.on("L").omitEmptyStrings().trimResults().split(svg.path().replace("M", "L").replace("C", "L")));
+				List<String> parts = Pattern.compile("L").splitAsStream(svg.path().replace("M", "L").replace("C", "L"))
+						.map(String::trim)
+						.filter(s -> !s.isEmpty())
+						.toList();
 				float x0 = Float.parseFloat(parts.getFirst().split(" ")[0]);
 				float y0 = Float.parseFloat(parts.getFirst().split(" ")[1]);
 				String[] lastParts = parts.getLast().split(" ");
