@@ -192,9 +192,9 @@ public class GeoHelper {
 	public static int getElevation(double latitude, double longitude) throws IOException, InterruptedException {
 		List<Coordinates> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinates(latitude, longitude));
-		coordinates.get(0).roundCoordinatesToMaximum10digitsAfterComma();
+		coordinates.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
 		GeoHelper.fillMissingElevations(coordinates);
-		return (int)Math.round(coordinates.get(0).getElevation());
+		return (int)Math.round(coordinates.getFirst().getElevation());
 	}
 	
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
@@ -245,7 +245,7 @@ public class GeoHelper {
 			}
 		}
 		// Set variables
-		GeoPoint g11 = boundingBoxPoints.get(0);
+		GeoPoint g11 = boundingBoxPoints.getFirst();
 		GeoPoint g12 = g11.getNeighbourPoint();
 		GeoPoint g21 = boundingBoxPoints.stream().filter(x -> x != g11 && x != g12).findAny().get();
 		GeoPoint g22 = g21.getNeighbourPoint();

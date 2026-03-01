@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -785,7 +786,7 @@ public class V2 {
 			else {
 				description = String.format("Climbing in %s (%s)", a.getName(), info);
 			}
-			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().get(0) : null;
+			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().getFirst() : null;
 			String html = getHtml(setup.url() + "/area/" + a.getId(),
 					a.getName(),
 					description,
@@ -833,7 +834,7 @@ public class V2 {
 					m = optM.get();
 				}
 				else {
-					m = p.getMedia().get(0);
+					m = p.getMedia().getFirst();
 				}
 			}
 			String html = getHtml(setup.url() + "/problem/" + p.getId(),
@@ -876,7 +877,7 @@ public class V2 {
 					(s.getProblems() != null? s.getProblems().size() : 0),
 					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().get(0) : null;
+			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().getFirst() : null;
 			String html = getHtml(setup.url() + "/sector/" + s.getId(),
 					title,
 					description,
@@ -897,7 +898,7 @@ public class V2 {
 	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
-			Preconditions.checkNotNull(Strings.emptyToNull(a.getName()));
+			Objects.requireNonNull(Strings.emptyToNull(a.getName()));
 			Redirect res = dao.setArea(c, setup, authUserId, a, multiPart);
 			return Response.ok().entity(res).build();
 		});
@@ -951,7 +952,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
-			Preconditions.checkNotNull(Strings.emptyToNull(p.getName()));
+			Objects.requireNonNull(Strings.emptyToNull(p.getName()));
 			Redirect res = dao.setProblem(c, authUserId, setup, p, multiPart);
 			return Response.ok().entity(res).build();
 		});
@@ -988,7 +989,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId) -> {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
-			Preconditions.checkNotNull(svg, "Invalid svg=" + svg);
+			Objects.requireNonNull(svg, "Invalid svg=" + svg);
 			dao.upsertSvg(c, authUserId, problemId, pitch, mediaId, svg);
 			return Response.ok().build();
 		});
@@ -1015,7 +1016,7 @@ public class V2 {
 	public Response postSearch(@Context HttpServletRequest request, SearchRequest sr) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
-			Preconditions.checkNotNull(search, "Invalid search: " + search);
+			Objects.requireNonNull(search, "Invalid search: " + search);
 			List<Search> res = dao.getSearch(c, authUserId, setup, search);
 			return Response.ok().entity(res).build();
 		});
@@ -1031,7 +1032,7 @@ public class V2 {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId) -> {
 			Preconditions.checkArgument(s.getAreaId() > 1);
-			Preconditions.checkNotNull(Strings.emptyToNull(s.getName()));
+			Objects.requireNonNull(Strings.emptyToNull(s.getName()));
 			Redirect res = dao.setSector(c, authUserId, setup, s, multiPart);
 			return Response.ok().entity(res).build();
 		});

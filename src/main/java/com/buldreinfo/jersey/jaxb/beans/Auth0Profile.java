@@ -1,13 +1,13 @@
 package com.buldreinfo.jersey.jaxb.beans;
 
 import java.util.Map;
+import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 public record Auth0Profile(String email, String firstname, String lastname, String fullname, String picture) {
 	public static Auth0Profile from(Map<String, Object> values) {
-		String email = Preconditions.checkNotNull((String)values.get("email"));
+		String email = Objects.requireNonNull((String)values.get("email"));
 		// Firstname
 		String firstname = (String) values.get("given_name");
 		if (firstname == null) {
@@ -19,7 +19,7 @@ public record Auth0Profile(String email, String firstname, String lastname, Stri
 		if (firstname == null) {
 			firstname = email;
 		}
-		Preconditions.checkNotNull(firstname);
+		Objects.requireNonNull(firstname);
 		// Lastname
 		String lastname = (String) values.get("family_name");
 		if (lastname == null) {

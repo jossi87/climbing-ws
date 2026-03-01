@@ -174,9 +174,9 @@ public class TopoGenerator {
 			List<Element> texts = Lists.newArrayList(); // Text always on top
 			for (Svg svg : svgs) {
 				List<String> parts = Lists.newArrayList(Splitter.on("L").omitEmptyStrings().trimResults().split(svg.path().replace("M", "L").replace("C", "L")));
-				float x0 = Float.parseFloat(parts.get(0).split(" ")[0]);
-				float y0 = Float.parseFloat(parts.get(0).split(" ")[1]);
-				String[] lastParts = parts.get(parts.size()-1).split(" ");
+				float x0 = Float.parseFloat(parts.getFirst().split(" ")[0]);
+				float y0 = Float.parseFloat(parts.getFirst().split(" ")[1]);
+				String[] lastParts = parts.getLast().split(" ");
 				float x1 = Float.parseFloat(lastParts[lastParts.length-2]);
 				float y1 = Float.parseFloat(lastParts[lastParts.length-1]);
 				boolean firstIsLowest = y0 > y1;

@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -711,7 +712,7 @@ public class Dao {
 				return new Area(res.redirectUrl(), -1, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
 			}
 		}
-		Preconditions.checkNotNull(a, "Could not find area with id=" + reqId);
+		Objects.requireNonNull(a, "Could not find area with id=" + reqId);
 		Map<Integer, Area.AreaSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp
@@ -744,7 +745,7 @@ public class Dao {
 						boolean showHiddenMedia = true; // Show everything to ensure image in area overview
 						List<Media> x = getMediaSector(c, s, authUserId, id, 0, inherited, 0, 0, 0, showHiddenMedia);
 						if (!x.isEmpty()) {
-							randomMediaId = x.get(0).id();
+							randomMediaId = x.getFirst().id();
 						}
 					}
 					Area.AreaSector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, wallDirectionCalculated, wallDirectionManual, randomMediaId, randomMediaVersionStamp);
@@ -945,7 +946,7 @@ public class Dao {
 				}
 			}
 		}
-		Preconditions.checkNotNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		Objects.requireNonNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
 		return res;
 	}
 
@@ -1489,7 +1490,7 @@ public class Dao {
 			}
 		}
 
-		Preconditions.checkNotNull(p, "Could not find problem with id=" + reqId);
+		Objects.requireNonNull(p, "Could not find problem with id=" + reqId);
 		// Ascents
 		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -2272,16 +2273,16 @@ public class Dao {
 		// Truncate logic
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
 			if (problems.size() > 5) {
-				problems.remove(problems.size() - 1);
+				problems.removeLast();
 			}
 			else if (areas.size() > 2) {
-				areas.remove(areas.size() - 1);
+				areas.removeLast();
 			}
 			else if (sectors.size() > 2) {
-				sectors.remove(sectors.size() - 1);
+				sectors.removeLast();
 			}
 			else if (users.size() > 1) {
-				users.remove(users.size() - 1);
+				users.removeLast();
 			}
 		}
 		// Filter External Areas
@@ -2385,7 +2386,7 @@ public class Dao {
 			}
 		}
 
-		Preconditions.checkNotNull(s, "Could not find sector with id=" + reqId);
+		Objects.requireNonNull(s, "Could not find sector with id=" + reqId);
 		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, s.getAreaId());
@@ -3308,7 +3309,7 @@ public class Dao {
 				}
 			} else {
 				if (ixToMove == idMediaList.size()) {
-					idMediaList.add(0, id); // Move from end to start
+					idMediaList.addFirst(id); // Move from end to start
 				} else {
 					idMediaList.add(ixToMove+1, id);
 				}
@@ -4130,7 +4131,7 @@ public class Dao {
 				throw new IllegalArgumentException("Comment not editable by " + authUserId.orElseThrow() + ". Other users can only mark as dangerous - comment=" + comment);
 			}
 		} else {
-			Preconditions.checkNotNull(GlobalFunctions.stripString(co.comment()));
+			Objects.requireNonNull(GlobalFunctions.stripString(co.comment()));
 			int parentId = 0;
 			try (PreparedStatement ps = c.prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
 				ps.setInt(1, co.idProblem());
@@ -4283,8 +4284,8 @@ public class Dao {
 		String suffix = null;
 		if (Strings.isNullOrEmpty(m.name())) {
 			// Embed video url
-			Preconditions.checkNotNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
-			Preconditions.checkNotNull(m.embedVideoUrl(), "embedVideoUrl required");
+			Objects.requireNonNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
+			Objects.requireNonNull(m.embedVideoUrl(), "embedVideoUrl required");
 			// First check if video already exists in system, don't duplicate videos!
 			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
 				ps.setString(1, m.embedVideoUrl());

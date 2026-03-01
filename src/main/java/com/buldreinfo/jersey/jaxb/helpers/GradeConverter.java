@@ -4,9 +4,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.buldreinfo.jersey.jaxb.model.Grade;
-import com.google.common.base.Preconditions;
 
 public class GradeConverter {
 	public static final String NO_PERSONAL_GRADE = "No personal grade";
@@ -33,7 +33,7 @@ public class GradeConverter {
 		while (res == null && i < Collections.max(idLookup.keySet())) {
 			res = idLookup.get(++i);
 		}
-		return Preconditions.checkNotNull(res, "Invalid idGrade=" + idGrade + " (grades=" + grades + ")");
+		return Objects.requireNonNull(res, "Invalid idGrade=" + idGrade + " (grades=" + grades + ")");
 	}
 	
 	public List<Grade> getGrades() {
@@ -41,7 +41,7 @@ public class GradeConverter {
 	}
 	
 	public int getIdGradeFromGrade(String grade) {
-		Preconditions.checkNotNull(grade, "grade is null");
+		Objects.requireNonNull(grade, "grade is null");
 		if (grade.equals(NO_PERSONAL_GRADE)) {
 			// No personal grade
 			return NO_PERSONAL_GRADE_ID;

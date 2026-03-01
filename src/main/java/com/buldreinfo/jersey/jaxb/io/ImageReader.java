@@ -14,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import javax.imageio.ImageIO;
 
@@ -66,7 +67,7 @@ public class ImageReader implements AutoCloseable {
 		else {
 			throw new RuntimeException("Invalid builder");
 		}
-		Preconditions.checkNotNull(bufferedImage, "BufferedImage could not be read");
+		Objects.requireNonNull(bufferedImage, "BufferedImage could not be read");
 		if (builder.rotation != null) {
 			BufferedImage rotated = Scalr.rotate(bufferedImage, builder.rotation, Scalr.OP_ANTIALIAS);
 			if (rotated != bufferedImage) {

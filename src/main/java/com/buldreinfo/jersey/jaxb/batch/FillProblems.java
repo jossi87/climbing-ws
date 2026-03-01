@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
@@ -145,7 +146,7 @@ public class FillProblems {
 				int id = -1;
 				List<User> users = dao.getUserSearch(c, AUTH_USER_ID, user);
 				if (!users.isEmpty()) {
-					id = users.get(0).id();
+					id = users.getFirst().id();
 				}
 				res.add(User.from(id, user, null));
 			}
@@ -178,7 +179,7 @@ public class FillProblems {
 	}
 
 	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
-		Area a = Preconditions.checkNotNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, false));
+		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, false));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
 				return s.getId();

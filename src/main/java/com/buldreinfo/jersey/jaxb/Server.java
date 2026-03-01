@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb;
 import java.sql.Connection;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,7 +18,6 @@ import com.buldreinfo.jersey.jaxb.function.Function;
 import com.buldreinfo.jersey.jaxb.function.FunctionDb;
 import com.buldreinfo.jersey.jaxb.function.FunctionDbUser;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -150,8 +150,8 @@ public class Server {
 	}
 
 	private Setup getSetup(HttpServletRequest request) {
-		Preconditions.checkNotNull(request);
-		Preconditions.checkNotNull(request.getServerName(), "Invalid request=" + request);
+		Objects.requireNonNull(request);
+		Objects.requireNonNull(request.getServerName(), "Invalid request=" + request);
 		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
 		Setup setup = setupMap.get(serverName);
 		if (setup == null) {

@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.io;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 
 import javax.imageio.ImageIO;
@@ -11,7 +12,6 @@ import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
-import com.google.common.base.Preconditions;
 
 public class ImageSaver {
 	public static int IMAGE_WEB_WIDTH = 2560;
@@ -53,7 +53,7 @@ public class ImageSaver {
 	}
 
 	private ImageSaver(ImageSaverBuilder builder) {
-		Preconditions.checkNotNull(builder.bufferedImage);
+		Objects.requireNonNull(builder.bufferedImage);
 		StorageManager storage = StorageManager.getInstance();
 		if (builder.keyOriginalJpg != null) {
 			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
