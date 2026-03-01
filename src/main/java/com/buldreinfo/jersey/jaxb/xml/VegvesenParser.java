@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
@@ -22,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 public class VegvesenParser {
 	private static Logger logger = LogManager.getLogger();
@@ -51,84 +51,88 @@ public class VegvesenParser {
 	}
 
 	private List<Webcam> parseCameras(InputStream is) throws Exception {
-		List<Webcam> cameras = Lists.newArrayList();
+		List<Webcam> cameras = new ArrayList<>();
 		XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 		inputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
 		XMLEventReader eventReader = inputFactory.createXMLEventReader(is);
-		Webcam camera = null;
-		while (eventReader.hasNext()) {
-			XMLEvent event = eventReader.nextEvent();
-			if (event.isStartElement()) {
-				StartElement startElement = event.asStartElement();
-				// If we have an item element, we create a new item
-				String elementName = startElement.getName().getLocalPart();
-				switch (elementName) {
-				case "cctvCameraMetadataRecord" -> camera = new Webcam();
-				case "cctvCameraIdentification" -> {
-					event = eventReader.nextEvent();
-					if (camera != null && isCharacherString(event)) {
-						camera.setId(event.asCharacters().getData());
+		try {
+			Webcam camera = null;
+			while (eventReader.hasNext()) {
+				XMLEvent event = eventReader.nextEvent();
+				if (event.isStartElement()) {
+					StartElement startElement = event.asStartElement();
+					// If we have an item element, we create a new item
+					String elementName = startElement.getName().getLocalPart();
+					switch (elementName) {
+					case "cctvCameraMetadataRecord" -> camera = new Webcam();
+					case "cctvCameraIdentification" -> {
+						event = eventReader.nextEvent();
+						if (camera != null && isCharacherString(event)) {
+							camera.setId(event.asCharacters().getData());
+						}
 					}
-				}
-				case "cctvCameraRecordVersionTime" -> {
-					if (camera != null) {
-						event = eventReader.nextEvent();
-						camera.setLastUpdated(event.asCharacters().getData());
-					}
-				}
-				case "cctvCameraSiteLocalDescription" -> {
-					if (camera != null) {
-						eventReader.nextEvent();
-						eventReader.nextEvent();
-						event = eventReader.nextEvent();
-						camera.setName(event.asCharacters().getData());
-					}
-				}
-				case "stillImageUrl" -> {
-					event = eventReader.nextEvent();
-					if (camera != null && event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkAddress")) {
-						event = eventReader.nextEvent();
-						camera.setUrlStillImage(event.asCharacters().getData());
-						event = eventReader.nextEvent();
-						if (event.isEndElement() && event.asEndElement().getName().getLocalPart().equals("urlLinkAddress")) {
+					case "cctvCameraRecordVersionTime" -> {
+						if (camera != null) {
 							event = eventReader.nextEvent();
-							if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkDescription")) {
+							camera.setLastUpdated(event.asCharacters().getData());
+						}
+					}
+					case "cctvCameraSiteLocalDescription" -> {
+						if (camera != null) {
+							eventReader.nextEvent();
+							eventReader.nextEvent();
+							event = eventReader.nextEvent();
+							camera.setName(event.asCharacters().getData());
+						}
+					}
+					case "stillImageUrl" -> {
+						event = eventReader.nextEvent();
+						if (camera != null && event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkAddress")) {
+							event = eventReader.nextEvent();
+							camera.setUrlStillImage(event.asCharacters().getData());
+							event = eventReader.nextEvent();
+							if (event.isEndElement() && event.asEndElement().getName().getLocalPart().equals("urlLinkAddress")) {
 								event = eventReader.nextEvent();
-								if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("values")) {
+								if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("urlLinkDescription")) {
 									event = eventReader.nextEvent();
-									if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("value")) {
+									if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("values")) {
 										event = eventReader.nextEvent();
-										if (isCharacherString(event)) {
-											camera.setUrlYr(event.asCharacters().getData());
+										if (event.isStartElement() && event.asStartElement().getName().getLocalPart().equals("value")) {
+											event = eventReader.nextEvent();
+											if (isCharacherString(event)) {
+												camera.setUrlYr(event.asCharacters().getData());
+											}
 										}
 									}
 								}
 							}
 						}
 					}
-				}
-				case "latitude" -> {
-					if (camera != null) {
-						event = eventReader.nextEvent();
-						camera.setLat(Double.parseDouble(event.asCharacters().getData()));
+					case "latitude" -> {
+						if (camera != null) {
+							event = eventReader.nextEvent();
+							camera.setLat(Double.parseDouble(event.asCharacters().getData()));
+						}
+					}
+					case "longitude" -> {
+						if (camera != null) {
+							event = eventReader.nextEvent();
+							camera.setLng(Double.parseDouble(event.asCharacters().getData()));
+						}
+					}
 					}
 				}
-				case "longitude" -> {
-					if (camera != null) {
-						event = eventReader.nextEvent();
-						camera.setLng(Double.parseDouble(event.asCharacters().getData()));
+				// If we reach the end of an item element, we add it to the list
+				if (event.isEndElement()) {
+					EndElement endElement = event.asEndElement();
+					if (endElement.getName().getLocalPart().equals("cctvCameraMetadataRecord")) {
+						cameras.add(camera);
 					}
 				}
-				}
 			}
-			// If we reach the end of an item element, we add it to the list
-			if (event.isEndElement()) {
-				EndElement endElement = event.asEndElement();
-				if (endElement.getName().getLocalPart().equals("cctvCameraMetadataRecord")) {
-					cameras.add(camera);
-				}
-			}
+		} finally {
+			eventReader.close();
 		}
 		return cameras;
 	}

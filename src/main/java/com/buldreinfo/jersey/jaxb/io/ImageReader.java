@@ -109,21 +109,26 @@ public class ImageReader implements AutoCloseable {
         String imgUrl = null;
         if (embedUrl.startsWith("https://www.youtube.com/embed/")) {
             String id = embedUrl.replace("https://www.youtube.com/embed/", "");
-            imgUrl = "https://img.youtube.com/vi/" + id + "/0.jpg";
-        } else if (embedUrl.startsWith("https://player.vimeo.com/video/")) {
+            if (id.matches("^[a-zA-Z0-9_-]+$")) {
+                imgUrl = "https://img.youtube.com/vi/" + id + "/0.jpg";
+            }
+        }
+        else if (embedUrl.startsWith("https://player.vimeo.com/video/")) {
             String id = embedUrl.replace("https://player.vimeo.com/video/", "");
-            HttpClient client = HttpClient.newHttpClient(); 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
-                    .GET()
-                    .build();
-            HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
-            Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error: " + response.statusCode());
-            try (InputStream is = response.body();
-                 Reader targetReader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
-                JsonArray arr = new Gson().fromJson(targetReader, JsonArray.class);
-                JsonObject obj = arr.get(0).getAsJsonObject();
-                imgUrl = obj.get("thumbnail_large").getAsString();
+            if (id.matches("^[0-9]+$")) {
+                HttpClient client = HttpClient.newHttpClient(); 
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
+                        .GET()
+                        .build();
+                HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+                Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error: " + response.statusCode());
+                try (InputStream is = response.body();
+                     Reader targetReader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
+                    JsonArray arr = new Gson().fromJson(targetReader, JsonArray.class);
+                    JsonObject obj = arr.get(0).getAsJsonObject();
+                    imgUrl = obj.get("thumbnail_large").getAsString();
+                }
             }
         }
         Preconditions.checkArgument(imgUrl != null, "Could not determine thumbnail URL for: " + embedUrl);

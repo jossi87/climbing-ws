@@ -76,10 +76,10 @@ public class AuthHelper {
 					ps.execute();
 				}
 			}
-			logger.info("getAuthUserId(accessToken={}) - authUserId={}, duration={}", accessToken, authUserId, stopwatch);
+			logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId, stopwatch);
 			return authUserId;
 		} catch (Exception e) {
-			logger.warn("getAuthUserId(accessToken={}) - authentication failed, login required - duration={}, message={}", accessToken, stopwatch, e.getMessage());
+			logger.warn("getAuthUserId() - authentication failed, login required - duration={}, message={}", stopwatch, e.getMessage());
 			return Optional.empty();
 		}
 	}

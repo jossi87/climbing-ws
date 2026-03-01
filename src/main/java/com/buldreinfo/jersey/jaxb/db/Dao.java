@@ -122,7 +122,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
-import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -4383,7 +4382,7 @@ public class Dao {
 			}
 			else {
 				try (InputStream is = inputStreamSupplier.get()) {
-					byte[] bytes = ByteStreams.toByteArray(is);
+					byte[] bytes = is.readAllBytes();
 					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
 			}
