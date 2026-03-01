@@ -2,7 +2,7 @@ package com.buldreinfo.jersey.jaxb.io;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 import javax.imageio.ImageIO;
 
@@ -56,42 +56,44 @@ public class ImageSaver {
 		Preconditions.checkNotNull(builder.bufferedImage);
 		StorageManager storage = StorageManager.getInstance();
 		if (builder.keyOriginalJpg != null) {
-			CompletableFuture<Void> fOriginal = CompletableFuture.runAsync(() -> {
-				try {
-					if (builder.metadata == null) {
-						storage.uploadImage(builder.keyOriginalJpg, builder.bufferedImage, StorageType.JPG);
-					}
-					else {
-						try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-							ImageIO.write(builder.bufferedImage, "jpg", baos);
-							try (ByteArrayOutputStream finalOs = new ByteArrayOutputStream()) {
-								new ExifRewriter().updateExifMetadataLossless(baos.toByteArray(), finalOs, builder.metadata);
-								storage.uploadBytes(builder.keyOriginalJpg, finalOs.toByteArray(), StorageType.JPG);
+			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+				executor.execute(() -> {
+					try {
+						if (builder.metadata == null) {
+							storage.uploadImage(builder.keyOriginalJpg, builder.bufferedImage, StorageType.JPG);
+						}
+						else {
+							try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+								ImageIO.write(builder.bufferedImage, "jpg", baos);
+								try (ByteArrayOutputStream finalOs = new ByteArrayOutputStream()) {
+									new ExifRewriter().updateExifMetadataLossless(baos.toByteArray(), finalOs, builder.metadata);
+									storage.uploadBytes(builder.keyOriginalJpg, finalOs.toByteArray(), StorageType.JPG);
+								}
 							}
 						}
+					} catch (Exception e) {
+						throw new RuntimeException("Original upload failed: " + e.getMessage(), e);
 					}
-				} catch (Exception e) {
-					throw new RuntimeException("Original upload failed: " + e.getMessage(), e);
-				}
-			});
-			CompletableFuture<Void> fWeb = CompletableFuture.runAsync(() -> {
-				try {
-					BufferedImage webImage = builder.bufferedImage;
-					if (builder.bufferedImage.getWidth() > IMAGE_WEB_WIDTH || builder.bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
-						webImage = Scalr.resize(builder.bufferedImage, Scalr.Method.ULTRA_QUALITY, 
-								Scalr.Mode.AUTOMATIC, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
+				});
+				executor.execute(() -> {
+					try {
+						BufferedImage webImage = builder.bufferedImage;
+						if (builder.bufferedImage.getWidth() > IMAGE_WEB_WIDTH || builder.bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
+							webImage = Scalr.resize(builder.bufferedImage, Scalr.Method.ULTRA_QUALITY, 
+									Scalr.Mode.AUTOMATIC, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
+						}
+						storage.uploadImage(builder.keyWebJpg, webImage, StorageType.JPG);
+						storage.uploadImage(builder.keyWebWebP, webImage, StorageType.WEBP);
+						if (webImage != builder.bufferedImage) {
+							webImage.flush();
+						}
+					} catch (Exception e) {
+						throw new RuntimeException("Web upload failed: " + e.getMessage(), e);
 					}
-					storage.uploadImage(builder.keyWebJpg, webImage, StorageType.JPG);
-					storage.uploadImage(builder.keyWebWebP, webImage, StorageType.WEBP);
-					if (webImage != builder.bufferedImage) {
-						webImage.flush();
-					}
-				} catch (Exception e) {
-					throw new RuntimeException("Web upload failed: " + e.getMessage(), e);
-				}
-			});
-			CompletableFuture.allOf(fOriginal, fWeb).join();
-		} else {
+				});
+			}
+		}
+		else {
 			throw new RuntimeException("Invalid builder: Missing S3 keys");
 		}
 	}
