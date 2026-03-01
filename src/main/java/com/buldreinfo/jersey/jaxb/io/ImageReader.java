@@ -6,14 +6,11 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import javax.imageio.ImageIO;
@@ -21,6 +18,7 @@ import javax.imageio.ImageIO;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -120,14 +118,11 @@ public class ImageReader implements AutoCloseable {
 						.uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
 						.GET()
 						.build();
-				HttpResponse<InputStream> response = com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofInputStream());
+				HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
 				Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error: " + response.statusCode());
-				try (InputStream is = response.body();
-						Reader targetReader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
-					JsonArray arr = new Gson().fromJson(targetReader, JsonArray.class);
-					JsonObject obj = arr.get(0).getAsJsonObject();
-					imgUrl = obj.get("thumbnail_large").getAsString();
-				}
+				JsonArray arr = new Gson().fromJson(response.body(), JsonArray.class);
+				JsonObject obj = arr.get(0).getAsJsonObject();
+				imgUrl = obj.get("thumbnail_large").getAsString();
 			}
 		}
 		Preconditions.checkArgument(imgUrl != null, "Could not determine thumbnail URL for: " + embedUrl);

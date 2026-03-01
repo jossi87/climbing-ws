@@ -117,7 +117,9 @@ public class FixMedia {
 	private int addMovie(Connection c, Path src, int idPhotographerUserId, int idUploaderUserId, Map<Integer, Long> idProblemMsMap, List<Integer> inPhoto) throws SQLException, IOException {
 		Preconditions.checkArgument(Files.exists(src), "Source file " + src + " not found.");
 		int idMedia = 0;
-		String suffix = com.google.common.io.Files.getFileExtension(src.getFileName().toString()).toLowerCase();
+		String fileName = src.getFileName().toString();
+		int dotIndex = fileName.lastIndexOf('.');
+		String suffix = (dotIndex == -1) ? "" : fileName.substring(dotIndex + 1).toLowerCase();
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created) VALUES (1, ?, ?, ?, NOW())", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, suffix);
 			ps.setInt(2, idPhotographerUserId);

@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -105,7 +106,7 @@ public class Server {
 			logger.error(e.getMessage(), e);
 			return switch (e) {
 				case IllegalArgumentException ex -> Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-				case java.sql.SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+				case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
 				default -> Response.serverError().build();
 			};
 		}

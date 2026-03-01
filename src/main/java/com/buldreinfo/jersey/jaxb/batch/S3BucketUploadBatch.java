@@ -80,7 +80,8 @@ public class S3BucketUploadBatch {
 				skipCount.incrementAndGet();
 				return;
 			}
-			String ext = com.google.common.io.Files.getFileExtension(relativePath).toLowerCase();
+			int dotIndex = relativePath.lastIndexOf('.');
+			String ext = (dotIndex == -1) ? "" : relativePath.substring(dotIndex + 1).toLowerCase();
 			String mimeType = StorageType.fromExtension(ext)
 					.map(StorageType::getMimeType)
 					.orElseGet(() -> {

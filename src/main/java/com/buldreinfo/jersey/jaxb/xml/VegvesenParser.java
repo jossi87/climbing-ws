@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.xml;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -21,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.google.common.base.Preconditions;
 
 public class VegvesenParser {
@@ -38,9 +40,9 @@ public class VegvesenParser {
 				.header("Authorization", "Basic " + new String(Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8))))
 				.GET()
 				.build();
-		HttpResponse<InputStream> response = com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofInputStream());
+		HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
 		Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
-		try (InputStream is = response.body()) {
+		try (InputStream is = new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8))) {
 			List<Webcam> res = parseCameras(is);
 			logger.debug("getCameras() - res.size()={}", res.size());
 			return res;		
