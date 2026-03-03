@@ -1,58 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="warn">
+<Configuration status="warn" shutdownHook="disable">
+    <Properties>
+        <Property name="BASE_DIR">${sys:catalina.base:-.}</Property>
+        <Property name="LOG_PATTERN">%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
     <Appenders>
         <Console name="CONSOLE" target="SYSTEM_OUT">
-            <PatternLayout
-                pattern="%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36}:%L - %msg%n"
-                charset="UTF-8" />
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8" />
         </Console>
         
         <RollingFile name="RollingFile"
-            fileName="logs/com.buldreinfo.jersey.jaxb.log"
-            filePattern="logs/$${date:yyyy-MM}/com.buldreinfo.jersey.jaxb-%d{MM-dd-yyyy}-%i.log.gz">
-            <PatternLayout
-                pattern="%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36}:%L - %msg%n"
-                charset="UTF-8" />
+            fileName="${BASE_DIR}/logs/com.buldreinfo.jersey.jaxb.log"
+            filePattern="${BASE_DIR}/logs/archive/com.buldreinfo.jersey.jaxb-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8" />
             <Policies>
-                <SizeBasedTriggeringPolicy size="5 MB" />
+                <SizeBasedTriggeringPolicy size="10 MB" />
             </Policies>
-            <DefaultRolloverStrategy max="20" />
+            <DefaultRolloverStrategy max="10" />
         </RollingFile>
         
         <RollingFile name="ErrRollingFile"
-            fileName="logs/com.buldreinfo.jersey.jaxb.error.log"
-            filePattern="logs/$${date:yyyy-MM}/com.buldreinfo.jersey.jaxb.error-%d{MM-dd-yyyy}-%i.log.gz">
-            <PatternLayout
-                pattern="%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36}:%L - %msg%n"
-                charset="UTF-8" />
+            fileName="${BASE_DIR}/logs/com.buldreinfo.jersey.jaxb.error.log"
+            filePattern="${BASE_DIR}/logs/archive/com.buldreinfo.jersey.jaxb.error-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8" />
             <Policies>
-                <SizeBasedTriggeringPolicy size="5 MB" />
+                <SizeBasedTriggeringPolicy size="10 MB" />
             </Policies>
-            <DefaultRolloverStrategy max="20" />
+            <DefaultRolloverStrategy max="10" />
         </RollingFile>
         
-        <Async name="ASYNC" includeLocation="true">
+        <Async name="ASYNC" includeLocation="false">
             <AppenderRef ref="CONSOLE" />
             <AppenderRef ref="RollingFile" />
         </Async>
         
-        <Async name="ASYNCERR" includeLocation="true">
+        <Async name="ASYNCERR" includeLocation="false">
             <AppenderRef ref="ErrRollingFile" />
         </Async>
     </Appenders>
 
     <Loggers>
         <Logger name="software.amazon.awssdk" level="info" />
-
         <Logger name="com.zaxxer.hikari" level="info" />
-        
-        <Logger name="com.mysql.cj" level="info" />
-        
         <Logger name="org.glassfish.jersey" level="info" />
-        
         <Logger name="org.apache" level="warn" />
 
-        <Root level="debug">
+        <Logger name="com.buldreinfo" level="debug" additivity="false">
+            <AppenderRef ref="ASYNC" />
+            <AppenderRef ref="ASYNCERR" level="error" />
+        </Logger>
+
+        <Root level="info">
             <AppenderRef ref="ASYNC" />
             <AppenderRef ref="ASYNCERR" level="error" />
         </Root>
