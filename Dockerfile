@@ -6,7 +6,7 @@ COPY . .
 RUN mvn clean package -DskipTests
 
 # --- Stage 2: Runtime Stage (Tomcat 10 + Java 25) ---
-FROM tomcat:10.1-jdk21-slim
+FROM tomcat:10.1-jdk21-openjdk-slim
 
 # Replace the default JDK 21 with JDK 25 from the build stage
 COPY --from=build /usr/java/openjdk-25 /usr/java/openjdk-25
