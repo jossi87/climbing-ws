@@ -1,6 +1,8 @@
 package com.buldreinfo.jersey.jaxb.config;
 
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 public class BuldreinfoConfig {
@@ -22,21 +24,31 @@ public class BuldreinfoConfig {
 		}
 		return result;
 	}
-	
+
 	private final Properties prop;
-	
+
 	public BuldreinfoConfig() {
-		try (InputStream input = BuldreinfoConfig.class.getResourceAsStream("buldreinfo.properties")) {
-			if (input == null) {
-				throw new IllegalArgumentException("input is null");
+		this.prop = new Properties();
+		Path externalPath = Path.of("/usr/local/tomcat/conf/buldreinfo.properties");
+		try {
+			if (Files.exists(externalPath)) {
+				try (InputStream input = Files.newInputStream(externalPath)) {
+					prop.load(input);
+				}
 			}
-            this.prop = new Properties();
-            prop.load(input);
-        } catch (Exception e) {
-        	throw new RuntimeException(e.getMessage(), e);
-        }
+			else {
+				try (InputStream input = BuldreinfoConfig.class.getResourceAsStream("buldreinfo.properties")) {
+					if (input == null) {
+						throw new IllegalArgumentException("Properties not found at " + externalPath + " or in classpath");
+					}
+					prop.load(input);
+				}
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Configuration initialization failed: " + e.getMessage(), e);
+		}
 	}
-	
+
 	public String getProperty(String key) {
 		if (prop == null) {
 			throw new IllegalArgumentException("properties is null");
