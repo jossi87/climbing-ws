@@ -1,11 +1,39 @@
-name: Java 25 Build & Deploy
+name: "CI/CD Pipeline"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  build-and-push:
+  # --- JOB 1: Security Scan ---
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java Runtime
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+
+  # --- JOB 2: Build & Deploy ---
+  deploy:
+    name: Build and Deploy
+    needs: security-scan  # The Gatekeeper
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,7 +50,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
