@@ -32,7 +32,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 public final class StorageManager {
 	private static final StorageManager INSTANCE = new StorageManager();
 	public static final String BUCKET_NAME = "climbing-web";
-	private static final String PUBLIC_BASE_URL = "https://climbing-web.se-sto-1.linodeobjects.com/";
+	private static final String PROXY_PATH = "/media-proxy/";
 
 	public static StorageManager getInstance() {
 		return INSTANCE;
@@ -42,7 +42,7 @@ public final class StorageManager {
 		if (objectKey != null && objectKey.startsWith("/")) {
 			objectKey = objectKey.substring(1);
 		}
-		StringBuilder url = new StringBuilder(PUBLIC_BASE_URL).append(objectKey);
+		StringBuilder url = new StringBuilder(PROXY_PATH).append(objectKey);
 		char separator = '?';
 		if (versionStamp != 0L) {
 			url.append(separator).append("v=").append(versionStamp);
