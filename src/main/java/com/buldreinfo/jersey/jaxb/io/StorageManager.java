@@ -39,16 +39,10 @@ public final class StorageManager {
 	}
 
 	public static String getPublicUrl(String objectKey, long versionStamp) {
-		if (objectKey != null && objectKey.startsWith("/")) {
-			objectKey = objectKey.substring(1);
-		}
-		StringBuilder url = new StringBuilder(PROXY_PATH).append(objectKey);
-		char separator = '?';
-		if (versionStamp != 0L) {
-			url.append(separator).append("v=").append(versionStamp);
-			separator = '&';
-		}
-		return url.toString();
+	    String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
+	    StringBuilder url = new StringBuilder(PROXY_PATH).append(cleanKey);
+	    if (versionStamp != 0L) url.append("?v=").append(versionStamp);
+	    return url.toString();
 	}
 
 	private final S3Client s3Client;
