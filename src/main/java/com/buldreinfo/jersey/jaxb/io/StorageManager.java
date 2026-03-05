@@ -34,10 +34,15 @@ public final class StorageManager {
 	public static final String BUCKET_NAME = "climbing-web";
 	private static final String PROXY_PATH = "/media-proxy/";
 
+	public static String getDirectStorageUrl(String objectKey) {
+	    String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
+	    return "https://climbing-web.se-sto-1.linodeobjects.com/" + cleanKey;
+	}
+
 	public static StorageManager getInstance() {
 		return INSTANCE;
 	}
-
+	
 	public static String getPublicUrl(String objectKey, long versionStamp) {
 	    String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
 	    StringBuilder url = new StringBuilder(PROXY_PATH).append(cleanKey);
