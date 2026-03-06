@@ -64,6 +64,6 @@ jobs:
           username: root
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/jossi-infra
+            cd /opt/varden-infra
             docker compose pull climbing-ws
             docker compose up -d climbing-ws
