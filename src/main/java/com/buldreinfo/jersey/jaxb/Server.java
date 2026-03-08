@@ -105,7 +105,7 @@ public class Server {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return switch (e) {
-                case IllegalArgumentException ex -> Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+                case IllegalArgumentException _ -> Response.status(Response.Status.BAD_REQUEST).entity("Invalid request parameters.").build();
                 case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
                 default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
             };
