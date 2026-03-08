@@ -46,7 +46,9 @@ public final class StorageManager {
 	public static String getPublicUrl(String objectKey, long versionStamp) {
 	    String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
 	    StringBuilder url = new StringBuilder(PROXY_PATH).append(cleanKey);
-	    if (versionStamp != 0L) url.append("?v=").append(versionStamp);
+	    if (versionStamp != 0L) {
+	    	url.append("?v=").append(versionStamp);
+	    }
 	    return url.toString();
 	}
 
