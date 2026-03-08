@@ -19,6 +19,7 @@ import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
@@ -773,7 +774,8 @@ public class V2 {
 					frontpageNumTicks.numTicks(),
 					frontpageNumMedia.numImages(),
 					frontpageNumMedia.numMovies());
-			String html = getHtml(setup.url(),
+			String html = getHtml(setup,
+					setup.url(),
 					setup.title(),
 					description,
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
@@ -805,7 +807,8 @@ public class V2 {
 				description = String.format("Climbing in %s (%s)", a.getName(), info);
 			}
 			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().getFirst() : null;
-			String html = getHtml(setup.url() + "/area/" + a.getId(),
+			String html = getHtml(setup,
+					setup.url() + "/area/" + a.getId(),
 					a.getName(),
 					description,
 					(m == null? 0 : m.id()),
@@ -855,7 +858,8 @@ public class V2 {
 					m = p.getMedia().getFirst();
 				}
 			}
-			String html = getHtml(setup.url() + "/problem/" + p.getId(),
+			String html = getHtml(setup,
+					setup.url() + "/problem/" + p.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -896,7 +900,8 @@ public class V2 {
 					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().getFirst() : null;
-			String html = getHtml(setup.url() + "/sector/" + s.getId(),
+			String html = getHtml(setup,
+					setup.url() + "/sector/" + s.getId(),
 					title,
 					description,
 					(m == null? 0 : m.id()),
@@ -1189,31 +1194,32 @@ public class V2 {
 		return CacheHelper.applyImmutableLongTermCache(builder).build();
 	}
 
-	private String getHtml(String url, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
-		String ogImageTags = "";
-		if (mediaId > 0) {
-			String relativePath = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
-			String absoluteImageUrl = url + relativePath;
-			ogImageTags = """
-					<meta property="og:image" content="%s" />
-					<meta property="og:image:width" content="%d" />
-					<meta property="og:image:height" content="%d" />
-					""".formatted(absoluteImageUrl, mediaWidth, mediaHeight);
-		}
-		return """
-				<html>
-				<head>
-				    <meta charset="UTF-8">
-				    <title>%s</title>
-				    <meta name="description" content="%s" />
-				    <meta property="og:type" content="website" />
-				    <meta property="og:description" content="%s" />
-				    <meta property="og:url" content="%s" />
-				    <meta property="og:title" content="%s" />
-				    <meta property="fb:app_id" content="275320366630912" />
-				    %s
-				</head>
-				</html>
-				""".formatted(title, description, description, url, title, ogImageTags);
+	private String getHtml(Setup setup, String pageUrl, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
+	    String ogImageTags = "";
+	    if (mediaId > 0) {
+	        String relativePath = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
+	        String absoluteImageUrl = setup.url() + relativePath;
+	        ogImageTags = """
+	                <meta property="og:image" content="%s" />
+	                <meta property="og:image:width" content="%d" />
+	                <meta property="og:image:height" content="%d" />
+	                """.formatted(absoluteImageUrl, mediaWidth, mediaHeight);
+	    }
+	    return """
+	            <!DOCTYPE html>
+	            <html lang="en">
+	            <head>
+	                <meta charset="UTF-8">
+	                <title>%s</title>
+	                <meta name="description" content="%s" />
+	                <meta property="og:type" content="website" />
+	                <meta property="og:description" content="%s" />
+	                <meta property="og:url" content="%s" />
+	                <meta property="og:title" content="%s" />
+	                <meta property="fb:app_id" content="275320366630912" />
+	                %s
+	            </head>
+	            </html>
+	            """.formatted(title, description, description, pageUrl, title, ogImageTags);
 	}
 }
