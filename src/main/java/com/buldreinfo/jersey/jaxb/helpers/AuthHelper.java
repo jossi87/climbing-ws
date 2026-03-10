@@ -37,16 +37,17 @@ public class AuthHelper {
 			.expireAfterWrite(4, TimeUnit.HOURS)
 			.build(new CacheLoader<String, Auth0Profile>() {
 				@Override
-				public Auth0Profile load(String authorization) throws Exception {
-					try {
-						Request<UserInfo> req = auth.userInfo(authorization);
-						Response<UserInfo> info = req.execute();
-						Map<String, Object> values = info.getBody().getValues();
-						return Auth0Profile.from(values);
-					} catch (Exception ex) {
-						logger.warn("Login failed: " + ex.getMessage());
-						return null;
-					}
+				public Auth0Profile load(String accessToken) throws Exception {
+					Request<UserInfo> req = auth.userInfo(accessToken);
+		            Response<UserInfo> info = req.execute();
+		            if (info.getStatusCode() != 200) {
+		                throw new RuntimeException("Auth0 failed with status: " + info.getStatusCode());
+		            }
+		            UserInfo body = info.getBody();
+		            if (body == null) {
+		                throw new RuntimeException("Auth0 returned empty body");
+		            }
+		            return Auth0Profile.from(body.getValues());
 				}
 			});
 
@@ -65,7 +66,7 @@ public class AuthHelper {
 			boolean update = cache.getIfPresent(accessToken) == null;
 			Auth0Profile profile = cache.get(accessToken);
 			Optional<Integer> authUserId = dao.getAuthUserId(c, profile);
-			if (update) {
+			if (update && authUserId.isPresent()) {
 				Gson gson = new Gson();
 				String headers = gson.toJson(getHeadersInfo(request));
 				// Log login

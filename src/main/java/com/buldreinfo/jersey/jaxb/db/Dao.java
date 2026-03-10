@@ -1661,8 +1661,11 @@ public class Dao {
 	}
 
 	public Profile getProfile(Connection c, Optional<Integer> authUserId, Setup setup, int reqUserId) throws SQLException {
-		int userId = reqUserId > 0? reqUserId : authUserId.orElse(0);
-		Preconditions.checkArgument(userId > 0);
+		int userId = reqUserId > 0 ? reqUserId : authUserId.orElse(0);
+	    if (userId <= 0) {
+	        logger.warn("getProfile called without a valid userId (guest access without id param)");
+	        return null; 
+	    }
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
