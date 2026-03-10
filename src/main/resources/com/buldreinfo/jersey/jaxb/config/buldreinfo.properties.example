@@ -2,7 +2,6 @@ db.hostname=127.0.0.1
 db.database=climbing
 db.username=root
 db.password=YOUR_PASSWORD
-auth0.secret=WhateverYouWant
 google.apikey=WhateverYouWant
 vegvesen.auth=WhateverYouWant
 akamai.access_key=WhateverYouWant

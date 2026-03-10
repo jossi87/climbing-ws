@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -882,43 +881,43 @@ public class Dao {
 	}
 
 	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
-		Optional<Integer> authUserId = Optional.empty();
-		boolean hasAvatar = false;
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
-				FROM user_email e
-				JOIN user u ON e.user_id=u.id
-				LEFT JOIN media m ON u.media_id=m.id
-				WHERE lower(e.email)=?
-				""")) {
-			ps.setString(1, profile.email().toLowerCase());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					authUserId = Optional.of(rst.getInt("user_id"));
-					hasAvatar = rst.getBoolean("has_avatar");
-				}
-			}
-		}
-		if (authUserId.isEmpty()) {
-			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
-		}
-		if (!hasAvatar && profile.picture() != null) {
-			try {
-				saveUserAvatar(c, authUserId, () -> {
-					try {
-						return URI.create(profile.picture()).toURL().openStream();
-					} catch (IOException e) {
-						logger.error(e.getMessage(), e);
-						throw new UncheckedIOException(e);
-					}
-				});
-			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
-			}
-		}
-		c.commit();
-		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
-		return authUserId;
+	    Optional<Integer> authUserId = Optional.empty();
+	    boolean hasAvatar = false;
+	    try (PreparedStatement ps = c.prepareStatement("""
+	            SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
+	            FROM user_email e
+	            JOIN user u ON e.user_id=u.id
+	            LEFT JOIN media m ON u.media_id=m.id
+	            WHERE lower(e.email)=?
+	            """)) {
+	        ps.setString(1, profile.email().toLowerCase());
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                authUserId = Optional.of(rst.getInt("user_id"));
+	                hasAvatar = rst.getBoolean("has_avatar");
+	            }
+	        }
+	    }
+	    if (authUserId.isEmpty()) {
+	        authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
+	    }
+	    final Optional<Integer> finalUserId = authUserId;
+	    if (!hasAvatar && profile.picture() != null) {
+	        try {
+	            saveUserAvatar(c, finalUserId, () -> {
+	                try {
+	                    return URI.create(profile.picture()).toURL().openStream();
+	                } catch (java.io.IOException e) {
+	                    logger.error(e.getMessage(), e);
+	                    throw new java.io.UncheckedIOException(e);
+	                }
+	            });
+	        } catch (Exception e) {
+	            logger.warn(e.getMessage(), e);
+	        }
+	    }
+	    logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
+	    return authUserId;
 	}
 
 	public Redirect getCanonicalUrl(Connection c, int idArea, int idSector, int idProblem) throws SQLException {

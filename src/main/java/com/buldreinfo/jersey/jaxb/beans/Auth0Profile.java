@@ -1,34 +1,31 @@
 package com.buldreinfo.jersey.jaxb.beans;
 
-import java.util.Map;
 import java.util.Objects;
 
-import com.google.common.base.Strings;
+import com.auth0.jwt.interfaces.DecodedJWT;
 
-public record Auth0Profile(String email, String firstname, String lastname, String fullname, String picture) {
-	public static Auth0Profile from(Map<String, Object> values) {
-		String email = Objects.requireNonNull((String)values.get("email"));
-		// Firstname
-		String firstname = (String) values.get("given_name");
-		if (firstname == null) {
-			firstname = (String) values.get("https://buldreinfo.com/firstname");
-		}
-		if (firstname == null) {
-			firstname = (String) values.get("name");
-		}
-		if (firstname == null) {
-			firstname = email;
-		}
-		Objects.requireNonNull(firstname);
-		// Lastname
-		String lastname = (String) values.get("family_name");
-		if (lastname == null) {
-			lastname = (String) values.get("https://buldreinfo.com/lastname");
-		}
-		// Fullname
-		String fullname = Strings.emptyToNull((Strings.nullToEmpty(firstname) + " " + Strings.nullToEmpty(lastname)).trim().toLowerCase());
-		// Picture
-		String picture = (String) values.get("picture");
-		return new Auth0Profile(email, firstname, lastname, fullname, picture);
-	}
+public record Auth0Profile(String email, String firstname, String lastname, String picture) {
+    public static Auth0Profile from(DecodedJWT jwt) {
+        String email = jwt.getClaim("email").asString();
+        if (email == null) {
+            email = jwt.getClaim("https://buldreinfo.com/email").asString();
+        }
+        Objects.requireNonNull(email, "JWT is missing a valid email claim");
+        String firstname = jwt.getClaim("given_name").asString();
+        if (firstname == null) {
+            firstname = jwt.getClaim("https://buldreinfo.com/firstname").asString();
+        }
+        if (firstname == null) {
+            firstname = jwt.getClaim("name").asString();
+        }
+        if (firstname == null) {
+            firstname = email;
+        }
+        String lastname = jwt.getClaim("family_name").asString();
+        if (lastname == null) {
+            lastname = jwt.getClaim("https://buldreinfo.com/lastname").asString();
+        }
+        String picture = jwt.getClaim("picture").asString();
+        return new Auth0Profile(email, firstname, lastname, picture);
+    }
 }
