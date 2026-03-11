@@ -3,11 +3,11 @@ package com.buldreinfo.jersey.jaxb.beans;
 import java.util.List;
 
 public final class S3KeyGenerator {
-	public static List<String> getCachedMediaPrefixes(int idMedia) {
+	public static List<String> getGeneratedMediaPrefixes(int idMedia) {
 		return List.of(getWebJpgResizedPrefix(idMedia),
-				S3KeyGenerator.getWebWebpResizedPrefix(idMedia),
-				S3KeyGenerator.getWebJpgRegionPrefix(idMedia),
-				S3KeyGenerator.getWebWebpRegionPrefix(idMedia));
+				getWebWebpResizedPrefix(idMedia),
+				getWebJpgRegionPrefix(idMedia),
+				getWebWebpRegionPrefix(idMedia));
 	}
 
 	public static String getOriginalJpg(int id) {

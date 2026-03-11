@@ -75,25 +75,6 @@ public final class StorageManager {
 				.build());
 	}
 
-	public void deleteResizedCache(String prefix) {
-		ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
-				.bucket(BUCKET_NAME)
-				.prefix(prefix)
-				.build();
-		for (ListObjectsV2Response page : s3Client.listObjectsV2Paginator(listRequest)) {
-			if (!page.hasContents()) {
-				continue;
-			}
-			List<ObjectIdentifier> toDelete = page.contents().stream()
-					.map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
-					.toList();
-			s3Client.deleteObjects(DeleteObjectsRequest.builder()
-					.bucket(BUCKET_NAME)
-					.delete(Delete.builder().objects(toDelete).build())
-					.build());
-		}
-	}
-
 	public byte[] downloadBytes(String objectKey) throws IOException {
 		GetObjectRequest getRequest = GetObjectRequest.builder()
 				.bucket(BUCKET_NAME)
@@ -132,6 +113,25 @@ public final class StorageManager {
 
 	public S3Client getS3Client() {
 		return s3Client;
+	}
+
+	public void invalidateCache(String prefix) {
+		ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
+				.bucket(BUCKET_NAME)
+				.prefix(prefix)
+				.build();
+		for (ListObjectsV2Response page : s3Client.listObjectsV2Paginator(listRequest)) {
+			if (!page.hasContents()) {
+				continue;
+			}
+			List<ObjectIdentifier> toDelete = page.contents().stream()
+					.map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
+					.toList();
+			s3Client.deleteObjects(DeleteObjectsRequest.builder()
+					.bucket(BUCKET_NAME)
+					.delete(Delete.builder().objects(toDelete).build())
+					.build());
+		}
 	}
 
 	public void uploadBytes(String objectKey, byte[] data, StorageType type) {
