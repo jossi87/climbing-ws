@@ -335,61 +335,83 @@ public class V2 {
 			@Parameter(description = "Version stamp (cache buster)", required = false) @QueryParam("versionStamp") int versionStamp,
 			@Parameter(description = "Download original source", required = false) @QueryParam("original") boolean original,
 			@Parameter(description = "Target Width", required = false) @QueryParam("targetWidth") int targetWidth,
-			@Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension) {
-		String finalObjectKey;
+			@Parameter(description = "Minimum Dimension", required = false) @QueryParam("minDimension") int minDimension,
+			@Parameter(description = "Region X", required = false) @QueryParam("x") int x,
+			@Parameter(description = "Region Y", required = false) @QueryParam("y") int y,
+			@Parameter(description = "Region Width", required = false) @QueryParam("width") int width,
+			@Parameter(description = "Region Height", required = false) @QueryParam("height") int height) {
 		StorageManager storage = StorageManager.getInstance();
+		// Movie
 		if (isMovie) {
-			finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+			return createRedirect(finalObjectKey, versionStamp);
+		}
+		// Image
+		String finalObjectKey;
+		boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+		if (original) {
+			finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
 		} 
+		else if (targetWidth > 0 || minDimension > 0) {
+			finalObjectKey = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
+			if (!storage.exists(finalObjectKey)) {
+				return Server.buildResponse(() -> {
+					boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
+					String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+					if (useWebSource && !storage.exists(sourceKey)) {
+						sourceKey = S3KeyGenerator.getOriginalJpg(id);
+					}
+					BufferedImage b = storage.downloadImage(sourceKey);
+					if (b != null) {
+						if (targetWidth > 0 && targetWidth < b.getWidth()) {
+							b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+						}
+						else if (minDimension > 0) {
+							Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+							b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+						}
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						b.flush();
+					}
+					return createRedirect(finalObjectKey, versionStamp);
+				});
+			}
+		} 
+		else if (width > 0 && height > 0) {
+			finalObjectKey = webP ? S3KeyGenerator.getWebWebpRegion(id, x, y, width, height) : S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
+			if (!storage.exists(finalObjectKey)) {
+				return Server.buildResponse(() -> {
+					String sourceKey = S3KeyGenerator.getOriginalJpg(id);
+					BufferedImage b = storage.downloadImage(sourceKey);
+					if (b != null) {
+						if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
+							b = Scalr.crop(b, x, y, width, height);
+						}
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						b.flush();
+					}
+					return createRedirect(finalObjectKey, versionStamp);
+				});
+			}
+		}
 		else {
-			if (original) {
-				finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
-			} 
-			else if (targetWidth > 0 || minDimension > 0) {
-				finalObjectKey = S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
-				if (!storage.exists(finalObjectKey)) {
-					return Server.buildResponse(() -> {
-						boolean useWebSource = (targetWidth <= 0 || targetWidth <= 1280) && (minDimension <= 0 || minDimension <= 1280);
-						String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-						if (useWebSource && !storage.exists(sourceKey)) {
-							sourceKey = S3KeyGenerator.getOriginalJpg(id);
+			finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
+			if (!storage.exists(finalObjectKey)) {
+				return Server.buildResponse(() -> {
+					String sourceKey = S3KeyGenerator.getWebJpg(id);
+					if (!storage.exists(sourceKey)) {
+						sourceKey = S3KeyGenerator.getOriginalJpg(id);
+					}
+					BufferedImage b = storage.downloadImage(sourceKey);
+					if (b != null) {
+						if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
+							b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
 						}
-						BufferedImage b = storage.downloadImage(sourceKey);
-						if (b != null) {
-							if (targetWidth > 0 && targetWidth < b.getWidth()) {
-								b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-							}
-							else if (minDimension > 0) {
-								Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-								b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
-							}
-							storage.uploadImage(finalObjectKey, b, StorageType.JPG);
-							b.flush();
-						}
-						return createRedirect(finalObjectKey, versionStamp);
-					});
-				}
-			} 
-			else {
-				boolean webP = GlobalFunctions.requestAcceptsWebp(request);
-				finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
-				if (!storage.exists(finalObjectKey)) {
-					return Server.buildResponse(() -> {
-						String sourceKey = S3KeyGenerator.getWebJpg(id);
-						if (!storage.exists(sourceKey)) {
-							sourceKey = S3KeyGenerator.getOriginalJpg(id);
-						}
-						BufferedImage b = storage.downloadImage(sourceKey);
-						if (b != null) {
-							if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
-								b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
-							}
-							storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-							b.flush();
-						}
-						return createRedirect(finalObjectKey, versionStamp);
-					});
-				}
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						b.flush();
+					}
+					return createRedirect(finalObjectKey, versionStamp);
+				});
 			}
 		}
 		return createRedirect(finalObjectKey, versionStamp);

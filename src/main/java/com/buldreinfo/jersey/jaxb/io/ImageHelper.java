@@ -30,7 +30,7 @@ public class ImageHelper {
 			.save();
 			dao.setMediaMetadata(c, idMedia, image.getWidth(), image.getHeight(), exifReader.getDateTaken());
 		}
-		storage.deleteResizedCache(S3KeyGenerator.getWebJpgResizedPrefix(idMedia));
+		S3KeyGenerator.getCachedMediaPrefixes(idMedia).forEach(prefix -> storage.deleteResizedCache(prefix));
 	}
 
 	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage) throws SQLException {
