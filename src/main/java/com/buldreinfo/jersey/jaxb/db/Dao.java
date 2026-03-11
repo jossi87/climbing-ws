@@ -413,27 +413,27 @@ public class Dao {
 				FROM (
 				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
 				    FROM activity a1
-				    JOIN problem p1 ON a1.problem_id = p1.id
-				    JOIN sector s1 ON p1.sector_id = s1.id
-				    JOIN area ar1 ON s1.area_id = ar1.id
+				    JOIN problem p1 ON a1.problem_id=p1.id
+				    JOIN sector s1 ON p1.sector_id=s1.id
+				    JOIN area ar1 ON s1.area_id=ar1.id
 				    WHERE ar1.region_id IN (
 				        SELECT r.id 
 				        FROM region r 
-				        JOIN region_type rt ON r.id = rt.region_id 
-				        LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = ?)
-				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = ?)
-				          AND (r.id = ? OR ur.user_id IS NOT NULL)
+				        JOIN region_type rt ON r.id=rt.region_id 
+				        LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				          AND (r.id=? OR ur.user_id IS NOT NULL)
 				    )
-				      AND (? = TRUE OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
-				      AND (? = TRUE OR a1.type != 'FA')
-				      AND (? = TRUE OR a1.type != 'GUESTBOOK')
-				      AND (? = TRUE OR a1.type NOT IN ('TICK','TICK_REPEAT'))
-				      AND (? = TRUE OR a1.type != 'MEDIA')
-				      AND (? = 0 OR p1.grade >= ?)
-				      AND (? = 0 OR s1.area_id = ?)
-				      AND (? = 0 OR s1.id = ?)
+				      AND (?=TRUE OR a1.activity_timestamp>DATE_SUB(NOW(), INTERVAL 2 YEAR))
+				      AND (?=TRUE OR a1.type!='FA')
+				      AND (?=TRUE OR a1.type!='GUESTBOOK')
+				      AND (?=TRUE OR a1.type NOT IN ('TICK','TICK_REPEAT'))
+				      AND (?=TRUE OR a1.type!='MEDIA')
+				      AND (?=0 OR p1.grade>=?)
+				      AND (?=0 OR s1.area_id=?)
+				      AND (?=0 OR s1.id=?)
 				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
-				    LIMIT 500
+				    LIMIT 50
 				) x
 				JOIN problem p ON x.problem_id=p.id
 				LEFT JOIN tick t ON p.id=t.problem_id
@@ -448,7 +448,6 @@ public class Dao {
 				         s.id, s.locked_admin, s.locked_superadmin, s.name, 
 				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, ty.subtype
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
-				LIMIT 100
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
