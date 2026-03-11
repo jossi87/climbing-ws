@@ -18,7 +18,6 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Delete;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -66,13 +65,6 @@ public final class StorageManager {
 				.endpointOverride(URI.create("https://se-sto-1.linodeobjects.com"))
 				.region(Region.of("se-sto-1"))
 				.build();
-	}
-
-	public void deleteObject(String objectKey) {
-		s3Client.deleteObject(DeleteObjectRequest.builder()
-				.bucket(BUCKET_NAME)
-				.key(objectKey)
-				.build());
 	}
 
 	public byte[] downloadBytes(String objectKey) throws IOException {
