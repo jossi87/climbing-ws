@@ -162,48 +162,46 @@ public class FixMedia {
 		String embedUrl = task.embedUrl();
 		Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
 		Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
-		Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
-		Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
-		if (embedUrl != null) {
-			// OriginalMp4
+		if (embedUrl == null) {
+			Path webm = getLocalPath(S3KeyGenerator.getWebWebm(id));
+			Path mp4 = getLocalPath(S3KeyGenerator.getWebMp4(id));
+			if (!Files.exists(webm) || Files.size(webm) == 0) {
+				Files.createDirectories(webm.getParent());
+				VideoHelper.generateWebm(LOCAL_FFMPEG_PATH, originalMp4, webm);
+			}
+			if (!Files.exists(mp4) || Files.size(mp4) == 0) {
+				Files.createDirectories(mp4.getParent());
+				VideoHelper.generateMp4(LOCAL_FFMPEG_PATH, originalMp4, mp4);
+			}
+			if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
+				VideoHelper.extractThumbnailToDb(LOCAL_FFMPEG_PATH, id, originalMp4);
+			}
+		}
+		else {
 			if (!PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE.contains(id)) {
 				if (!Files.exists(originalMp4)) {
 					logger.info("Downloading embed video with id={} to {}", id, originalMp4);
 					Files.createDirectories(originalMp4.getParent());
 					String[] commands = {
-						    LOCAL_YT_DLP_PATH, 
-						    "--ffmpeg-location", LOCAL_FFMPEG_PATH, 
-						    embedUrl, 
-						    "-S", "ext:mp4:m4a", 
-						    "--merge-output-format", "mp4", 
-						    "-o", originalMp4.toString()
-						};
+							LOCAL_YT_DLP_PATH, 
+							"--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+							embedUrl, 
+							"-S", "ext:mp4:m4a", 
+							"--merge-output-format", "mp4", 
+							"-o", originalMp4.toString()
+					};
 					new ProcessBuilder().inheritIO().command(commands).start().waitFor();
 				}
 				if (!Files.exists(originalMp4)) {
 					warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
 				}
 			}
-			// Thumbnail
 			if (!Files.exists(originalJpg)) {
 				Server.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
 			}
 			if (!Files.exists(originalJpg)) {
 				warnings.add("Failed to download embedded video thumbnail with id=" + id + " to originalJpg=" + originalJpg);
 			}
-			// We don't want to create scaled versions of embedded videos, return
-			return;
-		}
-		if (!Files.exists(webm) || Files.size(webm) == 0) {
-		    Files.createDirectories(webm.getParent());
-		    VideoHelper.generateWebm(LOCAL_FFMPEG_PATH, originalMp4, webm);
-		}
-		if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-		    Files.createDirectories(mp4.getParent());
-		    VideoHelper.generateMp4(LOCAL_FFMPEG_PATH, originalMp4, mp4);
-		}
-		if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-		    VideoHelper.extractThumbnailToDb(LOCAL_FFMPEG_PATH, id, originalMp4);
 		}
 	}
 }
