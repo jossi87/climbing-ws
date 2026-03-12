@@ -53,9 +53,9 @@ public class FixMedia {
 	}
 	private record MediaTask(int id, String embedUrl) {}
 	private static Logger logger = LogManager.getLogger();
-	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
-	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/buldreinfo/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
-	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/buldreinfo/sw/yt-dlp/yt-dlp.exe";
+	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/climbing-web/s3_bucket_climbing_web";
+	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/climbing-web/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
+	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/climbing-web/sw/yt-dlp/yt-dlp.exe";
 	private final static List<Integer> PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE = List.of(36365,36368,36370,36374,36379,36380,36381,36383,36388,38412,39003);
 	public static void main(String[] args) {
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_BUCKET_ROOT)), LOCAL_BUCKET_ROOT + " does not exist");
