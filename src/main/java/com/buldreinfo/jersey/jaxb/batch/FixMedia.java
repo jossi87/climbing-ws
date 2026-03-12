@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,14 +18,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.io.VideoHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -197,38 +195,15 @@ public class FixMedia {
 			return;
 		}
 		if (!Files.exists(webm) || Files.size(webm) == 0) {
-			Preconditions.checkArgument(Files.exists(originalMp4), "Original MP4 missing: id=" + id);
-			logger.info("Generating WebM for id={} to {}", id, webm);
-			Files.createDirectories(webm.getParent());
-			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", originalMp4.toString(), 
-	                "-codec:v", "libvpx", "-quality", "good", "-cpu-used", "0", 
-	                "-b:v", "500k", "-qmin", "10", "-qmax", "42", "-maxrate", "500k", 
-	                "-bufsize", "1000k", "-threads", "4", "-vf", "scale=-1:1080", 
-	                "-codec:a", "libvorbis", "-b:a", "128k", "-ar", "44100", webm.toString()};
-			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+		    Files.createDirectories(webm.getParent());
+		    VideoHelper.generateWebm(LOCAL_FFMPEG_PATH, originalMp4, webm);
 		}
-
 		if (!Files.exists(mp4) || Files.size(mp4) == 0) {
-			Preconditions.checkArgument(Files.exists(webm) && Files.size(webm) > 0, "WebM missing or empty: id=" + id);
-			logger.info("Generating WebMp4 for id={} to {}", id, mp4);
-			Files.createDirectories(mp4.getParent());
-			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-i", webm.toString(), "-vf", "crop=((in_w/2)*2):((in_h/2)*2)", mp4.toString()};
-			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
+		    Files.createDirectories(mp4.getParent());
+		    VideoHelper.generateMp4(LOCAL_FFMPEG_PATH, originalMp4, mp4);
 		}
-
 		if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-			Path tmp = Files.createTempFile("fix_" + id + "_", ".jpg");
-			String[] cmd = {LOCAL_FFMPEG_PATH, "-y", "-nostdin", "-sseof", "-10", "-i", originalMp4.toString(), "-t", "00:00:1", "-r", "1", "-f", "mjpeg", tmp.toString()};
-			new ProcessBuilder().inheritIO().command(cmd).start().waitFor();
-			if (Files.exists(tmp) && Files.size(tmp) > 0) {
-				BufferedImage b = ImageIO.read(tmp.toFile());
-				try {
-					Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, id, b));
-				} finally {
-					b.flush();
-				}
-				Files.deleteIfExists(tmp);
-			}
+		    VideoHelper.extractThumbnailToDb(LOCAL_FFMPEG_PATH, id, originalMp4);
 		}
 	}
 }

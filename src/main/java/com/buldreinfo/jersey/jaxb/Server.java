@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,6 +34,10 @@ public class Server {
 
 	public static Collection<Setup> getSetups() {
 		return getServer().setupMap.values();
+	}
+
+	public static void runAsync(Runnable action) {
+		getServer().executor.submit(action);
 	}
 
 	public static void runSql(Consumer<Connection> action) {
@@ -63,59 +69,60 @@ public class Server {
 	}
 
 	protected static Response buildResponse(Function<Response> function) {
-        try {
-            return function.get();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
-        }
-    }
+		try {
+			return function.get();
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+		}
+	}
 
-    protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
-        Server server = getServer();
-        Setup setup = server.getSetup(request);
-        try (Connection c = server.ds.getConnection()) {
-            try {
-                Response res = function.get(server.dao, c, setup);
-                c.commit();
-                return res;
-            } catch (Exception e) {
-                c.rollback();
-                throw e; // Caught by the outer block
-            }
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
-        }
-    }
+	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
+		Server server = getServer();
+		Setup setup = server.getSetup(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Response res = function.get(server.dao, c, setup);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e; // Caught by the outer block
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
+		}
+	}
 
-    protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
-        Server server = getServer();
-        Setup setup = server.getSetup(request);
-        try (Connection c = server.ds.getConnection()) {
-            try {
-                Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-                Response res = function.get(server.dao, c, setup, authUserId);
-                c.commit();
-                return res;
-            } catch (Exception e) {
-                c.rollback();
-                throw e;
-            }
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            return switch (e) {
-                case IllegalArgumentException _ -> Response.status(Response.Status.BAD_REQUEST).entity("Invalid request parameters.").build();
-                case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
-                default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
-            };
-        }
-    }
+	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+		Server server = getServer();
+		Setup setup = server.getSetup(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
+				Response res = function.get(server.dao, c, setup, authUserId);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e;
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return switch (e) {
+			case IllegalArgumentException _ -> Response.status(Response.Status.BAD_REQUEST).entity("Invalid request parameters.").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+			};
+		}
+	}
 
 	private final HikariDataSource ds;
 	private final Dao dao = new Dao();
 	private final AuthHelper auth = new AuthHelper();
 	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
+	private final ExecutorService executor = Executors.newFixedThreadPool(1);
 
 	private Server() {
 		Stopwatch stopwatch = Stopwatch.createStarted();

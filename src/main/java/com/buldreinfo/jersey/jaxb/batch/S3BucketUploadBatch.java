@@ -3,7 +3,6 @@ package com.buldreinfo.jersey.jaxb.batch;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -15,17 +14,15 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
+import com.google.common.base.Preconditions;
 
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 public class S3BucketUploadBatch {
 	private static final Logger logger = LogManager.getLogger();
-	private static final String LOCAL_MEDIA_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
+	private static final Path LOCAL_MEDIA_ROOT = Path.of("G:/My Drive/web/climbing-web/s3_bucket_climbing_web");
 	public static void main(String[] args) {
 		new S3BucketUploadBatch().run();
 	}
@@ -35,15 +32,15 @@ public class S3BucketUploadBatch {
 	private final AtomicLong totalBytesUploaded = new AtomicLong(0);
 
 	public void run() {
-		Path root = Paths.get(LOCAL_MEDIA_ROOT);
+		Preconditions.checkArgument(Files.exists(LOCAL_MEDIA_ROOT), LOCAL_MEDIA_ROOT.toString() + " does not exist");
 		StorageManager storage = StorageManager.getInstance();
 		logger.info("Starting uploading from local directory {} to bucket [{}]", LOCAL_MEDIA_ROOT, StorageManager.BUCKET_NAME);
 		try {
-			try (var stream = Files.walk(root)) {
+			try (var stream = Files.walk(LOCAL_MEDIA_ROOT)) {
 				stream.filter(Files::isRegularFile)
 				.filter(this::isNotSystemFile)
 				.forEach(path -> {
-					executor.submit(() -> uploadFile(storage, root, path));
+					executor.submit(() -> uploadFile(storage, LOCAL_MEDIA_ROOT, path));
 				});
 			}
 		} catch (IOException e) {
@@ -80,18 +77,7 @@ public class S3BucketUploadBatch {
 				skipCount.incrementAndGet();
 				return;
 			}
-			int dotIndex = relativePath.lastIndexOf('.');
-			String ext = (dotIndex == -1) ? "" : relativePath.substring(dotIndex + 1).toLowerCase();
-			String mimeType = StorageType.fromExtension(ext)
-					.map(StorageType::getMimeType)
-					.orElseGet(() -> {
-						try {
-							String probed = Files.probeContentType(file);
-							return (probed != null) ? probed : "application/octet-stream";
-						} catch (IOException _) {
-							return "application/octet-stream";
-						}
-					});
+			StorageType type = StorageType.fromFilename(relativePath).orElseThrow(() -> new IllegalArgumentException("Invalid fileName: " + relativePath));
 			boolean shouldUpload = true;
 			try {
 				HeadObjectResponse remoteMeta = storage.getS3Client().headObject(HeadObjectRequest.builder()
@@ -99,7 +85,7 @@ public class S3BucketUploadBatch {
 						.key(relativePath)
 						.build());
 				boolean sameSize = remoteMeta.contentLength() == localSize;
-				boolean sameMime = remoteMeta.contentType().equalsIgnoreCase(mimeType);
+				boolean sameMime = remoteMeta.contentType().equalsIgnoreCase(type.getMimeType());
 				if (sameSize && sameMime) {
 					shouldUpload = false;
 					int currentSkips = skipCount.incrementAndGet();
@@ -108,7 +94,7 @@ public class S3BucketUploadBatch {
 					}
 				} else {
 					if (!sameMime) {
-						logger.warn("Fixing MimeType mismatch for {}: Cloud={}, Correct={}", relativePath, remoteMeta.contentType(), mimeType);
+						logger.warn("Fixing MimeType mismatch for {}: Cloud={}, Correct={}", relativePath, remoteMeta.contentType(), type.getMimeType());
 					} else {
 						logger.info("Updating {} due to size change.", relativePath);
 					}
@@ -119,16 +105,10 @@ public class S3BucketUploadBatch {
 			if (!shouldUpload) {
 				return;
 			}
-			PutObjectRequest putRequest = PutObjectRequest.builder()
-					.bucket(StorageManager.BUCKET_NAME)
-					.key(relativePath)
-					.contentType(mimeType)
-					.acl(ObjectCannedACL.PUBLIC_READ)
-					.build();
-			storage.getS3Client().putObject(putRequest, RequestBody.fromFile(file));
+			storage.uploadFile(relativePath, file, type);
 			totalBytesUploaded.addAndGet(localSize);
 			int currentUploads = uploadCount.incrementAndGet();
-			logger.info("Upload Progress: {} files. Current: {} ({} MB) Type: {}", currentUploads, relativePath, localSize / (1024 * 1024), mimeType);
+			logger.info("Upload Progress: {} files. Current: {} ({} MB) Type: {}", currentUploads, relativePath, localSize / (1024 * 1024), type.getMimeType());
 		} catch (Exception e) {
 			logger.error("Failed to process {}: {}", file, e.getMessage());
 		}

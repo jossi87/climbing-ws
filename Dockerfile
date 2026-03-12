@@ -8,6 +8,8 @@ RUN mvn clean package -DskipTests
 
 FROM tomcat:10.1-jdk21-openjdk-slim
 
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /usr/java/jdk-25 /usr/java/jdk-25
 ENV JAVA_HOME=/usr/java/jdk-25
 ENV PATH=$JAVA_HOME/bin:$PATH

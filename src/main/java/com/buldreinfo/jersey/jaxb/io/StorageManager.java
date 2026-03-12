@@ -5,6 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -68,13 +71,15 @@ public final class StorageManager {
 	}
 
 	public byte[] downloadBytes(String objectKey) throws IOException {
-		GetObjectRequest getRequest = GetObjectRequest.builder()
-				.bucket(BUCKET_NAME)
-				.key(objectKey)
-				.build();
-		try (var response = s3Client.getObject(getRequest)) {
-			return response.readAllBytes();
-		}
+		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
+	        return response.readAllBytes();
+	    }
+	}
+
+	public void downloadFile(String objectKey, Path destination) throws IOException {
+		try (var s3Stream = s3Client.getObject(createGetRequest(objectKey))) {
+	        Files.copy(s3Stream, destination, StandardCopyOption.REPLACE_EXISTING);
+	    }
 	}
 
 	public BufferedImage downloadImage(String objectKey) throws IOException {
@@ -83,7 +88,7 @@ public final class StorageManager {
 			return ImageIO.read(is);
 		}
 	}
-
+	
 	public boolean exists(String objectKey) {
 		try {
 			s3Client.headObject(HeadObjectRequest.builder()
@@ -97,10 +102,7 @@ public final class StorageManager {
 	}
 
 	public InputStream getInputStream(String objectKey) {
-		return s3Client.getObject(GetObjectRequest.builder()
-				.bucket(BUCKET_NAME)
-				.key(objectKey)
-				.build());
+		return s3Client.getObject(createGetRequest(objectKey));
 	}
 
 	public S3Client getS3Client() {
@@ -127,15 +129,19 @@ public final class StorageManager {
 	}
 
 	public void uploadBytes(String objectKey, byte[] data, StorageType type) {
-		PutObjectRequest putRequest = PutObjectRequest.builder()
-				.bucket(BUCKET_NAME)
-				.key(objectKey)
-				.contentType(type.getMimeType())
-				.acl(ObjectCannedACL.PUBLIC_READ)
-				.build();
-		s3Client.putObject(putRequest, RequestBody.fromBytes(data));
+		if (data == null || data.length == 0) {
+	        throw new IllegalArgumentException("Byte array is empty for key: " + objectKey);
+	    }
+		uploadRequestBody(objectKey, RequestBody.fromBytes(data), type);
 	}
-
+	
+	public void uploadFile(String objectKey, Path path, StorageType type) throws IOException {
+		if (Files.size(path) == 0) {
+	        throw new IllegalArgumentException("File is empty for key: " + objectKey);
+	    }
+		uploadRequestBody(objectKey, RequestBody.fromFile(path), type);
+	}
+	
 	public void uploadImage(String objectKey, BufferedImage image, StorageType type) throws IOException {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		boolean writerFound = ImageIO.write(image, type.getExtension(), os);
@@ -143,5 +149,22 @@ public final class StorageManager {
 			throw new IOException("No writer found for format: " + type.getExtension());
 		}
 		uploadBytes(objectKey, os.toByteArray(), type);
+	}
+	
+	private GetObjectRequest createGetRequest(String objectKey) {
+	    return GetObjectRequest.builder()
+	            .bucket(BUCKET_NAME)
+	            .key(objectKey)
+	            .build();
+	}
+
+	private void uploadRequestBody(String objectKey, RequestBody body, StorageType type) {
+		PutObjectRequest putRequest = PutObjectRequest.builder()
+				.bucket(BUCKET_NAME)
+				.key(objectKey)
+				.contentType(type.getMimeType())
+				.acl(ObjectCannedACL.PUBLIC_READ)
+				.build();
+		s3Client.putObject(putRequest, body);
 	}
 }

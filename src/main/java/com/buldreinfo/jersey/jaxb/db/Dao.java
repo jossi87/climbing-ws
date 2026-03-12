@@ -4,6 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,7 +42,9 @@ import org.imgscalr.Scalr.Rotation;
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
+import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
@@ -48,6 +53,8 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
+import com.buldreinfo.jersey.jaxb.io.VideoHelper;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -880,43 +887,43 @@ public class Dao {
 	}
 
 	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
-	    Optional<Integer> authUserId = Optional.empty();
-	    boolean hasAvatar = false;
-	    try (PreparedStatement ps = c.prepareStatement("""
-	            SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
-	            FROM user_email e
-	            JOIN user u ON e.user_id=u.id
-	            LEFT JOIN media m ON u.media_id=m.id
-	            WHERE lower(e.email)=?
-	            """)) {
-	        ps.setString(1, profile.email().toLowerCase());
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                authUserId = Optional.of(rst.getInt("user_id"));
-	                hasAvatar = rst.getBoolean("has_avatar");
-	            }
-	        }
-	    }
-	    if (authUserId.isEmpty()) {
-	        authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
-	    }
-	    final Optional<Integer> finalUserId = authUserId;
-	    if (!hasAvatar && profile.picture() != null) {
-	        try {
-	            saveUserAvatar(c, finalUserId, () -> {
-	                try {
-	                    return URI.create(profile.picture()).toURL().openStream();
-	                } catch (java.io.IOException e) {
-	                    logger.error(e.getMessage(), e);
-	                    throw new java.io.UncheckedIOException(e);
-	                }
-	            });
-	        } catch (Exception e) {
-	            logger.warn(e.getMessage(), e);
-	        }
-	    }
-	    logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
-	    return authUserId;
+		Optional<Integer> authUserId = Optional.empty();
+		boolean hasAvatar = false;
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
+				FROM user_email e
+				JOIN user u ON e.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				WHERE lower(e.email)=?
+				""")) {
+			ps.setString(1, profile.email().toLowerCase());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					authUserId = Optional.of(rst.getInt("user_id"));
+					hasAvatar = rst.getBoolean("has_avatar");
+				}
+			}
+		}
+		if (authUserId.isEmpty()) {
+			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
+		}
+		final Optional<Integer> finalUserId = authUserId;
+		if (!hasAvatar && profile.picture() != null) {
+			try {
+				saveUserAvatar(c, finalUserId, () -> {
+					try {
+						return URI.create(profile.picture()).toURL().openStream();
+					} catch (java.io.IOException e) {
+						logger.error(e.getMessage(), e);
+						throw new java.io.UncheckedIOException(e);
+					}
+				});
+			} catch (Exception e) {
+				logger.warn(e.getMessage(), e);
+			}
+		}
+		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
+		return authUserId;
 	}
 
 	public Redirect getCanonicalUrl(Connection c, int idArea, int idSector, int idProblem) throws SQLException {
@@ -1293,9 +1300,9 @@ public class Dao {
 				  LEFT JOIN user_region ur ON u.id=ur.user_id AND l.region_id=ur.region_id
 				  WHERE l.region_id=?
 				  GROUP BY u.id, u.firstname, u.lastname, m.id, m.updated_at
-				  
+
 				  UNION
-				  
+
 				  SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, MAX(l.when) last_login, ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
 				  FROM user u
 				  LEFT JOIN media m ON u.media_id=m.id
@@ -1660,10 +1667,10 @@ public class Dao {
 
 	public Profile getProfile(Connection c, Optional<Integer> authUserId, Setup setup, int reqUserId) throws SQLException {
 		int userId = reqUserId > 0 ? reqUserId : authUserId.orElse(0);
-	    if (userId <= 0) {
-	        logger.warn("getProfile called without a valid userId (guest access without id param)");
-	        return null; 
-	    }
+		if (userId <= 0) {
+			logger.warn("getProfile called without a valid userId (guest access without id param)");
+			return null; 
+		}
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
@@ -4272,18 +4279,18 @@ public class Dao {
 	}
 
 	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, int idUserAvatar, NewMedia m, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		int idMedia = -1;
 		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, idUserAvatar={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, idUserAvatar, m);
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		final boolean isEmbed = !Strings.isNullOrEmpty(m.embedVideoUrl());
+		final StorageType storageType = isEmbed ? StorageType.MP4 : StorageType.fromFilename(m.name()).orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for " + m.name()));
 		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
 				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
 				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0 && idUserAvatar == 0)
 				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0 && idUserAvatar == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar > 0));
+				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar > 0 && !storageType.isMovie()));
+		int idMedia = -1;
 		boolean alreadyExistsInDb = false;
-		boolean isMovie = false;
-		String suffix = null;
-		if (Strings.isNullOrEmpty(m.name())) {
+		if (isEmbed) {
 			// Embed video url
 			Objects.requireNonNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
 			Objects.requireNonNull(m.embedVideoUrl(), "embedVideoUrl required");
@@ -4297,12 +4304,6 @@ public class Dao {
 					}
 				}
 			}
-			suffix = "mp4";
-			isMovie = true;
-		}
-		else {
-			suffix = "jpg";
-			isMovie = false;
 		}
 
 		/**
@@ -4310,8 +4311,8 @@ public class Dao {
 		 */
 		if (!alreadyExistsInDb) {
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, isMovie);
-				ps.setString(2, suffix);
+				ps.setBoolean(1, storageType.isMovie());
+				ps.setString(2, storageType.getExtension());
 				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
 				ps.setInt(4, authUserId.orElseThrow());
 				ps.setString(5, GlobalFunctions.stripString(m.description()));
@@ -4374,12 +4375,31 @@ public class Dao {
 					for (User u : m.inPhoto()) {
 						ps.setInt(1, idMedia);
 						ps.setInt(2, getExistingOrInsertUser(c, u.name()));
-						ps.execute();
+						ps.addBatch();
 					}
 					ps.executeBatch();
 				}
 			}
-			if (isMovie) {
+			if (storageType.isMovie() && !isEmbed) {
+				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
+				try {
+					try (InputStream is = inputStreamSupplier.get()) {
+						Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
+					}
+					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, storageType);
+					final int id = idMedia;
+					Server.runAsync(() -> {
+						try {
+							VideoHelper.processVideo(id);
+						} catch (Exception e) {
+							logger.error("Failed to run async video processing for id=" + id, e);
+						}
+					});
+				} finally {
+					Files.deleteIfExists(tempFile);
+				}
+			}
+			else if (isEmbed) {
 				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
 			}
 			else {
