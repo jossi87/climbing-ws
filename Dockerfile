@@ -6,7 +6,7 @@ RUN dnf install -y maven
 COPY . .
 RUN mvn clean package -DskipTests
 
-FROM tomcat:10.1-jdk21-openjdk-slim
+FROM tomcat:11.0-jdk21-openjdk-slim
 
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
