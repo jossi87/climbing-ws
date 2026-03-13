@@ -1,3 +1,5 @@
 package com.buldreinfo.jersey.jaxb.leafletprint.beans;
 
-public record PrintSlope(String polyline, String label, String color) {}
+import com.buldreinfo.jersey.jaxb.model.Slope;
+
+public record PrintSlope(Slope slope, String backgroundColor) {}

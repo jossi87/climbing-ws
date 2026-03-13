@@ -49,7 +49,6 @@ import com.buldreinfo.jersey.jaxb.leafletprint.beans.Marker;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Outline;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.PrintSlope;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
@@ -62,7 +61,6 @@ import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
-import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
@@ -451,18 +449,6 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private String convertFromApproachToPolyline(List<Coordinates> approach) {
-		return approach.stream().map(a -> a.getLatitude() + "," + a.getLongitude()).collect(Collectors.joining(";"));
-	}
-
-	private String getDistance(Slope a) {
-		long meter = a.distance();
-		if (meter > 1000) {
-			return meter/1000 + " km";
-		}
-		return meter + " meter";
-	}
-
 	private Image getImageStarEmpty() throws BadElementException, MalformedURLException, IOException {
 		if (imageStarEmpty == null) {
 			imageStarEmpty = Image.getInstance(PdfGenerator.class.getResource("star.png"));
@@ -522,17 +508,14 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
 				}
-				String distance = null;
-				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-					var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-					slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+				if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
+				    slopes.add(new PrintSlope(sector.getApproach(), "lime"));
 				}
-				if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
-					var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
-					slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
+				if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
+				    slopes.add(new PrintSlope(sector.getDescent(), "purple"));
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-					final String name = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+					final String name = removeIllegalChars(sector.getName());
 					String label = null;
 					if (useLegend) {
 						label = String.valueOf(legends.size() + 1);
@@ -589,17 +572,14 @@ public class PdfGenerator implements AutoCloseable {
 				String name = removeIllegalChars(problem.getName());
 				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), IconType.DEFAULT, name));
 			}
-			String distance = null;
-			if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-				var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-				slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+			if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
+			    slopes.add(new PrintSlope(sector.getApproach(), "lime"));
 			}
-			if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
-				var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
-				slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
+			if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
+			    slopes.add(new PrintSlope(sector.getDescent(), "purple"));
 			}
 			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-				String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+				String label = removeIllegalChars(sector.getName());
 				String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 				outlines.add(new Outline(label, polygonCoords));
 			}
@@ -675,17 +655,14 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
 					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
 				}
-				String distance = null;
-				if (sector.getApproach() != null && sector.getApproach().coordinates() != null && !sector.getApproach().coordinates().isEmpty()) {
-					var polyline = convertFromApproachToPolyline(sector.getApproach().coordinates());
-					slopes.add(new PrintSlope(polyline, getDistance(sector.getApproach()), "lime"));
+				if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
+				    slopes.add(new PrintSlope(sector.getApproach(), "lime"));
 				}
-				if (sector.getDescent() != null && sector.getDescent().coordinates() != null && !sector.getDescent().coordinates().isEmpty()) {
-					var polyline = convertFromApproachToPolyline(sector.getDescent().coordinates());
-					slopes.add(new PrintSlope(polyline, getDistance(sector.getDescent()), "purple"));
+				if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
+				    slopes.add(new PrintSlope(sector.getDescent(), "purple"));
 				}
 				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-					final String label = removeIllegalChars(sector.getName()) + (!Strings.isNullOrEmpty(distance)? " (" + distance + ")" : "");
+					final String label = removeIllegalChars(sector.getName());
 					String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
