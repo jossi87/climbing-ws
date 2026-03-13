@@ -49,6 +49,13 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 - This file is ignored by Git to prevent accidental leaks of secrets.
 - All values are required for the server to run.
 
+### Sidecar Services
+
+This project relies on the following internal microservices:
+
+* **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)**: 
+  Handles Puppeteer-based map rendering for PDF and image exports.
+
 ### Run Project
 
 - Right click on "com.buldreinfo.jersey.jaxb" in Project Explorer and choose "Run as" -> "Run on server" to start web service.
