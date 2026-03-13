@@ -5,8 +5,26 @@ updates:
     schedule:
       interval: "daily"
     groups:
-      everything:
+      java-dependencies:
         patterns:
           - "*"
     commit-message:
       prefix: "deps"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      docker-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
