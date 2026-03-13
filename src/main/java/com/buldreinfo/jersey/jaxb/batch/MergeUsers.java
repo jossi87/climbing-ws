@@ -21,8 +21,8 @@ public class MergeUsers {
 	   AND id NOT IN (SELECT user_id FROM user_email WHERE user_id IS NOT NULL)
 	   AND id NOT IN (SELECT user_id FROM guestbook WHERE user_id IS NOT NULL);
 	 */
-	private final static int USER_ID_KEEP = 12310;
-	private final static int USER_ID_DELETE = 12311;
+	private final static int USER_ID_KEEP = -1;
+	private final static int USER_ID_DELETE = -2;
 
 	public static void main(String[] args) {
 		Server.runSql((_, c) -> {
