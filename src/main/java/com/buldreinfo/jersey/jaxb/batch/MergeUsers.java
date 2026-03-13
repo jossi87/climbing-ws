@@ -10,8 +10,7 @@ public class MergeUsers {
 	 * Delete empty users
 	 SELECT *
 	 FROM user
-	 WHERE picture IS NULL
-	   AND id NOT IN (SELECT user_id FROM fa WHERE user_id IS NOT NULL)
+	 WHERE id NOT IN (SELECT user_id FROM fa WHERE user_id IS NOT NULL)
 	   AND id NOT IN (SELECT user_id FROM fa_aid_user WHERE user_id IS NOT NULL)
 	   AND id NOT IN (SELECT user_id FROM tick WHERE user_id IS NOT NULL)
 	   AND id NOT IN (SELECT photographer_user_id FROM media WHERE photographer_user_id IS NOT NULL)
@@ -22,8 +21,8 @@ public class MergeUsers {
 	   AND id NOT IN (SELECT user_id FROM user_email WHERE user_id IS NOT NULL)
 	   AND id NOT IN (SELECT user_id FROM guestbook WHERE user_id IS NOT NULL);
 	 */
-	private final static int USER_ID_KEEP = -1;
-	private final static int USER_ID_DELETE = -2;
+	private final static int USER_ID_KEEP = 12310;
+	private final static int USER_ID_DELETE = 12311;
 
 	public static void main(String[] args) {
 		Server.runSql((_, c) -> {
