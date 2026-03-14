@@ -1,17 +1,13 @@
 package com.buldreinfo.jersey.jaxb.pdf;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.io.Writer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -30,254 +26,121 @@ import org.w3c.dom.Element;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
-import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.SvgAnchor;
-import com.buldreinfo.jersey.jaxb.model.SvgText;
-import com.google.common.base.Strings;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.common.collect.Lists;
 
 public class TopoGenerator {
 	private final static String xmlns = "http://www.w3.org/2000/svg";
-	private final static String COLOR_WHITE = "#FFFFFF";
-	
-	public static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws FileNotFoundException, IOException, TranscoderException, TransformerException {
-		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs))) {
+	private final static String xlinkns = "http://www.w3.org/1999/xlink";
+
+	protected static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId) throws IOException, TranscoderException, TransformerException {
+		int finalWidth = region != null ? region.width() : width;
+		float scale = Math.max(1.0f, (float)targetRes / finalWidth);
+		int exportWidth = (int)(finalWidth * scale);
+		int exportHeight = (int)((region != null ? region.height() : height) * scale);
+		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs, region, highlightProbId))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				TranscoderOutput to = new TranscoderOutput(baos);
 				JPEGTranscoder t = new JPEGTranscoder();
+				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 0.85f);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_WIDTH, (float)exportWidth);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, (float)exportHeight);
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, true);
-				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 1f);
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_WIDTH, (float)width);
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, (float)height);
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "*");
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_CONSTRAIN_SCRIPT_ORIGIN, true);
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_EXECUTE_ONLOAD, true);
 				t.transcode(ti, to);
 				return baos.toByteArray();
 			}
 		}
 	}
-	
-	private static void addCircle(Document doc, Element parent, String fill, String x, String y, String strokeWidth, String r) {
-		Element circle = doc.createElementNS(xmlns, "circle");
-		circle.setAttributeNS(null, "stroke-linecap", "round");
-		circle.setAttributeNS(null, "fill", fill);
-		circle.setAttributeNS(null, "cx", x);
-		circle.setAttributeNS(null, "cy", y); 
-		if (strokeWidth != null) {
-			circle.setAttributeNS(null, "stroke-width", strokeWidth);
-		}
-		circle.setAttributeNS(null, "r", r);
-		parent.appendChild(circle);
-	}
-	
-	private static void addPolygon(Document doc, Element parent, String fill, String stroke, String strokeWidth, int x, int y, int r) {
-		Element polygon = doc.createElementNS(xmlns, "polygon");
-		polygon.setAttributeNS(null, "stroke-linecap", "round");
-		polygon.setAttributeNS(null, "stroke", stroke);
-		polygon.setAttributeNS(null, "fill", fill);
-		if (strokeWidth != null) {
-			polygon.setAttributeNS(null, "stroke-width", strokeWidth);
-		}
-		polygon.setAttributeNS(null, "points", "%d,%d,%d,%d,%d,%d".formatted(x, y-r, x-r, y+r, x+r, y+r));
-		parent.appendChild(polygon);
-	}
-	
-	private static void addLine(Document doc, Element parent, String x1, String y1, String x2, String y2, String strokeWidth, String stroke) {
-		Element line = doc.createElementNS(xmlns, "line");
-		line.setAttributeNS(null, "stroke-linecap", "round");
-		line.setAttributeNS(null, "x1", x1);
-		line.setAttributeNS(null, "y1", y1);
-		line.setAttributeNS(null, "x2", x2);
-		line.setAttributeNS(null, "y2", y2);
-		line.setAttributeNS(null, "stroke-width", strokeWidth);
-		line.setAttributeNS(null, "stroke", stroke);
-		parent.appendChild(line);
-	}
-	
-	private static void addPath(Document doc, int imgMax, Element parent, String svgPath, boolean dashedPath, String stroke) {
-		Element path = doc.createElementNS(xmlns, "path");
-		path.setAttributeNS(null, "style", "fill: none; stroke: #000000;");
-		path.setAttributeNS(null, "d", svgPath);
-		path.setAttributeNS(null, "stroke-width", String.valueOf(0.003 * imgMax));
-		if (dashedPath) {
-			path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
-		}
-		path.setAttributeNS(null, "stroke-linecap", "round");
-		parent.appendChild(path);
-		path = doc.createElementNS(xmlns, "path");
-		path.setAttributeNS(null, "style", "fill: none; stroke: " + stroke + ";");
-		path.setAttributeNS(null, "d", svgPath);
-		path.setAttributeNS(null, "stroke-width", String.valueOf(0.0015 * imgMax));
-		if (dashedPath) {
-			path.setAttributeNS(null, "stroke-dasharray", String.valueOf(0.006 * imgMax));
-		}
-		path.setAttributeNS(null, "stroke-linecap", "round");
-		parent.appendChild(path);
-	}
-	
-	private static void addRappel(Document doc, int imgMax, Element parent, MediaSvgElement mediaSvg) {
-		final String strokeWidth = String.valueOf(0.0015*imgMax);
-		final double r = 0.005*imgMax;
-		final double x = mediaSvg.rappelX();
-		final double y = mediaSvg.rappelY();
-		Element g = doc.createElementNS(xmlns, "g");
-		g.setAttributeNS(null, "opacity", "0.9");
-		if (mediaSvg.t().equals(MediaSvgElementType.RAPPEL_BOLTED)) {
-			addCircle(doc, g, "none", String.valueOf(x), String.valueOf(y), strokeWidth, String.valueOf(r));
-		}
-		else {
-			addLine(doc, g, String.valueOf(x-r), String.valueOf(y-r), String.valueOf(x+r), String.valueOf(y-r), strokeWidth, COLOR_WHITE);
-			addLine(doc, g, String.valueOf(x-r), String.valueOf(y-r), String.valueOf(x), String.valueOf(y+(r*0.8)), strokeWidth, COLOR_WHITE);
-			addLine(doc, g, String.valueOf(x+r), String.valueOf(y-r), String.valueOf(x), String.valueOf(y+(r*0.8)), strokeWidth, COLOR_WHITE);
-		}
-		addLine(doc, g, String.valueOf(x), String.valueOf(y+r), String.valueOf(x), String.valueOf(y+r+r+r), strokeWidth, COLOR_WHITE);
-		addLine(doc, g, String.valueOf(x-r), String.valueOf(y+r+r), String.valueOf(x), String.valueOf(y+r+r+r), strokeWidth, COLOR_WHITE);
-		addLine(doc, g, String.valueOf(x+r), String.valueOf(y+r+r), String.valueOf(x), String.valueOf(y+r+r+r), strokeWidth, COLOR_WHITE);
-		parent.appendChild(g);
-	}
 
-	private static String generateDocument(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs) throws TransformerException {
+	private static String generateDocument(int mediaId, int origWidth, int origHeight, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int highlightProbId) throws TransformerException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
-		String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
-		Document doc = impl.createDocument(svgNS, "svg", null);
+		Document doc = impl.createDocument(xmlns, "svg", null);
 		Element svgRoot = doc.getDocumentElement();
-		svgRoot.setAttributeNS(null, "overflow", "visible");
-		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + width + " " + height);
-		svgRoot.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
-
-		// Image
+		int svgViewWidth = region != null ? region.width() : origWidth;
+		int svgViewHeight = region != null ? region.height() : origHeight;
+		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + svgViewWidth + " " + svgViewHeight);
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpg(mediaId));
-		image.setAttributeNS(null, "xlink:href", url);
+		String url = (region != null) 
+				? StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpgRegion(mediaId, region.x(), region.y(), region.width(), region.height()))
+						: StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpg(mediaId));
+		image.setAttributeNS(xlinkns, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
-		image.setAttributeNS(null, "height", "100%");
-		image.setAttributeNS(null, "width", "100%");
+		image.setAttributeNS(null, "x", "0");
+		image.setAttributeNS(null, "y", "0");
+		image.setAttributeNS(null, "width", String.valueOf(svgViewWidth));
+		image.setAttributeNS(null, "height", String.valueOf(svgViewHeight));
 		svgRoot.appendChild(image);
-		
-		final int imgMax = Math.max(width, height);
-
-		if (mediaSvgs != null && !mediaSvgs.isEmpty()) {
-			for (MediaSvgElement mediaSvg : mediaSvgs) {
-				if (mediaSvg.t().equals(MediaSvgElementType.PATH)) {
-					addPath(doc, imgMax, svgRoot, mediaSvg.path(), true, COLOR_WHITE);
-				}
-				else if (mediaSvg.t().equals(MediaSvgElementType.RAPPEL_BOLTED) || mediaSvg.t().equals(MediaSvgElementType.RAPPEL_NOT_BOLTED)) {
-					addRappel(doc, imgMax, svgRoot, mediaSvg);
+		final int imgMax = Math.max(svgViewWidth, svgViewHeight);
+		if (mediaSvgs != null) {
+			for (MediaSvgElement mSvg : mediaSvgs) {
+				if (mSvg.t().name().equals("PATH")) {
+					if (region == null || PdfMediaScaler.isPathVisible(mSvg.path(), region)) {
+						addPath(doc, imgMax, svgRoot, PdfMediaScaler.scalePath(mSvg.path(), region), "#FFFFFF", false);
+					}
 				}
 			}
 		}
-		if (svgs != null && !svgs.isEmpty()) {
-			List<Element> texts = new ArrayList<>(); // Text always on top
+		if (svgs != null) {
+			List<Element> texts = Lists.newArrayList();
 			for (Svg svg : svgs) {
-				List<String> parts = Pattern.compile("L").splitAsStream(svg.path().replace("M", "L").replace("C", "L"))
-						.map(String::trim)
-						.filter(s -> !s.isEmpty())
-						.toList();
-				float x0 = Float.parseFloat(parts.getFirst().split(" ")[0]);
-				float y0 = Float.parseFloat(parts.getFirst().split(" ")[1]);
-				String[] lastParts = parts.getLast().split(" ");
-				float x1 = Float.parseFloat(lastParts[lastParts.length-2]);
-				float y1 = Float.parseFloat(lastParts[lastParts.length-1]);
-				boolean firstIsLowest = y0 > y1;
-				float xMin = firstIsLowest? x0 : x1;
-				float yMin = firstIsLowest? y0 : y1;
-				float xMax = firstIsLowest? x1 : x0;
-				float yMax = firstIsLowest? y1 : y0;
-				// Init colors
-				String groupColor = switch (svg.problemGradeGroup()) {
-				case 0 -> COLOR_WHITE;
-				case 1 -> "#00FF00";
-				case 2 -> "#0000FF";
-				case 3 -> "#FFFF00";
-				case 4 -> "#FF0000";
-				case 5 -> "#FF00FF";
-				default -> "#000000";
-				};
-				String textColor = COLOR_WHITE;
-				if (svg.ticked()) {
-					textColor = "#21ba45";
-				}
-				else if (svg.todo()) {
-					textColor = "#659DBD";
-				}
-				else if (svg.dangerous()) {
-					textColor = "#FF0000";
-				}
-				// Path
-				addPath(doc, imgMax, svgRoot, svg.path(), svg.primary(), groupColor);
-				// Anchor-circle
-				if (svg.hasAnchor()) {
-					addCircle(doc, svgRoot, "#000000", String.valueOf(xMax), String.valueOf(yMax), null, String.valueOf(0.005 * imgMax));
-					addCircle(doc, svgRoot, groupColor, String.valueOf(xMax), String.valueOf(yMax), null, String.valueOf(0.004 * imgMax));
-				}
-				// Nr
-				final double r = 0.01*imgMax;
-				Element rect = doc.createElementNS(xmlns, "rect");
-				rect.setAttributeNS(null, "fill", "#000000");
-				rect.setAttributeNS(null, "x", String.valueOf(xMin-r));
-				rect.setAttributeNS(null, "y", String.valueOf(yMin-r));
-				rect.setAttributeNS(null, "width", String.valueOf(r*2));
-				rect.setAttributeNS(null, "height", String.valueOf(r*1.7));
-				rect.setAttributeNS(null, "rx", String.valueOf(r/3));
-				svgRoot.appendChild(rect);
-				Element text = doc.createElementNS(xmlns, "text");
-				text.setAttributeNS(null, "text-anchor", "middle");
-				text.setAttributeNS(null, "font-size", String.valueOf(0.017 * imgMax));
-				text.setAttributeNS(null, "font-weight", "bolder");
-				text.setAttributeNS(null, "fill", textColor);
-				text.setAttributeNS(null, "x", String.valueOf(xMin));
-				text.setAttributeNS(null, "y", String.valueOf(yMin));
-				text.setAttributeNS(null, "dy", String.valueOf(r/3));
-				text.appendChild(doc.createTextNode(String.valueOf(svg.pitch() > 0 ? svg.pitch() : svg.nr())));
-				texts.add(text);
-
-				Gson gson = new Gson();
-				// Texts
-				if (!Strings.isNullOrEmpty(svg.texts())) {
-					List<SvgText> svgTexts = gson.fromJson(svg.texts(), new TypeToken<List<SvgText>>(){});
-					for (SvgText svgText : svgTexts) {
-						text = doc.createElementNS(xmlns, "text");
-						text.setAttributeNS(null, "style", "fill: #FF0000;");
-						text.setAttributeNS(null, "x", String.valueOf(svgText.x()));
-						text.setAttributeNS(null, "y", String.valueOf(svgText.y()));
-						text.setAttributeNS(null, "dy", ".3em");
-						text.setAttributeNS(null, "font-size", "5em");
-						text.appendChild(doc.createTextNode(svgText.txt()));
-					}
-					texts.add(text);
-				}
-				// Anchors
-				if (!Strings.isNullOrEmpty(svg.anchors())) {
-					List<SvgAnchor> svgAnchors = gson.fromJson(svg.anchors(), new TypeToken<List<SvgAnchor>>(){});
-					for (SvgAnchor svgAnchor : svgAnchors) {
-						addCircle(doc, svgRoot, "#000000", String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.005 * imgMax));
-						addCircle(doc, svgRoot, groupColor, String.valueOf(svgAnchor.x()), String.valueOf(svgAnchor.y()), null, String.valueOf(0.004 * imgMax));
-					}
-				}
-				// Trad belay stations
-				if (svg.tradBelayStations() != null) {
-					List<SvgAnchor> tradBelayStations = gson.fromJson(svg.tradBelayStations(), new TypeToken<List<SvgAnchor>>(){});
-					for (SvgAnchor tradBelayStation : tradBelayStations) {
-						addPolygon(doc, svgRoot, "white", "black", String.valueOf(0.0015 * imgMax), tradBelayStation.x(), tradBelayStation.y(), (int)Math.round(r/2));
-					}
+				String path = PdfMediaScaler.scalePath(svg.path(), region);
+				List<String> pts = Pattern.compile("L").splitAsStream(path.replace("M", "L").replace("C", "L")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+				if (!pts.isEmpty()) {
+					float x = Float.parseFloat(pts.get(0).split(" ")[0]);
+					float y = Float.parseFloat(pts.get(0).split(" ")[1]);
+					boolean isHighlight = (highlightProbId <= 0) || (svg.problemId() == highlightProbId);
+					String strokeColor = isHighlight ? "#FFFFFF" : "#AAAAAA"; 
+					addPath(doc, imgMax, svgRoot, path, strokeColor, isHighlight);
+					String label = svg.pitch() > 0 ? svg.nr() + "-" + svg.pitch() : String.valueOf(svg.nr());
+					addHaloText(doc, texts, imgMax, x, y, label, isHighlight);
 				}
 			}
-			for (Element text : texts) {
-				svgRoot.appendChild(text);
+			for (Element t : texts) {
+				svgRoot.appendChild(t);
 			}
 		}
-
 		DOMSource domSource = new DOMSource(doc);
-		Writer writer = new StringWriter();
-		StreamResult result = new StreamResult(writer);
-		TransformerFactory tf = TransformerFactory.newInstance();
-		Transformer transformer = tf.newTransformer();
-		transformer.transform(domSource, result);
-		String res = writer.toString();
-		return res;
+		StringWriter writer = new StringWriter();
+		TransformerFactory.newInstance().newTransformer().transform(domSource, new StreamResult(writer));
+		return writer.toString();
+	}
+
+	private static void addHaloText(Document doc, List<Element> container, int imgMax, float x, float y, String txt, boolean isHighlight) {
+		double fontSize = isHighlight ? 0.025 : 0.015;
+		double strokeWidth = isHighlight ? 0.009 : 0.005;
+		Element halo = doc.createElementNS(xmlns, "text");
+		halo.setAttributeNS(null, "text-anchor", "middle");
+		halo.setAttributeNS(null, "font-size", String.valueOf(fontSize * imgMax));
+		halo.setAttributeNS(null, "font-weight", "bold");
+		halo.setAttributeNS(null, "fill", "none");
+		halo.setAttributeNS(null, "stroke", "#000000");
+		halo.setAttributeNS(null, "stroke-width", String.valueOf(strokeWidth * imgMax));
+		halo.setAttributeNS(null, "x", String.valueOf(x));
+		halo.setAttributeNS(null, "y", String.valueOf(y));
+		halo.appendChild(doc.createTextNode(txt));
+		container.add(halo);
+		Element main = doc.createElementNS(xmlns, "text");
+		main.setAttributeNS(null, "text-anchor", "middle");
+		main.setAttributeNS(null, "font-size", String.valueOf(fontSize * imgMax));
+		main.setAttributeNS(null, "font-weight", "bold");
+		main.setAttributeNS(null, "fill", isHighlight ? "#FFFFFF" : "#DDDDDD");
+		main.setAttributeNS(null, "x", String.valueOf(x));
+		main.setAttributeNS(null, "y", String.valueOf(y));
+		main.appendChild(doc.createTextNode(txt));
+		container.add(main);
+	}
+
+	private static void addPath(Document doc, int imgMax, Element parent, String svgPath, String stroke, boolean isHighlight) {
+		double baseWidth = isHighlight ? 0.005 : 0.003;
+		double topWidth = isHighlight ? 0.002 : 0.001;
+		Element p = doc.createElementNS(xmlns, "path");
+		p.setAttributeNS(null, "style", "fill: none; stroke: #000000; stroke-width: " + (baseWidth * imgMax) + ";");
+		p.setAttributeNS(null, "d", svgPath);
+		parent.appendChild(p);
+		Element p2 = doc.createElementNS(xmlns, "path");
+		p2.setAttributeNS(null, "style", "fill: none; stroke: " + stroke + "; stroke-width: " + (topWidth * imgMax) + ";");
+		p2.setAttributeNS(null, "d", svgPath);
+		parent.appendChild(p2);
 	}
 }

@@ -554,7 +554,7 @@ public class Dao {
 					JOIN guestbook g ON a.guestbook_id=g.id
 					JOIN user u ON g.user_id=u.id
 					LEFT JOIN media ma ON u.media_id=ma.id
-					JOIN media_guestbook mg ON g.id=mg.guestbook_id
+					LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id
 					LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)
 					WHERE a.id IN (%s)
 					""".formatted(Joiner.on(",").join(gbIds)))) {
