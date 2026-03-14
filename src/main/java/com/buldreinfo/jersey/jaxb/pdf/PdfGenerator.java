@@ -811,10 +811,20 @@ public class PdfGenerator implements AutoCloseable {
 		for (int i = 0; i < futures.size(); i++) {
 			byte[] data = futures.get(i).get();
 			if (data != null) {
-				int targetCol = imageIndex % cols;
-				addImageCell(columnTables.get(targetCol), data, toProcess.get(i).mediaMetadata().description());
-				colCounts[targetCol]++;
-				imageIndex++;
+				Media m = toProcess.get(i);
+				long uniqueProblems = (m.svgs() == null || probId != 0) ? 0 : m.svgs().stream().map(Svg::problemId).distinct().count();
+				if (uniqueProblems > 5) {
+					Image img = Image.getInstance(data);
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setBorder(Rectangle.NO_BORDER);
+					cell.setColspan(cols);
+					mainTable.addCell(cell);
+				} else {
+					int targetCol = imageIndex % cols;
+					addImageCell(columnTables.get(targetCol), data, m.mediaMetadata().description());
+					colCounts[targetCol]++;
+					imageIndex++;
+				}
 			}
 		}
 

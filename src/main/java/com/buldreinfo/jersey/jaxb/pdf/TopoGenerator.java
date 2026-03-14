@@ -107,8 +107,8 @@ public class TopoGenerator {
 	}
 
 	private static void addHaloText(Document doc, List<Element> container, int imgMax, float x, float y, String txt, boolean isHighlight) {
-		double fontSize = isHighlight ? 0.025 : 0.015;
-		double strokeWidth = isHighlight ? 0.009 : 0.005;
+		double fontSize = isHighlight ? 0.018 : 0.011;
+		double strokeWidth = isHighlight ? 0.006 : 0.003;
 		Element halo = doc.createElementNS(xmlns, "text");
 		halo.setAttributeNS(null, "text-anchor", "middle");
 		halo.setAttributeNS(null, "font-size", String.valueOf(fontSize * imgMax));
