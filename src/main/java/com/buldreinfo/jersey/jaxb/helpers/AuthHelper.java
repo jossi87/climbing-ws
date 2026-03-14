@@ -57,10 +57,17 @@ public class AuthHelper {
 
     public Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup) {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (Strings.isNullOrEmpty(authHeader) || authHeader.length() < 8) {
+        String accessToken = null;
+        if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
+            accessToken = authHeader.substring(7);
+        } 
+        else {
+            accessToken = request.getParameter("access_token");
+        }
+        if (Strings.isNullOrEmpty(accessToken)) {
             return Optional.empty();
         }
-        return getAuthUserId(dao, c, request, setup, authHeader.substring(7));
+        return getAuthUserId(dao, c, request, setup, accessToken);
     }
 
     private Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup, String accessToken) {
