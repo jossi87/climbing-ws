@@ -75,22 +75,21 @@ public class TopoGenerator {
 
 		final double scale = Math.max(viewW / 1920.0, viewH / 1440.0);
 
-		// 1. RESTORED: Draw Media SVGs (Descents/Background)
+		// 1. Media SVGs (Descents)
 		if (mediaSvgs != null) {
 			for (MediaSvgElement mSvg : mediaSvgs) {
 				if (mSvg.path() != null) {
-					addEnvironmentPath(doc, scale, svgRoot, PdfMediaScaler.scalePath(mSvg.path(), region));
+					addReactHaloPath(doc, scale, svgRoot, PdfMediaScaler.scalePath(mSvg.path(), region), "#FFFFFF", false, null);
 				}
 			}
 		}
 
-		// 2. Draw Route SVGs
+		// 2. Routes
 		if (svgs != null) {
 			List<Element> textElements = Lists.newArrayList();
 			for (Svg svg : svgs) {
 				String d = PdfMediaScaler.scalePath(svg.path(), region);
 				
-				// Coordinate parsing for minY/maxY
 				float xNr = 0, maxY = -Float.MAX_VALUE; 
 				float xAnchor = 0, minY = Float.MAX_VALUE;
 				Matcher m = COORD_PATTERN.matcher(d);
@@ -102,19 +101,18 @@ public class TopoGenerator {
 				}
 
 				boolean isHighlight = (highlightProbId <= 0) || (svg.problemId() == highlightProbId);
-				String groupColor = getGroupColor(svg.problemGradeGroup());
-				String dash = svg.primary() ? String.valueOf(10 * scale) : null;
+				String lineColor = getGroupColor(svg.problemGradeGroup());
+				String dash = (svg.problemSubtype() == null || svg.problemSubtype().equalsIgnoreCase("bolt")) ? String.valueOf(10 * scale) : null;
 				
-				addPath(doc, scale, svgRoot, d, groupColor, isHighlight, dash);
+				addReactHaloPath(doc, scale, svgRoot, d, lineColor, isHighlight, dash);
 
 				if (svg.hasAnchor()) {
-					addAnchor(doc, scale, svgRoot, xAnchor, minY, groupColor, isHighlight);
+					addAnchor(doc, scale, svgRoot, xAnchor, minY, lineColor, isHighlight);
 				}
 
 				String nrStr = (svg.pitch() != 0) ? svg.nr() + "-" + svg.pitch() : String.valueOf(svg.nr());
 				addText(doc, textElements, scale, xNr, maxY, nrStr, isHighlight, svg.ticked(), svg.todo(), svg.dangerous());
 			}
-			// Text elements drawn last to stay on top
 			for (Element t : textElements) svgRoot.appendChild(t);
 		}
 
@@ -124,16 +122,39 @@ public class TopoGenerator {
 		return writer.toString();
 	}
 
+	private static void addReactHaloPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
+		// Layer 1: Solid wide white glow (This stays solid to provide contrast against the rock)
+		Element pHalo = doc.createElementNS(xmlns, "path");
+		pHalo.setAttributeNS(null, "d", d);
+		pHalo.setAttributeNS(null, "style", "fill:none; stroke:white; stroke-opacity:0.4; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (8 * scale));
+		parent.appendChild(pHalo);
+
+		// Layer 2: Black dashed line (This creates the "outline" for each dash)
+		Element pBorder = doc.createElementNS(xmlns, "path");
+		pBorder.setAttributeNS(null, "d", d);
+		String borderStyle = "fill:none; stroke:black; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (5 * scale);
+		if (dash != null) borderStyle += "; stroke-dasharray:" + dash;
+		pBorder.setAttributeNS(null, "style", borderStyle);
+		parent.appendChild(pBorder);
+
+		// Layer 3: Colored dashed line (Slightly thinner, centered in the black dashes)
+		Element pCore = doc.createElementNS(xmlns, "path");
+		pCore.setAttributeNS(null, "d", d);
+		String coreStyle = "fill:none; stroke-linecap:round; stroke-linejoin:round; stroke:" + color + "; stroke-width:" + (2.5 * scale * (isHighlight ? 1.3 : 1.0));
+		if (dash != null) coreStyle += "; stroke-dasharray:" + dash;
+		pCore.setAttributeNS(null, "style", coreStyle);
+		parent.appendChild(pCore);
+	}
+
 	private static void addText(Document doc, List<Element> container, double scale, float x, float y, String txt, boolean isHighlight, boolean ticked, boolean todo, boolean dangerous) {
 		double fontSize = (isHighlight ? 25 : 20) * scale;
-		double haloWidth = 4 * scale;
+		double haloWidth = 5 * scale;
 		
 		String textColor = "#FFFFFF"; 
 		if (ticked) textColor = "#21ba45"; 
 		else if (todo) textColor = "#659DBD"; 
 		else if (dangerous) textColor = "#FF0000"; 
 
-		// Halo (Black outline)
 		Element halo = doc.createElementNS(xmlns, "text");
 		halo.setAttributeNS(null, "x", String.valueOf(x));
 		halo.setAttributeNS(null, "y", String.valueOf(y));
@@ -141,14 +162,13 @@ public class TopoGenerator {
 		halo.setAttributeNS(null, "dominant-baseline", "central");
 		halo.setAttributeNS(null, "font-size", String.valueOf(fontSize));
 		halo.setAttributeNS(null, "font-family", "Arial, sans-serif");
-		halo.setAttributeNS(null, "font-weight", isHighlight ? "bolder" : "normal");
+		halo.setAttributeNS(null, "font-weight", "900");
 		halo.setAttributeNS(null, "fill", "none");
 		halo.setAttributeNS(null, "stroke", "#000000");
 		halo.setAttributeNS(null, "stroke-width", String.valueOf(haloWidth));
 		halo.appendChild(doc.createTextNode(txt));
 		container.add(halo);
 
-		// Colored Text (On top)
 		Element main = doc.createElementNS(xmlns, "text");
 		main.setAttributeNS(null, "x", String.valueOf(x));
 		main.setAttributeNS(null, "y", String.valueOf(y));
@@ -156,42 +176,21 @@ public class TopoGenerator {
 		main.setAttributeNS(null, "dominant-baseline", "central");
 		main.setAttributeNS(null, "font-size", String.valueOf(fontSize));
 		main.setAttributeNS(null, "font-family", "Arial, sans-serif");
-		main.setAttributeNS(null, "font-weight", isHighlight ? "bolder" : "normal");
+		main.setAttributeNS(null, "font-weight", "900");
 		main.setAttributeNS(null, "fill", textColor);
 		main.appendChild(doc.createTextNode(txt));
 		container.add(main);
 	}
 
-	private static void addPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
-		Element p1 = doc.createElementNS(xmlns, "path");
-		p1.setAttributeNS(null, "d", d);
-		p1.setAttributeNS(null, "style", "fill:none; stroke:black; stroke-linecap:round; stroke-width:" + (5 * scale));
-		parent.appendChild(p1);
-
-		Element p2 = doc.createElementNS(xmlns, "path");
-		p2.setAttributeNS(null, "d", d);
-		String s = "fill:none; stroke-linecap:round; stroke:" + color + "; stroke-width:" + (2 * scale * (isHighlight ? 1.2 : 1.0));
-		if (dash != null) s += "; stroke-dasharray:" + dash;
-		p2.setAttributeNS(null, "style", s);
-		parent.appendChild(p2);
-	}
-
-	private static void addEnvironmentPath(Document doc, double scale, Element parent, String d) {
-		Element p = doc.createElementNS(xmlns, "path");
-		p.setAttributeNS(null, "d", d);
-		p.setAttributeNS(null, "style", "fill:none; stroke:white; stroke-linecap:round; stroke-width:" + (2 * scale));
-		parent.appendChild(p);
-	}
-
 	private static void addAnchor(Document doc, double scale, Element parent, float x, float y, String color, boolean isHighlight) {
-		double r = 8 * scale * (isHighlight ? 1.2 : 1.0);
+		double r = 9 * scale * (isHighlight ? 1.2 : 1.0);
 		Element c = doc.createElementNS(xmlns, "circle");
 		c.setAttributeNS(null, "cx", String.valueOf(x));
 		c.setAttributeNS(null, "cy", String.valueOf(y));
 		c.setAttributeNS(null, "r", String.valueOf(r));
 		c.setAttributeNS(null, "fill", color);
 		c.setAttributeNS(null, "stroke", "black");
-		c.setAttributeNS(null, "stroke-width", String.valueOf(2 * scale));
+		c.setAttributeNS(null, "stroke-width", String.valueOf(2.5 * scale));
 		parent.appendChild(c);
 	}
 
