@@ -34,7 +34,6 @@ import jakarta.ws.rs.core.StreamingOutput;
 
 public class V2Test {
 	private enum Region { buldreinfo, brattelinjer }
-	private final boolean dontUpdateHits = true;
 
 	@Test
 	public void testGetActivity() throws Exception {
@@ -48,7 +47,7 @@ public class V2Test {
 	public void testGetAreas() throws Exception {
 		V2 tester = new V2();
 		// All areas
-		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 0, dontUpdateHits)) {
+		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			@SuppressWarnings("unchecked")
@@ -56,7 +55,7 @@ public class V2Test {
 			assertTrue(areas.size() > 1);
 		}
 		// One area
-		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 7, dontUpdateHits)) {
+		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 7)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			@SuppressWarnings("unchecked")
@@ -132,7 +131,7 @@ public class V2Test {
 	@Test
 	public void testGetProblem() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), 1193, false, dontUpdateHits)) {
+		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), 1193, false)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
@@ -170,7 +169,7 @@ public class V2Test {
 	@Test
 	public void testGetSectors() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.getSectors(getRequest(Region.buldreinfo), 47, dontUpdateHits)) {
+		try (Response r = tester.getSectors(getRequest(Region.buldreinfo), 47)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Sector);
 			Sector s = (Sector)r.getEntity();
@@ -234,6 +233,8 @@ public class V2Test {
 		EasyMock.expect(req.getHeader(HttpHeaders.ORIGIN)).andReturn(origin).anyTimes();
 		EasyMock.expect(req.getHeader(HttpHeaders.AUTHORIZATION)).andReturn(null).anyTimes();
 		EasyMock.expect(req.getServerName()).andReturn(serverName).anyTimes();
+		EasyMock.expect(req.getParameter("access_token")).andReturn(null).anyTimes();
+		EasyMock.expect(req.getHeader(Server.HEADER_INTERNAL_REQUEST)).andReturn(Server.HEADER_INTERNAL_REQUEST_VALUE).anyTimes();
 		EasyMock.replay(req);
 		return req;
 	}

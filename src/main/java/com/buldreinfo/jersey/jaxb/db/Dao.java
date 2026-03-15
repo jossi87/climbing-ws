@@ -659,9 +659,9 @@ public class Dao {
 		return res;
 	}
 
-	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId, boolean updateHits) throws SQLException {
+	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		if (updateHits) {
+		if (shouldUpdateHits) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
 				ps.execute();
@@ -1340,9 +1340,9 @@ public class Dao {
 		return res;
 	}
 
-	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean updateHits) throws SQLException {
+	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		if (updateHits) {
+		if (shouldUpdateHits) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
 				ps.execute();
@@ -2321,9 +2321,9 @@ public class Dao {
 		return res;
 	}
 
-	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean updateHits) throws SQLException {
+	public Sector getSector(Connection c, Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		if (updateHits) {
+		if (shouldUpdateHits) {
 			try (PreparedStatement ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
 				ps.execute();

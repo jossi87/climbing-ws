@@ -29,6 +29,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Response;
 
 public class Server {
+	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
+	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
 	private static volatile Server server;
 	private static Logger logger = LogManager.getLogger();
 
@@ -68,6 +70,12 @@ public class Server {
 		return result;
 	}
 
+	private static boolean shouldUpdateHits(HttpServletRequest request) {
+	    String internalHeader = request.getHeader(HEADER_INTERNAL_REQUEST);
+	    boolean isInternal = HEADER_INTERNAL_REQUEST_VALUE.equalsIgnoreCase(internalHeader);
+	    return !isInternal;
+	}
+
 	protected static Response buildResponse(Function<Response> function) {
 		try {
 			return function.get();
@@ -76,13 +84,14 @@ public class Server {
 			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
 		}
 	}
-
+	
 	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
+	    boolean shouldUpdateHits = shouldUpdateHits(request);
 		try (Connection c = server.ds.getConnection()) {
 			try {
-				Response res = function.get(server.dao, c, setup);
+				Response res = function.get(server.dao, c, setup, shouldUpdateHits);
 				c.commit();
 				return res;
 			} catch (Exception e) {
@@ -98,10 +107,11 @@ public class Server {
 	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
+	    boolean shouldUpdateHits = shouldUpdateHits(request);
 		try (Connection c = server.ds.getConnection()) {
 			try {
 				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-				Response res = function.get(server.dao, c, setup, authUserId);
+				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
 				c.commit();
 				return res;
 			} catch (Exception e) {

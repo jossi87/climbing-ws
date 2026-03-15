@@ -21,10 +21,10 @@ public class WritePdf {
 					.findAny()
 					.orElseThrow();
 			var authUserId = Optional.of(1);
-			final boolean dontUpdateHits = true;
-			Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, !dontUpdateHits);
-			Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), !dontUpdateHits);
-			Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), !dontUpdateHits);
+			final boolean shouldUpdateHits = false;
+			Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, shouldUpdateHits);
+			Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
+			Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
 			// Problem
 			Path pProblem = Path.of("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 			try (var fos = new FileOutputStream(pProblem.toFile());
@@ -33,12 +33,12 @@ public class WritePdf {
 			}
 			// Area
 			Meta meta = Meta.from(dao, c, setup, authUserId);
-			area = dao.getArea(c, setup, authUserId, 2754, !dontUpdateHits);
+			area = dao.getArea(c, setup, authUserId, 2754, shouldUpdateHits);
 			var gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
 			Path pArea = Path.of("C:/Users/JosteinØygarden/Desktop/area.pdf");
 			final List<Sector> sectors = new ArrayList<>();
 			for (var areaSector : area.getSectors()) {
-				sectors.add(dao.getSector(c, authUserId, false, setup, areaSector.getId(), !dontUpdateHits));
+				sectors.add(dao.getSector(c, authUserId, false, setup, areaSector.getId(), shouldUpdateHits));
 			}
 			try (var fos = new FileOutputStream(pArea.toFile());
 					PdfGenerator generator = new PdfGenerator(fos)) {
