@@ -694,6 +694,7 @@ public class V2 {
 			}
 			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
+					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
 					.build();
 		});
