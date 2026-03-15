@@ -193,8 +193,9 @@ public class V2 {
 					}
 				}
 			};
-			String fn = GlobalFunctions.getFilename(area.getName(), "pdf");
-			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+			return Response.ok(stream)
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.getName(), "pdf")))
+					.build();
 		});
 	}
 
@@ -475,8 +476,9 @@ public class V2 {
 					}
 				}
 			};
-			String fn = GlobalFunctions.getFilename(problem.getName(), "pdf");
-			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+			return Response.ok(stream)
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(problem.getName(), "pdf")))
+					.build();
 		});
 	}
 
@@ -590,8 +592,9 @@ public class V2 {
 					}
 				}
 			};
-			String fn = GlobalFunctions.getFilename(sector.getName(), "pdf");
-			return Response.ok(stream).header("Content-Disposition", "attachment; filename=\"" + fn + "\"" ).build();
+			return Response.ok(stream)
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(sector.getName(), "pdf")))
+					.build();
 		});
 	}
 
@@ -692,10 +695,9 @@ public class V2 {
 					bytes = os.toByteArray();
 				}
 			}
-			String fn = GlobalFunctions.getFilename("ProblemsList", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Length", bytes.length)
-					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
 					.build();
 		});
 	}
@@ -764,9 +766,9 @@ public class V2 {
 	public Response getUsersTicks(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
 			byte[] bytes = dao.getUserTicks(c, authUserId);
-			String fn = GlobalFunctions.getFilename("Ticks", "xlsx");
 			return Response.ok(bytes, MIME_TYPE_XLSX)
-					.header("Content-Disposition", "attachment; filename=\"" + fn + "\"" )
+					.header("Content-Length", bytes.length)
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
 					.build();
 		});
 	}
