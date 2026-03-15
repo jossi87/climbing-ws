@@ -195,6 +195,7 @@ public class V2 {
 			};
 			return Response.ok(stream)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.getName(), "pdf")))
+					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
 	}
@@ -478,6 +479,7 @@ public class V2 {
 			};
 			return Response.ok(stream)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(problem.getName(), "pdf")))
+					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
 	}
@@ -594,6 +596,7 @@ public class V2 {
 			};
 			return Response.ok(stream)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(sector.getName(), "pdf")))
+					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
 	}
@@ -698,6 +701,7 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
+					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
 	}
@@ -769,6 +773,7 @@ public class V2 {
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
+					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
 	}
