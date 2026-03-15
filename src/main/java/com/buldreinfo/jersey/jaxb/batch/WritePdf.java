@@ -22,9 +22,9 @@ public class WritePdf {
 					.orElseThrow();
 			var authUserId = Optional.of(1);
 			final boolean dontUpdateHits = true;
-			final Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, !dontUpdateHits);
-			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), !dontUpdateHits);
-			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), !dontUpdateHits);
+			Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, !dontUpdateHits);
+			Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), !dontUpdateHits);
+			Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), !dontUpdateHits);
 			// Problem
 			Path pProblem = Path.of("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 			try (var fos = new FileOutputStream(pProblem.toFile());
@@ -33,6 +33,7 @@ public class WritePdf {
 			}
 			// Area
 			Meta meta = Meta.from(dao, c, setup, authUserId);
+			area = dao.getArea(c, setup, authUserId, 2754, !dontUpdateHits);
 			var gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
 			Path pArea = Path.of("C:/Users/JosteinØygarden/Desktop/area.pdf");
 			final List<Sector> sectors = new ArrayList<>();
