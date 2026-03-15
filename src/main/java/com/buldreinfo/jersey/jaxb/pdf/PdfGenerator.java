@@ -504,7 +504,7 @@ public class PdfGenerator implements AutoCloseable {
 					} catch (Exception e) {
 						logger.warn(e.getMessage(), e);
 					}
-					return safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId());
+					return safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
 				}));
 			}
 		}
@@ -528,7 +528,7 @@ public class PdfGenerator implements AutoCloseable {
 			for (Media m : section.media()) {
 				if (!mediaIdProcessed.contains(m.id())) {
 					toProcess.add(m);
-					sectionFutures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), null, null, 600, 0)));
+					sectionFutures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), null, null, 600, 0, 0)));
 					mediaIdProcessed.add(m.id());
 				}
 			}
@@ -575,9 +575,9 @@ public class PdfGenerator implements AutoCloseable {
 		return name;
 	}
 
-	private byte[] safeGenerateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetWidth, int probId) {
+	private byte[] safeGenerateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetWidth, int highlightProbId, int highlightPitch) {
 		try {
-			return TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs, region, targetWidth, probId);
+			return TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs, region, targetWidth, highlightProbId, highlightPitch);
 		} catch (Exception e) {
 			logger.error("Failed to generate topo for media " + mediaId, e);
 			return null;
@@ -801,7 +801,7 @@ public class PdfGenerator implements AutoCloseable {
 			if (mediaIdProcessed.contains(m.id())) continue;
 			toProcess.add(m);
 			List<Svg> svgs = m.svgs() != null ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) : null;
-			futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId)));
+			futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)));
 			mediaIdProcessed.add(m.id());
 		}
 

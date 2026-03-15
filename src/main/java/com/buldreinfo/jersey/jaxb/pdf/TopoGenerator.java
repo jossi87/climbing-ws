@@ -35,12 +35,12 @@ public class TopoGenerator {
 	private final static String xlinkns = "http://www.w3.org/1999/xlink";
 	private final static Pattern COORD_PATTERN = Pattern.compile("(-?\\d+\\.?\\d*)\\s*,?\\s*(-?\\d+\\.?\\d*)");
 
-	protected static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId) throws IOException, TranscoderException, TransformerException {
+	protected static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId, int highlightPitch) throws IOException, TranscoderException, TransformerException {
 		int finalWidth = region != null ? region.width() : width;
 		float scale = Math.max(1.0f, (float)targetRes / finalWidth);
 		int exportWidth = (int)(finalWidth * scale);
 		int exportHeight = (int)((region != null ? region.height() : height) * scale);
-		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs, region, highlightProbId))) {
+		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs, region, highlightProbId, highlightPitch))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				TranscoderOutput to = new TranscoderOutput(baos);
@@ -55,7 +55,7 @@ public class TopoGenerator {
 		}
 	}
 
-	private static String generateDocument(int mediaId, int origWidth, int origHeight, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int highlightProbId) throws TransformerException {
+	private static String generateDocument(int mediaId, int origWidth, int origHeight, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int highlightProbId, int highlightPitch) throws TransformerException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		Document doc = impl.createDocument(xmlns, "svg", null);
 		Element svgRoot = doc.getDocumentElement();
@@ -100,7 +100,11 @@ public class TopoGenerator {
 					if (cy < minY) { minY = cy; xAnchor = cx; }
 				}
 
-				boolean isHighlight = (highlightProbId <= 0) || (svg.problemId() == highlightProbId);
+				// Highlight logic: must match problem AND pitch (if pitch specified)
+				boolean isTargetProblem = (highlightProbId <= 0) || (svg.problemId() == highlightProbId);
+				boolean isTargetPitch = (highlightPitch <= 0) || (svg.pitch() == highlightPitch);
+				boolean isHighlight = isTargetProblem && isTargetPitch;
+
 				String lineColor = getGroupColor(svg.problemGradeGroup());
 				String dash = (svg.problemSubtype() == null || svg.problemSubtype().equalsIgnoreCase("bolt")) ? String.valueOf(10 * scale) : null;
 				
@@ -123,32 +127,36 @@ public class TopoGenerator {
 	}
 
 	private static void addReactHaloPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
-		// Layer 1: Solid wide white glow (This stays solid to provide contrast against the rock)
+		double opacity = isHighlight ? 1.0 : 0.25; // Drastically dim non-target pitches
+		
+		// Layer 1: Solid wide white glow
 		Element pHalo = doc.createElementNS(xmlns, "path");
 		pHalo.setAttributeNS(null, "d", d);
-		pHalo.setAttributeNS(null, "style", "fill:none; stroke:white; stroke-opacity:0.4; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (8 * scale));
+		pHalo.setAttributeNS(null, "style", "fill:none; stroke:white; stroke-opacity:" + (0.4 * opacity) + "; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (8 * scale));
 		parent.appendChild(pHalo);
 
-		// Layer 2: Black dashed line (This creates the "outline" for each dash)
+		// Layer 2: Black dashed line
 		Element pBorder = doc.createElementNS(xmlns, "path");
 		pBorder.setAttributeNS(null, "d", d);
-		String borderStyle = "fill:none; stroke:black; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (5 * scale);
+		String borderStyle = "fill:none; stroke:black; stroke-opacity:" + opacity + "; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (5 * scale);
 		if (dash != null) borderStyle += "; stroke-dasharray:" + dash;
 		pBorder.setAttributeNS(null, "style", borderStyle);
 		parent.appendChild(pBorder);
 
-		// Layer 3: Colored dashed line (Slightly thinner, centered in the black dashes)
+		// Layer 3: Colored core
 		Element pCore = doc.createElementNS(xmlns, "path");
 		pCore.setAttributeNS(null, "d", d);
-		String coreStyle = "fill:none; stroke-linecap:round; stroke-linejoin:round; stroke:" + color + "; stroke-width:" + (2.5 * scale * (isHighlight ? 1.3 : 1.0));
+		double coreWidth = 2.5 * scale * (isHighlight ? 1.4 : 0.9); // Highlighted is much thicker
+		String coreStyle = "fill:none; stroke-linecap:round; stroke-linejoin:round; stroke:" + color + "; stroke-opacity:" + opacity + "; stroke-width:" + coreWidth;
 		if (dash != null) coreStyle += "; stroke-dasharray:" + dash;
 		pCore.setAttributeNS(null, "style", coreStyle);
 		parent.appendChild(pCore);
 	}
 
 	private static void addText(Document doc, List<Element> container, double scale, float x, float y, String txt, boolean isHighlight, boolean ticked, boolean todo, boolean dangerous) {
-		double fontSize = (isHighlight ? 25 : 20) * scale;
-		double haloWidth = 5 * scale;
+		double opacity = isHighlight ? 1.0 : 0.3;
+		double fontSize = (isHighlight ? 26 : 16) * scale;
+		double haloWidth = (isHighlight ? 5 : 2) * scale;
 		
 		String textColor = "#FFFFFF"; 
 		if (ticked) textColor = "#21ba45"; 
@@ -165,6 +173,7 @@ public class TopoGenerator {
 		halo.setAttributeNS(null, "font-weight", "900");
 		halo.setAttributeNS(null, "fill", "none");
 		halo.setAttributeNS(null, "stroke", "#000000");
+		halo.setAttributeNS(null, "stroke-opacity", String.valueOf(opacity));
 		halo.setAttributeNS(null, "stroke-width", String.valueOf(haloWidth));
 		halo.appendChild(doc.createTextNode(txt));
 		container.add(halo);
@@ -178,18 +187,22 @@ public class TopoGenerator {
 		main.setAttributeNS(null, "font-family", "Arial, sans-serif");
 		main.setAttributeNS(null, "font-weight", "900");
 		main.setAttributeNS(null, "fill", textColor);
+		main.setAttributeNS(null, "fill-opacity", String.valueOf(opacity));
 		main.appendChild(doc.createTextNode(txt));
 		container.add(main);
 	}
 
 	private static void addAnchor(Document doc, double scale, Element parent, float x, float y, String color, boolean isHighlight) {
-		double r = 9 * scale * (isHighlight ? 1.2 : 1.0);
+		double opacity = isHighlight ? 1.0 : 0.3;
+		double r = 9 * scale * (isHighlight ? 1.2 : 0.6);
 		Element c = doc.createElementNS(xmlns, "circle");
 		c.setAttributeNS(null, "cx", String.valueOf(x));
 		c.setAttributeNS(null, "cy", String.valueOf(y));
 		c.setAttributeNS(null, "r", String.valueOf(r));
 		c.setAttributeNS(null, "fill", color);
+		c.setAttributeNS(null, "fill-opacity", String.valueOf(opacity));
 		c.setAttributeNS(null, "stroke", "black");
+		c.setAttributeNS(null, "stroke-opacity", String.valueOf(opacity));
 		c.setAttributeNS(null, "stroke-width", String.valueOf(2.5 * scale));
 		parent.appendChild(c);
 	}
