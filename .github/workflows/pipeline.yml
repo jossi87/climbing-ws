@@ -68,9 +68,12 @@ jobs:
           username: root
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            exec 200>/var/lock/docker-deploy.lock
+            flock -x 200
             set -eu
             cd /opt/varden-infra
             docker compose down climbing-ws --remove-orphans
+            docker rmi ${{ secrets.DOCKERHUB_USERNAME }}/climbing-ws:latest || true
             docker compose pull climbing-ws
             docker compose up -d climbing-ws
             docker image prune -f
