@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 public class FillProblems {
 	private static Logger logger = LogManager.getLogger();
 	public static enum T {BOLT, TRAD, MIXED, TOPROPE, AID, AIDTRAD, ICE}
+	private final boolean shouldUpdateHits = false;
 
 	private class Data {
 		private final int typeId;
@@ -179,7 +180,7 @@ public class FillProblems {
 	}
 
 	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
-		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, false));
+		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
 				return s.getId();

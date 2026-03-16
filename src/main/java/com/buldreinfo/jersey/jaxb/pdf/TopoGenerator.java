@@ -28,6 +28,7 @@ import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
 public class TopoGenerator {
@@ -62,11 +63,11 @@ public class TopoGenerator {
 		int viewW = region != null ? region.width() : origWidth;
 		int viewH = region != null ? region.height() : origHeight;
 		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + viewW + " " + viewH);
-		
+
 		Element image = doc.createElementNS(xmlns, "image");
 		String url = (region != null) 
 				? StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpgRegion(mediaId, region.x(), region.y(), region.width(), region.height()))
-				: StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpg(mediaId));
+						: StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpg(mediaId));
 		image.setAttributeNS(xlinkns, "xlink:href", url);
 		image.setAttributeNS(null, "href", url);
 		image.setAttributeNS(null, "width", "100%");
@@ -87,17 +88,30 @@ public class TopoGenerator {
 		// 2. Routes
 		if (svgs != null) {
 			List<Element> textElements = Lists.newArrayList();
-			for (Svg svg : svgs) {
+			for (Svg svg : svgs.stream()
+					.sorted((a, b) -> ComparisonChain.start()
+							.compareFalseFirst(a.problemId() == highlightProbId, b.problemId() == highlightProbId) // Draw highlighted route last
+							.compareFalseFirst(a.pitch() == highlightPitch, b.pitch() == highlightPitch) // Draw highlighted pitch last
+							.compare(a.nr(), b.nr())
+							.compare(a.pitch(), b.pitch())
+							.result())
+					.toList()) {
 				String d = PdfMediaScaler.scalePath(svg.path(), region);
-				
+
 				float xNr = 0, maxY = -Float.MAX_VALUE; 
 				float xAnchor = 0, minY = Float.MAX_VALUE;
 				Matcher m = COORD_PATTERN.matcher(d);
 				while (m.find()) {
 					float cx = Float.parseFloat(m.group(1));
 					float cy = Float.parseFloat(m.group(2));
-					if (cy > maxY) { maxY = cy; xNr = cx; }
-					if (cy < minY) { minY = cy; xAnchor = cx; }
+					if (cy > maxY) {
+						maxY = cy;
+						xNr = cx;
+					}
+					if (cy < minY) {
+						minY = cy;
+						xAnchor = cx;
+					}
 				}
 
 				// Highlight logic: must match problem AND pitch (if pitch specified)
@@ -107,7 +121,7 @@ public class TopoGenerator {
 
 				String lineColor = getGroupColor(svg.problemGradeGroup());
 				String dash = (svg.problemSubtype() == null || svg.problemSubtype().equalsIgnoreCase("bolt")) ? String.valueOf(10 * scale) : null;
-				
+
 				addReactHaloPath(doc, scale, svgRoot, d, lineColor, isHighlight, dash);
 
 				if (svg.hasAnchor()) {
@@ -127,8 +141,8 @@ public class TopoGenerator {
 	}
 
 	private static void addReactHaloPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
-		double opacity = isHighlight ? 1.0 : 0.6;
-		
+		double opacity = isHighlight ? 1.0 : 0.5;
+
 		// Layer 1: Solid wide white glow
 		Element pHalo = doc.createElementNS(xmlns, "path");
 		pHalo.setAttributeNS(null, "d", d);
@@ -154,10 +168,10 @@ public class TopoGenerator {
 	}
 
 	private static void addText(Document doc, List<Element> container, double scale, float x, float y, String txt, boolean isHighlight, boolean ticked, boolean todo, boolean dangerous) {
-		double opacity = isHighlight ? 1.0 : 0.6;
+		double opacity = isHighlight ? 1.0 : 0.5;
 		double fontSize = (isHighlight ? 26 : 16) * scale;
 		double haloWidth = (isHighlight ? 5 : 2) * scale;
-		
+
 		String textColor = "#FFFFFF"; 
 		if (ticked) textColor = "#21ba45"; 
 		else if (todo) textColor = "#659DBD"; 
@@ -193,7 +207,7 @@ public class TopoGenerator {
 	}
 
 	private static void addAnchor(Document doc, double scale, Element parent, float x, float y, String color, boolean isHighlight) {
-		double opacity = isHighlight ? 1.0 : 0.6;
+		double opacity = isHighlight ? 1.0 : 0.5;
 		double r = 9 * scale * (isHighlight ? 1.2 : 0.6);
 		Element c = doc.createElementNS(xmlns, "circle");
 		c.setAttributeNS(null, "cx", String.valueOf(x));
@@ -209,12 +223,12 @@ public class TopoGenerator {
 
 	private static String getGroupColor(int group) {
 		return switch (group) {
-			case 1 -> "#00FF00";
-			case 2 -> "#0000FF";
-			case 3 -> "#FFFF00";
-			case 4 -> "#FF0000";
-			case 5 -> "#FF00FF";
-			default -> "#FFFFFF";
+		case 1 -> "#00FF00";
+		case 2 -> "#0000FF";
+		case 3 -> "#FFFF00";
+		case 4 -> "#FF0000";
+		case 5 -> "#FF00FF";
+		default -> "#FFFFFF";
 		};
 	}
 }
