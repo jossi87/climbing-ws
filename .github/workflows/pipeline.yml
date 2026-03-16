@@ -70,6 +70,7 @@ jobs:
           script: |
             set -eu
             cd /opt/varden-infra
+            docker compose down climbing-ws --remove-orphans
             docker compose pull climbing-ws
             docker compose up -d climbing-ws
             docker image prune -f
