@@ -58,6 +58,6 @@ public class GlobalFunctions {
 	    
 	    // 2. Remove Emojis and high-range characters
 	    // This targets characters outside the standard Unicode plane
-	    return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "");
+	    return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "").strip();
 	}
 }
