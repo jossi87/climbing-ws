@@ -1,0 +1,17 @@
+# Build artifacts
+target/
+bin/
+
+# Eclipse specific files
+.project
+.classpath
+.settings/
+.metadata/
+
+# Optional: If anyone uses IntelliJ or VS Code
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/

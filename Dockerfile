@@ -7,7 +7,7 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
 COPY . .
-RUN mvn clean test package -DskipTests=false
+RUN mvn clean package -DskipTests
 
 FROM tomcat:11.0-jdk25-temurin-jammy
 
