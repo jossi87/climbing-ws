@@ -5,7 +5,6 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # --- JOB 1: Security Scan ---
   security-scan:
     name: Security Analysis
     runs-on: ubuntu-latest
@@ -13,52 +12,57 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java Runtime
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
+          cache: 'maven'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           build-mode: none
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
-  # --- JOB 2: Build & Deploy ---
   deploy:
     name: Build and Deploy
-    needs: security-scan  # The Gatekeeper
+    needs: security-scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create dummy config for build
         run: |
           mkdir -p src/main/resources/com/buldreinfo/jersey/jaxb/config/
           touch src/main/resources/com/buldreinfo/jersey/jaxb/config/buldreinfo.properties
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/climbing-ws:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_IP }}
           username: root
