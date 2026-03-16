@@ -382,7 +382,7 @@ public class PdfGenerator implements AutoCloseable {
 				pitchTitle.setLocalDestination(destName);
 				p.add(pitchTitle);
 
-				p.add(new Chunk(section.description(), FONT_REG));
+				p.add(new Chunk(Strings.nullToEmpty(section.description()), FONT_REG));
 				pitchCell.addElement(p);
 
 				new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), "Pitch " + section.nr());
