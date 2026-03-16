@@ -74,7 +74,6 @@ public class LeafletPrintGenerator {
 
 	/**
 	 * Sends the Leaflet data to the Sidecar Node.js service and returns the PNG bytes.
-	 * This replaces the old 'takeSnapshot' that relied on local Node installation and paths.
 	 */
 	public static Optional<byte[]> takeSnapshot(Leaflet leaflet) {
 		try {
@@ -84,7 +83,7 @@ public class LeafletPrintGenerator {
 			HttpRequest request = HttpRequest.newBuilder()
 					.uri(URI.create(RENDERER_URL))
 					.header("Content-Type", "application/json")
-					.timeout(Duration.ofSeconds(45)) // Puppeteer needs time for tile loading
+					.timeout(Duration.ofSeconds(15)) // Puppeteer needs time for tile loading
 					.POST(HttpRequest.BodyPublishers.ofString(json))
 					.build();
 

@@ -127,7 +127,7 @@ public class TopoGenerator {
 	}
 
 	private static void addReactHaloPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
-		double opacity = isHighlight ? 1.0 : 0.25; // Drastically dim non-target pitches
+		double opacity = isHighlight ? 1.0 : 0.6;
 		
 		// Layer 1: Solid wide white glow
 		Element pHalo = doc.createElementNS(xmlns, "path");
@@ -154,7 +154,7 @@ public class TopoGenerator {
 	}
 
 	private static void addText(Document doc, List<Element> container, double scale, float x, float y, String txt, boolean isHighlight, boolean ticked, boolean todo, boolean dangerous) {
-		double opacity = isHighlight ? 1.0 : 0.3;
+		double opacity = isHighlight ? 1.0 : 0.6;
 		double fontSize = (isHighlight ? 26 : 16) * scale;
 		double haloWidth = (isHighlight ? 5 : 2) * scale;
 		
@@ -193,7 +193,7 @@ public class TopoGenerator {
 	}
 
 	private static void addAnchor(Document doc, double scale, Element parent, float x, float y, String color, boolean isHighlight) {
-		double opacity = isHighlight ? 1.0 : 0.3;
+		double opacity = isHighlight ? 1.0 : 0.6;
 		double r = 9 * scale * (isHighlight ? 1.2 : 0.6);
 		Element c = doc.createElementNS(xmlns, "circle");
 		c.setAttributeNS(null, "cx", String.valueOf(x));
