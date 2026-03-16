@@ -51,6 +51,13 @@ public class GlobalFunctions {
 	}
 	
 	private static String removeIllegalCharacters(String str) {
-		return str.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+		if (str == null) return "";
+	    
+	    // 1. Remove OS-illegal characters (the ones you had before)
+	    String cleaned = str.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+	    
+	    // 2. Remove Emojis and high-range characters
+	    // This targets characters outside the standard Unicode plane
+	    return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "");
 	}
 }
