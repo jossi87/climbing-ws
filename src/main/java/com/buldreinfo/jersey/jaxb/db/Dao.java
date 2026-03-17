@@ -1295,47 +1295,44 @@ public class Dao {
 		ensureSuperadminWriteRegion(c, authUserId, idRegion);
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				FROM (
-				  /* Part 1: Users who logged into this region */
-				  SELECT u.id, 
-				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id,
-				         UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
-				         l_agg.last_login,
-				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM (SELECT user_id, MAX(`when`) last_login
-				        FROM user_login
-				        WHERE region_id=?
-				        GROUP BY user_id
-				  ) l_agg
-				  JOIN user u ON u.id=l_agg.user_id
-				  LEFT JOIN media m ON u.media_id=m.id
-				  LEFT JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
-				
-				  UNION
-				
-				  /* Part 2: Users with permissions in this region */
-				  SELECT u.id, 
-				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id,
-				         UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
-				         l_agg.last_login,
-				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM user_region ur
-				  JOIN user u ON ur.user_id=u.id
-				  LEFT JOIN media m ON u.media_id=m.id
-				  /* Join aggregated login so we don't multiply rows by 740k */
-				  LEFT JOIN (SELECT user_id, MAX(`when`) last_login
-				             FROM user_login
-				             WHERE region_id=?
-				             GROUP BY user_id
-				  ) l_agg ON u.id=l_agg.user_id
-				  WHERE ur.region_id=?
-				) x
-				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				ORDER BY COALESCE(x.superadmin_write,0) DESC, COALESCE(x.superadmin_read,0) DESC, COALESCE(x.admin_write,0) DESC, COALESCE(x.admin_read,0) DESC, x.name
-				""")) {
+	            SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+	            FROM (
+	              SELECT u.id, 
+	                     TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
+	                     m.id media_id,
+	                     UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+	                     l_agg.last_login,
+	                     ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+	              FROM (SELECT user_id, MAX(`when`) last_login
+	                    FROM user_login
+	                    WHERE region_id=?
+	                    GROUP BY user_id
+	              ) l_agg
+	              JOIN user u ON u.id=l_agg.user_id
+	              LEFT JOIN media m ON u.media_id=m.id
+	              LEFT JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
+	            
+	              UNION
+	            
+	              SELECT u.id, 
+	                     TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
+	                     m.id media_id,
+	                     UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
+	                     l_agg.last_login,
+	                     ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
+	              FROM user_region ur
+	              JOIN user u ON ur.user_id=u.id
+	              LEFT JOIN media m ON u.media_id=m.id
+	              LEFT JOIN (SELECT user_id, MAX(`when`) last_login
+	                         FROM user_login
+	                         WHERE region_id=?
+	                         GROUP BY user_id
+	              ) l_agg ON u.id=l_agg.user_id
+	              WHERE ur.region_id=?
+	            ) x
+	            GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+	            ORDER BY COALESCE(x.superadmin_write,0) DESC, COALESCE(x.superadmin_read,0) DESC, COALESCE(x.admin_write,0) DESC, COALESCE(x.admin_read,0) DESC, x.name
+	            """)) {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
 			ps.setInt(3, idRegion);
