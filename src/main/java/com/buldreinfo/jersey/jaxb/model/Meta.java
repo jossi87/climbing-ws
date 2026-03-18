@@ -11,7 +11,9 @@ import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.db.Dao;
 
-public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin, String authenticatedName, List<Grade> grades, List<Integer> faYears,
+public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
+		String authenticatedName, int mediaId, long mediaVersionStamp,
+		List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
@@ -22,8 +24,17 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
 		String authenticatedName = null;
+		int mediaId = 0;
+		long mediaVersionStamp = 0;
 		if (authUserId.isPresent()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name FROM user u LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?) WHERE u.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					FROM user u
+					LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?)
+					LEFT JOIN media m ON u.media_id=m.id
+					WHERE u.id=?
+					""")) {
 				ps.setInt(1, setup.idRegion());
 				ps.setInt(2, authUserId.get());
 				try (ResultSet rst = ps.executeQuery()) {
@@ -31,10 +42,12 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 						isAuthenticated = true;
 						isAdmin = rst.getBoolean("admin_write");
 						isSuperAdmin = rst.getBoolean("superadmin_write");
-						if (isSuperAdmin) { // buldreinfo-web often only checks for isAdmin
+						if (isSuperAdmin) { // climbing-web often only checks for isAdmin
 							isAdmin = true;
 						}
 						authenticatedName = rst.getString("authenticated_name");
+						mediaId = rst.getInt("media_id");
+						mediaVersionStamp = rst.getLong("media_version_stamp");
 					}
 				}
 			}
@@ -51,6 +64,6 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Site> sites = dao.getSites(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaId, mediaVersionStamp, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
 	}
 }
