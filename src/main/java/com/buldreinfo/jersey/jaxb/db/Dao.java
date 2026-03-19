@@ -1169,7 +1169,7 @@ public class Dao {
 				            JOIN area a_sub ON s_sub.area_id=a_sub.id
 				            JOIN region r_sub ON a_sub.region_id=r_sub.id
 				            JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				            WHERE r_sub.id=4
+				            WHERE r_sub.id=?
 				              AND m_sub.deleted_user_id IS NULL
 				              AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
 				              AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
@@ -1197,7 +1197,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
-				WHERE r.id=4
+				WHERE r.id=?
 				  AND m.deleted_user_id IS NULL
 				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
 				  AND a.access_closed IS NULL AND s.access_closed IS NULL
