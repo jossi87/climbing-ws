@@ -1142,8 +1142,20 @@ public class Dao {
 				       s.id id_sector, s.name sector, 
 				       p.id id_problem, p.name problem,
 				       ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
-				       CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), ',"mediaId":', COALESCE(ma.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at),0), '}') photographer,
-				       GROUP_CONCAT(DISTINCT CONCAT('{"id":', u2.id, ',"name":"', TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '","mediaId":', COALESCE(ma2.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at),0), '}') SEPARATOR ', ') tagged
+				       IF(u.id IS NULL, NULL, 
+				          CONCAT('{"id":', u.id, 
+				                 ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\"'), 
+				                 '","mediaId":', COALESCE(ma.id,0), 
+				                 ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at),0), '}')
+				       ) photographer,
+				       GROUP_CONCAT(DISTINCT 
+				           IF(u2.id IS NULL, NULL, 
+				              CONCAT('{"id":', u2.id, 
+				                     ',"name":"', REPLACE(TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '"', '\\"'), 
+				                     '","mediaId":', COALESCE(ma2.id,0), 
+				                     ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at),0), '}')
+				           ) SEPARATOR ', '
+				       ) tagged
 				FROM (
 				    SELECT id FROM (
 				        SELECT id FROM (
@@ -1157,7 +1169,7 @@ public class Dao {
 				            JOIN area a_sub ON s_sub.area_id=a_sub.id
 				            JOIN region r_sub ON a_sub.region_id=r_sub.id
 				            JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				            WHERE r_sub.id=?
+				            WHERE r_sub.id=4
 				              AND m_sub.deleted_user_id IS NULL
 				              AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
 				              AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
@@ -1185,14 +1197,11 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
-				WHERE r.id=?
+				WHERE r.id=4
 				  AND m.deleted_user_id IS NULL
-				  AND a.trash IS NULL
-				  AND s.trash IS NULL
-				  AND p.trash IS NULL
-				  AND a.access_closed IS NULL
-				  AND s.access_closed IS NULL
-				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname
+				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
+				  AND a.access_closed IS NULL AND s.access_closed IS NULL
+				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at
 	            """)) {
 	        ps.setInt(1, setup.idRegion());
 	        ps.setInt(2, setup.idRegion());
