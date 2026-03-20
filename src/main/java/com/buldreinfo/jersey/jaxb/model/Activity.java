@@ -59,7 +59,7 @@ public class Activity {
 			this.users = new ArrayList<>();
 		}
 		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
-		this.description = (this.description != null ? this.description + " | " + description : description);
+		this.description = (this.description != null ? this.description + " (" + description + ")" : description);
 		if (this.problemRandomMediaId == 0) {
 			this.problemRandomMediaId = problemRandomMediaId;
 			this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
