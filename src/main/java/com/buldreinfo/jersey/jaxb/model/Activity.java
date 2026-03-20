@@ -59,9 +59,11 @@ public class Activity {
 			this.users = new ArrayList<>();
 		}
 		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
-		this.description = description;
-		this.problemRandomMediaId = problemRandomMediaId;
-		this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
+		this.description = (this.description != null ? this.description + " | " + description : description);
+		if (this.problemRandomMediaId == 0) {
+			this.problemRandomMediaId = problemRandomMediaId;
+			this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
+		}
 	}
 	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
