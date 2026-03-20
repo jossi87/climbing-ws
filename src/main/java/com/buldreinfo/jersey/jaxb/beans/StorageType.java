@@ -22,8 +22,9 @@ public enum StorageType {
 		if (ext == null || ext.isBlank()) {
 			return Optional.empty();
 		}
+		final String normalizedExt = ext.equalsIgnoreCase("jpeg") ? "jpg" : ext;
 		return Arrays.stream(values())
-				.filter(t -> t.extension.equalsIgnoreCase(ext))
+				.filter(t -> t.extension.equalsIgnoreCase(normalizedExt))
 				.findFirst();
 	}
 
