@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
-
 public class Activity {
 	private final Set<Integer> activityIds;
 	private final String timeAgo;
@@ -23,11 +21,10 @@ public class Activity {
 	private final String problemName;
 	private final String problemSubtype;
 	private String grade;
-	private boolean noPersonalGrade;
 	private int problemRandomMediaId;
 	private long problemRandomMediaVersionStamp;
 	private List<ActivityMedia> media;
-	private int stars;
+	private int stars = -1;
 	private boolean repeat;
 	private int id;
 	private String name;
@@ -143,9 +140,6 @@ public class Activity {
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
-	public boolean isNoPersonalGrade() {
-		return noPersonalGrade;
-	}
 	public boolean isProblemLockedAdmin() {
 		return problemLockedAdmin;
 	}
@@ -176,11 +170,6 @@ public class Activity {
 		this.mediaVersionStamp = mediaVersionStamp;
 		this.description = description;
 		this.stars = stars;
-		if (GradeConverter.NO_PERSONAL_GRADE.equals(personalGrade)) {
-			this.noPersonalGrade = true;
-		}
-		else {
-			this.grade = personalGrade;
-		}
+		this.grade = personalGrade;
 	}
 }
