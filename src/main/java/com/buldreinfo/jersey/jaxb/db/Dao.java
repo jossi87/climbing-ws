@@ -248,19 +248,31 @@ public class Dao {
 		 * FA
 		 */
 		LocalDateTime problemActivityTimestamp = null;
+		List<Integer> faUserIds = new ArrayList<>();
 		boolean exists = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT fa_date, last_updated FROM problem WHERE id=?")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT p.fa_date, p.last_updated, f.user_id
+				FROM problem p
+				LEFT JOIN fa f ON p.id=f.problem_id
+				WHERE p.id=?
+				""")) {
 			ps.setInt(1, idProblem);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					exists = true;
-					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-					LocalDateTime lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
-					if (faDate != null && lastUpdated != null) {
-						problemActivityTimestamp = faDate.atTime(lastUpdated.getHour(), lastUpdated.getMinute(), lastUpdated.getSecond());
+					if (!exists) {
+						exists = true;
+						LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
+						LocalDateTime lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
+						if (faDate != null && lastUpdated != null) {
+							problemActivityTimestamp = faDate.atTime(lastUpdated.getHour(), lastUpdated.getMinute(), lastUpdated.getSecond());
+						}
+						else if (faDate != null) {
+							problemActivityTimestamp = faDate.atStartOfDay();
+						}
 					}
-					else if (faDate != null) {
-						problemActivityTimestamp = faDate.atStartOfDay();
+					int faUserId = rst.getInt("user_id");
+					if (faUserId > 0) {
+						faUserIds.add(faUserId);
 					}
 				}
 			}
@@ -315,21 +327,26 @@ public class Dao {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int userId = rst.getInt("user_id");
-						LocalDate tickDate = rst.getObject("date", LocalDate.class);
-						LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
 						LocalDateTime tickActivityTimestamp = null;
-						if (tickDate != null && tickCreated != null) {
-							if (tickCreated.toLocalDate().isAfter(tickDate)) {
-								// Tick created on different date, use end of day in activity order
-								tickActivityTimestamp = tickDate.atTime(23, 59, 59);
-							}
-							else {
-								// Tick created on same date as FA, use HHMMSS in activity order
-								tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
-							}
+						if (faUserIds.contains(userId) && problemActivityTimestamp != null) {
+							tickActivityTimestamp = problemActivityTimestamp;
 						}
-						else if (tickDate != null) {
-							tickActivityTimestamp = tickDate.atStartOfDay();
+						else {
+							LocalDate tickDate = rst.getObject("date", LocalDate.class);
+							LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
+							if (tickDate != null && tickCreated != null) {
+								if (tickCreated.toLocalDate().isAfter(tickDate)) {
+									// Tick created on different date, use end of day in activity order
+									tickActivityTimestamp = tickDate.atTime(23, 59, 59);
+								}
+								else {
+									// Tick created on same date as FA, use HHMMSS in activity order
+									tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
+								}
+							}
+							else if (tickDate != null) {
+								tickActivityTimestamp = tickDate.atStartOfDay();
+							}
 						}
 						psAddActivity.setObject(1, tickActivityTimestamp != null? tickActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK);
@@ -1131,10 +1148,10 @@ public class Dao {
 	}
 
 	public FrontpageRandomMedia getFrontpageRandomMedia(Connection c, Setup setup) throws SQLException {
-	    Stopwatch stopwatch = Stopwatch.createStarted();
-	    FrontpageRandomMedia res = null;
-	    try (PreparedStatement ps = c.prepareStatement("""
-	            SELECT avg(t.stars) avg_stars, 
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		FrontpageRandomMedia res = null;
+		try (PreparedStatement ps = c.prepareStatement("""
+				         SELECT avg(t.stars) avg_stars, 
 				       m.id id_media, 
 				       UNIX_TIMESTAMP(m.updated_at) version_stamp, 
 				       m.width, m.height, 
@@ -1202,32 +1219,32 @@ public class Dao {
 				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
 				  AND a.access_closed IS NULL AND s.access_closed IS NULL
 				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at
-	            """)) {
-	        ps.setInt(1, setup.idRegion());
-	        ps.setInt(2, setup.idRegion());
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                int idMedia = rst.getInt("id_media");
-	                long versionStamp = rst.getLong("version_stamp");
-	                int width = rst.getInt("width");
-	                int height = rst.getInt("height");
-	                int idArea = rst.getInt("id_area");
-	                String area = rst.getString("area");
-	                int idSector = rst.getInt("id_sector");
-	                String sector = rst.getString("sector");
-	                int idProblem = rst.getInt("id_problem");
-	                String problem = rst.getString("problem");
-	                int grade = rst.getInt("grade");
-	                String photographerJson = rst.getString("photographer");
-	                String taggedJson = rst.getString("tagged");
-	                User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
-	                List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
-	                res = new FrontpageRandomMedia(idMedia, versionStamp, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
-	            }
-	        }
-	    }
-	    logger.debug("getFrontpageRandomMedia(setup={}) - res={}, duration={}", setup, res, stopwatch);
-	    return res;
+				         """)) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id_media");
+					long versionStamp = rst.getLong("version_stamp");
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					int idArea = rst.getInt("id_area");
+					String area = rst.getString("area");
+					int idSector = rst.getInt("id_sector");
+					String sector = rst.getString("sector");
+					int idProblem = rst.getInt("id_problem");
+					String problem = rst.getString("problem");
+					int grade = rst.getInt("grade");
+					String photographerJson = rst.getString("photographer");
+					String taggedJson = rst.getString("tagged");
+					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
+					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
+					res = new FrontpageRandomMedia(idMedia, versionStamp, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
+				}
+			}
+		}
+		logger.debug("getFrontpageRandomMedia(setup={}) - res={}, duration={}", setup, res, stopwatch);
+		return res;
 	}
 
 	public Collection<GradeDistribution> getGradeDistribution(Connection c, Optional<Integer> authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
@@ -1305,7 +1322,7 @@ public class Dao {
 		ensureSuperadminWriteRegion(c, authUserId, idRegion);
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-	            SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				         SELECT x.id, x.name, x.media_id, x.media_version_stamp, DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
 				FROM (
 				  SELECT u.id, 
 				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
@@ -1321,9 +1338,9 @@ public class Dao {
 				  JOIN user u ON u.id=l_agg.user_id
 				  LEFT JOIN media m ON u.media_id=m.id
 				  LEFT JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
-				
+
 				  UNION
-				
+
 				  SELECT u.id, 
 				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
 				         m.id media_id,
@@ -1343,7 +1360,7 @@ public class Dao {
 				) x
 				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
 				ORDER BY COALESCE(x.superadmin_write,0) DESC, COALESCE(x.superadmin_read,0) DESC, COALESCE(x.admin_write,0) DESC, COALESCE(x.admin_read,0) DESC, x.name
-	            """)) {
+				         """)) {
 			ps.setInt(1, idRegion);
 			ps.setInt(2, idRegion);
 			ps.setInt(3, idRegion);
