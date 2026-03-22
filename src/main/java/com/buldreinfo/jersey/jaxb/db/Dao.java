@@ -2253,7 +2253,16 @@ public class Dao {
 
 				-- Problems
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
-				        p.locked_admin, p.locked_superadmin, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp, p.hits, 
+				        p.locked_admin, p.locked_superadmin,
+				        COALESCE(
+				          MAX(CASE WHEN m.is_movie=0 THEN m.id END), 
+				          MAX(CASE WHEN m.is_movie=1 THEN m.id END)
+				        ) media_id, 
+				        COALESCE(
+				          MAX(CASE WHEN m.is_movie=0 THEN UNIX_TIMESTAMP(m.updated_at) END), 
+				          MAX(CASE WHEN m.is_movie=1 THEN UNIX_TIMESTAMP(m.updated_at) END)
+				        ) media_version_stamp,
+				        p.hits, 
 				        NULL, 
 				        (SELECT ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) 
 				         FROM tick t WHERE t.problem_id = p.id), 
@@ -2266,7 +2275,7 @@ public class Dao {
 				 CROSS JOIN req
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
-				 LEFT JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				 LEFT JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
 				 LEFT JOIN tick t ON p.id=t.problem_id
 				 WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				   AND (r.id=req.region_id OR ur.user_id IS NOT NULL)

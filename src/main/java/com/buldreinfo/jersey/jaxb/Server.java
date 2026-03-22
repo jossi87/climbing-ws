@@ -71,9 +71,9 @@ public class Server {
 	}
 
 	private static boolean shouldUpdateHits(HttpServletRequest request) {
-	    String internalHeader = request.getHeader(HEADER_INTERNAL_REQUEST);
-	    boolean isInternal = HEADER_INTERNAL_REQUEST_VALUE.equalsIgnoreCase(internalHeader);
-	    return !isInternal;
+		String internalHeader = request.getHeader(HEADER_INTERNAL_REQUEST);
+		boolean isInternal = HEADER_INTERNAL_REQUEST_VALUE.equalsIgnoreCase(internalHeader);
+		return !isInternal;
 	}
 
 	protected static Response buildResponse(Function<Response> function) {
@@ -84,11 +84,11 @@ public class Server {
 			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
 		}
 	}
-	
+
 	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
-	    boolean shouldUpdateHits = shouldUpdateHits(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
 		try (Connection c = server.ds.getConnection()) {
 			try {
 				Response res = function.get(server.dao, c, setup, shouldUpdateHits);
@@ -107,7 +107,7 @@ public class Server {
 	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
 		Server server = getServer();
 		Setup setup = server.getSetup(request);
-	    boolean shouldUpdateHits = shouldUpdateHits(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
 		try (Connection c = server.ds.getConnection()) {
 			try {
 				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
@@ -170,7 +170,9 @@ public class Server {
 	private Setup getSetup(HttpServletRequest request) {
 		Objects.requireNonNull(request);
 		Objects.requireNonNull(request.getServerName(), "Invalid request=" + request);
-		final String serverName = request.getServerName().toLowerCase().replace("www.", "");
+		final String serverName = request.getServerName().toLowerCase()
+				.replace("www.", "")
+				.replace("staging.", "");
 		Setup setup = setupMap.get(serverName);
 		if (setup == null) {
 			throw new RuntimeException("Invalid serverName=" + serverName);
