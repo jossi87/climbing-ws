@@ -2254,14 +2254,8 @@ public class Dao {
 				-- Problems
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin,
-				        COALESCE(
-				          MAX(CASE WHEN m.is_movie=0 THEN m.id END), 
-				          MAX(CASE WHEN m.is_movie=1 THEN m.id END)
-				        ) media_id, 
-				        COALESCE(
-				          MAX(CASE WHEN m.is_movie=0 THEN UNIX_TIMESTAMP(m.updated_at) END), 
-				          MAX(CASE WHEN m.is_movie=1 THEN UNIX_TIMESTAMP(m.updated_at) END)
-				        ) media_version_stamp,
+				        MAX(m.id) media_id, 
+				        MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp,
 				        p.hits, 
 				        NULL, 
 				        (SELECT ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) 
