@@ -582,7 +582,7 @@ public class Dao {
 							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("message"));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
-								a.addMedia(mediaId, rst.getLong("media_version_stamp"), false, null);
+								a.addMedia(mediaId, rst.getLong("media_version_stamp"), false, null, 0, 0l);
 							}
 						}
 					}
@@ -614,17 +614,21 @@ public class Dao {
 		}
 		if (!mediaIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.is_movie, m.embed_url
+					SELECT a.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.is_movie, m.embed_url,
+					       m_photographer.id photographer_media_id, UNIX_TIMESTAMP(m_photographer.updated_at) photographer_version_stamp
 					FROM activity a
 					JOIN media m ON a.media_id=m.id
 					JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id
+					               LEFT JOIN user u ON m.photographer_user_id=u.id
+					               LEFT JOIN media m_photographer ON u.media_id=m_photographer.id
 					WHERE a.id IN (%s)
 					""".formatted(Joiner.on(",").join(mediaIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.addMedia(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getBoolean("is_movie"), rst.getString("embed_url"));
+							a.addMedia(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getBoolean("is_movie"), rst.getString("embed_url"),
+									rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"));
 						}
 					}
 				}

@@ -62,13 +62,17 @@ public class Activity {
 			this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
 		}
 	}
-	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl) {
+	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl, int photographerMediaId, long photographerMediaVersionTimestamp) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
 		this.media.add(new ActivityMedia(id, versionStamp, isMovie, embedUrl));
 		if (!isMovie) {
 			this.problemRandomMediaId = id;
+		}
+		if (photographerMediaId != 0) {
+			this.mediaId = photographerMediaId;
+			this.mediaVersionStamp = photographerMediaVersionTimestamp;
 		}
 	}
 	public Set<Integer> getActivityIds() {
