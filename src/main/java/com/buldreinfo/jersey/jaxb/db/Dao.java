@@ -619,12 +619,14 @@ public class Dao {
 		if (!mediaIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.is_movie, m.embed_url,
-					       m_photographer.id photographer_media_id, UNIX_TIMESTAMP(m_photographer.updated_at) photographer_version_stamp
+					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
 					FROM activity a
 					JOIN media m ON a.media_id=m.id
 					JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id
-					               LEFT JOIN user u ON m.photographer_user_id=u.id
-					               LEFT JOIN media m_photographer ON u.media_id=m_photographer.id
+					LEFT JOIN user u ON m.photographer_user_id=u.id
+					LEFT JOIN media m_photographer ON u.media_id=m_photographer.id
+					LEFT JOIN user u_creator ON m.uploader_user_id=u_creator.id
+					LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id
 					WHERE a.id IN (%s)
 					""".formatted(Joiner.on(",").join(mediaIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
