@@ -6,6 +6,7 @@ import java.util.Set;
 
 public class Activity {
 	private final Set<Integer> activityIds;
+	private List<ActivityMedia> activityThumbnails;
 	private final String timeAgo;
 	private final int areaId;
 	private final String areaName;
@@ -21,15 +22,11 @@ public class Activity {
 	private final String problemName;
 	private final String problemSubtype;
 	private String grade;
-	private int problemRandomMediaId;
-	private long problemRandomMediaVersionStamp;
 	private List<ActivityMedia> media;
 	private int stars = -1;
 	private boolean repeat;
 	private int id;
 	private String name;
-	private int mediaId;
-	private long mediaVersionStamp;
 	private String description;
 	private String message;
 	private List<User> users;
@@ -51,32 +48,37 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, int mediaId, long mediaVersionStamp, String description, int problemRandomMediaId, long problemRandomMediaVersionStamp) {
+	public void addFa(String name, int userId, int mediaId, long mediaVersionStamp, String description) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
 		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
 		this.description = (this.description != null ? this.description + " (" + description + ")" : description);
-		if (this.problemRandomMediaId == 0) {
-			this.problemRandomMediaId = problemRandomMediaId;
-			this.problemRandomMediaVersionStamp = problemRandomMediaVersionStamp;
-		}
 	}
-	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl, int photographerMediaId, long photographerMediaVersionTimestamp) {
+	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
 		this.media.add(new ActivityMedia(id, versionStamp, isMovie, embedUrl));
-		if (!isMovie) {
-			this.problemRandomMediaId = id;
-		}
-		if (photographerMediaId != 0) {
-			this.mediaId = photographerMediaId;
-			this.mediaVersionStamp = photographerMediaVersionTimestamp;
+	}
+	public void appendActivityThumbnail(int id, long versionStamp) {
+		if (id != 0) {
+			if (this.activityThumbnails == null) {
+				this.activityThumbnails = new ArrayList<>();
+			}
+			if (this.activityThumbnails.size() < 4 && this.activityThumbnails.stream()
+					.filter(x -> x.id() == id)
+					.findAny()
+					.isEmpty()) {
+				this.activityThumbnails.add(new ActivityMedia(id, versionStamp, false, null));
+			}
 		}
 	}
 	public Set<Integer> getActivityIds() {
 		return activityIds;
+	}
+	public List<ActivityMedia> getActivityThumbnails() {
+		return activityThumbnails;
 	}
 	public int getAreaId() {
 		return areaId;
@@ -96,12 +98,6 @@ public class Activity {
 	public List<ActivityMedia> getMedia() {
 		return media;
 	}
-	public int getMediaId() {
-		return mediaId;
-	}
-	public long getMediaVersionStamp() {
-		return mediaVersionStamp;
-	}
 	public String getMessage() {
 		return message;
 	}
@@ -113,12 +109,6 @@ public class Activity {
 	}
 	public String getProblemName() {
 		return problemName;
-	}
-	public int getProblemRandomMediaId() {
-		return problemRandomMediaId;
-	}
-	public long getProblemRandomMediaVersionStamp() {
-		return problemRandomMediaVersionStamp;
 	}
 	public String getProblemSubtype() {
 		return problemSubtype;
@@ -159,19 +149,15 @@ public class Activity {
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
 	}
-	public void setGuestbook(int id, String name, int mediaId, long mediaVersionStamp, String message) {
+	public void setGuestbook(int id, String name, String message) {
 		this.id = id;
 		this.name = name;
-		this.mediaId = mediaId;
-		this.mediaVersionStamp = mediaVersionStamp;
 		this.message = message;
 	}
-	public void setTick(boolean repeat, int id, String name, int mediaId, long mediaVersionStamp, String description, int stars, String personalGrade) {
+	public void setTick(boolean repeat, int id, String name, String description, int stars, String personalGrade) {
 		this.repeat = repeat;
 		this.id = id;
 		this.name = name;
-		this.mediaId = mediaId;
-		this.mediaVersionStamp = mediaVersionStamp;
 		this.description = description;
 		this.stars = stars;
 		this.grade = personalGrade;

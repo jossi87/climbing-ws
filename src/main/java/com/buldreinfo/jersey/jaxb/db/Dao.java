@@ -538,7 +538,8 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.appendActivityThumbnail(rst.getInt("media_id"), rst.getLong("media_version_stamp"));
 						}
 					}
 				}
@@ -558,7 +559,8 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.appendActivityThumbnail(rst.getInt("media_id"), rst.getLong("media_version_stamp"));
 						}
 					}
 				}
@@ -579,11 +581,12 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("message"));
+							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getString("message"));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
-								a.addMedia(mediaId, rst.getLong("media_version_stamp"), false, null, 0, 0l);
+								a.addMedia(mediaId, rst.getLong("media_version_stamp"), false, null);
 							}
+							a.appendActivityThumbnail(rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"));
 						}
 					}
 				}
@@ -606,7 +609,8 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("description"), rst.getInt("media_id"), rst.getLong("media_version_stamp"));
+							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("description"));
+							a.appendActivityThumbnail(rst.getInt("media_id"), rst.getLong("media_version_stamp"));
 						}
 					}
 				}
@@ -627,8 +631,8 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.addMedia(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getBoolean("is_movie"), rst.getString("embed_url"),
-									rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"));
+							a.addMedia(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getBoolean("is_movie"), rst.getString("embed_url"));
+							a.appendActivityThumbnail(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"));
 						}
 					}
 				}
