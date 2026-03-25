@@ -634,7 +634,10 @@ public class Dao {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							a.addMedia(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getBoolean("is_movie"), rst.getString("embed_url"));
-							a.appendActivityThumbnail(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"));
+							if (a.getUsers() == null || a.getUsers().isEmpty()) {
+								// Don't append activity thumbnail if this is a new problem, only show FA users
+								a.appendActivityThumbnail(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"));
+							}
 						}
 					}
 				}
