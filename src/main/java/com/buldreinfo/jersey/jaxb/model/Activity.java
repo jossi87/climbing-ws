@@ -48,18 +48,17 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addFa(String name, int userId, int mediaId, long mediaVersionStamp, String description) {
-		if (this.users == null) {
-			this.users = new ArrayList<>();
-		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
-		this.description = (this.description != null ? this.description + " (" + description + ")" : description);
-	}
 	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
 		this.media.add(new ActivityMedia(id, versionStamp, isMovie, embedUrl));
+	}
+	public void addUser(int userId, String name, int mediaId, long mediaVersionStamp) {
+		if (this.users == null) {
+			this.users = new ArrayList<>();
+		}
+		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
 	}
 	public void appendActivityThumbnail(int id, long versionStamp) {
 		if (id != 0) {
@@ -148,6 +147,9 @@ public class Activity {
 	}
 	public boolean isSectorLockedSuperadmin() {
 		return sectorLockedSuperadmin;
+	}
+	public void setDescription(String description) {
+		this.description = description;
 	}
 	public void setGuestbook(int id, String name, String message) {
 		this.id = id;

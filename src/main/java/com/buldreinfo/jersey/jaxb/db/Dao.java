@@ -594,22 +594,32 @@ public class Dao {
 		}
 		if (!faIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, u.id user_id, ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, p.description, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp
+					SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
 					FROM activity a
 					JOIN problem p ON a.problem_id=p.id
 					LEFT JOIN fa ON p.id=fa.problem_id
 					LEFT JOIN user u ON fa.user_id=u.id
-					LEFT JOIN media ma ON u.media_id=ma.id
-					LEFT JOIN media_problem mp ON p.id=mp.problem_id
-					LEFT JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)
+					LEFT JOIN media m ON u.media_id=m.id
 					WHERE a.id IN (%s)
-					GROUP BY a.id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at, p.description
 					""".formatted(Joiner.on(",").join(faIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.addFa(rst.getString("name"), rst.getInt("user_id"), rst.getInt("avatar_media_id"), rst.getLong("avatar_version_stamp"), rst.getString("description"));
+							String description = rst.getString("description");
+							if (description != null) {
+								if (a.getDescription() == null) {
+									a.setDescription(description);
+								}
+								else if (!a.getDescription().contains(description)) {
+									a.setDescription(a.getDescription() + " (" + description + ")");
+								}
+							}
+							int userId = rst.getInt("user_id");
+							String name = rst.getString("name");
+							int mediaId = rst.getInt("media_id");
+							long mediaVersionStamp = rst.getLong("media_version_stamp");
+							a.addUser(userId, name, mediaId, mediaVersionStamp);
 							a.appendActivityThumbnail(rst.getInt("media_id"), rst.getLong("media_version_stamp"));
 						}
 					}
