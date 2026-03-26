@@ -5,10 +5,12 @@ import java.util.List;
 
 public class ProfileStatistics {
 	public class ProfileStatisticsTick {
-		private final String regionName; 
+		private final String regionName;
+		private final int areaId;
 		private final String areaName;
 		private final boolean areaLockedAdmin;
 		private final boolean areaLockedSuperadmin;
+		private final int sectorId;
 		private final String sectorName;
 		private final boolean sectorLockedAdmin;
 		private final boolean sectorLockedSuperadmin;
@@ -31,14 +33,17 @@ public class ProfileStatistics {
 		private final boolean noPersonalGrade;
 		private Coordinates coordinates;
 		
-		public ProfileStatisticsTick(String regionName, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName,
-				boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches,
+		public ProfileStatisticsTick(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
+				int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
+				int id, int idTickRepeat, String subType, int numPitches,
 				int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 				String dateHr, double stars, boolean fa, String grade, int gradeNumber, boolean noPersonalGrade) {
 			this.regionName = regionName;
+			this.areaId = areaId;
 			this.areaName = areaName;
 			this.areaLockedAdmin = areaLockedAdmin;
 			this.areaLockedSuperadmin = areaLockedSuperadmin;
+			this.sectorId = sectorId;
 			this.sectorName = sectorName;
 			this.sectorLockedAdmin = sectorLockedAdmin;
 			this.sectorLockedSuperadmin = sectorLockedSuperadmin;
@@ -58,6 +63,10 @@ public class ProfileStatistics {
 			this.grade = grade;
 			this.gradeNumber = gradeNumber;
 			this.noPersonalGrade = noPersonalGrade;
+		}
+		
+		public int getAreaId() {
+			return areaId;
 		}
 		
 		public String getAreaName() {
@@ -87,7 +96,7 @@ public class ProfileStatistics {
 		public int getGradeNumber() {
 			return gradeNumber;
 		}
-		
+
 		public int getId() {
 			return id;
 		}
@@ -95,11 +104,11 @@ public class ProfileStatistics {
 		public int getIdProblem() {
 			return idProblem;
 		}
-
+		
 		public int getIdTickRepeat() {
 			return idTickRepeat;
 		}
-		
+
 		public String getName() {
 			return name;
 		}
@@ -107,7 +116,7 @@ public class ProfileStatistics {
 		public int getNum() {
 			return num;
 		}
-
+		
 		public int getNumPitches() {
 			return numPitches;
 		}
@@ -115,7 +124,11 @@ public class ProfileStatistics {
 		public String getRegionName() {
 			return regionName;
 		}
-		
+
+		public int getSectorId() {
+			return sectorId;
+		}
+
 		public String getSectorName() {
 			return sectorName;
 		}
@@ -159,11 +172,11 @@ public class ProfileStatistics {
 		public boolean isSectorLockedSuperadmin() {
 			return sectorLockedSuperadmin;
 		}
-
+		
 		public void setCoordinates(Coordinates coordinates) {
 			this.coordinates = coordinates;
 		}
-
+		
 		public void setDate(String date) {
 			this.date = date;
 		}
@@ -189,8 +202,8 @@ public class ProfileStatistics {
 	public ProfileStatistics() {
 	}
 	
-	public ProfileStatisticsTick addTick(String regionName, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber, boolean noPersonalGrade) {
-		ProfileStatisticsTick res = new ProfileStatisticsTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber, noPersonalGrade);
+	public ProfileStatisticsTick addTick(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin, int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, int id, int idTickRepeat, String subType, int numPitches, int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date, String dateHr, double stars, boolean fa, String grade, int gradeNumber, boolean noPersonalGrade) {
+		ProfileStatisticsTick res = new ProfileStatisticsTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeNumber, noPersonalGrade);
 		ticks.add(res);
 		return res;
 	}

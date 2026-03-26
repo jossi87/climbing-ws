@@ -1956,10 +1956,33 @@ public class Dao {
 		}
 
 		// Tick
-		String sqlStr = "SELECT r.name region_name, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, 0 id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr, CASE WHEN t.id IS NULL THEN -1 ELSE t.stars END stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL AND t.grade>=0 THEN t.grade ELSE p.grade END) grade, CASE WHEN t.id IS NOT NULL AND t.grade=-1 THEN 1 ELSE 0 END no_personal_grade"
-				+ " FROM ((((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)"
-				+ " WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade";
+		String sqlStr = """
+				SELECT r.name region_name,
+				       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				       t.id id_tick, 0 id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
+				       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name,
+				       CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment,
+				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
+				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr,
+				       CASE WHEN t.id IS NULL THEN -1 ELSE t.stars END stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa,
+				       (CASE WHEN t.id IS NOT NULL AND t.grade>=0 THEN t.grade ELSE p.grade END) grade,
+				       CASE WHEN t.id IS NOT NULL AND t.grade=-1 THEN 1 ELSE 0 END no_personal_grade
+				FROM problem p
+				JOIN type ty ON p.type_id=ty.id
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id
+				LEFT JOIN problem_section ps ON p.id=ps.problem_id
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?
+				LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)
+				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
+				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
@@ -1968,9 +1991,11 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String regionName = rst.getString("region_name");
+					int areaId = rst.getInt("area_id");
 					String areaName = rst.getString("area_name");
 					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					int sectorId = rst.getInt("sector_id");
 					String sectorName = rst.getString("sector_name");
 					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
@@ -1992,16 +2017,32 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
 		}
 		// Tick_repeat
-		sqlStr = "SELECT r.name region_name, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, t.grade"
-				+ " FROM ((((((((problem p INNER JOIN type ty ON p.type_id=ty.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN tick t ON p.id=t.problem_id AND t.user_id=?) INNER JOIN tick_repeat tr ON t.id=tr.tick_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
-				+ " WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, t.grade";
+		sqlStr = """
+				SELECT r.name region_name,
+				       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
+				       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
+				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, t.grade
+				FROM problem p
+				JOIN type ty ON p.type_id=ty.id
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id
+				JOIN tick t ON p.id=t.problem_id AND t.user_id=?
+				JOIN tick_repeat tr ON t.id=tr.tick_id
+				LEFT JOIN problem_section ps ON p.id=ps.problem_id
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, t.grade
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
 			ps.setInt(2, authUserId.orElse(0));
@@ -2009,9 +2050,11 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String regionName = rst.getString("region_name");
+					int areaId = rst.getInt("area_id");
 					String areaName = rst.getString("area_name");
 					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					int sectorId = rst.getInt("sector_id");
 					String sectorName = rst.getString("sector_name");
 					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
@@ -2033,25 +2076,41 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = false;
-					res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 				}
 			}
 		}
 		// First aid ascent
 		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT r.name region_name, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches, p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr" +
-					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
-					" WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
-					" GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT r.name region_name,
+					       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+					       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches,
+					       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description,
+					       DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr
+					FROM problem p
+					JOIN sector s ON p.sector_id=s.id
+					JOIN area a ON s.area_id=a.id
+					JOIN region r ON a.region_id=r.id
+					JOIN region_type rt ON r.id=rt.region_id
+					JOIN fa_aid aid ON p.id=aid.problem_id
+					JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?)
+					LEFT JOIN problem_section ps ON p.id=ps.problem_id
+					LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
+					""")) {
 				ps.setInt(1, reqId);
 				ps.setInt(2, authUserId.orElse(0));
 				ps.setInt(3, setup.idRegion());
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						String regionName = rst.getString("region_name");
+						int areaId = rst.getInt("area_id");
 						String areaName = rst.getString("area_name");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						int sectorId = rst.getInt("sector_id");
 						String sectorName = rst.getString("sector_name");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
@@ -2086,7 +2145,7 @@ public class Dao {
 							}
 						}
 						else {
-							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
 							idProblemTickMap.put(idProblem, tick);
 						}
 					}
@@ -2597,31 +2656,48 @@ public class Dao {
 
 	public Ticks getTicks(Connection c, Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
 		final int take = 200;
-		int numTicks = 0;
-		int skip = (page-1)*take;
-		String sqlStr = "SELECT a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, p.id problem_id, t.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, DATE_FORMAT(t.date,'%Y.%m.%d') ts, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name"
-				+ " FROM ((((((region r INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN tick t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?"
-				+ "  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)"
-				+ "    AND (r.id=? OR ur.user_id IS NOT NULL)"
-				+ "    AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
-				+ "    AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
-				+ "    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, t.grade, p.name, p.locked_admin, p.locked_superadmin, t.date, u.firstname, u.lastname"
-				+ " ORDER BY t.date DESC, problem_name, name";
+		int skip = (page - 1) * take;
+		String sqlStr = """
+				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				       p.id problem_id, t.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       DATE_FORMAT(t.date,'%Y.%m.%d') ts, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name,
+				       COUNT(*) OVER() as total_count
+				FROM region r
+				JOIN region_type rt ON r.id=rt.region_id
+				JOIN area a ON r.id=a.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				JOIN tick t ON p.id=t.problem_id
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (r.id=? OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY a.id, s.id, p.id, t.id, u.id, t.date, p.name, u.firstname, u.lastname
+				ORDER BY t.date DESC, p.name, name
+				LIMIT ? OFFSET ?
+				""";
 		List<PublicAscent> ticks = new ArrayList<>();
+		int totalCount = 0;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
+			ps.setInt(4, take);
+			ps.setInt(5, skip);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					numTicks++;
-					if ((numTicks-1) < skip || ticks.size() == take) {
-						continue;
+					if (totalCount == 0) {
+						totalCount = rst.getInt("total_count");
 					}
+					int areaId = rst.getInt("area_id");
 					String areaName = rst.getString("area_name");
 					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					int sectorId = rst.getInt("sector_id");
 					String sectorName = rst.getString("sector_name");
 					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
@@ -2632,14 +2708,17 @@ public class Dao {
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String date = rst.getString("ts");
 					String name = rst.getString("name");
-					ticks.add(new PublicAscent(areaName, areaLockedAdmin, areaLockedSuperadmin, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, problemId, setup.gradeConverter().getGradeFromIdGrade(problemGrade), problemName, problemLockedAdmin, problemLockedSuperadmin, date, name));
+					ticks.add(new PublicAscent(
+							areaId, areaName, areaLockedAdmin, areaLockedSuperadmin,
+							sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin,
+							problemId, setup.gradeConverter().getGradeFromIdGrade(problemGrade),
+							problemName, problemLockedAdmin, problemLockedSuperadmin, date, name
+							));
 				}
 			}
 		}
-		int numPages = (int)(Math.ceil(numTicks / 200f));
-		Ticks res = new Ticks(ticks, page, numPages);
-		logger.debug("getTicks(authUserId={}, idRegion={}, page={}) - ticks.size()={}", authUserId, setup.idRegion(), page, ticks.size());
-		return res;
+		int numPages = (int) Math.ceil((double) totalCount / take);
+		return new Ticks(ticks, page, numPages);
 	}
 
 	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
