@@ -96,12 +96,12 @@ public class Area {
 			return problems;
 		}
 
-		public long getRandomMediaVersionStamp() {
-			return randomMediaVersionStamp;
-		}
-		
 		public int getRandomMediaId() {
 			return randomMediaId;
+		}
+		
+		public long getRandomMediaVersionStamp() {
+			return randomMediaVersionStamp;
 		}
 
 		public int getSorting() {
@@ -151,6 +151,7 @@ public class Area {
 	public record AreaSectorOrder(int id, String name, int sorting) {}
 	private final String redirectUrl;
 	private final int regionId;
+	private final String regionName;
 	private final String canonical;
 	private final int id;
 	private final boolean trash;
@@ -176,9 +177,10 @@ public class Area {
 	private final String pageViews;
 	private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
 
-	public Area(String redirectUrl, int regionId, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
+	public Area(String redirectUrl, int regionId, String regionName, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.regionId = regionId;
+		this.regionName = regionName;
 		this.canonical = canonical;
 		this.id = id;
 		this.trash = trash;
@@ -214,7 +216,7 @@ public class Area {
 	public String getAccessClosed() {
 		return accessClosed;
 	}
-
+	
 	public String getAccessInfo() {
 		return accessInfo;
 	}
@@ -226,11 +228,11 @@ public class Area {
 	public String getComment() {
 		return comment;
 	}
-	
+
 	public Coordinates getCoordinates() {
 		return coordinates;
 	}
-
+	
 	public List<ExternalLink> getExternalLinks() {
 		return externalLinks;
 	}
@@ -269,6 +271,10 @@ public class Area {
 
 	public int getRegionId() {
 		return regionId;
+	}
+
+	public String getRegionName() {
+		return regionName;
 	}
 
 	public List<AreaSectorOrder> getSectorOrder() {

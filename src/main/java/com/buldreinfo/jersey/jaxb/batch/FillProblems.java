@@ -174,7 +174,7 @@ public class FillProblems {
 				return a.getId();
 			}
 		}
-		Area a = new Area(null, REGION_ID, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null);
+		Area a = new Area(null, REGION_ID, null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null);
 		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a, null);
 		return r.idArea();
 	}
