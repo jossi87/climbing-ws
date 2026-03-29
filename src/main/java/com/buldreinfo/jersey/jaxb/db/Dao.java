@@ -1140,16 +1140,31 @@ public class Dao {
 	public FrontpageNumProblems getFrontpageNumProblems(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumProblems res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT p.id) num_problems, COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates, COUNT(DISTINCT svg.problem_id) num_problems_with_topo FROM (((((area a INNER JOIN region r ON a.region_id=r.id AND a.trash IS NULL) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id AND s.trash IS NULL) INNER JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN svg ON p.id=svg.problem_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT COUNT(DISTINCT a.id) num_areas,
+				       COUNT(DISTINCT p.id) num_problems,
+				       COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates,
+				       COUNT(DISTINCT svg.problem_id) num_problems_with_topo
+				FROM area a
+				JOIN region r ON a.region_id=r.id AND a.trash IS NULL
+				JOIN region_type rt ON r.id=rt.region_id
+				JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
+				JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				LEFT JOIN svg ON p.id=svg.problem_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					int numAreas = rst.getInt("num_areas");
 					int numProblems = rst.getInt("num_problems");
 					int numProblemsWithCoordinates = rst.getInt("num_problems_with_coordinates");
 					int numProblemsWithTopo = rst.getInt("num_problems_with_topo");
-					res = new FrontpageNumProblems(numProblems, numProblemsWithCoordinates, numProblemsWithTopo);
+					res = new FrontpageNumProblems(numAreas, numProblems, numProblemsWithCoordinates, numProblemsWithTopo);
 				}
 			}
 		}
