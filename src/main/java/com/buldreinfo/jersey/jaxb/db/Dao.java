@@ -2287,11 +2287,9 @@ public class Dao {
 		if (!problemLookup.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT t.problem_id, u.id,
-					       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
 					FROM todo t
 					JOIN user u ON t.user_id=u.id
-					LEFT JOIN media m ON u.media_id=m.id
 					WHERE t.user_id!=? AND problem_id IN (%s)
 					ORDER BY t.problem_id, u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(problemLookup.keySet())))) {
@@ -2301,9 +2299,7 @@ public class Dao {
 						int problemId = rst.getInt("problem_id");
 						int id = rst.getInt("id");
 						String name = rst.getString("name");
-						int mediaId = rst.getInt("media_id");
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						User u = User.from(id, name, mediaId, mediaVersionStamp);
+						User u = User.from(id, name);
 						problemLookup.get(problemId).getPartners().add(u);
 					}
 				}
@@ -2975,14 +2971,22 @@ public class Dao {
 		else {
 			throw new RuntimeException("Invalid arguments");
 		}
-		String sqlStr = "SELECT s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,"
-				+ " u.id user_id, u.firstname user_firstname, u.lastname user_lastname"
-				+ " FROM (((((region r INNER JOIN area a ON r.id=a.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN todo t ON p.id=t.problem_id) INNER JOIN user u ON t.user_id=u.id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
-				+ " WHERE " + condition
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1"
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1"
-				+ " AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-				+ " ORDER BY a.name, s.sorting, s.name, p.nr, u.firstname, u.lastname";
+		String sqlStr = """
+				SELECT s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) user_name
+				FROM region r
+				JOIN area a ON r.id=a.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				JOIN todo t ON p.id=t.problem_id
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				WHERE %s
+				AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				ORDER BY a.name, s.sorting, s.name, p.nr, u.firstname, u.lastname
+				""".formatted(condition);
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, id);
@@ -3014,9 +3018,8 @@ public class Dao {
 					}
 					// Partner
 					int userId = rst.getInt("user_id");
-					String userFirstname = rst.getString("user_firstname");
-					String userLastname = rst.getString("user_lastname");
-					p.partners().add(User.from(userId, userFirstname, userLastname));
+					String userName = rst.getString("user_name");
+					p.partners().add(User.from(userId, userName));
 				}
 			}
 		}
@@ -3230,7 +3233,7 @@ public class Dao {
 		if (!Strings.isNullOrEmpty(value)) {
 			String searchRegexPattern = "(^|\\W)" + value;
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT u.id, u.firstname, u.lastname
+					SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
 					FROM user u
 					WHERE regexp_like(TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))),?,'i')
 					ORDER BY u.firstname, u.lastname
@@ -3239,9 +3242,8 @@ public class Dao {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						String firstname = rst.getString("firstname");
-						String lastname = rst.getString("lastname");
-						res.add(User.from(id, firstname, lastname));
+						String name = rst.getString("name");
+						res.add(User.from(id, name));
 					}
 				}
 			}

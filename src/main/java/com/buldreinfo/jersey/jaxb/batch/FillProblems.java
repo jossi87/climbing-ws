@@ -149,7 +149,7 @@ public class FillProblems {
 				if (!users.isEmpty()) {
 					id = users.getFirst().id();
 				}
-				res.add(User.from(id, user, null));
+				res.add(User.from(id, user));
 			}
 		}
 		return res;
