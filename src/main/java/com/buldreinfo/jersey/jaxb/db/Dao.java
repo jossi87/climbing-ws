@@ -2453,7 +2453,7 @@ public class Dao {
 					switch (type) {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
-						areas.add(new Search(title, null, "/area/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						areas.add(new Search(title, subTitle, "/area/" + id, null, mediaId, mediaVersionStamp, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "EXTERNAL" -> {
 						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), 0, 0, false, false, hits, pageViews));
