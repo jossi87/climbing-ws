@@ -1207,9 +1207,9 @@ public class Dao {
 				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
 				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
 				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=1
-				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=4)
-				  AND (a.region_id=4 OR ur.user_id IS NOT NULL)
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());

@@ -12,10 +12,8 @@ import org.easymock.EasyMock;
 import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -73,38 +71,15 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetFrontpageNumMedia() throws Exception {
+	public void testGetFrontpageStats() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.getFrontpageNumMedia(getRequest(Region.buldreinfo))) {
+		try (Response r = tester.getFrontpageStats(getRequest(Region.buldreinfo))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof FrontpageNumMedia);
-			FrontpageNumMedia f = (FrontpageNumMedia)r.getEntity();
-			assertTrue(f.numImages()>0);
-			assertTrue(f.numMovies()>0);
-		}
-	}
-
-	@Test
-	public void testGetFrontpageNumProblems() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getFrontpageNumProblems(getRequest(Region.buldreinfo))) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof FrontpageNumProblems);
-			FrontpageNumProblems f = (FrontpageNumProblems)r.getEntity();
-			assertTrue(f.numProblems()>0);
-			assertTrue(f.numProblemsWithCoordinates()>0);
-			assertTrue(f.numProblemsWithTopo()>0);
-		}
-	}
-
-	@Test
-	public void testGetFrontpageNumTicks() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getFrontpageNumTicks(getRequest(Region.buldreinfo))) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof FrontpageNumTicks);
-			FrontpageNumTicks f = (FrontpageNumTicks)r.getEntity();
-			assertTrue(f.numTicks()>0);
+			assertTrue(r.getEntity() instanceof FrontpageStats);
+			FrontpageStats f = (FrontpageStats)r.getEntity();
+			assertTrue(f.areas()>0);
+			assertTrue(f.problems()>0);
+			assertTrue(f.ticks()>0);
 		}
 	}
 
