@@ -2286,9 +2286,13 @@ public class Dao {
 		}
 		if (!problemLookup.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT t.problem_id, u.id, u.firstname, u.lastname
-					FROM todo t, user u
-					WHERE t.user_id=u.id AND t.user_id!=? AND problem_id IN (%s)
+					SELECT t.problem_id, u.id,
+					       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					FROM todo t
+					JOIN user u ON t.user_id=u.id
+					LEFT JOIN media m ON u.media_id=m.id
+					WHERE t.user_id!=? AND problem_id IN (%s)
 					ORDER BY t.problem_id, u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(problemLookup.keySet())))) {
 				ps.setInt(1, userId);
@@ -2296,9 +2300,11 @@ public class Dao {
 					while (rst.next()) {
 						int problemId = rst.getInt("problem_id");
 						int id = rst.getInt("id");
-						String firstname = rst.getString("firstname");
-						String lastname = rst.getString("lastname");
-						problemLookup.get(problemId).getPartners().add(User.from(id, firstname, lastname));
+						String name = rst.getString("name");
+						int mediaId = rst.getInt("media_id");
+						long mediaVersionStamp = rst.getLong("media_version_stamp");
+						User u = User.from(id, name, mediaId, mediaVersionStamp);
+						problemLookup.get(problemId).getPartners().add(u);
 					}
 				}
 			}
