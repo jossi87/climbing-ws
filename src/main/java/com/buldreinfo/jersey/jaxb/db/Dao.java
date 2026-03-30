@@ -2658,9 +2658,9 @@ public class Dao {
 		urls.add(setup.url() + "/filter");
 		urls.add(setup.url() + "/gpl-3.0.txt");
 		urls.add(setup.url() + "/problems");
-		urls.add(setup.url() + "/sites/bouldering");
-		urls.add(setup.url() + "/sites/climbing");
-		urls.add(setup.url() + "/sites/ice");
+		urls.add(setup.url() + "/regions/bouldering");
+		urls.add(setup.url() + "/regions/climbing");
+		urls.add(setup.url() + "/regions/ice");
 		// Users
 		try (PreparedStatement ps = c.prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
 			ps.setInt(1, setup.idRegion());
@@ -2686,6 +2686,7 @@ public class Dao {
 		return Joiner.on("\r\n").join(urls);
 	}
 
+	// TODO 20260329 - Rename to Region when we have changed to new design...
 	public List<Site> getSites(Connection c, int currIdRegion) throws SQLException {
 		Map<Integer, Site> regionLookup = new LinkedHashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, t.group, r.name, r.url FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url ORDER BY t.group, r.name")) {
