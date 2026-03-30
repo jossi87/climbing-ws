@@ -2334,7 +2334,7 @@ public class Dao {
 					SELECT ? auth_user_id, ? region_id, ? search_regex
 				)
 				-- Areas
-				(SELECT 'AREA' result_type, a.id, a.name main_title, NULL sub_title, 
+				(SELECT 'AREA' result_type, a.id, a.name main_title, r.name sub_title, 
 				        a.locked_admin, a.locked_superadmin, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp, a.hits, 
 				        NULL external_url, 0 grade, NULL rock
 				 FROM area a
@@ -2363,7 +2363,10 @@ public class Dao {
 				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
 				 JOIN region r_ext ON rt_ext.region_id=r_ext.id
 				 JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
-				 WHERE r.id=req.region_id AND r.id != r_ext.id 
+                 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
+				 WHERE r.id=req.region_id AND r.id != r_ext.id
+                   AND r_ext.id!=req.region_id
+                   AND ur_check.region_id IS NULL
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY r_ext.url, a_ext.id, a_ext.name, r_ext.name, a_ext.hits
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
