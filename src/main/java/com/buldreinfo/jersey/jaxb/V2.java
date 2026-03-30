@@ -37,6 +37,7 @@ import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -244,6 +245,7 @@ public class V2 {
 	@GET
 	@Path("/frontpage/num_media")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public Response getFrontpageNumMedia(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			FrontpageNumMedia res = dao.getFrontpageNumMedia(c, authUserId, setup);
@@ -256,6 +258,7 @@ public class V2 {
 	@GET
 	@Path("/frontpage/num_problems")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public Response getFrontpageNumProblems(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			FrontpageNumProblems res = dao.getFrontpageNumProblems(c, authUserId, setup);
@@ -268,9 +271,22 @@ public class V2 {
 	@GET
 	@Path("/frontpage/num_ticks")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public Response getFrontpageNumTicks(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			FrontpageNumTicks res = dao.getFrontpageNumTicks(c, authUserId, setup);
+			return Response.ok().entity(res).build();
+		});
+	}
+	
+	@Operation(summary = "Get frontpage stats", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))})})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/stats")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageStats(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			FrontpageStats res = dao.getFrontpageStats(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}

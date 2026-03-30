@@ -71,6 +71,7 @@ import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
 import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
@@ -1118,6 +1119,7 @@ public class Dao {
 		return res;
 	}
 
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public FrontpageNumMedia getFrontpageNumMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumMedia res = null;
@@ -1137,6 +1139,7 @@ public class Dao {
 		return res;
 	}
 
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public FrontpageNumProblems getFrontpageNumProblems(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumProblems res = null;
@@ -1172,6 +1175,7 @@ public class Dao {
 		return res;
 	}
 
+	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
 	public FrontpageNumTicks getFrontpageNumTicks(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageNumTicks res = null;
@@ -1187,6 +1191,39 @@ public class Dao {
 			}
 		}
 		logger.debug("getFrontpageNumTicks(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		return res;
+	}
+	
+	public FrontpageStats getFrontpageStats(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		FrontpageStats res = null;
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT COUNT(DISTINCT a.id) areas,
+				       COUNT(DISTINCT p.id) problems,
+				       COUNT(DISTINCT t.id) ticks
+				FROM region_type rt
+				JOIN region r ON rt.region_id=r.id
+				LEFT JOIN area a ON r.id=a.region_id AND a.trash IS NULL
+				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
+				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
+				LEFT JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=1
+				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=4)
+				  AND (a.region_id=4 OR ur.user_id IS NOT NULL)
+				""")) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areas = rst.getInt("areas");
+					int problems = rst.getInt("problems");
+					int ticks = rst.getInt("ticks");
+					res = new FrontpageStats(areas, problems, ticks);
+				}
+			}
+		}
+		logger.debug("getFrontpageStats(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 
