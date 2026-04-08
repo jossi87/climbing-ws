@@ -16,7 +16,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
-		List<Type> types, List<Site> sites, List<CompassDirection> compassDirections) {
+		List<Type> types, List<Region> regions, List<CompassDirection> compassDirections) {
 	
 	public static Meta from(Dao dao, Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		String title = setup.title();
@@ -62,8 +62,8 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isIce = gradeSystem.equals(GradeSystem.ICE);
 		String url = setup.url();
 		List<Type> types = dao.getTypes(c, setup.idRegion());
-		List<Site> sites = dao.getSites(c, setup.idRegion());
+		List<Region> regions = dao.getRegions(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaId, mediaVersionStamp, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, sites, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaId, mediaVersionStamp, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, regions, compassDirections);
 	}
 }

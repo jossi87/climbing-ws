@@ -67,9 +67,6 @@ import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
 import com.buldreinfo.jersey.jaxb.model.DangerousSector;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Grade;
@@ -98,7 +95,7 @@ import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SectorProblemOrder;
-import com.buldreinfo.jersey.jaxb.model.Site;
+import com.buldreinfo.jersey.jaxb.model.Region;
 import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
@@ -921,17 +918,6 @@ public class Dao {
 		return res;
 	}
 
-	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
-		String name = UUID.randomUUID().toString();
-		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l);
-		final int pitch = 0;
-		final int idProblem = 0;
-		final int idSector = 0;
-		final int idArea = 0;
-		final int idGuestbook = 0;
-		addNewMedia(c, authUserId, idProblem, pitch, false, idSector, idArea, idGuestbook, authUserId.get().intValue(), m, inputStreamSupplier);
-	}
-
 	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
 		Optional<Integer> authUserId = Optional.empty();
 		boolean hasAvatar = false;
@@ -1119,119 +1105,11 @@ public class Dao {
 		return res;
 	}
 
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public FrontpageNumMedia getFrontpageNumMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Connection c, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		FrontpageNumMedia res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN mp.id END) num_images, COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN mp.id END) num_movies FROM ((((((media m INNER JOIN media_problem mp ON m.id=mp.media_id) INNER JOIN problem p ON mp.problem_id=p.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL AND m.deleted_user_id IS NULL AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int numImages = rst.getInt("num_images");
-					int numMovies = rst.getInt("num_movies");
-					res = new FrontpageNumMedia(numImages, numMovies);
-				}
-			}
-		}
-		logger.debug("getFrontpageNumMedia(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
-		return res;
-	}
-
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public FrontpageNumProblems getFrontpageNumProblems(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		FrontpageNumProblems res = null;
+		List<FrontpageRandomMedia> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT COUNT(DISTINCT a.id) num_areas,
-				       COUNT(DISTINCT p.id) num_problems,
-				       COUNT(DISTINCT CASE WHEN p.coordinates_id IS NOT NULL THEN p.id END) num_problems_with_coordinates,
-				       COUNT(DISTINCT svg.problem_id) num_problems_with_topo
-				FROM area a
-				JOIN region r ON a.region_id=r.id AND a.trash IS NULL
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
-				JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
-				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				LEFT JOIN svg ON p.id=svg.problem_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int numAreas = rst.getInt("num_areas");
-					int numProblems = rst.getInt("num_problems");
-					int numProblemsWithCoordinates = rst.getInt("num_problems_with_coordinates");
-					int numProblemsWithTopo = rst.getInt("num_problems_with_topo");
-					res = new FrontpageNumProblems(numAreas, numProblems, numProblemsWithCoordinates, numProblemsWithTopo);
-				}
-			}
-		}
-		logger.debug("getFrontpageNumProblems(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
-		return res;
-	}
-
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public FrontpageNumTicks getFrontpageNumTicks(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		FrontpageNumTicks res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT t.id) num_ticks FROM (((((tick t INNER JOIN problem p ON t.problem_id=p.id AND p.trash IS NULL) INNER JOIN sector s ON p.sector_id=s.id AND s.trash IS NULL) INNER JOIN area a ON s.area_id=a.id AND a.trash IS NULL) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL)")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int numTicks = rst.getInt("num_ticks");
-					res = new FrontpageNumTicks(numTicks);
-				}
-			}
-		}
-		logger.debug("getFrontpageNumTicks(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
-		return res;
-	}
-	
-	public FrontpageStats getFrontpageStats(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		FrontpageStats res = null;
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT COUNT(DISTINCT a.id) areas,
-				       COUNT(DISTINCT p.id) problems,
-				       COUNT(DISTINCT t.id) ticks
-				FROM region_type rt
-				JOIN region r ON rt.region_id=r.id
-				LEFT JOIN area a ON r.id=a.region_id AND a.trash IS NULL
-				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
-				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
-				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areas = rst.getInt("areas");
-					int problems = rst.getInt("problems");
-					int ticks = rst.getInt("ticks");
-					res = new FrontpageStats(areas, problems, ticks);
-				}
-			}
-		}
-		logger.debug("getFrontpageStats(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
-		return res;
-	}
-
-	public FrontpageRandomMedia getFrontpageRandomMedia(Connection c, Setup setup) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		FrontpageRandomMedia res = null;
-		try (PreparedStatement ps = c.prepareStatement("""
-				         SELECT avg(t.stars) avg_stars, 
+				SELECT avg(t.stars) avg_stars, 
 				       m.id id_media, 
 				       UNIX_TIMESTAMP(m.updated_at) version_stamp, 
 				       m.width, m.height, 
@@ -1279,7 +1157,7 @@ public class Dao {
 				        ) ranked_pool
 				        WHERE sub_avg >= 2 OR random_rank <= 500
 				        ORDER BY RAND()
-				        LIMIT 1
+				        LIMIT 10
 				    ) final_selection
 				) random_id
 				JOIN media m ON m.id=random_id.id
@@ -1319,11 +1197,44 @@ public class Dao {
 					String taggedJson = rst.getString("tagged");
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
 					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
-					res = new FrontpageRandomMedia(idMedia, versionStamp, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged);
+					res.add(new FrontpageRandomMedia(idMedia, versionStamp, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged));
 				}
 			}
 		}
 		logger.debug("getFrontpageRandomMedia(setup={}) - res={}, duration={}", setup, res, stopwatch);
+		return res;
+	}
+
+	public FrontpageStats getFrontpageStats(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		FrontpageStats res = null;
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT COUNT(DISTINCT a.id) areas,
+				       COUNT(DISTINCT p.id) problems,
+				       COUNT(DISTINCT t.id) ticks
+				FROM region_type rt
+				JOIN region r ON rt.region_id=r.id
+				LEFT JOIN area a ON r.id=a.region_id AND a.trash IS NULL
+				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
+				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
+				LEFT JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				""")) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
+			ps.setInt(3, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int areas = rst.getInt("areas");
+					int problems = rst.getInt("problems");
+					int ticks = rst.getInt("ticks");
+					res = new FrontpageStats(areas, problems, ticks);
+				}
+			}
+		}
+		logger.debug("getFrontpageStats(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 
@@ -2319,6 +2230,31 @@ public class Dao {
 		return res;
 	}
 
+	public List<Region> getRegions(Connection c, int currIdRegion) throws SQLException {
+		Map<Integer, Region> regionLookup = new LinkedHashMap<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, t.group, r.name, r.url FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url ORDER BY t.group, r.name")) {
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idRegion = rst.getInt("region_id");
+					String group = rst.getString("group");
+					String name = rst.getString("name");
+					String url = rst.getString("url");
+					boolean active = idRegion == currIdRegion;
+					regionLookup.put(idRegion, new Region(group, name, url, active, new ArrayList<>()));
+				}
+			}
+		}
+		if (!regionLookup.isEmpty()) {
+			// Fill region outlines
+			Multimap<Integer, Coordinates> idRegionOutline = getRegionOutlines(c, regionLookup.keySet());
+			for (int idRegion : idRegionOutline.keySet()) {
+				List<Coordinates> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
+				regionLookup.get(idRegion).outline().addAll(outline);
+			}
+		}
+		return Lists.newArrayList(regionLookup.values());
+	}
+
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
@@ -2689,32 +2625,6 @@ public class Dao {
 			}
 		}
 		return Joiner.on("\r\n").join(urls);
-	}
-
-	// TODO 20260329 - Rename to Region when we have changed to new design...
-	public List<Site> getSites(Connection c, int currIdRegion) throws SQLException {
-		Map<Integer, Site> regionLookup = new LinkedHashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, t.group, r.name, r.url FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id AND t.id IN (1,2,10) GROUP BY r.id, t.group, r.name, r.url ORDER BY t.group, r.name")) {
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idRegion = rst.getInt("region_id");
-					String group = rst.getString("group");
-					String name = rst.getString("name");
-					String url = rst.getString("url");
-					boolean active = idRegion == currIdRegion;
-					regionLookup.put(idRegion, new Site(group, name, url, active, new ArrayList<>()));
-				}
-			}
-		}
-		if (!regionLookup.isEmpty()) {
-			// Fill region outlines
-			Multimap<Integer, Coordinates> idRegionOutline = getRegionOutlines(c, regionLookup.keySet());
-			for (int idRegion : idRegionOutline.keySet()) {
-				List<Coordinates> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
-				regionLookup.get(idRegion).outline().addAll(outline);
-			}
-		}
-		return Lists.newArrayList(regionLookup.values());
 	}
 
 	public Ticks getTicks(Connection c, Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
@@ -3576,6 +3486,17 @@ public class Dao {
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
 		ImageHelper.rotateImage(this, c, idMedia, r);
+	}
+
+	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
+		String name = UUID.randomUUID().toString();
+		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l);
+		final int pitch = 0;
+		final int idProblem = 0;
+		final int idSector = 0;
+		final int idArea = 0;
+		final int idGuestbook = 0;
+		addNewMedia(c, authUserId, idProblem, pitch, false, idSector, idArea, idGuestbook, authUserId.get().intValue(), m, inputStreamSupplier);
 	}
 
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {

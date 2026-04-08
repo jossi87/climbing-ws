@@ -33,9 +33,6 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumProblems;
-import com.buldreinfo.jersey.jaxb.model.FrontpageNumTicks;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
@@ -240,45 +237,17 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get frontpage (num media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumMedia.class))})})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = FrontpageRandomMedia.class)))})})
 	@GET
-	@Path("/frontpage/num_media")
+	@Path("/frontpage/random_media")
 	@Produces(MediaType.APPLICATION_JSON)
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public Response getFrontpageNumMedia(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			FrontpageNumMedia res = dao.getFrontpageNumMedia(c, authUserId, setup);
+	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
+			var res = dao.getFrontpageRandomMedia(c, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Get frontpage (num problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumProblems.class))})})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/frontpage/num_problems")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public Response getFrontpageNumProblems(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			FrontpageNumProblems res = dao.getFrontpageNumProblems(c, authUserId, setup);
-			return Response.ok().entity(res).build();
-		});
-	}
-
-	@Operation(summary = "Get frontpage (num ticks)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageNumTicks.class))})})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/frontpage/num_ticks")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Deprecated // TODO: 2026-03-30 - Remove when frontend is updated
-	public Response getFrontpageNumTicks(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			FrontpageNumTicks res = dao.getFrontpageNumTicks(c, authUserId, setup);
-			return Response.ok().entity(res).build();
-		});
-	}
-	
 	@Operation(summary = "Get frontpage stats", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))})})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -287,17 +256,6 @@ public class V2 {
 	public Response getFrontpageStats(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			FrontpageStats res = dao.getFrontpageStats(c, authUserId, setup);
-			return Response.ok().entity(res).build();
-		});
-	}
-
-	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageRandomMedia.class))})})
-	@GET
-	@Path("/frontpage/random_media")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			FrontpageRandomMedia res = dao.getFrontpageRandomMedia(c, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -801,17 +759,18 @@ public class V2 {
 	public Response getWithoutJs(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			FrontpageNumProblems frontpageNumProblems = dao.getFrontpageNumProblems(c, authUserId, setup);
-			FrontpageNumMedia frontpageNumMedia = dao.getFrontpageNumMedia(c, authUserId, setup);
-			FrontpageNumTicks frontpageNumTicks = dao.getFrontpageNumTicks(c, authUserId, setup);
-			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRandomMedia(c, setup);
-			String description = String.format("%s - %d %s, %d public ascents, %d images, %d ascents on video",
+			var meta = Meta.from(dao, c, setup, authUserId);
+			var stats = dao.getFrontpageStats(c, authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRandomMedia(c, setup).stream()
+					.findAny()
+					.orElse(null);
+			String description = String.format("%s - %d regions, %d areas, %d %s, %d ticks",
 					setup.description(),
-					frontpageNumProblems.numProblems(),
+					meta.regions().size(),
+					stats.areas(),
+					stats.problems(),
 					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
-					frontpageNumTicks.numTicks(),
-					frontpageNumMedia.numImages(),
-					frontpageNumMedia.numMovies());
+					stats.ticks());
 			String html = getHtml(setup,
 					setup.url(),
 					setup.title(),
