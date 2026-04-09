@@ -2299,10 +2299,10 @@ public class Dao {
 				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
 				 JOIN region r_ext ON rt_ext.region_id=r_ext.id
 				 JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
-                 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
+				             LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
 				 WHERE r.id=req.region_id AND r.id != r_ext.id
-                   AND r_ext.id!=req.region_id
-                   AND ur_check.region_id IS NULL
+				               AND r_ext.id!=req.region_id
+				               AND ur_check.region_id IS NULL
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY r_ext.url, a_ext.id, a_ext.name, r_ext.name, a_ext.hits
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
@@ -4923,7 +4923,21 @@ public class Dao {
 	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
 		List<Media> allMedia = new ArrayList<>();
 		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
-		String sqlStr = "SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged FROM ((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN media_sector ms ON s.id=ms.sector_id) INNER JOIN media m ON (ms.media_id=m.id AND m.deleted_user_id IS NULL) INNER JOIN user c ON m.photographer_user_id=c.id) LEFT JOIN media_user mu ON m.id=mu.media_id) LEFT JOIN user u ON mu.user_id=u.id WHERE s.id=? GROUP BY m.id, m.uploader_user_id, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id";
+		String sqlStr = """
+				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
+				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
+				FROM area a
+				JOIN sector s ON a.id=s.area_id
+				JOIN media_sector ms ON s.id=ms.sector_id
+				JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
+				JOIN user c ON m.photographer_user_id=c.id
+				LEFT JOIN media_user mu ON m.id=mu.media_id
+				LEFT JOIN user u ON mu.user_id=u.id
+				WHERE s.id=?
+				GROUP BY m.id, m.uploader_user_id, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
+				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, idSector);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -5223,10 +5237,12 @@ public class Dao {
 				           ps.id, ps.nr, psg.grade, psg.group,
 				           s.id, s.path, s.has_anchor, s.texts, s.anchors, s.trad_belay_stations, t2.id, danger.danger
 				)
-				SELECT x.problem_id, x.problem_name, g.grade problem_grade, g.group problem_grade_group, x.problem_subtype, x.nr,
+				SELECT x.problem_id, x.problem_name,
+				       COALESCE(g.grade,'n/a') problem_grade, COALESCE(g.group,0) problem_grade_group, x.problem_subtype, x.nr,
 					   x.pitch, x.problem_section_grade, x.problem_section_grade_group,
 				       x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
-				FROM x INNER JOIN grade g ON x.grade=g.grade_id AND g.t=?
+				FROM x
+				LEFT JOIN grade g ON x.grade=g.grade_id AND g.t=?
 				ORDER BY x.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
