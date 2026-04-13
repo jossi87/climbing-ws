@@ -36,7 +36,7 @@ public class V2Test {
 	@Test
 	public void testGetActivity() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true)) {
+		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}

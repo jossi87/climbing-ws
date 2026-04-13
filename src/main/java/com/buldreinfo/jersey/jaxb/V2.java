@@ -130,9 +130,10 @@ public class V2 {
 			@Parameter(description = "Include first ascents", required = false) @QueryParam("fa") boolean fa,
 			@Parameter(description = "Include comments", required = false) @QueryParam("comments") boolean comments,
 			@Parameter(description = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
-			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media) {
+			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media,
+			@Parameter(description = "Offset (see more)", required = false) @QueryParam("offset") int offset) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<Activity> res = dao.getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media);
+			List<Activity> res = dao.getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
 			return Response.ok().entity(res).build();
 		});
 	}

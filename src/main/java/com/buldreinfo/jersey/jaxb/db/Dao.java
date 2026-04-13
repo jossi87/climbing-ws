@@ -416,7 +416,7 @@ public class Dao {
 		}
 	}
 
-	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media) throws SQLException {
+	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
 		final Set<Integer> faIds = new HashSet<>();
@@ -455,7 +455,7 @@ public class Dao {
 				      AND (?=0 OR s1.area_id=?)
 				      AND (?=0 OR s1.id=?)
 				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
-				    LIMIT 50
+				    LIMIT ?, 50
 				) x
 				JOIN problem p ON x.problem_id=p.id
 				LEFT JOIN tick t ON p.id=t.problem_id
@@ -487,6 +487,7 @@ public class Dao {
 			ps.setInt(ix++, idArea);
 			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, idSector);
+			ps.setInt(ix++, offset);
 			ps.setInt(ix++, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -651,7 +652,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getActivity() - res.size()={}, duration={}", res.size(), stopwatch);
+		logger.debug("getActivity(offset={}) - res.size()={}, duration={}", offset, res.size(), stopwatch);
 		return res;
 	}
 
