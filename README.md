@@ -1,26 +1,19 @@
 # About
 
-REST Web Service hosted on Tomcat.
-Used in [https://github.com/jossi87/climbing-web](https://github.com/jossi87/climbing-web) as a gateway to a MySQL database.
+RESTful Java Web Service (Jersey/JAXB) serving as the API gateway for the Climbing/Bouldering platform.
+Used by [https://github.com/jossi87/climbing-web](https://github.com/jossi87/climbing-web) as a gateway to a MySQL database.
 
-## :link: Product
+## :link: Live sites
 
 - Bouldering: [buldreinfo.com](https://buldreinfo.com)
 - Route climbing: [brattelinjer.no](https://brattelinjer.no)
 - Ice climbing: [is.brattelinjer.no](https://is.brattelinjer.no)
 
-## :warning: License
-
-Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinjer.no/gpl-3.0.txt
-
 ## :rocket: Onboarding
 
-### Database
+### 1. Database Setup (MySQL)
 
-- Download the databasedump: <https://github.com/jossi87/climbing-ws/blob/main/20260304.climbing-no-data.sql>
-- Download and run MySQL Installer (<https://dev.mysql.com/downloads/installer/>)
-- Choose "Use Legacy Authentication Method (Retain MySQL 5.x Compability)"
-- Connect to the database and run these commands:
+Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/main/20260304.climbing-no-data.sql) and initialize the development environment:
 > ```sh
 > CREATE DATABASE IF NOT EXISTS climbing;
 > USE climbing;
@@ -35,32 +28,19 @@ Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinj
 > COMMIT;
 > ```
 
-### Eclipse
+### 2. Dependencies
+To enable map exports and PDF generation, ensure the **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)** service is running and accessible.
 
-- Download Eclipse Installer from (<https://www.eclipse.org/downloads/>)
-- Choose "Eclipse IDE for Enterprise Java and Web Developers"
-- "Checkout projects from Git" (<https://github.com/jossi87/climbing-ws>)
-- Install Tomcat server: File -> New -> Other -> Tomcat v10.1 Server
+### 3. Docker Deployment
 
-### Configuration
+1. **Configure:** Create `src/main/resources/com/buldreinfo/jersey/jaxb/config/buldreinfo.properties` (use `.example` as a template).
+2. **Build & Run:**
+> ```sh
+> docker build -t climbing-ws .
+> docker run -d -p 8080:8080 --name climbing-ws climbing-ws
+> ```
 
-- Create a file named `buldreinfo.properties` in `src/main/resources/com/buldreinfo/jersey/jaxb/config/`. 
-- You can use `buldreinfo.properties.example` as a template.
-- This file is ignored by Git to prevent accidental leaks of secrets.
-- All values are required for the server to run.
-
-### Sidecar Services
-
-This project relies on the following internal microservices:
-
-* **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)**: 
-  Handles Puppeteer-based map rendering for PDF and image exports.
-
-### Run Project
-
-- Right click on "com.buldreinfo.jersey.jaxb" in Project Explorer and choose "Run as" -> "Run on server" to start web service.
-
-### Testing
+### :traffic_light: Testing
 
 You should now be able to access the server on:
 
@@ -68,7 +48,9 @@ You should now be able to access the server on:
 - <http://localhost:8080/com.buldreinfo.jersey.jaxb/openapi.json>
 - <http://localhost:8080/com.buldreinfo.jersey.jaxb/application.wadl>
 
-<!-- Contact -->
+## :scroll: License
+
+Distributed under the GNU GENERAL PUBLIC LICENSE (Version 3): https://brattelinjer.no/gpl-3.0.txt
 
 ## :handshake: Contact
 
