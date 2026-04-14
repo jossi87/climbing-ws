@@ -8,9 +8,14 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Iterator;
 import java.util.List;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
@@ -142,13 +147,25 @@ public final class StorageManager {
 		uploadRequestBody(objectKey, RequestBody.fromFile(path), type);
 	}
 	
-	public void uploadImage(String objectKey, BufferedImage image, StorageType type) throws IOException {
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
-		boolean writerFound = ImageIO.write(image, type.getExtension(), os);
-		if (!writerFound) {
-			throw new IOException("No writer found for format: " + type.getExtension());
-		}
-		uploadBytes(objectKey, os.toByteArray(), type);
+	public void uploadImage(String objectKey, BufferedImage image, StorageType type, boolean compress) throws IOException {
+	    ByteArrayOutputStream os = new ByteArrayOutputStream();
+	    Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
+	    if (!writers.hasNext()) {
+	    	throw new IOException("No writer found");
+	    }
+	    ImageWriter writer = writers.next();
+	    try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
+	        writer.setOutput(ios);
+	        ImageWriteParam param = writer.getDefaultWriteParam();
+	        if (compress && param.canWriteCompressed()) {
+	            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+	            param.setCompressionQuality(.75f); 
+	        }
+	        writer.write(null, new IIOImage(image, null, null), param);
+	    } finally {
+	        writer.dispose();
+	    }
+	    uploadBytes(objectKey, os.toByteArray(), type);
 	}
 	
 	private GetObjectRequest createGetRequest(String objectKey) {

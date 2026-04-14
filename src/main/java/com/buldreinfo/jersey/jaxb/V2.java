@@ -316,6 +316,7 @@ public class V2 {
 			@Parameter(description = "Region Width", required = false) @QueryParam("width") int width,
 			@Parameter(description = "Region Height", required = false) @QueryParam("height") int height) {
 		StorageManager storage = StorageManager.getInstance();
+		boolean compress = true;
 		// Movie
 		if (isMovie) {
 			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
@@ -345,7 +346,7 @@ public class V2 {
 							Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
 							b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
 						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG, compress);
 						b.flush();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
@@ -362,7 +363,7 @@ public class V2 {
 						if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
 							b = Scalr.crop(b, x, y, width, height);
 						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG, compress);
 						b.flush();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
@@ -382,7 +383,7 @@ public class V2 {
 						if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
 							b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
 						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG, compress);
 						b.flush();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
