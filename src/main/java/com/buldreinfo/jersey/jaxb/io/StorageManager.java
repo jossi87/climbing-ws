@@ -148,10 +148,10 @@ public final class StorageManager {
 	}
 	
 	public void uploadImage(String objectKey, BufferedImage image, StorageType type, boolean compress) throws IOException {
-	    ByteArrayOutputStream os = new ByteArrayOutputStream();
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
 	    Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
 	    if (!writers.hasNext()) {
-	    	throw new IOException("No writer found");
+	        throw new IOException("No writer found");
 	    }
 	    ImageWriter writer = writers.next();
 	    try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
@@ -166,6 +166,7 @@ public final class StorageManager {
 	            param.setCompressionQuality(.75f); 
 	        }
 	        writer.write(null, new IIOImage(image, null, null), param);
+	        ios.flush();
 	    } finally {
 	        writer.dispose();
 	    }
