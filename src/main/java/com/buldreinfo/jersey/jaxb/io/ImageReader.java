@@ -1,7 +1,6 @@
 package com.buldreinfo.jersey.jaxb.io;
 
 import java.awt.Color;
-import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -89,18 +88,15 @@ public class ImageReader implements AutoCloseable {
 	}
 
 	private BufferedImage convertToJpg(BufferedImage b) {
-		if (b.getColorModel().getTransparency() != Transparency.OPAQUE) {
-			BufferedImage newImage = new BufferedImage(b.getWidth(), b.getHeight(), BufferedImage.TYPE_INT_RGB);
-			var g = newImage.createGraphics();
-			try {
-				g.drawImage(b, 0, 0, Color.BLACK, null);
-			} finally {
-				g.dispose();
-			}
-			b.flush();
-			return newImage;
-		}
-		return b;
+	    BufferedImage newImage = new BufferedImage(b.getWidth(), b.getHeight(), BufferedImage.TYPE_INT_RGB);
+	    var g = newImage.createGraphics();
+	    try {
+	        g.drawImage(b, 0, 0, Color.WHITE, null); 
+	    } finally {
+	        g.dispose();
+	    }
+	    b.flush();
+	    return newImage;
 	}
 
 	private BufferedImage generateEmbedVideoImage(String embedUrl) throws IOException, InterruptedException {
