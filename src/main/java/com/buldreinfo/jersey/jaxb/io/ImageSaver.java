@@ -60,7 +60,7 @@ public class ImageSaver {
 				executor.execute(() -> {
 					try {
 						if (builder.metadata == null) {
-							storage.uploadImage(builder.keyOriginalJpg, builder.bufferedImage, StorageType.JPG, false);
+							storage.uploadImage(builder.keyOriginalJpg, builder.bufferedImage, StorageType.JPG);
 						}
 						else {
 							try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -82,8 +82,8 @@ public class ImageSaver {
 							webImage = Scalr.resize(builder.bufferedImage, Scalr.Method.ULTRA_QUALITY, 
 									Scalr.Mode.AUTOMATIC, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
 						}
-						storage.uploadImage(builder.keyWebJpg, webImage, StorageType.JPG, true);
-						storage.uploadImage(builder.keyWebWebP, webImage, StorageType.WEBP, true);
+						storage.uploadImage(builder.keyWebJpg, webImage, StorageType.JPG);
+						storage.uploadImage(builder.keyWebWebP, webImage, StorageType.WEBP);
 						if (webImage != builder.bufferedImage) {
 							webImage.flush();
 						}

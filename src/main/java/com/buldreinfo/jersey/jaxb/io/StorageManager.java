@@ -147,26 +147,41 @@ public final class StorageManager {
 		uploadRequestBody(objectKey, RequestBody.fromFile(path), type);
 	}
 	
-	public void uploadImage(String objectKey, BufferedImage image, StorageType type, boolean compress) throws IOException {
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
+	public void uploadImage(String objectKey, BufferedImage image, StorageType type) throws IOException {
+	    boolean shouldCompress = objectKey.startsWith("web/");
+	    ByteArrayOutputStream os = new ByteArrayOutputStream();
 	    Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
 	    if (!writers.hasNext()) {
-	        throw new IOException("No writer found");
+	        throw new IOException("No writer found for type: " + type.getExtension());
 	    }
 	    ImageWriter writer = writers.next();
 	    try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
 	        writer.setOutput(ios);
 	        ImageWriteParam param = writer.getDefaultWriteParam();
-	        if (compress && param.canWriteCompressed()) {
+	        if (shouldCompress && param.canWriteCompressed()) {
 	            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-	            String[] types = param.getCompressionTypes();
-	            if (types != null && types.length > 0) {
-	                param.setCompressionType(types[0]); 
+	            if (type == StorageType.WEBP) {
+	                String[] types = param.getCompressionTypes();
+	                if (types != null) {
+	                    for (String t : types) {
+	                        if (t.equalsIgnoreCase("Lossy")) {
+	                            param.setCompressionType(t);
+	                            break;
+	                        }
+	                    }
+	                }
+	                param.setCompressionQuality(0.75f); 
 	            }
-	            param.setCompressionQuality(.75f); 
+	            else {
+	                String[] types = param.getCompressionTypes();
+	                if (types != null && types.length > 0) {
+	                    param.setCompressionType(types[0]); 
+	                }
+	                param.setCompressionQuality(0.80f);
+	            }
 	        }
 	        writer.write(null, new IIOImage(image, null, null), param);
-	        ios.flush();
+	        ios.flush(); 
 	    } finally {
 	        writer.dispose();
 	    }
