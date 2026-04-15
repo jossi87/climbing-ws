@@ -106,10 +106,10 @@ public class V2 {
 
 	@Operation(summary = "Move media to trash", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
@@ -124,8 +124,8 @@ public class V2 {
 
 	@Operation(summary = "Get activity feed", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -148,7 +148,7 @@ public class V2 {
 
 	@Operation(summary = "Get administrators", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/administrators")
@@ -163,8 +163,8 @@ public class V2 {
 	@Operation(summary = "Get areas", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Area.class)))}),
 			@ApiResponse(responseCode = "404", description = "Area not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -183,8 +183,8 @@ public class V2 {
 	@Operation(summary = "Get area PDF by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = "404", description = "Area not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -222,7 +222,7 @@ public class V2 {
 
 	@Operation(summary = "Get webcams", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/webcams")
@@ -237,8 +237,8 @@ public class V2 {
 
 	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = DangerousArea.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -253,9 +253,9 @@ public class V2 {
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = Integer.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -272,7 +272,7 @@ public class V2 {
 
 	@Operation(summary = "Get frontpage (random media)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = FrontpageRandomMedia.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/frontpage/random_media")
@@ -286,8 +286,8 @@ public class V2 {
 
 	@Operation(summary = "Get frontpage stats", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -302,8 +302,8 @@ public class V2 {
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -321,8 +321,8 @@ public class V2 {
 
 	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -338,8 +338,8 @@ public class V2 {
 	@Operation(summary = "Get Media by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
 			@ApiResponse(responseCode = "404", description = "Media not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -356,7 +356,7 @@ public class V2 {
 	@Operation(summary = "Get media file by id", responses = {
 			@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL"),
 			@ApiResponse(responseCode = "404", description = "Media file not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/media/file")
@@ -480,8 +480,8 @@ public class V2 {
 
 	@Operation(summary = "Get metadata", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -496,8 +496,8 @@ public class V2 {
 
 	@Operation(summary = "Get permissions", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -513,8 +513,8 @@ public class V2 {
 	@Operation(summary = "Get problem by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))}),
 			@ApiResponse(responseCode = "404", description = "Problem not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -533,8 +533,8 @@ public class V2 {
 	@Operation(summary = "Get problem PDF by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = "404", description = "Problem not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -567,8 +567,8 @@ public class V2 {
 	@Operation(summary = "Get profile by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -588,8 +588,8 @@ public class V2 {
 	@Operation(summary = "Get profile media by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -614,8 +614,8 @@ public class V2 {
 	@Operation(summary = "Get profile statistics by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -633,8 +633,8 @@ public class V2 {
 	@Operation(summary = "Get profile todo", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -651,7 +651,7 @@ public class V2 {
 
 	@Operation(summary = "Get robots.txt", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = String.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/robots.txt")
@@ -669,8 +669,8 @@ public class V2 {
 	@Operation(summary = "Get sector by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Sector.class))}),
 			@ApiResponse(responseCode = "404", description = "Sector not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -689,8 +689,8 @@ public class V2 {
 	@Operation(summary = "Get sector PDF by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = "404", description = "Sector not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -722,7 +722,7 @@ public class V2 {
 
 	@Operation(summary = "Get sitemap.txt", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = String.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/sitemap.txt")
@@ -736,8 +736,8 @@ public class V2 {
 
 	@Operation(summary = "Get ticks (public ascents)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Ticks.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -754,8 +754,8 @@ public class V2 {
 
 	@Operation(summary = "Get table of contents (all problems)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -769,8 +769,8 @@ public class V2 {
 
 	@Operation(summary = "Get table of contents (all problems) as Excel (xlsx)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -842,8 +842,8 @@ public class V2 {
 
 	@Operation(summary = "Get todo on Area/Sector", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Todo.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -861,8 +861,8 @@ public class V2 {
 
 	@Operation(summary = "Get top on Area/Sector", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Top.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -880,8 +880,8 @@ public class V2 {
 
 	@Operation(summary = "Get trash", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Trash.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -896,8 +896,8 @@ public class V2 {
 
 	@Operation(summary = "Search for user", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -914,8 +914,8 @@ public class V2 {
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
@@ -934,7 +934,7 @@ public class V2 {
 
 	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js")
@@ -969,7 +969,7 @@ public class V2 {
 	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
 			@ApiResponse(responseCode = "404", description = "Area not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js/area/{id}")
@@ -1005,7 +1005,7 @@ public class V2 {
 	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
 			@ApiResponse(responseCode = "404", description = "Problem not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js/problem/{id}")
@@ -1017,7 +1017,7 @@ public class V2 {
 	@Operation(summary = "Get problem by id and idMedia without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
 			@ApiResponse(responseCode = "404", description = "Problem not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js/problem/{id}/{mediaId}")
@@ -1062,7 +1062,7 @@ public class V2 {
 	@Operation(summary = "Get problem by id, idMedia and pitch without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
 			@ApiResponse(responseCode = "404", description = "Problem not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js/problem/{id}/{mediaId}/{pitch}")
@@ -1078,7 +1078,7 @@ public class V2 {
 	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
 			@ApiResponse(responseCode = "404", description = "Sector not found"),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
 	@Path("/without-js/sector/{id}")
@@ -1111,10 +1111,10 @@ public class V2 {
 
 	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1132,10 +1132,10 @@ public class V2 {
 
 	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1152,10 +1152,10 @@ public class V2 {
 
 	@Operation(summary = "Update Media SVG", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1169,10 +1169,10 @@ public class V2 {
 
 	@Operation(summary = "Update user privileges", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1187,10 +1187,10 @@ public class V2 {
 
 	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1210,10 +1210,10 @@ public class V2 {
 
 	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1233,10 +1233,10 @@ public class V2 {
 
 	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1258,9 +1258,9 @@ public class V2 {
 
 	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1276,8 +1276,8 @@ public class V2 {
 
 	@Operation(summary = "Search for area/sector/problem/user", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1294,10 +1294,10 @@ public class V2 {
 
 	@Operation(summary = "Update sector (sector must be provided as json on field \"json\" in multiPart)", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1316,9 +1316,9 @@ public class V2 {
 
 	@Operation(summary = "Update tick (public ascent)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1333,9 +1333,9 @@ public class V2 {
 
 	@Operation(summary = "Update todo", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1351,9 +1351,9 @@ public class V2 {
 
 	@Operation(summary = "Update visible regions", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1370,10 +1370,10 @@ public class V2 {
 
 	@Operation(summary = "Update media location", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
@@ -1400,10 +1400,10 @@ public class V2 {
 
 	@Operation(summary = "Set media as avatar", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
@@ -1419,10 +1419,10 @@ public class V2 {
 
 	@Operation(summary = "Update media info", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
@@ -1437,10 +1437,10 @@ public class V2 {
 
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
@@ -1458,10 +1458,10 @@ public class V2 {
 
 	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)", responses = {
 			@ApiResponse(responseCode = "200"),
-			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
-			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
-			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
-			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
