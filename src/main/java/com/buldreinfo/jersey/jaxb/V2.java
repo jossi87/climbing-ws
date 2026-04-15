@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +24,6 @@ import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
-import com.buldreinfo.jersey.jaxb.helpers.CacheHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.ImageSaver;
@@ -88,6 +88,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -1181,37 +1182,40 @@ public class V2 {
 
 	private Response createRedirect(String key, int version) {
 		String localProxyPath = StorageManager.getPublicUrl(key, version);
-		Response.ResponseBuilder builder = Response.status(Response.Status.FOUND)
-				.header("Location", localProxyPath);
-		return CacheHelper.applyImmutableLongTermCache(builder).build();
+		CacheControl cc = new CacheControl();
+		cc.setMaxAge((int) TimeUnit.DAYS.toSeconds(1));
+		cc.setNoTransform(true);
+		return Response.status(Response.Status.FOUND)
+				.header("Location", localProxyPath)
+				.cacheControl(cc).build();
 	}
 
 	private String getHtml(Setup setup, String pageUrl, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
-	    String ogImageTags = "";
-	    if (mediaId > 0) {
-	        String relativePath = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
-	        String absoluteImageUrl = setup.url() + relativePath;
-	        ogImageTags = """
-	                <meta property="og:image" content="%s" />
-	                <meta property="og:image:width" content="%d" />
-	                <meta property="og:image:height" content="%d" />
-	                """.formatted(absoluteImageUrl, mediaWidth, mediaHeight);
-	    }
-	    return """
-	            <!DOCTYPE html>
-	            <html lang="en">
-	            <head>
-	                <meta charset="UTF-8">
-	                <title>%s</title>
-	                <meta name="description" content="%s" />
-	                <meta property="og:type" content="website" />
-	                <meta property="og:description" content="%s" />
-	                <meta property="og:url" content="%s" />
-	                <meta property="og:title" content="%s" />
-	                <meta property="fb:app_id" content="275320366630912" />
-	                %s
-	            </head>
-	            </html>
-	            """.formatted(title, description, description, pageUrl, title, ogImageTags);
+		String ogImageTags = "";
+		if (mediaId > 0) {
+			String relativePath = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
+			String absoluteImageUrl = setup.url() + relativePath;
+			ogImageTags = """
+					<meta property="og:image" content="%s" />
+					<meta property="og:image:width" content="%d" />
+					<meta property="og:image:height" content="%d" />
+					""".formatted(absoluteImageUrl, mediaWidth, mediaHeight);
+		}
+		return """
+				<!DOCTYPE html>
+				<html lang="en">
+				<head>
+				    <meta charset="UTF-8">
+				    <title>%s</title>
+				    <meta name="description" content="%s" />
+				    <meta property="og:type" content="website" />
+				    <meta property="og:description" content="%s" />
+				    <meta property="og:url" content="%s" />
+				    <meta property="og:title" content="%s" />
+				    <meta property="fb:app_id" content="275320366630912" />
+				    %s
+				</head>
+				</html>
+				""".formatted(title, description, description, pageUrl, title, ogImageTags);
 	}
 }
