@@ -3,11 +3,14 @@ package com.buldreinfo.jersey.jaxb.helpers;
 import java.security.interfaces.RSAPublicKey;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,11 +37,25 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AuthHelper {
     private static final Logger logger = LogManager.getLogger();
     private static final String DOMAIN = "climbing.eu.auth0.com";
+    private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of(
+            "user-agent",
+            "x-forwarded-for",
+            "x-real-ip",
+            "cf-connecting-ip",
+            "accept-language",
+            "origin",
+            "referer"
+    );
+    private static final Set<String> REDACTED_HEADER_NAMES = Set.of(
+            "authorization",
+            "cookie",
+            "set-cookie",
+            "x-api-key"
+    );
     private static final JwkProvider jwkProvider = new UrlJwkProvider("https://" + DOMAIN + "/");
-
     private static final LoadingCache<String, Auth0Profile> cache = CacheBuilder.newBuilder()
             .maximumSize(1000)
-            .expireAfterWrite(12, TimeUnit.HOURS)
+            .expireAfterWrite(Duration.ofHours(12))
             .build(new CacheLoader<String, Auth0Profile>() {
                 @Override
                 public Auth0Profile load(String accessToken) throws Exception {
@@ -87,6 +104,28 @@ public class AuthHelper {
         }
     }
 
+    private Map<String, String> getHeaders(HttpServletRequest request) {
+        Map<String, String> map = new HashMap<>();
+        Set<String> seen = new HashSet<>();
+        Enumeration<String> names = request.getHeaderNames();
+        while (names.hasMoreElements()) {
+            String name = names.nextElement();
+            String lower = name.toLowerCase(Locale.ROOT);
+            if (REDACTED_HEADER_NAMES.contains(lower)) {
+                map.put(name, "[REDACTED]");
+                seen.add(lower);
+            }
+            else if (LOGGED_HEADER_ALLOWLIST.contains(lower)) {
+                map.put(name, request.getHeader(name));
+                seen.add(lower);
+            }
+        }
+        if (!seen.contains("authorization") && request.getHeader(HttpHeaders.AUTHORIZATION) != null) {
+            map.put(HttpHeaders.AUTHORIZATION, "[REDACTED]");
+        }
+        return map;
+    }
+
     private void logLogin(Connection c, HttpServletRequest request, Setup setup, int userId) throws Exception {
         Gson gson = new Gson();
         String headers = gson.toJson(getHeaders(request));
@@ -96,15 +135,5 @@ public class AuthHelper {
             ps.setString(3, headers);
             ps.execute();
         }
-    }
-
-    private Map<String, String> getHeaders(HttpServletRequest request) {
-        Map<String, String> map = new HashMap<>();
-        Enumeration<String> names = request.getHeaderNames();
-        while (names.hasMoreElements()) {
-            String name = names.nextElement();
-            map.put(name, request.getHeader(name));
-        }
-        return map;
     }
 }

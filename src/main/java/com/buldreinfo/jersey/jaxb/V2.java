@@ -94,9 +94,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 
-/**
- * @author <a href="mailto:jostein.oygarden@gmail.com">Jostein Oeygarden</a>
- */
 @Tag(name = "/v2/")
 @SecurityScheme(name = "Bearer Authentication", type = SecuritySchemeType.HTTP, bearerFormat = "jwt", scheme = "bearer")
 @Path("/v2/")
@@ -107,19 +104,29 @@ public class V2 {
 	public V2() {
 	}
 
-	@Operation(summary = "Move media to trash")
+	@Operation(summary = "Move media to trash", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
 		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.deleteMedia(c, authUserId, id);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Get activity feed", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))})})
+	@Operation(summary = "Get activity feed", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/activity")
@@ -139,7 +146,10 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get administrators", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))})})
+	@Operation(summary = "Get administrators", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/administrators")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -150,7 +160,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get areas", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Area.class)))})})
+	@Operation(summary = "Get areas", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Area.class)))}),
+			@ApiResponse(responseCode = "404", description = "Area not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/areas")
@@ -165,7 +180,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get area PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get area PDF by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = "404", description = "Area not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/areas/pdf")
@@ -200,7 +220,10 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get webcams", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))})})
+	@Operation(summary = "Get webcams", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/webcams")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -212,7 +235,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = DangerousArea.class)))})})
+	@Operation(summary = "Get boulders/routes marked as dangerous", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = DangerousArea.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/dangerous")
@@ -224,7 +251,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get elevation by latitude and longitude", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = Integer.class))})})
+	@Operation(summary = "Get elevation by latitude and longitude", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = Integer.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/elevation")
@@ -232,14 +264,16 @@ public class V2 {
 	public Response getElevation(@Context HttpServletRequest request,
 			@Parameter(description = "latitude", required = true) @QueryParam("latitude") double latitude,
 			@Parameter(description = "longitude", required = true) @QueryParam("longitude") double longitude) {
-		return Server.buildResponseWithSqlAndAuth(request, (_, _, _, authUserId, _) -> {
-			Preconditions.checkArgument(authUserId.isPresent(), "Service requires logged in user");
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (_, _, _, _, _) -> {
 			int elevation = GeoHelper.getElevation(latitude, longitude);
 			return Response.ok().entity(elevation).build();
 		});
 	}
 
-	@Operation(summary = "Get frontpage (random media)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = FrontpageRandomMedia.class)))})})
+	@Operation(summary = "Get frontpage (random media)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = FrontpageRandomMedia.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/frontpage/random_media")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -250,7 +284,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get frontpage stats", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))})})
+	@Operation(summary = "Get frontpage stats", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/frontpage/stats")
@@ -262,7 +300,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
+	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/grade/distribution")
@@ -277,7 +319,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))})})
+	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/graph")
@@ -289,7 +335,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get Media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))})})
+	@Operation(summary = "Get Media by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = "404", description = "Media not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/media")
@@ -302,7 +353,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get media file by id", responses = {@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL")})
+	@Operation(summary = "Get media file by id", responses = {
+			@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL"),
+			@ApiResponse(responseCode = "404", description = "Media file not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/media/file")
 	public Response getMediaFile(@Context HttpServletRequest request,
@@ -320,6 +375,9 @@ public class V2 {
 		// Movie
 		if (isMovie) {
 			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+			if (!storage.exists(finalObjectKey)) {
+				return createNotFoundResponse("Media file not found");
+			}
 			return createRedirect(finalObjectKey, versionStamp);
 		}
 		// Image
@@ -327,6 +385,9 @@ public class V2 {
 		boolean webP = GlobalFunctions.requestAcceptsWebp(request);
 		if (original) {
 			finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
+			if (!storage.exists(finalObjectKey)) {
+				return createNotFoundResponse("Media file not found");
+			}
 		} 
 		else if (targetWidth > 0 || minDimension > 0) {
 			finalObjectKey = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
@@ -337,17 +398,24 @@ public class V2 {
 					if (useWebSource && !storage.exists(sourceKey)) {
 						sourceKey = S3KeyGenerator.getOriginalJpg(id);
 					}
+					if (!storage.exists(sourceKey)) {
+						return createNotFoundResponse("Media file not found");
+					}
 					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b != null) {
-						if (targetWidth > 0 && targetWidth < b.getWidth()) {
-							b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-						}
-						else if (minDimension > 0) {
-							Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-							b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
-						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-						b.flush();
+					if (b == null) {
+						return createNotFoundResponse("Media file not found");
+					}
+					if (targetWidth > 0 && targetWidth < b.getWidth()) {
+						b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+					}
+					else if (minDimension > 0) {
+						Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+						b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+					}
+					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+					b.flush();
+					if (!storage.exists(finalObjectKey)) {
+						return createNotFoundResponse("Media file not found");
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
@@ -358,13 +426,20 @@ public class V2 {
 			if (!storage.exists(finalObjectKey)) {
 				return Server.buildResponse(() -> {
 					String sourceKey = S3KeyGenerator.getOriginalJpg(id);
+					if (!storage.exists(sourceKey)) {
+						return createNotFoundResponse("Media file not found");
+					}
 					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b != null) {
-						if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
-							b = Scalr.crop(b, x, y, width, height);
-						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-						b.flush();
+					if (b == null) {
+						return createNotFoundResponse("Media file not found");
+					}
+					if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
+						b = Scalr.crop(b, x, y, width, height);
+					}
+					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+					b.flush();
+					if (!storage.exists(finalObjectKey)) {
+						return createNotFoundResponse("Media file not found");
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
@@ -378,22 +453,36 @@ public class V2 {
 					if (!storage.exists(sourceKey)) {
 						sourceKey = S3KeyGenerator.getOriginalJpg(id);
 					}
+					if (!storage.exists(sourceKey)) {
+						return createNotFoundResponse("Media file not found");
+					}
 					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b != null) {
-						if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
-							b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
-						}
-						storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-						b.flush();
+					if (b == null) {
+						return createNotFoundResponse("Media file not found");
+					}
+					if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
+						b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
+					}
+					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
+					b.flush();
+					if (!storage.exists(finalObjectKey)) {
+						return createNotFoundResponse("Media file not found");
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
 			}
 		}
+		if (!storage.exists(finalObjectKey)) {
+			return createNotFoundResponse("Media file not found");
+		}
 		return createRedirect(finalObjectKey, versionStamp);
 	}
 
-	@Operation(summary = "Get metadata", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))})})
+	@Operation(summary = "Get metadata", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Meta.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/meta")
@@ -405,7 +494,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get permissions", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))})})
+	@Operation(summary = "Get permissions", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/permissions")
@@ -417,7 +510,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problem by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
+	@Operation(summary = "Get problem by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))}),
+			@ApiResponse(responseCode = "404", description = "Problem not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problem")
@@ -432,7 +530,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problem PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get problem PDF by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = "404", description = "Problem not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/problem/pdf")
@@ -460,29 +563,43 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get profile by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))})})
+	@Operation(summary = "Get profile by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))}),
+			@ApiResponse(responseCode = "404", description = "User not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfile(@Context HttpServletRequest request,
-			@Parameter(description = "User id (will return logged in user without this attribute)", required = true) @QueryParam("id") int reqUserId) {
+			@Parameter(description = "User id (will return logged in user without this attribute)", required = false) @QueryParam("id") int reqUserId) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			if (reqUserId > 0) {
+				dao.ensureUserExists(c, reqUserId);
+			}
 			Profile res = dao.getProfile(c, authUserId, setup, reqUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Get profile media by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))})})
+	@Operation(summary = "Get profile media by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
+			@ApiResponse(responseCode = "404", description = "User not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getProfilemedia(@Context HttpServletRequest request,
+	public Response getProfileMedia(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+			dao.ensureUserExists(c, id);
 			List<Media> res = dao.getProfileMediaProblem(c, authUserId, id, captured);
 			if (captured) {
 				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
@@ -493,7 +610,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get profile statistics by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))})})
+	@Operation(summary = "Get profile statistics by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))}),
+			@ApiResponse(responseCode = "404", description = "User not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/statistics")
@@ -501,12 +623,18 @@ public class V2 {
 	public Response getProfileStatistics(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.ensureUserExists(c, id);
 			ProfileStatistics res = dao.getProfileStatistics(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Get profile todo", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))})})
+	@Operation(summary = "Get profile todo", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))}),
+			@ApiResponse(responseCode = "404", description = "User not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/todo")
@@ -514,12 +642,16 @@ public class V2 {
 	public Response getProfileTodo(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.ensureUserExists(c, id);
 			ProfileTodo res = dao.getProfileTodo(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Get robots.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get robots.txt", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN)
@@ -533,7 +665,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get sector by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Sector.class))})})
+	@Operation(summary = "Get sector by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Sector.class))}),
+			@ApiResponse(responseCode = "404", description = "Sector not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/sectors")
@@ -548,7 +685,12 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get sector PDF by id", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get sector PDF by id", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/pdf", array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = "404", description = "Sector not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/sectors/pdf")
@@ -577,7 +719,10 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get sitemap.txt", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get sitemap.txt", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/sitemap.txt")
 	@Produces(MediaType.TEXT_PLAIN)
@@ -588,13 +733,17 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get ticks (public ascents)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Ticks.class))})})
+	@Operation(summary = "Get ticks (public ascents)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Ticks.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/ticks")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTicks(@Context HttpServletRequest request,
-			@Parameter(description = "Page (ticks ordered descending, 0 returns fist page)", required = false) @QueryParam("page") int page
+			@Parameter(description = "Page (ticks ordered descending, 0 returns first page)", required = false) @QueryParam("page") int page
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			Ticks res = dao.getTicks(c, authUserId, setup, page);
@@ -602,7 +751,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get table of contents (all problems)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))})})
+	@Operation(summary = "Get table of contents (all problems)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Toc.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/toc")
@@ -613,7 +766,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get table of contents (all problems) as Excel (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get table of contents (all problems) as Excel (xlsx)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/toc/xlsx")
@@ -682,7 +839,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get todo on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Todo.class))})})
+	@Operation(summary = "Get todo on Area/Sector", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Todo.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/todo")
@@ -697,7 +858,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get top on Area/Sector", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Top.class))})})
+	@Operation(summary = "Get top on Area/Sector", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Top.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/top")
@@ -712,7 +877,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get trash", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Trash.class)))})})
+	@Operation(summary = "Get trash", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Trash.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/trash")
@@ -724,7 +893,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Search for user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))})})
+	@Operation(summary = "Search for user", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/search")
@@ -738,7 +911,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))})})
+	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = MIME_TYPE_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/users/ticks")
@@ -754,7 +931,10 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js")
 	@Produces(MediaType.TEXT_HTML)
@@ -785,7 +965,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = "404", description = "Area not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js/area/{id}")
 	@Produces(MediaType.TEXT_HTML)
@@ -817,7 +1001,11 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get problem by id without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = "404", description = "Problem not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js/problem/{id}")
 	@Produces(MediaType.TEXT_HTML)
@@ -825,7 +1013,11 @@ public class V2 {
 		return getWithoutJsProblemMedia(request, id, 0);
 	}
 
-	@Operation(summary = "Get problem by id and idMedia without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get problem by id and idMedia without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = "404", description = "Problem not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js/problem/{id}/{mediaId}")
 	@Produces(MediaType.TEXT_HTML)
@@ -866,17 +1058,27 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get problem by id, idMedia and pitch without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get problem by id, idMedia and pitch without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = "404", description = "Problem not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js/problem/{id}/{mediaId}/{pitch}")
 	@Produces(MediaType.TEXT_HTML)
+	@SuppressWarnings("unused")
 	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
-			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
+			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch) {
 		return getWithoutJsProblemMedia(request, id, mediaId);
 	}
 
-	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))})})
+	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/html", schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = "404", description = "Sector not found"),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@GET
 	@Path("/without-js/sector/{id}")
 	@Produces(MediaType.TEXT_HTML)
@@ -906,7 +1108,13 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/areas")
@@ -914,14 +1122,20 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Objects.requireNonNull(Strings.emptyToNull(a.getName()));
 			Redirect res = dao.setArea(c, setup, authUserId, a, multiPart);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)")
+	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/comments")
@@ -929,36 +1143,54 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.upsertComment(c, authUserId, setup, co, multiPart);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update Media SVG")
+	@Operation(summary = "Update Media SVG", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.upsertMediaSvg(c, authUserId, setup, m);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update user privilegies")
+	@Operation(summary = "Update user privileges", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/permissions")
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
 		Preconditions.checkArgument(u.userId() > 0, "Invalid userId");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.upsertPermissionUser(c, setup.idRegion(), authUserId, u);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems")
@@ -966,7 +1198,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(p.getName()));
@@ -975,7 +1207,13 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))})})
+	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems/media")
@@ -983,7 +1221,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProblemsMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			Preconditions.checkArgument(p.getId() > 0);
 			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
 			dao.addProblemMedia(c, authUserId, p, multiPart);
@@ -992,7 +1230,13 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)")
+	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems/svg")
@@ -1002,7 +1246,7 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Objects.requireNonNull(svg, "Invalid svg=" + svg);
@@ -1011,20 +1255,29 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)")
+	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/profile")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.setProfile(c, authUserId, profile, multiPart);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Search for area/sector/problem/user", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))})})
+	@Operation(summary = "Search for area/sector/problem/user", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Search.class)))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/search")
@@ -1038,7 +1291,13 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update sector (sector smust be provided as json on field \"json\" in multiPart)", responses = {@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))})})
+	@Operation(summary = "Update sector (sector must be provided as json on field \"json\" in multiPart)", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/sectors")
@@ -1046,7 +1305,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(s.getName()));
 			Redirect res = dao.setSector(c, authUserId, setup, s, multiPart);
@@ -1054,33 +1313,47 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update tick (public ascent)")
+	@Operation(summary = "Update tick (public ascent)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/ticks")
 	public Response postTicks(@Context HttpServletRequest request, Tick t) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Preconditions.checkArgument(t.idProblem() > 0);
 			dao.setTick(c, authUserId, setup, t);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update todo")
+	@Operation(summary = "Update todo", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/todo")
-	@Consumes(MediaType.APPLICATION_JSON)
 	public Response postTodo(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.toggleTodo(c, authUserId, idProblem);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update visible regions")
+	@Operation(summary = "Update visible regions", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/user/regions")
@@ -1088,20 +1361,26 @@ public class V2 {
 			@Parameter(description = "Region id", required = true) @QueryParam("regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.setUserRegion(c, authUserId, regionId, delete);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update media location")
+	@Operation(summary = "Update media location", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media")
 	public Response putMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(description = "To sector id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
+			@Parameter(description = "To area id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
 			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
 			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
 			) {
@@ -1111,39 +1390,57 @@ public class V2 {
 				(!left && toIdArea == 0 && toIdSector > 0 && toIdProblem == 0) ||
 				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem > 0),
 				"Invalid arguments");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(id > 0);
 			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Set media as avatar")
+	@Operation(summary = "Set media as avatar", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/avatar")
 	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
 		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			String originalKey = S3KeyGenerator.getOriginalJpg(id);
 			dao.saveUserAvatar(c, authUserId, () -> StorageManager.getInstance().getInputStream(originalKey));
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update media info")
+	@Operation(summary = "Update media info", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/info")
 	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) {
 		Preconditions.checkArgument(m.mediaId() > 0, "Invalid mediaId");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.updateMediaInfo(c, authUserId, m);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)")
+	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/media/jpeg/rotate")
@@ -1152,13 +1449,19 @@ public class V2 {
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.rotateMedia(c, setup.idRegion(), authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}
 
-	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)")
+	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(ref = OpenApiResponseRefs.BAD_REQUEST),
+			@ApiResponse(ref = OpenApiResponseRefs.UNAUTHORIZED),
+			@ApiResponse(ref = OpenApiResponseRefs.FORBIDDEN),
+			@ApiResponse(ref = OpenApiResponseRefs.INTERNAL_SERVER_ERROR)
+	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("/trash")
@@ -1174,10 +1477,14 @@ public class V2 {
 				(idArea == 0 && idSector == 0 && idProblem > 0) ||
 				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0),
 				"Invalid arguments");
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
 		});
+	}
+
+	private Response createNotFoundResponse(String message) {
+		return Response.status(Response.Status.NOT_FOUND).entity(message).build();
 	}
 
 	private Response createRedirect(String key, int version) {
@@ -1190,16 +1497,31 @@ public class V2 {
 				.cacheControl(cc).build();
 	}
 
+	private String escapeHtml(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value
+				.replace("&", "&amp;")
+				.replace("<", "&lt;")
+				.replace(">", "&gt;")
+				.replace("\"", "&quot;")
+				.replace("'", "&#39;");
+	}
+
 	private String getHtml(Setup setup, String pageUrl, String title, String description, int mediaId, long mediaVersionStamp, int mediaWidth, int mediaHeight) {
+		String safeTitle = escapeHtml(title);
+		String safeDescription = escapeHtml(description);
+		String safePageUrl = escapeHtml(pageUrl);
 		String ogImageTags = "";
 		if (mediaId > 0) {
 			String relativePath = StorageManager.getPublicUrl(S3KeyGenerator.getWebJpg(mediaId), mediaVersionStamp);
-			String absoluteImageUrl = setup.url() + relativePath;
+			String safeAbsoluteImageUrl = escapeHtml(setup.url() + relativePath);
 			ogImageTags = """
 					<meta property="og:image" content="%s" />
 					<meta property="og:image:width" content="%d" />
 					<meta property="og:image:height" content="%d" />
-					""".formatted(absoluteImageUrl, mediaWidth, mediaHeight);
+					""".formatted(safeAbsoluteImageUrl, mediaWidth, mediaHeight);
 		}
 		return """
 				<!DOCTYPE html>
@@ -1216,6 +1538,6 @@ public class V2 {
 				    %s
 				</head>
 				</html>
-				""".formatted(title, description, description, pageUrl, title, ogImageTags);
+				""".formatted(safeTitle, safeDescription, safeDescription, safePageUrl, safeTitle, ogImageTags);
 	}
 }

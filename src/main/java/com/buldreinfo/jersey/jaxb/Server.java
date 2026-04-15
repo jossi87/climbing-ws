@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,7 +101,12 @@ public class Server {
 			}
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
-			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
+			return switch (e) {
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
+			};
 		}
 	}
 
@@ -121,11 +127,48 @@ public class Server {
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			return switch (e) {
-			case IllegalArgumentException _ -> Response.status(Response.Status.BAD_REQUEST).entity("Invalid request parameters.").build();
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
 			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
 			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
 			};
 		}
+	}
+
+	protected static Response buildResponseWithSqlAndRequiredAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+		Server server = getServer();
+		Setup setup = server.getSetup(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
+				if (authUserId.isEmpty()) {
+					c.rollback();
+					return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
+				}
+				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e;
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return switch (e) {
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+			};
+		}
+	}
+
+	private static String getBadRequestMessage(IllegalArgumentException e) {
+		if (e != null && e.getMessage() != null && e.getMessage().startsWith("File too large")) {
+			return "File too large";
+		}
+		return "Invalid request parameters.";
 	}
 
 	private final HikariDataSource ds;

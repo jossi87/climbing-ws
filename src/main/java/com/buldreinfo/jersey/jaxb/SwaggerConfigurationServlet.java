@@ -6,6 +6,9 @@ import java.util.stream.Stream;
 import io.swagger.v3.jaxrs2.integration.JaxrsOpenApiContextBuilder;
 import io.swagger.v3.oas.integration.OpenApiConfigurationException;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -21,7 +24,14 @@ public class SwaggerConfigurationServlet extends HttpServlet {
 	@Override
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
-		SwaggerConfiguration oasConfig = new SwaggerConfiguration().resourcePackages(Stream.of("com.buldreinfo.jersey.jaxb").collect(Collectors.toSet()));
+		OpenAPI openAPI = new OpenAPI().components(new Components()
+				.addResponses(OpenApiResponseRefs.BAD_REQUEST_NAME, new ApiResponse().description("Invalid request parameters."))
+				.addResponses(OpenApiResponseRefs.UNAUTHORIZED_NAME, new ApiResponse().description("Authentication required."))
+				.addResponses(OpenApiResponseRefs.FORBIDDEN_NAME, new ApiResponse().description("Insufficient permissions."))
+				.addResponses(OpenApiResponseRefs.INTERNAL_SERVER_ERROR_NAME, new ApiResponse().description("An unexpected error occurred")));
+		SwaggerConfiguration oasConfig = new SwaggerConfiguration()
+				.resourcePackages(Stream.of("com.buldreinfo.jersey.jaxb").collect(Collectors.toSet()))
+				.openAPI(openAPI);
 		try {
 			new JaxrsOpenApiContextBuilder<>()
 	          .servletConfig(config)

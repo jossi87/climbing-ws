@@ -3,10 +3,10 @@ package com.buldreinfo.jersey.jaxb.db;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -91,11 +92,11 @@ import com.buldreinfo.jersey.jaxb.model.ProfileTodoProblem;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodoSector;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
+import com.buldreinfo.jersey.jaxb.model.Region;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.SectorProblemOrder;
-import com.buldreinfo.jersey.jaxb.model.Region;
 import com.buldreinfo.jersey.jaxb.model.Slope;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
@@ -136,6 +137,8 @@ public class Dao {
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
+	private static final long MAX_IMAGE_UPLOAD_BYTES = 25L * 1024L * 1024L;
+	private static final long MAX_VIDEO_UPLOAD_BYTES = 1024L * 1024L * 1024L;
 	private static Logger logger = LogManager.getLogger();
 	private final Gson gson = new Gson();
 
@@ -230,6 +233,20 @@ public class Dao {
 					}
 				}
 			}
+		}
+	}
+
+	public void ensureUserExists(Connection c, int userId) throws SQLException {
+		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
+		boolean exists = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE id=?")) {
+			ps.setInt(1, userId);
+			try (ResultSet rst = ps.executeQuery()) {
+				exists = rst.next();
+			}
+		}
+		if (!exists) {
+			throw new NoSuchElementException("Could not find user with id=" + userId);
 		}
 	}
 
@@ -756,12 +773,18 @@ public class Dao {
 		}
 		if (a == null) {
 			// Area not found, see if it's visible on a different domain
-			Redirect res = getCanonicalUrl(c, reqId, 0, 0);
-			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Area(res.redirectUrl(), -1, null, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
+			try {
+				Redirect res = getCanonicalUrl(c, reqId, 0, 0);
+				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+					return new Area(res.redirectUrl(), -1, null, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
+				}
+			} catch (NoSuchElementException _) {
+				// Not found on other domains either
 			}
 		}
-		Objects.requireNonNull(a, "Could not find area with id=" + reqId);
+		if (a == null) {
+			throw new NoSuchElementException("Could not find area with id=" + reqId);
+		}
 		Map<Integer, Area.AreaSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, MAX(m.id) media_id, MAX(UNIX_TIMESTAMP(m.updated_at)) media_version_stamp
@@ -985,7 +1008,9 @@ public class Dao {
 				}
 			}
 		}
-		Objects.requireNonNull(res, "Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		if (res == null) {
+			throw new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		}
 		return res;
 	}
 
@@ -1308,6 +1333,9 @@ public class Dao {
 				}
 			}
 		}
+		if (res == null) {
+			throw new NoSuchElementException("Could not find media with id=" + id);
+		}
 		return res;
 	}
 
@@ -1532,13 +1560,19 @@ public class Dao {
 		}
 		if (p == null) {
 			// Poblem not found, see if it's visible on a different domain
-			Redirect res = getCanonicalUrl(c, 0, 0, reqId);
-			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
+			try {
+				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
+				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
+				}
+			} catch (NoSuchElementException _) {
+				// Not found on other domains either
 			}
 		}
 
-		Objects.requireNonNull(p, "Could not find problem with id=" + reqId);
+		if (p == null) {
+			throw new NoSuchElementException("Could not find problem with id=" + reqId);
+		}
 		// Ascents
 		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -1746,6 +1780,9 @@ public class Dao {
 					res = new Profile(userId, firstname, lastname, emailVisibleToAll, mediaId, mediaVersionStamp, emails, userRegions, lastActivity);
 				}
 			}
+		}
+		if (res == null) {
+			throw new NoSuchElementException("Could not find user with id=" + userId);
 		}
 		return res;
 	}
@@ -2523,13 +2560,19 @@ public class Dao {
 		}
 		if (s == null) {
 			// Sector not found, see if it's visible on a different domain
-			Redirect res = getCanonicalUrl(c, 0, reqId, 0);
-			if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-				return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
+			try {
+				Redirect res = getCanonicalUrl(c, 0, reqId, 0);
+				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
+				}
+			} catch (NoSuchElementException _) {
+				// Not found on other domains either
 			}
 		}
 
-		Objects.requireNonNull(s, "Could not find sector with id=" + reqId);
+		if (s == null) {
+			throw new NoSuchElementException("Could not find sector with id=" + reqId);
+		}
 		try (PreparedStatement ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, s.getAreaId());
@@ -3146,7 +3189,7 @@ public class Dao {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
 		List<User> res = new ArrayList<>();
 		if (!Strings.isNullOrEmpty(value)) {
-			String searchRegexPattern = "(^|\\W)" + value;
+			String searchRegexPattern = "(^|\\W)" + Pattern.quote(value);
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
 					FROM user u
@@ -4531,7 +4574,7 @@ public class Dao {
 				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
 				try {
 					try (InputStream is = inputStreamSupplier.get()) {
-						Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
+						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
 					}
 					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, storageType);
 					final int id = idMedia;
@@ -4551,7 +4594,7 @@ public class Dao {
 			}
 			else {
 				try (InputStream is = inputStreamSupplier.get()) {
-					byte[] bytes = is.readAllBytes();
+					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
 					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
 			}
@@ -4581,6 +4624,19 @@ public class Dao {
 			}
 		}
 		return id;
+	}
+
+	private void copyWithLimit(InputStream is, Path targetPath, long maxBytes) throws IOException {
+		try (OutputStream os = Files.newOutputStream(targetPath)) {
+			byte[] buffer = new byte[16 * 1024];
+			long total = 0;
+			int read;
+			while ((read = is.read(buffer)) != -1) {
+				total += read;
+				Preconditions.checkArgument(total <= maxBytes, "File too large (max %s bytes)", maxBytes);
+				os.write(buffer, 0, read);
+			}
+		}
 	}
 
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
@@ -5281,6 +5337,20 @@ public class Dao {
 			}
 		}
 		return res;
+	}
+
+	private byte[] readBytesWithLimit(InputStream is, long maxBytes) throws IOException {
+		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+			byte[] buffer = new byte[16 * 1024];
+			long total = 0;
+			int read;
+			while ((read = is.read(buffer)) != -1) {
+				total += read;
+				Preconditions.checkArgument(total <= maxBytes, "File too large (max %s bytes)", maxBytes);
+				os.write(buffer, 0, read);
+			}
+			return os.toByteArray();
+		}
 	}
 
 	private void setNullablePositiveDouble(PreparedStatement ps, int parameterIndex, double value) throws SQLException {

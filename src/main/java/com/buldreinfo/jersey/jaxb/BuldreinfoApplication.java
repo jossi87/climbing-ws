@@ -9,5 +9,6 @@ import jakarta.ws.rs.ApplicationPath;
 public class BuldreinfoApplication extends ResourceConfig {
 	public BuldreinfoApplication() {
 		super(MultiPartFeature.class);
+		register(GlobalExceptionMapper.class);
 	}
 }
