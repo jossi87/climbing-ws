@@ -662,7 +662,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-				       CASE WHEN u.email_visible_to_all=1 THEN (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') FROM user_email e WHERE e.user_id=u.id) END emails,
+				       CASE WHEN u.email_visible_to_all=1 THEN (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') FROM user_email e WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') END emails,
 				       m.id media_id, 
 					   UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
 				       DATE_FORMAT(l_agg.last_login_raw, '%Y.%m.%d') last_login
@@ -1719,7 +1719,7 @@ public class Dao {
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp,
 				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
 				        FROM user_email e 
-				        WHERE e.user_id=u.id) emails,
+				        WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') emails,
 					   (SELECT MAX(l.when)
 				        FROM user_login l 
 				        WHERE l.user_id=u.id) last_login
