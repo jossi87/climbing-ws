@@ -726,14 +726,14 @@ public class Dao {
 		}
 		Area a = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT r.id region_id, r.name region_name, CONCAT(r.url,'/area/',a.id) canonical, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
+				SELECT r.name region_name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				FROM area a
 				JOIN region r ON a.region_id=r.id
 				LEFT JOIN coordinates c ON a.coordinates_id=c.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				GROUP BY r.id, r.name, r.url, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
+				GROUP BY r.name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -741,9 +741,7 @@ public class Dao {
 			ps.setInt(3, s.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int regionId = rst.getInt("region_id");
 					String regionName = rst.getString("region_name");
-					String canonical = rst.getString("canonical");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					boolean forDevelopers = rst.getBoolean("for_developers");
@@ -767,7 +765,7 @@ public class Dao {
 						}
 					}
 					var externalLinks = getExternalLinksArea(c, reqId, false);
-					a = new Area(null, regionId, regionName, canonical, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, externalLinks, pageViews);
+					a = new Area(null, regionName, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
 		}
@@ -776,7 +774,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, reqId, 0, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Area(res.redirectUrl(), -1, null, null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
+					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -902,15 +900,31 @@ public class Dao {
 	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id region_id, r.name region_name, CONCAT(r.url,'/area/',a.id) canonical, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN coordinates c ON a.coordinates_id=c.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?) WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 GROUP BY r.id, r.name, r.url, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits ORDER BY replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT r.name region_name,
+				       a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				       COUNT(DISTINCT s.id) num_sectors, COUNT(DISTINCT p.id) num_problems, a.hits
+				FROM area a
+				JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id
+				LEFT JOIN coordinates c ON a.coordinates_id=c.id
+				LEFT JOIN sector s ON a.id=s.area_id
+				LEFT JOIN problem p ON s.id=p.sector_id
+				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
+				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
+				ORDER BY r.name, replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqIdRegion);
 			ps.setInt(3, reqIdRegion);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int regionId = rst.getInt("region_id");
 					String regionName = rst.getString("region_name");
-					String canonical = rst.getString("canonical");
 					int id = rst.getInt("id");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
@@ -935,7 +949,7 @@ public class Dao {
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					res.add(new Area(null, regionId, regionName, canonical, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, null, pageViews));
+					res.add(new Area(null, regionName, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, null, pageViews));
 				}
 			}
 		}
@@ -1059,7 +1073,27 @@ public class Dao {
 	public Collection<DangerousArea> getDangerous(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
 		Map<Integer, DangerousSector> sectorLookup = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.broken problem_broken, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message FROM ((((((area a INNER JOIN region r ON r.id=a.region_id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)) INNER JOIN user u ON g.user_id=u.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (a.region_id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, s.sun_from_hour, s.sun_to_hour, p.id, p.broken, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin, u.firstname, u.lastname, g.post_time, g.message ORDER BY a.name, s.name, p.nr")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
+				       s.id sector_id, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour,
+				       p.id problem_id, p.broken problem_broken, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message
+				FROM area a
+				JOIN region_type rt ON a.region_id=rt.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)
+				JOIN user u ON g.user_id=u.id
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour,
+				         s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, s.sun_from_hour, s.sun_to_hour,
+				         p.id, p.broken, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin,
+				         u.firstname, u.lastname, g.post_time, g.message
+				ORDER BY a.name, s.name, p.nr
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
@@ -1069,20 +1103,18 @@ public class Dao {
 					int areaId = rst.getInt("area_id");
 					DangerousArea a = areasLookup.get(areaId);
 					if (a == null) {
-						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						int areaSunFromHour = rst.getInt("area_sun_from_hour");
 						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new DangerousArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+						a = new DangerousArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
 						areasLookup.put(areaId, a);
 					}
 					// Sector
 					int sectorId = rst.getInt("sector_id");
 					DangerousSector s = sectorLookup.get(sectorId);
 					if (s == null) {
-						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
 						CompassDirection sectorWallDirectionCalculated = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
 						CompassDirection sectorWallDirectionManual = getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
@@ -1090,13 +1122,12 @@ public class Dao {
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 						int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
 						int sectorSunToHour = rst.getInt("sector_sun_to_hour");
-						s = new DangerousSector(sectorId, sectorUrl, sectorName, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
+						s = new DangerousSector(sectorId, sectorName, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
 						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
 					int id = rst.getInt("problem_id");
-					String url = rst.getString("problem_url");
 					String broken = rst.getString("problem_broken");
 					int nr = rst.getInt("problem_nr");
 					int grade = rst.getInt("problem_grade");
@@ -1106,7 +1137,7 @@ public class Dao {
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.problems().add(new DangerousProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
+					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
 				}
 			}
 		}
@@ -1371,7 +1402,6 @@ public class Dao {
 				  FROM user_region ur
 				  JOIN user u ON ur.user_id=u.id
 				  LEFT JOIN media m ON u.media_id=m.id
-				  /* Changed back to JOIN: This ensures last_login is NEVER null */
 				  JOIN (SELECT user_id, MAX(`when`) last_login
 				        FROM user_login
 				        WHERE region_id=?
@@ -1427,7 +1457,7 @@ public class Dao {
 		}
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, CONCAT(r.url,'/problem/',p.id) canonical, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
+				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
 				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
 				       group_concat(DISTINCT CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '","mediaId":', COALESCE(m.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at),0), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
 				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
@@ -1450,7 +1480,7 @@ public class Dao {
 				  AND p.id=?
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				  AND (r.id=? OR ur.user_id IS NOT NULL)
-				GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
+				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
 				ORDER BY p.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -1485,7 +1515,6 @@ public class Dao {
 					CompassDirection sectorWallDirectionManual = getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
 					Slope sectorApproach = getSectorSlopes(c, true, Collections.singleton(sectorId)).getOrDefault(sectorId, null);
 					Slope sectorDescent = getSectorSlopes(c, false, Collections.singleton(sectorId)).getOrDefault(sectorId, null);
-					String canonical = rst.getString("canonical");
 					int id = rst.getInt("id");
 					String broken = rst.getString("broken");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
@@ -1550,7 +1579,7 @@ public class Dao {
 							sectorSunFromHour, sectorSunToHour,
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
 							neighbourPrev, neighbourNext,
-							canonical, id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
+							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							s.gradeConverter().getGradeFromIdGrade(grade),
 							s.gradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
@@ -1563,7 +1592,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -2188,7 +2217,23 @@ public class Dao {
 		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
 		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
 		Map<Integer, ProfileTodoProblem> problemLookup = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, CONCAT(r.url,'/problem/',p.id) problem_url, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin FROM (((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) LEFT JOIN todo t ON p.id=t.problem_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND (r.id=? OR ur.user_id IS NOT NULL) AND t.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 GROUP BY r.url, t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin ORDER BY a.name, s.name, p.nr")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin
+				FROM area a
+				JOIN region_type rt ON a.region_id=rt.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				LEFT JOIN todo t ON p.id=t.problem_id
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				  AND t.user_id=?
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin
+				ORDER BY a.name, s.name, p.nr
+				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
 			ps.setInt(3, setup.idRegion());
@@ -2199,11 +2244,10 @@ public class Dao {
 					int areaId = rst.getInt("area_id");
 					ProfileTodoArea a = areaLookup.get(areaId);
 					if (a == null) {
-						String areaUrl = rst.getString("area_url");
 						String areaName = rst.getString("area_name");
 						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
 						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = new ProfileTodoArea(areaId, areaUrl, areaName, areaLockedAdmin, areaLockedSuperadmin, new ArrayList<>());
+						a = new ProfileTodoArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, new ArrayList<>());
 						res.areas().add(a);
 						areaLookup.put(areaId, a);
 					}
@@ -2211,24 +2255,22 @@ public class Dao {
 					int sectorId = rst.getInt("sector_id");
 					ProfileTodoSector s = sectorLookup.get(sectorId);
 					if (s == null) {
-						String sectorUrl = rst.getString("sector_url");
 						String sectorName = rst.getString("sector_name");
 						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = new ProfileTodoSector(sectorId, sectorUrl, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+						s = new ProfileTodoSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
 						a.sectors().add(s);
 						sectorLookup.put(sectorId, s);
 					}
 					// Problem
 					int todoId = rst.getInt("todo_id");
 					int problemId = rst.getInt("problem_id");
-					String problemUrl = rst.getString("problem_url");
 					int problemNr = rst.getInt("problem_nr");
 					String problemName = rst.getString("problem_name");
 					int problemGrade = rst.getInt("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemUrl, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade));
+					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade));
 					s.problems().add(p);
 					problemLookup.put(problemId, p);
 				}
@@ -2498,13 +2540,14 @@ public class Dao {
 		}
 		Sector s = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, a.description area_description, CONCAT(r.url,'/sector/',s.id) canonical, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
-				FROM area a INNER JOIN region r ON a.region_id=r.id
+				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
+				FROM area a
+				JOIN region r ON a.region_id=r.id
 				INNER JOIN sector s ON a.id=s.area_id
 				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				GROUP BY r.url, a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
+				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqId);
@@ -2520,8 +2563,6 @@ public class Dao {
 					int areaSunFromHour = rst.getInt("area_sun_from_hour");
 					int areaSunToHour = rst.getInt("area_sun_to_hour");
 					String areaName = rst.getString("area_name");
-					String areaComment = rst.getString("area_description");
-					String canonical = rst.getString("canonical");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					String name = rst.getString("name");
@@ -2554,7 +2595,7 @@ public class Dao {
 					}
 					var externalLinks = getExternalLinksSector(c, reqId, false);
 					externalLinks.addAll(getExternalLinksArea(c, areaId, true));
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, areaComment, canonical, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
 				}
 			}
 		}
@@ -2563,7 +2604,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, null, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
+					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either

@@ -22,6 +22,7 @@ public class WritePdf {
 					.orElseThrow();
 			var authUserId = Optional.of(1);
 			final boolean shouldUpdateHits = false;
+			var meta = Meta.from(dao, c, setup, authUserId);
 			Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, shouldUpdateHits);
 			Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
 			Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
@@ -29,10 +30,9 @@ public class WritePdf {
 			Path pProblem = Path.of("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 			try (var fos = new FileOutputStream(pProblem.toFile());
 					PdfGenerator generator = new PdfGenerator(fos)) {
-				generator.writeProblem(area, sector, problem);
+				generator.writeProblem(meta, area, sector, problem);
 			}
 			// Area
-			Meta meta = Meta.from(dao, c, setup, authUserId);
 			area = dao.getArea(c, setup, authUserId, 2754, shouldUpdateHits);
 			var gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
 			Path pArea = Path.of("C:/Users/JosteinØygarden/Desktop/area.pdf");

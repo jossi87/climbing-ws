@@ -17,8 +17,6 @@ public class Sector {
 	private final int areaSunFromHour;
 	private final int areaSunToHour;
 	private final String areaName;
-	private final String areaComment;
-	private final String canonical;
 	private final int id;
 	private final boolean trash;
 	private final boolean lockedAdmin;
@@ -44,7 +42,7 @@ public class Sector {
 	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 	
-	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, String areaComment, String canonical, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
+	public Sector(String redirectUrl, boolean orderByGrade, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour, String areaName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, Slope approach, Slope descent, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.orderByGrade = orderByGrade;
 		this.areaId = areaId;
@@ -56,8 +54,6 @@ public class Sector {
 		this.areaSunFromHour = areaSunFromHour;
 		this.areaSunToHour = areaSunToHour;
 		this.areaName = areaName;
-		this.areaComment = areaComment;
-		this.canonical = canonical;
 		this.id = id;
 		this.trash = trash;
 		this.lockedAdmin = lockedAdmin;
@@ -110,10 +106,6 @@ public class Sector {
 		return areaAccessInfo;
 	}
 	
-	public String getAreaComment() {
-		return areaComment;
-	}
-	
 	public int getAreaId() {
 		return areaId;
 	}
@@ -128,10 +120,6 @@ public class Sector {
 	
 	public int getAreaSunToHour() {
 		return areaSunToHour;
-	}
-	
-	public String getCanonical() {
-		return canonical;
 	}
 	
 	public String getComment() {
@@ -187,10 +175,6 @@ public class Sector {
 	}
 
 	public List<SectorJump> getSectors() {
-		return sectors;
-	}
-	
-	public List<SectorJump> getSiblings() {
 		return sectors;
 	}
 	

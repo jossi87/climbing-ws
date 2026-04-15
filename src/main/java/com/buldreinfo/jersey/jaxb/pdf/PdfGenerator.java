@@ -212,17 +212,16 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		if (!Strings.isNullOrEmpty(area.getCanonical())) {
-			info.addCell(createKeyCell("URL"));
-			Anchor anchor = new Anchor(area.getCanonical(), FONT_LINK);
-			anchor.setReference(area.getCanonical());
-			PdfPCell urlCell = new PdfPCell(anchor);
-			urlCell.setBorder(Rectangle.BOTTOM);
-			urlCell.setBorderColor(Color.LIGHT_GRAY);
-			urlCell.setPadding(6f);
-			urlCell.setVerticalAlignment(Element.ALIGN_TOP);
-			info.addCell(urlCell);
-		}
+		String areaUrl = meta.url() + "/area/" + area.getId();
+		info.addCell(createKeyCell("URL"));
+		Anchor anchor = new Anchor(areaUrl, FONT_LINK);
+		anchor.setReference(areaUrl);
+		PdfPCell urlCell = new PdfPCell(anchor);
+		urlCell.setBorder(Rectangle.BOTTOM);
+		urlCell.setBorderColor(Color.LIGHT_GRAY);
+		urlCell.setPadding(6f);
+		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
+		info.addCell(urlCell);
 
 		if (!Strings.isNullOrEmpty(area.getAccessClosed()) || !Strings.isNullOrEmpty(area.getAccessInfo()) || !Strings.isNullOrEmpty(area.getComment())) {
 			StringBuilder areaInfo = new StringBuilder();
@@ -263,7 +262,7 @@ public class PdfGenerator implements AutoCloseable {
 		writeSectors(meta, sectors);
 	}
 
-	public void writeProblem(Area area, Sector sector, Problem problem) throws Exception {
+	public void writeProblem(Meta meta, Area area, Sector sector, Problem problem) throws Exception {
 		mediaIdProcessed.clear();
 
 		String headerTitle = String.format("%s / %s / #%d %s [%s]", area.getName(), sector.getName(), problem.getNr(), problem.getName(), problem.getGrade());
@@ -280,17 +279,16 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		if (!Strings.isNullOrEmpty(problem.getCanonical())) {
-			info.addCell(createKeyCell("URL"));
-			Anchor anchor = new Anchor(problem.getCanonical(), FONT_LINK);
-			anchor.setReference(problem.getCanonical());
-			PdfPCell urlCell = new PdfPCell(anchor);
-			urlCell.setBorder(Rectangle.BOTTOM);
-			urlCell.setBorderColor(Color.LIGHT_GRAY);
-			urlCell.setPadding(6f);
-			urlCell.setVerticalAlignment(Element.ALIGN_TOP);
-			info.addCell(urlCell);
-		}
+		String problemUrl = meta.url() + "/problem/" + problem.getId();
+		info.addCell(createKeyCell("URL"));
+		Anchor anchor = new Anchor(problemUrl, FONT_LINK);
+		anchor.setReference(problemUrl);
+		PdfPCell urlCell = new PdfPCell(anchor);
+		urlCell.setBorder(Rectangle.BOTTOM);
+		urlCell.setBorderColor(Color.LIGHT_GRAY);
+		urlCell.setPadding(6f);
+		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
+		info.addCell(urlCell);
 
 		StringBuilder areaInfo = new StringBuilder();
 		if (!Strings.isNullOrEmpty(area.getAccessClosed())) {

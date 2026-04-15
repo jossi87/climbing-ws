@@ -30,7 +30,6 @@ public class Problem {
 	private final Slope sectorDescent;
 	private final SectorProblem neighbourPrev;
 	private final SectorProblem neighbourNext;
-	private final String canonical;
 	private final int id;
 	private final String broken;
 	private final boolean trash;
@@ -70,7 +69,7 @@ public class Problem {
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
 			int sectorSunFromHour, int sectorSunToHour,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, String canonical, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -98,7 +97,6 @@ public class Problem {
 		this.sectorDescent = sectorDescent;
 		this.neighbourPrev = neighbourPrev;
 		this.neighbourNext = neighbourNext;
-		this.canonical = canonical;
 		this.id = id;
 		this.broken = broken;
 		this.trash = trash;
@@ -193,10 +191,6 @@ public class Problem {
 	
 	public String getBroken() {
 		return broken;
-	}
-	
-	public String getCanonical() {
-		return canonical;
 	}
 	
 	public String getComment() {

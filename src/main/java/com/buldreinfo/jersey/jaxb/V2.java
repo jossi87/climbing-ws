@@ -542,6 +542,7 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
+			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Problem problem = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
 			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
 			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
@@ -549,7 +550,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) {
 					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeProblem(area, sector, problem);
+						generator.writeProblem(meta, area, sector, problem);
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);

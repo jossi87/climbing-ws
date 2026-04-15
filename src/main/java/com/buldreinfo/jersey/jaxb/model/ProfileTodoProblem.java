@@ -6,7 +6,6 @@ import java.util.List;
 public class ProfileTodoProblem {
 	private final int todoId;
 	private final int id;
-	private final String url;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final int nr;
@@ -15,10 +14,9 @@ public class ProfileTodoProblem {
 	private Coordinates coordinates;
 	private final List<User> partners = new ArrayList<>();
 	
-	public ProfileTodoProblem(int todoId, int id, String url, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
+	public ProfileTodoProblem(int todoId, int id, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String grade) {
 		this.todoId = todoId;
 		this.id = id;
-		this.url = url;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.nr = nr;
@@ -52,10 +50,6 @@ public class ProfileTodoProblem {
 	
 	public int getTodoId() {
 		return todoId;
-	}
-	
-	public String getUrl() {
-		return url;
 	}
 	
 	public boolean isLockedAdmin() {
