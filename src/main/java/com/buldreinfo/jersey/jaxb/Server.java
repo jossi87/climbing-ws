@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -32,8 +33,11 @@ import jakarta.ws.rs.core.Response;
 public class Server {
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
+	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
+	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static volatile Server server;
 	private static Logger logger = LogManager.getLogger();
+	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
 
 	public static Collection<Setup> getSetups() {
 		return getServer().setupMap.values();
@@ -63,6 +67,41 @@ public class Server {
 		}
 	}
 
+	private static void cleanupHitsCooldownMap(long now) {
+		if (hitsCooldownMap.size() < HITS_COOLDOWN_CACHE_MAX_SIZE) {
+			return;
+		}
+		hitsCooldownMap.entrySet().removeIf(e -> now - e.getValue() >= HITS_COOLDOWN_MILLIS);
+	}
+
+	private static String getBadRequestMessage(IllegalArgumentException e) {
+		if (e != null && e.getMessage() != null && e.getMessage().startsWith("File too large")) {
+			return "File too large";
+		}
+		return "Invalid request parameters.";
+	}
+
+	private static String getHitsCooldownKey(HttpServletRequest request) {
+		String ip = request.getHeader("CF-Connecting-IP");
+		if (ip == null || ip.isBlank()) {
+			ip = request.getHeader("X-Forwarded-For");
+		}
+		if (ip == null || ip.isBlank()) {
+			ip = request.getHeader("X-Real-IP");
+		}
+		if (ip == null || ip.isBlank()) {
+			ip = request.getRemoteAddr();
+		}
+		String uri = request.getRequestURI();
+		String query = request.getQueryString();
+		String ua = request.getHeader("User-Agent");
+		return String.join("|",
+				uri == null ? "" : uri,
+				query == null ? "" : query,
+				ip == null ? "" : ip,
+				ua == null ? "" : ua);
+	}
+
 	private static synchronized Server getServer() {
 		Server result = server;
 		if (result == null) {
@@ -71,10 +110,39 @@ public class Server {
 		return result;
 	}
 
+	private static boolean isBotRequest(HttpServletRequest request) {
+		String ua = request.getHeader("User-Agent");
+		if (ua == null) {
+			return false;
+		}
+		String x = ua.toLowerCase();
+		return x.contains("bot")
+				|| x.contains("crawler")
+				|| x.contains("spider")
+				|| x.contains("slurp")
+				|| x.contains("bingpreview")
+				|| x.contains("headless");
+	}
+
 	private static boolean shouldUpdateHits(HttpServletRequest request) {
 		String internalHeader = request.getHeader(HEADER_INTERNAL_REQUEST);
 		boolean isInternal = HEADER_INTERNAL_REQUEST_VALUE.equalsIgnoreCase(internalHeader);
-		return !isInternal;
+		if (isInternal || isBotRequest(request)) {
+			return false;
+		}
+		long now = System.currentTimeMillis();
+		String key = getHitsCooldownKey(request);
+		Long previous = hitsCooldownMap.putIfAbsent(key, now);
+		if (previous == null) {
+			cleanupHitsCooldownMap(now);
+			return true;
+		}
+		if (now - previous >= HITS_COOLDOWN_MILLIS) {
+			hitsCooldownMap.put(key, now);
+			cleanupHitsCooldownMap(now);
+			return true;
+		}
+		return false;
 	}
 
 	protected static Response buildResponse(Function<Response> function) {
@@ -162,13 +230,6 @@ public class Server {
 			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
 			};
 		}
-	}
-
-	private static String getBadRequestMessage(IllegalArgumentException e) {
-		if (e != null && e.getMessage() != null && e.getMessage().startsWith("File too large")) {
-			return "File too large";
-		}
-		return "Invalid request parameters.";
 	}
 
 	private final HikariDataSource ds;
