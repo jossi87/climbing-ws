@@ -7,8 +7,7 @@ public class ProblemTick {
 	private List<TickRepeat> repeats;
 	private final int id;
 	private final int idUser;
-	private final int mediaId;
-	private final long mediaVersionStamp;
+	private final MediaIdentity mediaIdentity;
 	private final String date;
 	private final String name;
 	private final String suggestedGrade;
@@ -16,11 +15,10 @@ public class ProblemTick {
 	private final String comment;
 	private final double stars;
 	private final boolean writable;
-	public ProblemTick(int id, int idUser, int mediaId, long mediaVersionStamp, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
+	public ProblemTick(int id, int idUser, MediaIdentity mediaIdentity, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
 		this.id = id;
 		this.idUser = idUser;
-		this.mediaId = mediaId;
-		this.mediaVersionStamp = mediaVersionStamp;
+		this.mediaIdentity = mediaIdentity;
 		this.date = date;
 		this.name = name;
 		this.suggestedGrade = suggestedGrade;
@@ -47,11 +45,8 @@ public class ProblemTick {
 	public int getIdUser() {
 		return idUser;
 	}
-	public int getMediaId() {
-		return mediaId;
-	}
-	public long getMediaVersionStamp() {
-		return mediaVersionStamp;
+	public MediaIdentity getMediaIdentity() {
+		return mediaIdentity;
 	}
 	public String getName() {
 		return name;
@@ -73,8 +68,8 @@ public class ProblemTick {
 	}
 	@Override
 	public String toString() {
-		return "ProblemTick [repeats=" + repeats + ", id=" + id + ", idUser=" + idUser + ", mediaId=" + mediaId
-				+ ", mediaVersionStamp=" + mediaVersionStamp + ", date=" + date + ", name=" + name + ", suggestedGrade="
+		return "ProblemTick [repeats=" + repeats + ", id=" + id + ", idUser=" + idUser + ", mediaId=" + mediaIdentity
+				+ ", mediaIdentity=" + mediaIdentity + ", date=" + date + ", name=" + name + ", suggestedGrade="
 				+ suggestedGrade + ", noPersonalGrade=" + noPersonalGrade + ", comment=" + comment + ", stars=" + stars
 				+ ", writable=" + writable + "]";
 	}

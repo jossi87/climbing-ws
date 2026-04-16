@@ -502,7 +502,7 @@ public class PdfGenerator implements AutoCloseable {
 					} catch (Exception e) {
 						logger.warn(e.getMessage(), e);
 					}
-					return safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
+					return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
 				}));
 			}
 		}
@@ -524,10 +524,10 @@ public class PdfGenerator implements AutoCloseable {
 			List<CompletableFuture<byte[]>> sectionFutures = new ArrayList<>();
 			List<Media> toProcess = new ArrayList<>();
 			for (Media m : section.media()) {
-				if (!mediaIdProcessed.contains(m.id())) {
+				if (!mediaIdProcessed.contains(m.identity().id())) {
 					toProcess.add(m);
-					sectionFutures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), null, null, 600, 0, 0)));
-					mediaIdProcessed.add(m.id());
+					sectionFutures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), null, null, 600, 0, 0)));
+					mediaIdProcessed.add(m.identity().id());
 				}
 			}
 			for (int i = 0; i < sectionFutures.size(); i++) {
@@ -796,11 +796,11 @@ public class PdfGenerator implements AutoCloseable {
 		List<CompletableFuture<byte[]>> futures = new ArrayList<>();
 		List<Media> toProcess = new ArrayList<>();
 		for (Media m : media) {
-			if (mediaIdProcessed.contains(m.id())) continue;
+			if (mediaIdProcessed.contains(m.identity().id())) continue;
 			toProcess.add(m);
 			List<Svg> svgs = m.svgs() != null ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) : null;
-			futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)));
-			mediaIdProcessed.add(m.id());
+			futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)));
+			mediaIdProcessed.add(m.identity().id());
 		}
 
 		int[] colCounts = new int[cols];

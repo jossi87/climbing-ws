@@ -12,7 +12,7 @@ import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.db.Dao;
 
 public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
-		String authenticatedName, int mediaId, long mediaVersionStamp,
+		String authenticatedName, MediaIdentity mediaIdentity,
 		List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
@@ -24,15 +24,15 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
 		String authenticatedName = null;
-		int mediaId = 0;
-		long mediaVersionStamp = 0;
+		MediaIdentity mediaIdentity = null;
 		if (authUserId.isPresent()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
 					FROM user u
 					LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?)
 					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE u.id=?
 					""")) {
 				ps.setInt(1, setup.idRegion());
@@ -46,8 +46,13 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 							isAdmin = true;
 						}
 						authenticatedName = rst.getString("authenticated_name");
-						mediaId = rst.getInt("media_id");
-						mediaVersionStamp = rst.getLong("media_version_stamp");
+						int mediaId = rst.getInt("media_id");
+						if (mediaId > 0) {
+							long mediaVersionStamp = rst.getLong("media_version_stamp");
+							int mediaFocusX = rst.getInt("media_focus_x");
+							int mediaFocusY = rst.getInt("media_focus_y");
+							mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						}
 					}
 				}
 			}
@@ -64,6 +69,6 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Region> regions = dao.getRegions(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaId, mediaVersionStamp, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, regions, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaIdentity, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, regions, compassDirections);
 	}
 }

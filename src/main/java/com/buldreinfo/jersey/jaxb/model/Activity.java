@@ -48,29 +48,27 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addMedia(int id, long versionStamp, boolean isMovie, String embedUrl) {
+	public void addMedia(MediaIdentity identity, boolean isMovie, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
-		this.media.add(new ActivityMedia(id, versionStamp, isMovie, embedUrl));
+		this.media.add(new ActivityMedia(identity, isMovie, embedUrl));
 	}
-	public void addUser(int userId, String name, int mediaId, long mediaVersionStamp) {
+	public void addUser(int userId, String name, MediaIdentity identity) {
 		if (this.users == null) {
 			this.users = new ArrayList<>();
 		}
-		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", mediaId, mediaVersionStamp));
+		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", identity));
 	}
-	public void appendActivityThumbnail(int id, long versionStamp) {
-		if (id != 0) {
-			if (this.activityThumbnails == null) {
-				this.activityThumbnails = new ArrayList<>();
-			}
-			if (this.activityThumbnails.size() < 4 && this.activityThumbnails.stream()
-					.filter(x -> x.id() == id)
-					.findAny()
-					.isEmpty()) {
-				this.activityThumbnails.add(new ActivityMedia(id, versionStamp, false, null));
-			}
+	public void appendActivityThumbnail(MediaIdentity identity) {
+		if (this.activityThumbnails == null) {
+			this.activityThumbnails = new ArrayList<>();
+		}
+		if (this.activityThumbnails.size() < 4 && this.activityThumbnails.stream()
+				.filter(x -> x.identity().id() == identity.id())
+				.findAny()
+				.isEmpty()) {
+			this.activityThumbnails.add(new ActivityMedia(identity, false, null));
 		}
 	}
 	public Set<Integer> getActivityIds() {

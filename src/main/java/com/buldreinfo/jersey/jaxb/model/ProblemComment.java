@@ -6,20 +6,18 @@ public class ProblemComment {
 	private final int id;
 	private final String date;
 	private final int idUser;
-	private final int mediaId;
-	private final long mediaVersionStamp;
+	private final MediaIdentity mediaIdentity;
 	private final String name;
 	private final String message;
 	private final boolean danger;
 	private final boolean resolved;
 	private final List<Media> media;
 	private boolean editable = false;
-	public ProblemComment(int id, String date, int idUser, int mediaId, long mediaVersionStamp, String name, String message, boolean danger, boolean resolved, List<Media> media) {
+	public ProblemComment(int id, String date, int idUser, MediaIdentity mediaIdentity, String name, String message, boolean danger, boolean resolved, List<Media> media) {
 		this.id = id;
 		this.date = date;
 		this.idUser = idUser;
-		this.mediaId = mediaId;
-		this.mediaVersionStamp = mediaVersionStamp;
+		this.mediaIdentity = mediaIdentity;
 		this.name = name;
 		this.message = message;
 		this.danger = danger;
@@ -38,11 +36,8 @@ public class ProblemComment {
 	public List<Media> getMedia() {
 		return media;
 	}
-	public int getMediaId() {
-		return mediaId;
-	}
-	public long getMediaVersionStamp() {
-		return mediaVersionStamp;
+	public MediaIdentity getMediaIdentity() {
+		return mediaIdentity;
 	}
 	public String getMessage() {
 		return message;

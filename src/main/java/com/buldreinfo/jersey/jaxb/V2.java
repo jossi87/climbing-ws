@@ -605,7 +605,7 @@ public class V2 {
 			if (captured) {
 				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
 				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
-				res.sort(Comparator.comparingInt(Media::id).reversed());
+				res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
 			}
 			return Response.ok().entity(res).build();
 		});
@@ -958,8 +958,8 @@ public class V2 {
 					setup.url(),
 					setup.title(),
 					description,
-					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.idMedia()),
-					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.versionStamp()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.identity().id()),
+					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.identity().versionStamp()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.width()),
 					(frontpageRandomMedia == null? 0 : frontpageRandomMedia.height()));
 			return Response.ok().entity(html).build();
@@ -994,8 +994,8 @@ public class V2 {
 					setup.url() + "/area/" + a.getId(),
 					a.getName(),
 					description,
-					(m == null? 0 : m.id()),
-					(m == null? 0 : m.versionStamp()),
+					(m == null? 0 : m.identity().id()),
+					(m == null? 0 : m.identity().versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -1038,7 +1038,7 @@ public class V2 {
 			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
 				Optional<Media> optM = p.getMedia()
 						.stream()
-						.filter(x -> !x.inherited() && (mediaId == 0 || x.id() == mediaId))
+						.filter(x -> !x.inherited() && (mediaId == 0 || x.identity().id() == mediaId))
 						.findFirst();
 				if (optM.isPresent()) {
 					m = optM.get();
@@ -1051,8 +1051,8 @@ public class V2 {
 					setup.url() + "/problem/" + p.getId(),
 					title,
 					description,
-					(m == null? 0 : m.id()),
-					(m == null? 0 : m.versionStamp()),
+					(m == null? 0 : m.identity().id()),
+					(m == null? 0 : m.identity().versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
@@ -1101,8 +1101,8 @@ public class V2 {
 					setup.url() + "/sector/" + s.getId(),
 					title,
 					description,
-					(m == null? 0 : m.id()),
-					(m == null? 0 : m.versionStamp()),
+					(m == null? 0 : m.identity().id()),
+					(m == null? 0 : m.identity().versionStamp()),
 					(m == null? 0 : m.width()),
 					(m == null? 0 : m.height()));
 			return Response.ok().entity(html).build();
