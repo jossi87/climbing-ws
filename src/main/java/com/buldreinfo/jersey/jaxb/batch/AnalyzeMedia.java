@@ -28,7 +28,7 @@ public class AnalyzeMedia {
 	}
 	private final ExecutorService executor = Executors.newFixedThreadPool(8);
 	private final List<String> warnings = new ArrayList<>();
-	
+
 	public AnalyzeMedia() {
 		List<Integer> mediaIds = new ArrayList<>();
 		Server.runSql((_, c) -> {
@@ -67,19 +67,24 @@ public class AnalyzeMedia {
 		Server.runSql((_, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("""
 					UPDATE media_ml_analysis mla
-					JOIN (
-					    SELECT media_id,
-					           ROUND((x_min + x_max) / 2 * 100) as calc_x,
-					           ROUND((y_min + y_max) / 2 * 100) as calc_y
-					    FROM (SELECT media_id, x_min, x_max, y_min, y_max,
-					                 ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY score DESC) as rn
-					          FROM media_ml_object
-					          WHERE name = 'Person'
-					    ) t
-					    WHERE rn = 1
-					) best_person ON mla.media_id = best_person.media_id
-					SET mla.focus_x = best_person.calc_x,
-					    mla.focus_y = best_person.calc_y;
+					JOIN media m ON mla.media_id=m.id
+					JOIN (SELECT media_id, x_min, x_max, y_min, y_max
+					      FROM (SELECT media_id, x_min, x_max, y_min, y_max,
+					                   ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY score DESC) rn
+					            FROM media_ml_object
+					            WHERE name='Person'
+					           ) t
+					      WHERE rn=1
+					) best_person ON mla.media_id=best_person.media_id
+					SET -- X remains centered on the person (0-100%)
+					    mla.focus_x=ROUND(((best_person.x_min+best_person.x_max)/2)*100),
+					    -- Y logic to handle portrait vs landscape crops
+					    mla.focus_y=CASE 
+					      -- If portrait (taller than wide), focus 85% down the person's span
+					      WHEN m.height > m.width THEN ROUND((best_person.y_min + (best_person.y_max - best_person.y_min) * 0.85) * 100)
+					      -- If landscape or square, the geometric center is safer
+					      ELSE  ROUND(((best_person.y_min + best_person.y_max) / 2) * 100)
+					    END;
 					""")) {
 				ps.execute();
 			}
@@ -89,22 +94,29 @@ public class AnalyzeMedia {
 		}
 		logger.debug("Done");
 	}
-
+	
 	public void processTask(int mediaId) {
-		try {
-			Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(mediaId));
-			ImageClassifier classifier = new ImageClassifier();
+	    try {
+	        Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(mediaId));
+	        ImageClassifier classifier = new ImageClassifier();
 	        var result = classifier.analyze(originalJpg.toString());
 	        Server.runSql((dao, c) -> {
 	            try {
-	                dao.saveMediaAnalysis(c, mediaId, result.hexColor(), result.labels(), result.objects());
+	                dao.saveMediaAnalysis(c, mediaId, result.hexColor(), result.labels(), result.objects(), false);
 	            } catch (Exception e) {
 	                warnings.add("Failed to save media id=" + mediaId + ": " + e.getMessage());
 	            }
 	        });
-		} catch (Exception e) {
-			warnings.add("Failed to process/analyze media id=" + mediaId + ": " + e.getMessage());
-		}
+	    } catch (Exception e) {
+	        warnings.add("Failed to process/analyze media id=" + mediaId + ": " + e.getMessage());
+	        Server.runSql((dao, c) -> {
+	            try {
+	                dao.saveMediaAnalysis(c, mediaId, null, null, null, true);
+	            } catch (Exception dbEx) {
+	                logger.error("Could not save failure state for id=" + mediaId, dbEx);
+	            }
+	        });
+	    }
 	}
 
 	private Path getLocalPath(String s3Key) {

@@ -3795,42 +3795,45 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public void saveMediaAnalysis(Connection c, int mediaId, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects) throws SQLException {
-		Preconditions.checkArgument(mediaId > 0, "Media id required");
-		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex) VALUES (?, ?)")) {
-			ps.setInt(1, mediaId);
-			ps.setString(2, hexColor);
-			ps.execute();
-		}
-		if (labels != null && !labels.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
-				for (EntityAnnotation l : labels) {
-					ps.setInt(1, mediaId);
-					ps.setString(2, l.getDescription());
-					ps.setFloat(3, l.getScore());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		if (objects != null && !objects.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-				for (LocalizedObjectAnnotation obj : objects) {
-					List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
-					if (v.size() >= 4) {
-						ps.setInt(1, mediaId);
-						ps.setString(2, obj.getName());
-						ps.setFloat(3, obj.getScore());
-						ps.setFloat(4, v.get(0).getX());
-						ps.setFloat(5, v.get(0).getY());
-						ps.setFloat(6, v.get(2).getX());
-						ps.setFloat(7, v.get(2).getY());
-						ps.addBatch();
-					}
-				}
-				ps.executeBatch();
-			}
-		}
+	public void saveMediaAnalysis(Connection c, int mediaId, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
+	    Preconditions.checkArgument(mediaId > 0, "Media id required");
+	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, failed) VALUES (?, ?, ?)")) {
+	        ps.setInt(1, mediaId);
+	        ps.setString(2, hexColor);
+	        ps.setBoolean(3, failed);
+	        ps.execute();
+	    }
+	    if (!failed) {
+	        if (labels != null && !labels.isEmpty()) {
+	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
+	                for (EntityAnnotation l : labels) {
+	                    ps.setInt(1, mediaId);
+	                    ps.setString(2, l.getDescription());
+	                    ps.setFloat(3, l.getScore());
+	                    ps.addBatch();
+	                }
+	                ps.executeBatch();
+	            }
+	        }
+	        if (objects != null && !objects.isEmpty()) {
+	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+	                for (LocalizedObjectAnnotation obj : objects) {
+	                    List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
+	                    if (v.size() >= 4) {
+	                        ps.setInt(1, mediaId);
+	                        ps.setString(2, obj.getName());
+	                        ps.setFloat(3, obj.getScore());
+	                        ps.setFloat(4, v.get(0).getX());
+	                        ps.setFloat(5, v.get(0).getY());
+	                        ps.setFloat(6, v.get(2).getX());
+	                        ps.setFloat(7, v.get(2).getY());
+	                        ps.addBatch();
+	                    }
+	                }
+	                ps.executeBatch();
+	            }
+	        }
+	    }
 	}
 
 	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
