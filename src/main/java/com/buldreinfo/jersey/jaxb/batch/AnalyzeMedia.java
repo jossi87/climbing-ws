@@ -35,20 +35,38 @@ public class AnalyzeMedia {
 		List<Task> tasks = new ArrayList<>();
 		Server.runSql((_, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT m.id, m.image_width, m.image_height
-					FROM problem p
-					JOIN tick t ON p.id=t.problem_id AND t.stars=3
-					JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
-					JOIN media m ON mp.media_id=m.id AND m.deleted_timestamp IS NULL
-					  AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
-					GROUP BY m.id, m.image_width, m.image_height
+					SELECT id, width, height
+					FROM (SELECT m.id, m.width, m.height
+					      FROM problem p
+					      JOIN tick t ON p.id=t.problem_id AND t.stars=3
+					      JOIN media_problem mp ON p.id=mp.problem_id
+					      JOIN media m ON mp.media_id=m.id AND m.deleted_timestamp IS NULL
+					        AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
+					
+					      UNION
+					
+					      SELECT m.id, m.width, m.height
+					      FROM area a
+					      JOIN media_area ma ON a.id=ma.area_id
+					      JOIN media m ON ma.media_id=m.id AND m.deleted_timestamp IS NULL
+					        AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
+					
+					      UNION
+					
+					      SELECT m.id, m.width, m.height
+					      FROM sector s
+					      JOIN media_sector ms ON s.id=ms.sector_id
+					      JOIN media m ON ms.media_id=m.id AND m.deleted_timestamp IS NULL
+					        AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
+					) x
+					GROUP BY id, width, height
 					""");
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
-					int imageWidth = rst.getInt("image_width");
-					int imageHeight = rst.getInt("image_height");
-					tasks.add(new Task(id, imageWidth, imageHeight));
+					int width = rst.getInt("width");
+					int height = rst.getInt("height");
+					tasks.add(new Task(id, width, height));
 				}
 			}
 		});
