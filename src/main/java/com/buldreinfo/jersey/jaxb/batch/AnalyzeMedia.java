@@ -37,7 +37,7 @@ public class AnalyzeMedia {
 					FROM problem p
 					JOIN tick t ON p.id=t.problem_id AND t.stars=3
 					JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
-					JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_timestamp IS NULL
+					JOIN media m ON mp.media_id=m.id AND m.deleted_timestamp IS NULL
 					  AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
 					GROUP BY m.id
 					""");

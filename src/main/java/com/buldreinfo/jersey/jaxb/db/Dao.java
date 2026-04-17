@@ -1964,7 +1964,7 @@ public class Dao {
 				       m.description, MAX(a.name) location,
 				       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 				       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-				       MAX(a.id) area_id
+                       CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
 				FROM media m
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
@@ -2002,10 +2002,9 @@ public class Dao {
 					String dateCreated = rst.getString("date_created");
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
-					int areaId = rst.getInt("area_id");
+					String url = rst.getString("url");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					String url = "/area/" + areaId;
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
@@ -2020,7 +2019,8 @@ public class Dao {
 				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
 				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
 				       m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
-				       0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(s.id) sector_id
+				       0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+				       CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url
 				FROM media m
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
@@ -2059,11 +2059,10 @@ public class Dao {
 					String dateCreated = rst.getString("date_created");
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
-					int sectorId = rst.getInt("sector_id");
+					String url = rst.getString("url");
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					String url = "/sector/" + sectorId;
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
@@ -2080,7 +2079,8 @@ public class Dao {
 					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, m.description,
 					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
 					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t,
-					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id
+					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
 					FROM media m
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
@@ -2104,7 +2104,8 @@ public class Dao {
 					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location,
 					       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 					       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t,
-					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, MAX(p.id) problem_id
+					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
 					FROM user u
 					JOIN media_user mu ON u.id=? AND u.id=mu.user_id
 					JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL
@@ -2145,11 +2146,10 @@ public class Dao {
 					String dateCreated = rst.getString("date_created");
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
-					int problemId = rst.getInt("problem_id");
+					String url = rst.getString("url");
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					String url = "/problem/" + problemId;
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
