@@ -843,7 +843,7 @@ public class Dao {
 				  SELECT ? auth_user_id, ? area_id
 				),
 				ranked_media AS (
-				  SELECT p.sector_id,
+				  SELECT s.id sector_id,
 				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
 				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.id DESC) rn
 				  FROM req
@@ -887,12 +887,12 @@ public class Dao {
 					CompassDirection wallDirectionCalculated = getCompassDirection(s, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(s, rst.getInt("compass_direction_id_manual"));
 					MediaIdentity mediaIdentity = null;
-					int randomMediaId = rst.getInt("media_id");
-					if (randomMediaId > 0) {
+					int mediaId = rst.getInt("media_id");
+					if (mediaId > 0) {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(id, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
 					}
 					else {
 						boolean inherited = false;
@@ -1331,7 +1331,6 @@ public class Dao {
 				LEFT JOIN media ma ON u.media_id=ma.id
 				LEFT JOIN media_ml_analysis mma_u ON ma.id = mma_u.media_id
 				
-				-- Use a LEFT JOIN for grade calculation so unticked problems don't vanish
 				LEFT JOIN tick t_grade ON p.id=t_grade.problem_id
 				
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
@@ -1593,13 +1592,27 @@ public class Dao {
 		}
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+				    SELECT ? auth_user_id, ? region_id, ? problem_id
+				)
 				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
 				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       group_concat(DISTINCT CONCAT('{"id":', u.id, ',"name":"', TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '","mediaId":', COALESCE(m.id,0), ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at),0), '}') ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+				       GROUP_CONCAT(DISTINCT 
+				           IF(u.id IS NULL, NULL, 
+				              CONCAT('{"id":', u.id, 
+				                     ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '"', '\\"'), 
+				                     '",', IF(m.id IS NULL, '"mediaIdentity":null', 
+				                              CONCAT('"mediaIdentity":{"id":', m.id, 
+				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
+				                                     ',"focusX":', COALESCE(mma.focus_x, 0), 
+				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
+				                           ), '}')
+				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+				
 				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
-				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
+				       MAX(CASE WHEN (t.user_id = (SELECT auth_user_id FROM req) OR u.id = (SELECT auth_user_id FROM req)) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
 				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
-				FROM area a
+				FROM req, area a
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
 				JOIN sector s ON a.id=s.area_id
@@ -1610,21 +1623,19 @@ public class Dao {
 				LEFT JOIN fa f ON p.id=f.problem_id
 				LEFT JOIN user u ON f.user_id=u.id
 				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND p.id=?
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
+				  AND p.id = (SELECT problem_id FROM req)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
+				  AND (r.id = (SELECT region_id FROM req) OR ur.user_id IS NOT NULL)
 				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
 				ORDER BY p.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, s.idRegion());
-			ps.setInt(5, reqId);
-			ps.setInt(6, s.idRegion());
+			ps.setInt(2, s.idRegion());
+			ps.setInt(3, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
