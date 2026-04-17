@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,37 +23,41 @@ import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
  */
 public class AnalyzeMedia {
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/climbing-web/s3_bucket_climbing_web";
+	private record Task(int id, int width, int height) {}
 	private static Logger logger = LogManager.getLogger();
 	public static void main(String[] args) {
 		new AnalyzeMedia();
 	}
 	private final ExecutorService executor = Executors.newFixedThreadPool(8);
-	private final List<String> warnings = new ArrayList<>();
+	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
 	public AnalyzeMedia() {
-		List<Integer> mediaIds = new ArrayList<>();
+		List<Task> tasks = new ArrayList<>();
 		Server.runSql((_, c) -> {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT m.id
+					SELECT m.id, m.image_width, m.image_height
 					FROM problem p
 					JOIN tick t ON p.id=t.problem_id AND t.stars=3
 					JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
 					JOIN media m ON mp.media_id=m.id AND m.deleted_timestamp IS NULL
 					  AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)
-					GROUP BY m.id
+					GROUP BY m.id, m.image_width, m.image_height
 					""");
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					mediaIds.add(rst.getInt("id"));
+					int id = rst.getInt("id");
+					int imageWidth = rst.getInt("image_width");
+					int imageHeight = rst.getInt("image_height");
+					tasks.add(new Task(id, imageWidth, imageHeight));
 				}
 			}
 		});
-		for (int id : mediaIds) {
+		for (Task t : tasks) {
 			executor.submit(() -> {
 				try {
-					processTask(id);
+					processTask(t);
 				} catch (Exception e) {
-					warnings.add("Error processing id=" + id + ": " + e.getMessage());
+					warnings.add("Error processing task=" + t + ": " + e.getMessage());
 				}
 			});
 		}
@@ -79,19 +84,18 @@ public class AnalyzeMedia {
 					SET -- X centered on the person
 					    mla.focus_x=ROUND(((best_person.x_min+best_person.x_max)/2)*100),
 					    
-					    -- Y logic: Portrait uses height-aware focus, landscape uses center
+					    -- Y logic: Elastic focus for portrait images
 					    mla.focus_y=CASE 
-					      WHEN m.height>m.width THEN 
+					      WHEN m.height > m.width THEN 
 					        CASE 
-					          -- Sink to feet if climber is low and small
-					          WHEN best_person.y_max>0.80 AND (best_person.y_max-best_person.y_min)<0.60 
+					          WHEN best_person.y_max > 0.80 AND (best_person.y_max - best_person.y_min) < 0.60 
 					            THEN ROUND(best_person.y_max*100)
-					          -- Weighted focus (85%) for large subjects and top-outs
-					          ELSE ROUND((best_person.y_min+(best_person.y_max-best_person.y_min)*0.85)*100)
+					          ELSE ROUND((best_person.y_min+(best_person.y_max - best_person.y_min)*0.85)*100)
 					        END
-					      -- Landscape/Square: Standard center
 					      ELSE ROUND(((best_person.y_min+best_person.y_max)/2)*100)
-					    END
+					    END,
+					    -- Found a person, so it's an action shot
+					    mla.is_action_shot=1
 					""")) {
 				ps.execute();
 			}
@@ -102,25 +106,25 @@ public class AnalyzeMedia {
 		logger.debug("Done");
 	}
 	
-	public void processTask(int mediaId) {
+	public void processTask(Task t) {
 	    try {
-	        Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(mediaId));
+	        Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
 	        ImageClassifier classifier = new ImageClassifier();
 	        var result = classifier.analyze(originalJpg.toString());
 	        Server.runSql((dao, c) -> {
 	            try {
-	                dao.saveMediaAnalysis(c, mediaId, result.hexColor(), result.labels(), result.objects(), false);
+	                dao.saveMediaAnalysis(c, t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
 	            } catch (Exception e) {
-	                warnings.add("Failed to save media id=" + mediaId + ": " + e.getMessage());
+	                warnings.add("Failed to save media id=" + t.id + ": " + e.getMessage());
 	            }
 	        });
 	    } catch (Exception e) {
-	        warnings.add("Failed to process/analyze media id=" + mediaId + ": " + e.getMessage());
+	        warnings.add("Failed to process/analyze media id=" + t.id + ": " + e.getMessage());
 	        Server.runSql((dao, c) -> {
 	            try {
-	                dao.saveMediaAnalysis(c, mediaId, null, null, null, true);
+	                dao.saveMediaAnalysis(c, t.id, t.width, t.height, null, null, null, true);
 	            } catch (Exception dbEx) {
-	                logger.error("Could not save failure state for id=" + mediaId, dbEx);
+	                logger.error("Could not save failure state for id=" + t.id, dbEx);
 	            }
 	        });
 	    }

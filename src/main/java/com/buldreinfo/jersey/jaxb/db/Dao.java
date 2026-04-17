@@ -1251,25 +1251,37 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<FrontpageRandomMedia> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT avg(t.stars) avg_stars, 
-				       m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				SELECT m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
 				       m.width, m.height, 
 				       a.id id_area, a.name area, 
 				       s.id id_sector, s.name sector, 
 				       p.id id_problem, p.name problem,
-				       ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t.grade > 0 THEN t.id END) + 1)) grade,
+				       -- Grade is still needed for the UI
+				       ROUND((IFNULL(SUM(NULLIF(t_grade.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t_grade.grade > 0 THEN t_grade.id END) + 1)) grade,
+				       
+				       -- Photographer: mediaIdentity is NULL if no profile pic exists
 				       IF(u.id IS NULL, NULL, 
 				          CONCAT('{"id":', u.id, 
 				                 ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\"'), 
-				                 '","mediaId":', COALESCE(ma.id,0), 
-				                 ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at),0), '}')
+				                 '",', IF(ma.id IS NULL, '"mediaIdentity":null', 
+				                          CONCAT('"mediaIdentity":{"id":', ma.id, 
+				                                 ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at), 0), 
+				                                 ',"focusX":', COALESCE(mma_u.focus_x, 0), 
+				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), '}')
+				                       ), '}')
 				       ) photographer,
+				
+				       -- Tagged: mediaIdentity is NULL if no profile pic exists
 				       GROUP_CONCAT(DISTINCT 
 				           IF(u2.id IS NULL, NULL, 
 				              CONCAT('{"id":', u2.id, 
 				                     ',"name":"', REPLACE(TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '"', '\\"'), 
-				                     '","mediaId":', COALESCE(ma2.id,0), 
-				                     ',"mediaVersionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at),0), '}')
+				                     '",', IF(ma2.id IS NULL, '"mediaIdentity":null',
+				                              CONCAT('"mediaIdentity":{"id":', ma2.id, 
+				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at), 0), 
+				                                     ',"focusX":', COALESCE(mma_u2.focus_x, 0), 
+				                                     ',"focusY":', COALESCE(mma_u2.focus_y, 0), '}')
+				                           ), '}')
 				           ) SEPARATOR ', '
 				       ) tagged
 				FROM (
@@ -1277,14 +1289,20 @@ public class Dao {
 				        SELECT id FROM (
 				            SELECT m_sub.id, 
 				                   AVG(t_sub.stars) as sub_avg,
-				                   ROW_NUMBER() OVER (ORDER BY (AVG(t_sub.stars) >= 2) DESC, RAND()) as random_rank
+				                   ROW_NUMBER() OVER (ORDER BY 
+				                       IFNULL(mma_sub.is_action_shot, 0) DESC, 
+				                       (AVG(t_sub.stars) >= 2) DESC, 
+				                       RAND()
+				                   ) as random_rank
 				            FROM media m_sub
 				            JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
 				            JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
 				            JOIN sector s_sub ON p_sub.sector_id=s_sub.id
 				            JOIN area a_sub ON s_sub.area_id=a_sub.id
 				            JOIN region r_sub ON a_sub.region_id=r_sub.id
-				            JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+				            -- Subquery needs tick for the "star" priority logic
+				            LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+				            LEFT JOIN media_ml_analysis mma_sub ON m_sub.id = mma_sub.media_id
 				            WHERE r_sub.id=?
 				              AND m_sub.deleted_user_id IS NULL
 				              AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
@@ -1298,7 +1316,7 @@ public class Dao {
 				        ) ranked_pool
 				        WHERE sub_avg >= 2 OR random_rank <= 500
 				        ORDER BY RAND()
-				        LIMIT 10
+				        LIMIT 20
 				    ) final_selection
 				) random_id
 				JOIN media m ON m.id=random_id.id
@@ -1308,17 +1326,25 @@ public class Dao {
 				JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
 				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
 				JOIN region r ON a.region_id=r.id
+				
 				LEFT JOIN user u ON m.photographer_user_id=u.id AND u.id!=1049 
 				LEFT JOIN media ma ON u.media_id=ma.id
-				JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN media_ml_analysis mma_u ON ma.id = mma_u.media_id
+				
+				-- Use a LEFT JOIN for grade calculation so unticked problems don't vanish
+				LEFT JOIN tick t_grade ON p.id=t_grade.problem_id
+				
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
+				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
+				
 				WHERE r.id=?
 				  AND m.deleted_user_id IS NULL
 				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
 				  AND a.access_closed IS NULL AND s.access_closed IS NULL
-				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at
+				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at,
+				         mma.focus_x, mma.focus_y, mma_u.focus_x, mma_u.focus_y
 				         """)) {
 			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, setup.idRegion());
@@ -3795,12 +3821,48 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public void saveMediaAnalysis(Connection c, int mediaId, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
+	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
 	    Preconditions.checkArgument(mediaId > 0, "Media id required");
-	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, failed) VALUES (?, ?, ?)")) {
+	    boolean isActionShot = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
+	    int focusX = 0;
+	    int focusY = 0;
+	    if (isActionShot) {
+	        var bestPerson = objects.stream()
+	            .filter(obj -> obj.getName().equalsIgnoreCase("Person"))
+	            .sorted(Comparator.comparing(LocalizedObjectAnnotation::getScore).reversed())
+	            .findFirst()
+	            .orElse(null);
+	        if (bestPerson != null) {
+	            List<NormalizedVertex> v = bestPerson.getBoundingPoly().getNormalizedVerticesList();
+	            if (v.size() >= 3) {
+	                float xMin = v.get(0).getX();
+	                float yMin = v.get(0).getY();
+	                float xMax = v.get(2).getX();
+	                float yMax = v.get(2).getY();
+	                float personHeight = yMax - yMin;
+	                focusX = Math.round(((xMin + xMax) / 2) * 100);
+	                if (imageHeight > imageWidth) {
+	                    if (yMax > 0.80f && personHeight < 0.60f) {
+	                        // Elastic Sink to feet
+	                        focusY = Math.round(yMax * 100);
+	                    } else {
+	                        // Weighted 85% focus
+	                        focusY = Math.round((yMin + personHeight * 0.85f) * 100);
+	                    }
+	                } else {
+	                    // Landscape/Square center
+	                    focusY = Math.round(((yMin + yMax) / 2) * 100);
+	                }
+	            }
+	        }
+	    }
+	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
 	        ps.setInt(1, mediaId);
 	        ps.setString(2, hexColor);
-	        ps.setBoolean(3, failed);
+	        ps.setInt(3, focusX);
+	        ps.setInt(4, focusY);
+	        ps.setBoolean(5, isActionShot);
+	        ps.setBoolean(6, failed);
 	        ps.execute();
 	    }
 	    if (!failed) {
@@ -3819,7 +3881,7 @@ public class Dao {
 	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
 	                for (LocalizedObjectAnnotation obj : objects) {
 	                    List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
-	                    if (v.size() >= 4) {
+	                    if (v.size() >= 3) {
 	                        ps.setInt(1, mediaId);
 	                        ps.setString(2, obj.getName());
 	                        ps.setFloat(3, obj.getScore());
