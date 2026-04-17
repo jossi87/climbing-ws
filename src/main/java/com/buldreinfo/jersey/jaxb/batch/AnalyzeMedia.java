@@ -38,7 +38,7 @@ public class AnalyzeMedia {
 					SELECT id, width, height
 					FROM (SELECT m.id, m.width, m.height
 					      FROM problem p
-					      JOIN tick t ON p.id=t.problem_id AND t.stars=3
+					      JOIN tick t ON p.id=t.problem_id AND t.stars=2
 					      JOIN media_problem mp ON p.id=mp.problem_id
 					      JOIN media m ON mp.media_id=m.id AND m.deleted_timestamp IS NULL
 					        AND NOT EXISTS (SELECT x.media_id FROM media_ml_analysis x WHERE x.media_id=m.id)

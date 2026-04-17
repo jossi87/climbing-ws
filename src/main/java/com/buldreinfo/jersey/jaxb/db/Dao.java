@@ -1289,6 +1289,7 @@ public class Dao {
 				        SELECT id FROM (
 				            SELECT m_sub.id, 
 				                   AVG(t_sub.stars) as sub_avg,
+				                   mma_sub.is_action_shot,
 				                   ROW_NUMBER() OVER (ORDER BY 
 				                       IFNULL(mma_sub.is_action_shot, 0) DESC, 
 				                       (AVG(t_sub.stars) >= 2) DESC, 
@@ -1314,7 +1315,7 @@ public class Dao {
 				              AND a_sub.locked_admin=0 AND a_sub.locked_superadmin=0
 				            GROUP BY m_sub.id
 				        ) ranked_pool
-				        WHERE sub_avg >= 2 OR random_rank <= 500
+				        WHERE (sub_avg>=2 AND is_action_shot=1) OR random_rank<=500
 				        ORDER BY RAND()
 				        LIMIT 20
 				    ) final_selection
