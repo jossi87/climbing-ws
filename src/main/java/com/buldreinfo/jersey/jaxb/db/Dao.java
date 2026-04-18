@@ -3820,8 +3820,8 @@ public class Dao {
 
 	public void rotateMedia(Connection c, int idRegion, Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
 		// Rotate allowed for administrators + user who uploaded specific image
-		boolean uploadedByMe = getMedia(c, authUserId, idMedia).uploadedByMe();
-		if (!uploadedByMe) {
+		Media m = getMedia(c, authUserId, idMedia);
+		if (!m.uploadedByMe()) {
 			ensureAdminWriteRegion(c, authUserId, idRegion);
 		}
 		Rotation r = switch (degrees) {
@@ -3830,7 +3830,8 @@ public class Dao {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
-		ImageHelper.rotateImage(this, c, idMedia, r);
+		boolean hasTaggedUser = m.mediaMetadata() != null && !Strings.isNullOrEmpty(m.mediaMetadata().tagged());
+ 		ImageHelper.rotateImage(this, c, idMedia, hasTaggedUser, r);
 	}
 
 	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, boolean hasTaggedUser, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
@@ -4051,6 +4052,22 @@ public class Dao {
 			ps.executeUpdate();
 		}
 		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
+	}
+	
+	public void deleteMediaAnalysis(Connection c, int idMedia) throws SQLException {
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_label WHERE media_id=?")) {
+	        ps.setInt(1, idMedia);
+	        ps.executeUpdate();
+	    }
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_object WHERE media_id=?")) {
+	        ps.setInt(1, idMedia);
+	        ps.executeUpdate();
+	    }
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
+	        ps.setInt(1, idMedia);
+	        ps.executeUpdate();
+	    }
+	    logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
@@ -4975,7 +4992,8 @@ public class Dao {
 			else {
 				try (InputStream is = inputStreamSupplier.get()) {
 					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
-					ImageHelper.saveImage(this, c, idMedia, bytes);
+					boolean hasTaggedUser = m.inPhoto() != null && !m.inPhoto().isEmpty();
+					ImageHelper.saveImage(this, c, idMedia, bytes, hasTaggedUser);
 				}
 			}
 		}

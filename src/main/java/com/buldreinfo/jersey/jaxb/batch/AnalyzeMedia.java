@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.PreparedStatement;
@@ -18,9 +19,6 @@ import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
 
-/**
- * TODO: Schedule this automatically, it should run on newer images automatic. We should also process the remaining images (remove conditions).
- */
 public class AnalyzeMedia {
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/climbing-web/s3_bucket_climbing_web";
 	private record Task(int id, int width, int height, boolean hasTaggedUser) {}
@@ -150,8 +148,7 @@ public class AnalyzeMedia {
 	public void processTask(Task t) {
 	    try {
 	        Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
-	        ImageClassifier classifier = new ImageClassifier();
-	        var result = classifier.analyze(originalJpg.toString());
+	        var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
 	        Server.runSql((dao, c) -> {
 	            try {
 	                dao.saveMediaAnalysis(c, t.id, t.width, t.height, t.hasTaggedUser, result.hexColor(), result.labels(), result.objects(), false);

@@ -51,7 +51,7 @@ public class FixMedia {
 			return this;
 		}
 	}
-	private record MediaTask(int id, String embedUrl) {}
+	private record MediaTask(int id, String embedUrl, boolean hasTaggedUser) {}
 	private static Logger logger = LogManager.getLogger();
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/climbing-web/s3_bucket_climbing_web";
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/climbing-web/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
@@ -85,8 +85,9 @@ public class FixMedia {
 			}
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
+				boolean hasTaggedUser = true;
 				while (rst.next()) {
-					tasks.add(new MediaTask(rst.getInt("id"), rst.getString("embed_url")));
+					tasks.add(new MediaTask(rst.getInt("id"), rst.getString("embed_url"), hasTaggedUser));
 				}
 			}
 		});
