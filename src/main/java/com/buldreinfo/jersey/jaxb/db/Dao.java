@@ -3833,41 +3833,43 @@ public class Dao {
 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
+	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, boolean hasTaggedUser, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
 	    Preconditions.checkArgument(mediaId > 0, "Media id required");
-	    boolean isActionShot = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
+	    boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
+	    boolean isActionShot = hasPersonObject || hasTaggedUser;
+	    
 	    int focusX = 0;
 	    int focusY = 0;
-	    if (isActionShot) {
-	        var bestPerson = objects.stream()
+
+	    if (hasPersonObject) {
+	        var climber = objects.stream()
 	            .filter(obj -> obj.getName().equalsIgnoreCase("Person"))
-	            .sorted(Comparator.comparing(LocalizedObjectAnnotation::getScore).reversed())
-	            .findFirst()
+	            .min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
 	            .orElse(null);
-	        if (bestPerson != null) {
-	            List<NormalizedVertex> v = bestPerson.getBoundingPoly().getNormalizedVerticesList();
+
+	        if (climber != null) {
+	            List<NormalizedVertex> v = climber.getBoundingPoly().getNormalizedVerticesList();
 	            if (v.size() >= 3) {
 	                float xMin = v.get(0).getX();
 	                float yMin = v.get(0).getY();
 	                float xMax = v.get(2).getX();
 	                float yMax = v.get(2).getY();
 	                float personHeight = yMax - yMin;
+
 	                focusX = Math.round(((xMin + xMax) / 2) * 100);
 	                if (imageHeight > imageWidth) {
 	                    if (yMax > 0.80f && personHeight < 0.60f) {
-	                        // Elastic Sink to feet
 	                        focusY = Math.round(yMax * 100);
 	                    } else {
-	                        // Weighted 85% focus
 	                        focusY = Math.round((yMin + personHeight * 0.85f) * 100);
 	                    }
 	                } else {
-	                    // Landscape/Square center
 	                    focusY = Math.round(((yMin + yMax) / 2) * 100);
 	                }
 	            }
 	        }
 	    }
+
 	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
 	        ps.setInt(1, mediaId);
 	        ps.setString(2, hexColor);
@@ -3877,6 +3879,7 @@ public class Dao {
 	        ps.setBoolean(6, failed);
 	        ps.execute();
 	    }
+
 	    if (!failed) {
 	        if (labels != null && !labels.isEmpty()) {
 	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {

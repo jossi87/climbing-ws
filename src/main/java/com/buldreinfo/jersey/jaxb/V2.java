@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1412,7 +1413,11 @@ public class V2 {
 		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			String originalKey = S3KeyGenerator.getOriginalJpg(id);
-			dao.saveUserAvatar(c, authUserId, () -> StorageManager.getInstance().getInputStream(originalKey));
+			try (var is = StorageManager.getInstance().getInputStream(originalKey)) {
+				dao.saveUserAvatar(c, authUserId, () -> is);
+			} catch (IOException e) {
+				throw new RuntimeException("Failed to read original media for avatar update", e);
+			}
 			return Response.ok().build();
 		});
 	}
