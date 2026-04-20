@@ -3830,14 +3830,12 @@ public class Dao {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
-		boolean hasTaggedUser = m.mediaMetadata() != null && !Strings.isNullOrEmpty(m.mediaMetadata().tagged());
- 		ImageHelper.rotateImage(this, c, idMedia, hasTaggedUser, r);
+ 		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
-	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, boolean hasTaggedUser, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
+	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
 	    Preconditions.checkArgument(mediaId > 0, "Media id required");
 	    boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
-	    boolean isActionShot = hasPersonObject || hasTaggedUser;
 	    
 	    int focusX = 0;
 	    int focusY = 0;
@@ -3876,7 +3874,7 @@ public class Dao {
 	        ps.setString(2, hexColor);
 	        ps.setInt(3, focusX);
 	        ps.setInt(4, focusY);
-	        ps.setBoolean(5, isActionShot);
+	        ps.setBoolean(5, hasPersonObject);
 	        ps.setBoolean(6, failed);
 	        ps.execute();
 	    }
@@ -4992,8 +4990,7 @@ public class Dao {
 			else {
 				try (InputStream is = inputStreamSupplier.get()) {
 					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
-					boolean hasTaggedUser = m.inPhoto() != null && !m.inPhoto().isEmpty();
-					ImageHelper.saveImage(this, c, idMedia, bytes, hasTaggedUser);
+					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
 			}
 		}

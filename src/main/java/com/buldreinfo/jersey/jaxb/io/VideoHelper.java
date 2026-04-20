@@ -29,8 +29,7 @@ public class VideoHelper {
                 BufferedImage b = ImageIO.read(tempThumb.toFile());
                 if (b != null) {
                     try {
-                    	boolean hasTaggedUser = true;
-                        Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, idMedia, b, hasTaggedUser));
+                        Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, idMedia, b));
                     } finally {
                         b.flush();
                     }

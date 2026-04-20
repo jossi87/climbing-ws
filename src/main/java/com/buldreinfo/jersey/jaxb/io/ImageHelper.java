@@ -19,7 +19,7 @@ import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
 public class ImageHelper {
 	private static final Logger logger = LogManager.getLogger();
 	
-	public static void rotateImage(Dao dao, Connection c, int idMedia, boolean hasTaggedUser, Rotation rotation) throws SQLException, IOException, InterruptedException {
+	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
 	    StorageManager storage = StorageManager.getInstance();
 	    String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
 	    byte[] bytes = storage.downloadBytes(originalKey);
@@ -44,7 +44,7 @@ public class ImageHelper {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] rotatedBytes = baos.toByteArray();
 	            var result = ImageClassifier.analyze(rotatedBytes);
-	            dao.saveMediaAnalysis(c, idMedia, width, height, hasTaggedUser, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Re-Analysis failed after rotation for media {}: {}", idMedia, e.getMessage());
 	        }
@@ -52,7 +52,7 @@ public class ImageHelper {
 	    S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
 	}
 
-	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage, boolean hasTaggedUser) throws SQLException {
+	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage) throws SQLException {
 		int width = bufferedImage.getWidth();
 	    int height = bufferedImage.getHeight();
 		ImageSaver.newBuilder()
@@ -66,13 +66,13 @@ public class ImageHelper {
 	        ImageIO.write(bufferedImage, "jpg", baos);
 	        byte[] bytes = baos.toByteArray();
 	        var result = ImageClassifier.analyze(bytes);
-	        dao.saveMediaAnalysis(c, idMedia, width, height, hasTaggedUser, result.hexColor(), result.labels(), result.objects(), false);
+	        dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	    } catch (Exception e) {
 	        logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	    }
 	}
 
-	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes, boolean hasTaggedUser) throws IOException, SQLException, InterruptedException {
+	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
@@ -91,7 +91,7 @@ public class ImageHelper {
 			dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken());
 			try {
 	            var result = ImageClassifier.analyze(bytes);
-	            dao.saveMediaAnalysis(c, idMedia, width, height, hasTaggedUser, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	        }
@@ -114,8 +114,7 @@ public class ImageHelper {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] bytes = baos.toByteArray();
 	            var result = ImageClassifier.analyze(bytes);
-	            boolean hasTaggedUser = true;
-	            dao.saveMediaAnalysis(c, idMedia, width, height, hasTaggedUser, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Analysis failed for embed media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	        }
