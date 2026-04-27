@@ -268,7 +268,7 @@ public class Dao {
 		 */
 		LocalDateTime problemActivityTimestamp = null;
 		List<Integer> faUserIds = new ArrayList<>();
-		boolean exists = false;
+		boolean hasFa = false;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT p.fa_date, p.last_updated, f.user_id
 				FROM problem p
@@ -279,8 +279,8 @@ public class Dao {
 			ps.setInt(1, idProblem);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					if (!exists) {
-						exists = true;
+					if (!hasFa) {
+						hasFa = true;
 						LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
 						LocalDateTime lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
 						if (faDate != null && lastUpdated != null) {
@@ -297,19 +297,17 @@ public class Dao {
 				}
 			}
 		}
-		if (!exists) {
-			return;
-		}
 		try (PreparedStatement psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-			psAddActivity.setObject(1, problemActivityTimestamp != null? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
-			psAddActivity.setString(2, ACTIVITY_TYPE_FA);
-			psAddActivity.setInt(3, idProblem);
-			psAddActivity.setNull(4, Types.INTEGER);
-			psAddActivity.setNull(5, Types.INTEGER);
-			psAddActivity.setNull(6, Types.INTEGER);
-			psAddActivity.setNull(7, Types.INTEGER);
-			psAddActivity.addBatch();
-
+			if (hasFa) {
+				psAddActivity.setObject(1, problemActivityTimestamp != null? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
+				psAddActivity.setString(2, ACTIVITY_TYPE_FA);
+				psAddActivity.setInt(3, idProblem);
+				psAddActivity.setNull(4, Types.INTEGER);
+				psAddActivity.setNull(5, Types.INTEGER);
+				psAddActivity.setNull(6, Types.INTEGER);
+				psAddActivity.setNull(7, Types.INTEGER);
+				psAddActivity.addBatch();
+			}
 
 			/**
 			 * Media
