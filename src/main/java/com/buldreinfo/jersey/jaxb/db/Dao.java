@@ -340,7 +340,13 @@ public class Dao {
 			/**
 			 * Tick
 			 */
-			try (PreparedStatement ps = c.prepareStatement("SELECT user_id, date, created FROM tick WHERE problem_id=? ORDER BY date, created")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT t.user_id, t.date, t.created,
+					       ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix_on_created_date
+					FROM tick t
+					WHERE t.problem_id=?
+					ORDER BY t.date, t.created
+					""")) {
 				ps.setInt(1, idProblem);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -355,7 +361,8 @@ public class Dao {
 							if (tickDate != null && tickCreated != null) {
 								if (tickCreated.toLocalDate().isAfter(tickDate)) {
 									// Tick created on different date, use end of day in activity order
-									tickActivityTimestamp = tickDate.atTime(23, 59, 59);
+									int ixOnCreatedDate = rst.getInt("ix_on_created_date");
+									tickActivityTimestamp = tickDate.atTime(23, 59, Math.min(ixOnCreatedDate, 59));
 								}
 								else {
 									// Tick created on same date as FA, use HHMMSS in activity order
