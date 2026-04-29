@@ -312,7 +312,13 @@ public class Dao {
 			/**
 			 * Media
 			 */
-			try (PreparedStatement ps = c.prepareStatement("SELECT m.id, m.date_created FROM media_problem mp, media m WHERE mp.problem_id=? AND mp.media_id=m.id AND m.deleted_timestamp IS NULL ORDER BY m.date_created DESC")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT m.id, m.date_created
+					FROM media_problem mp
+					JOIN media m ON mp.media_id=m.id
+					WHERE mp.problem_id=? AND m.deleted_timestamp IS NULL
+					ORDER BY m.date_created
+					""")) {
 				ps.setInt(1, idProblem);
 				try (ResultSet rst = ps.executeQuery()) {
 					LocalDateTime useMediaActivityTimestamp = null;
@@ -388,7 +394,13 @@ public class Dao {
 			/**
 			 * Tick repeat
 			 */
-			try (PreparedStatement ps = c.prepareStatement("SELECT r.id, t.user_id, r.date, r.created FROM tick t, tick_repeat r WHERE t.problem_id=? AND t.id=r.tick_id ORDER BY r.tick_id, r.date, r.id")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT r.id, t.user_id, r.date, r.created
+					FROM tick t
+					JOIN tick_repeat r ON t.id=r.tick_id
+					WHERE t.problem_id=?
+					ORDER BY r.tick_id, r.date, r.id
+					""")) {
 				ps.setInt(1, idProblem);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -418,7 +430,12 @@ public class Dao {
 			/**
 			 * Guestbook
 			 */
-			try (PreparedStatement ps = c.prepareStatement("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					SELECT g.id, g.post_time
+					FROM guestbook g
+					WHERE g.problem_id=?
+					ORDER BY g.post_time
+					""")) {
 				ps.setInt(1, idProblem);
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
