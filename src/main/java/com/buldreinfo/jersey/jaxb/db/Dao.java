@@ -4976,7 +4976,7 @@ public class Dao {
 					try (InputStream is = inputStreamSupplier.get()) {
 						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
 					}
-					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, storageType);
+					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, StorageType.MP4); // Save with mime type mp4, the input might have been mov
 					final int id = idMedia;
 					Server.runAsync(() -> {
 						try {
