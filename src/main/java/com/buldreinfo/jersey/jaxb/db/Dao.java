@@ -313,34 +313,55 @@ public class Dao {
 			 * Media
 			 */
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT m.id, m.date_created
-					FROM media_problem mp
-					JOIN media m ON mp.media_id=m.id
-					WHERE mp.problem_id=? AND m.deleted_timestamp IS NULL
-					ORDER BY m.date_created
-					""")) {
-				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
-					LocalDateTime useMediaActivityTimestamp = null;
-					while (rst.next()) {
-						int id = rst.getInt("id");
-						LocalDateTime mediaActivityTimestamp = rst.getObject("date_created", LocalDateTime.class);
-						if (mediaActivityTimestamp == null || (problemActivityTimestamp != null && Math.abs(ChronoUnit.DAYS.between(problemActivityTimestamp, mediaActivityTimestamp)) <= 7)) {
-							useMediaActivityTimestamp = problemActivityTimestamp;
-						}
-						else if (useMediaActivityTimestamp == null || Math.abs(ChronoUnit.DAYS.between(useMediaActivityTimestamp, mediaActivityTimestamp)) > 7) {
-							useMediaActivityTimestamp = mediaActivityTimestamp;
-						}
-						psAddActivity.setObject(1, useMediaActivityTimestamp != null? useMediaActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
-						psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
-						psAddActivity.setInt(3, idProblem);
-						psAddActivity.setInt(4, id);
-						psAddActivity.setNull(5, Types.INTEGER);
-						psAddActivity.setNull(6, Types.INTEGER);
-						psAddActivity.setNull(7, Types.INTEGER);
-						psAddActivity.addBatch();
-					}
-				}
+			        SELECT m.id, m.date_created
+			        FROM media_problem mp
+			        JOIN media m ON mp.media_id = m.id
+			        WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
+			        ORDER BY m.date_created ASC
+			        """)) {
+			    ps.setInt(1, idProblem);
+			    try (ResultSet rst = ps.executeQuery()) {
+			        record MediaItem(int id, LocalDateTime timestamp) {}
+			        List<MediaItem> buffer = new ArrayList<>();
+			        LocalDateTime groupAnchor = problemActivityTimestamp; 
+			        LocalDateTime latestInGroup = problemActivityTimestamp;
+			        while (rst.next()) {
+			            int id = rst.getInt("id");
+			            LocalDateTime current = rst.getObject("date_created", LocalDateTime.class);
+			            boolean isFA = groupAnchor != null && Objects.equals(groupAnchor, problemActivityTimestamp);
+			            boolean isWithinFAWindow = isFA && current != null && Math.abs(ChronoUnit.DAYS.between(groupAnchor, current)) <= 7;
+			            boolean isWithin24hRolling = groupAnchor != null && !isFA && current != null && Math.abs(ChronoUnit.HOURS.between(groupAnchor, current)) <= 24;
+			            if (groupAnchor != null && !isWithinFAWindow && !isWithin24hRolling) {
+			                for (var item : buffer) {
+			                    psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
+			                    psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
+			                    psAddActivity.setInt(3, idProblem);
+			                    psAddActivity.setInt(4, item.id());
+			                    psAddActivity.setNull(5, java.sql.Types.INTEGER);
+			                    psAddActivity.setNull(6, java.sql.Types.INTEGER);
+			                    psAddActivity.setNull(7, java.sql.Types.INTEGER);
+			                    psAddActivity.addBatch();
+			                }
+			                buffer.clear();
+			                groupAnchor = current; 
+			            }
+			            if (groupAnchor == null) {
+			                groupAnchor = current;
+			            }
+			            latestInGroup = (groupAnchor != null && Objects.equals(groupAnchor, problemActivityTimestamp)) ? problemActivityTimestamp : current;
+			            buffer.add(new MediaItem(id, current));
+			        }
+			        for (var item : buffer) {
+			            psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
+			            psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
+			            psAddActivity.setInt(3, idProblem);
+			            psAddActivity.setInt(4, item.id());
+			            psAddActivity.setNull(5, java.sql.Types.INTEGER);
+			            psAddActivity.setNull(6, java.sql.Types.INTEGER);
+			            psAddActivity.setNull(7, java.sql.Types.INTEGER);
+			            psAddActivity.addBatch();
+			        }
+			    }
 			}
 
 			/**
