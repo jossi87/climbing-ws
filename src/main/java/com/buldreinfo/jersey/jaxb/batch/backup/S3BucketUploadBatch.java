@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.batch;
+package com.buldreinfo.jersey.jaxb.batch.backup;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,33 +22,14 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 public class S3BucketUploadBatch {
 	private static final Logger logger = LogManager.getLogger();
-	private static final Path LOCAL_MEDIA_ROOT = Path.of("G:/My Drive/web/climbing-web/s3_bucket_climbing_web");
-	public static void main(String[] args) {
-		new S3BucketUploadBatch().run();
-	}
+	private final Path localMediaRoot;
 	private final ExecutorService executor = Executors.newFixedThreadPool(16);
 	private final AtomicInteger uploadCount = new AtomicInteger(0);
 	private final AtomicInteger skipCount = new AtomicInteger(0);
 	private final AtomicLong totalBytesUploaded = new AtomicLong(0);
-
-	public void run() {
-		Preconditions.checkArgument(Files.exists(LOCAL_MEDIA_ROOT), LOCAL_MEDIA_ROOT.toString() + " does not exist");
-		StorageManager storage = StorageManager.getInstance();
-		logger.info("Starting uploading from local directory {} to bucket [{}]", LOCAL_MEDIA_ROOT, StorageManager.BUCKET_NAME);
-		try {
-			try (var stream = Files.walk(LOCAL_MEDIA_ROOT)) {
-				stream.filter(Files::isRegularFile)
-				.filter(this::isNotSystemFile)
-				.forEach(path -> {
-					executor.submit(() -> uploadFile(storage, LOCAL_MEDIA_ROOT, path));
-				});
-			}
-		} catch (IOException e) {
-			logger.error("Failed to walk directory: " + e.getMessage(), e);
-		} finally {
-			shutdownExecutor();
-		}
-		logger.info("Upload complete! Status: [Uploaded: {} files ({} GB)] [Skipped: {} files]", uploadCount.get(), String.format("%.2f", totalBytesUploaded.get() / (1024.0 * 1024.0 * 1024.0)), skipCount.get());
+	
+	protected S3BucketUploadBatch(Path localMediaRoot) {
+		this.localMediaRoot = localMediaRoot;
 	}
 
 	private boolean isNotSystemFile(Path path) {
@@ -112,5 +93,25 @@ public class S3BucketUploadBatch {
 		} catch (Exception e) {
 			logger.error("Failed to process {}: {}", file, e.getMessage());
 		}
+	}
+
+	protected void run() {
+		Preconditions.checkArgument(Files.exists(localMediaRoot), localMediaRoot.toString() + " does not exist");
+		StorageManager storage = StorageManager.getInstance();
+		logger.info("Starting uploading from local directory {} to bucket [{}]", localMediaRoot, StorageManager.BUCKET_NAME);
+		try {
+			try (var stream = Files.walk(localMediaRoot)) {
+				stream.filter(Files::isRegularFile)
+				.filter(this::isNotSystemFile)
+				.forEach(path -> {
+					executor.submit(() -> uploadFile(storage, localMediaRoot, path));
+				});
+			}
+		} catch (IOException e) {
+			logger.error("Failed to walk directory: " + e.getMessage(), e);
+		} finally {
+			shutdownExecutor();
+		}
+		logger.info("Upload complete! Status: [Uploaded: {} files ({} GB)] [Skipped: {} files]", uploadCount.get(), String.format("%.2f", totalBytesUploaded.get() / (1024.0 * 1024.0 * 1024.0)), skipCount.get());
 	}
 }

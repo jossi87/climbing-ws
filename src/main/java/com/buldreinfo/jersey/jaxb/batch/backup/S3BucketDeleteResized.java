@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.batch;
+package com.buldreinfo.jersey.jaxb.batch.backup;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,10 +18,6 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3BucketDeleteResized {
     private static final Logger logger = LogManager.getLogger();
-    public static void main(String[] args) {
-        new S3BucketDeleteResized().run();
-    }
-
     private final AtomicInteger deleteCount = new AtomicInteger(0);
 
     private void deleteBatch(StorageManager storage, List<ObjectIdentifier> objects) {
@@ -38,7 +34,7 @@ public class S3BucketDeleteResized {
         }
     }
 
-    private void run() {
+    protected void run() {
         StorageManager storage = StorageManager.getInstance();
         logger.info("Starting cleanup of resized images in bucket [{}]", StorageManager.BUCKET_NAME);
         try {

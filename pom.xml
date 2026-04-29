@@ -238,5 +238,10 @@
 			<artifactId>jfreechart</artifactId>
 			<version>1.5.6</version>
 		</dependency>
+		<dependency>
+		    <groupId>com.hierynomus</groupId>
+		    <artifactId>sshj</artifactId>
+		    <version>0.39.0</version>
+		</dependency>
 	</dependencies>
 </project>
