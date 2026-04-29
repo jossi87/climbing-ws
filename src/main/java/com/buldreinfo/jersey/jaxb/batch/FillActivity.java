@@ -13,7 +13,7 @@ public class FillActivity {
 
 	public static void main(String[] args) {
 		Server.runSql((dao, c) -> {
-			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM problem WHERE sector_id=2881 ORDER BY id")) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM problem ORDER BY id")) {
 				try (ResultSet rst = ps.executeQuery()) {
 					int done = 0;
 					while (rst.next()) {

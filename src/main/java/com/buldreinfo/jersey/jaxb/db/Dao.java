@@ -313,55 +313,54 @@ public class Dao {
 			 * Media
 			 */
 			try (PreparedStatement ps = c.prepareStatement("""
-			        SELECT m.id, m.date_created
-			        FROM media_problem mp
-			        JOIN media m ON mp.media_id = m.id
-			        WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
-			        ORDER BY m.date_created ASC
-			        """)) {
-			    ps.setInt(1, idProblem);
-			    try (ResultSet rst = ps.executeQuery()) {
-			        record MediaItem(int id, LocalDateTime timestamp) {}
-			        List<MediaItem> buffer = new ArrayList<>();
-			        LocalDateTime groupAnchor = problemActivityTimestamp; 
-			        LocalDateTime latestInGroup = problemActivityTimestamp;
-			        while (rst.next()) {
-			            int id = rst.getInt("id");
-			            LocalDateTime current = rst.getObject("date_created", LocalDateTime.class);
-			            boolean isFA = groupAnchor != null && Objects.equals(groupAnchor, problemActivityTimestamp);
-			            boolean isWithinFAWindow = isFA && current != null && Math.abs(ChronoUnit.DAYS.between(groupAnchor, current)) <= 7;
-			            boolean isWithin24hRolling = groupAnchor != null && !isFA && current != null && Math.abs(ChronoUnit.HOURS.between(groupAnchor, current)) <= 24;
-			            if (groupAnchor != null && !isWithinFAWindow && !isWithin24hRolling) {
-			                for (var item : buffer) {
-			                    psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
-			                    psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
-			                    psAddActivity.setInt(3, idProblem);
-			                    psAddActivity.setInt(4, item.id());
-			                    psAddActivity.setNull(5, java.sql.Types.INTEGER);
-			                    psAddActivity.setNull(6, java.sql.Types.INTEGER);
-			                    psAddActivity.setNull(7, java.sql.Types.INTEGER);
-			                    psAddActivity.addBatch();
-			                }
-			                buffer.clear();
-			                groupAnchor = current; 
-			            }
-			            if (groupAnchor == null) {
-			                groupAnchor = current;
-			            }
-			            latestInGroup = (groupAnchor != null && Objects.equals(groupAnchor, problemActivityTimestamp)) ? problemActivityTimestamp : current;
-			            buffer.add(new MediaItem(id, current));
-			        }
-			        for (var item : buffer) {
-			            psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
-			            psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
-			            psAddActivity.setInt(3, idProblem);
-			            psAddActivity.setInt(4, item.id());
-			            psAddActivity.setNull(5, java.sql.Types.INTEGER);
-			            psAddActivity.setNull(6, java.sql.Types.INTEGER);
-			            psAddActivity.setNull(7, java.sql.Types.INTEGER);
-			            psAddActivity.addBatch();
-			        }
-			    }
+					SELECT m.id, m.date_created
+					FROM media_problem mp
+					JOIN media m ON mp.media_id = m.id
+					WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
+					ORDER BY m.date_created ASC
+					""")) {
+				ps.setInt(1, idProblem);
+				try (ResultSet rst = ps.executeQuery()) {
+					record MediaItem(int id) {}
+					List<MediaItem> buffer = new ArrayList<>();
+					LocalDateTime groupAnchor = problemActivityTimestamp; 
+					LocalDateTime latestInGroup = problemActivityTimestamp;
+					while (rst.next()) {
+						int id = rst.getInt("id");
+						LocalDateTime current = rst.getObject("date_created", LocalDateTime.class);
+						boolean inFA = groupAnchor != null && groupAnchor == problemActivityTimestamp && current != null && Math.abs(ChronoUnit.DAYS.between(groupAnchor, current)) <= 7;
+						boolean inRolling = groupAnchor != null && groupAnchor != problemActivityTimestamp && current != null && Math.abs(ChronoUnit.HOURS.between(groupAnchor, current)) <= 24;
+						if (groupAnchor != null && !inFA && !inRolling) {
+							for (var item : buffer) {
+								psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
+								psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
+								psAddActivity.setInt(3, idProblem);
+								psAddActivity.setInt(4, item.id());
+								psAddActivity.setNull(5, Types.INTEGER);
+								psAddActivity.setNull(6, Types.INTEGER);
+								psAddActivity.setNull(7, Types.INTEGER);
+								psAddActivity.addBatch();
+							}
+							buffer.clear();
+							groupAnchor = current; 
+						}
+						if (groupAnchor == null) {
+							groupAnchor = current;
+						}
+						latestInGroup = (groupAnchor == problemActivityTimestamp) ? problemActivityTimestamp : current;
+						buffer.add(new MediaItem(id));
+					}
+					for (var item : buffer) {
+						psAddActivity.setObject(1, latestInGroup != null ? latestInGroup : LocalDate.EPOCH.atStartOfDay());
+						psAddActivity.setString(2, ACTIVITY_TYPE_MEDIA);
+						psAddActivity.setInt(3, idProblem);
+						psAddActivity.setInt(4, item.id());
+						psAddActivity.setNull(5, Types.INTEGER);
+						psAddActivity.setNull(6, Types.INTEGER);
+						psAddActivity.setNull(7, Types.INTEGER);
+						psAddActivity.addBatch();
+					}
+				}
 			}
 
 			/**
@@ -1301,7 +1300,7 @@ public class Dao {
 				       p.id id_problem, p.name problem,
 				       -- Grade is still needed for the UI
 				       ROUND((IFNULL(SUM(NULLIF(t_grade.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t_grade.grade > 0 THEN t_grade.id END) + 1)) grade,
-				       
+
 				       -- Photographer: mediaIdentity is NULL if no profile pic exists
 				       IF(u.id IS NULL, NULL, 
 				          CONCAT('{"id":', u.id, 
@@ -1313,7 +1312,7 @@ public class Dao {
 				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), '}')
 				                       ), '}')
 				       ) photographer,
-				
+
 				       -- Tagged: mediaIdentity is NULL if no profile pic exists
 				       GROUP_CONCAT(DISTINCT 
 				           IF(u2.id IS NULL, NULL, 
@@ -1370,18 +1369,18 @@ public class Dao {
 				JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
 				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
 				JOIN region r ON a.region_id=r.id
-				
+
 				LEFT JOIN user u ON m.photographer_user_id=u.id AND u.id!=1049 
 				LEFT JOIN media ma ON u.media_id=ma.id
 				LEFT JOIN media_ml_analysis mma_u ON ma.id = mma_u.media_id
-				
+
 				LEFT JOIN tick t_grade ON p.id=t_grade.problem_id
-				
+
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
 				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
-				
+
 				WHERE r.id=?
 				  AND m.deleted_user_id IS NULL
 				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
@@ -1396,7 +1395,7 @@ public class Dao {
 					int idMedia = rst.getInt("id_media");
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
-		            int focusY = rst.getInt("focus_y");
+					int focusY = rst.getInt("focus_y");
 					int width = rst.getInt("width");
 					int height = rst.getInt("height");
 					int idArea = rst.getInt("id_area");
@@ -1652,7 +1651,7 @@ public class Dao {
 				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
 				                           ), '}')
 				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
-				
+
 				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
 				       MAX(CASE WHEN (t.user_id = (SELECT auth_user_id FROM req) OR u.id = (SELECT auth_user_id FROM req)) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
 				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
@@ -2057,7 +2056,7 @@ public class Dao {
 				       m.description, MAX(a.name) location,
 				       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 				       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-                       CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
+				                   CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
 				FROM media m
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
@@ -2669,9 +2668,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
 				        0, 0, 0, 0, 0, 0,
 				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), 0, NULL
@@ -2685,9 +2684,9 @@ public class Dao {
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY a_ext.id, r_ext.name, r_ext.url
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'SECTOR' result_type, s.id, s.name, a.name, 
 				        s.locked_admin, s.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
@@ -2704,9 +2703,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
@@ -2727,9 +2726,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
 				        0, 0,
 				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y,
@@ -3873,86 +3872,86 @@ public class Dao {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
- 		ImageHelper.rotateImage(this, c, idMedia, r);
+		ImageHelper.rotateImage(this, c, idMedia, r);
 	}
 
 	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
-	    Preconditions.checkArgument(mediaId > 0, "Media id required");
-	    boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
-	    
-	    int focusX = 0;
-	    int focusY = 0;
+		Preconditions.checkArgument(mediaId > 0, "Media id required");
+		boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
 
-	    if (hasPersonObject) {
-	        var climber = objects.stream()
-	            .filter(obj -> obj.getName().equalsIgnoreCase("Person"))
-	            .min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
-	            .orElse(null);
+		int focusX = 0;
+		int focusY = 0;
 
-	        if (climber != null) {
-	            List<NormalizedVertex> v = climber.getBoundingPoly().getNormalizedVerticesList();
-	            if (v.size() >= 3) {
-	                float xMin = v.get(0).getX();
-	                float yMin = v.get(0).getY();
-	                float xMax = v.get(2).getX();
-	                float yMax = v.get(2).getY();
-	                float personHeight = yMax - yMin;
+		if (hasPersonObject) {
+			var climber = objects.stream()
+					.filter(obj -> obj.getName().equalsIgnoreCase("Person"))
+					.min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
+					.orElse(null);
 
-	                focusX = Math.round(((xMin + xMax) / 2) * 100);
-	                if (imageHeight > imageWidth) {
-	                    if (yMax > 0.80f && personHeight < 0.60f) {
-	                        focusY = Math.round(yMax * 100);
-	                    } else {
-	                        focusY = Math.round((yMin + personHeight * 0.85f) * 100);
-	                    }
-	                } else {
-	                    focusY = Math.round(((yMin + yMax) / 2) * 100);
-	                }
-	            }
-	        }
-	    }
+			if (climber != null) {
+				List<NormalizedVertex> v = climber.getBoundingPoly().getNormalizedVerticesList();
+				if (v.size() >= 3) {
+					float xMin = v.get(0).getX();
+					float yMin = v.get(0).getY();
+					float xMax = v.get(2).getX();
+					float yMax = v.get(2).getY();
+					float personHeight = yMax - yMin;
 
-	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
-	        ps.setInt(1, mediaId);
-	        ps.setString(2, hexColor);
-	        ps.setInt(3, focusX);
-	        ps.setInt(4, focusY);
-	        ps.setBoolean(5, hasPersonObject);
-	        ps.setBoolean(6, failed);
-	        ps.execute();
-	    }
+					focusX = Math.round(((xMin + xMax) / 2) * 100);
+					if (imageHeight > imageWidth) {
+						if (yMax > 0.80f && personHeight < 0.60f) {
+							focusY = Math.round(yMax * 100);
+						} else {
+							focusY = Math.round((yMin + personHeight * 0.85f) * 100);
+						}
+					} else {
+						focusY = Math.round(((yMin + yMax) / 2) * 100);
+					}
+				}
+			}
+		}
 
-	    if (!failed) {
-	        if (labels != null && !labels.isEmpty()) {
-	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
-	                for (EntityAnnotation l : labels) {
-	                    ps.setInt(1, mediaId);
-	                    ps.setString(2, l.getDescription());
-	                    ps.setFloat(3, l.getScore());
-	                    ps.addBatch();
-	                }
-	                ps.executeBatch();
-	            }
-	        }
-	        if (objects != null && !objects.isEmpty()) {
-	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-	                for (LocalizedObjectAnnotation obj : objects) {
-	                    List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
-	                    if (v.size() >= 3) {
-	                        ps.setInt(1, mediaId);
-	                        ps.setString(2, obj.getName());
-	                        ps.setFloat(3, obj.getScore());
-	                        ps.setFloat(4, v.get(0).getX());
-	                        ps.setFloat(5, v.get(0).getY());
-	                        ps.setFloat(6, v.get(2).getX());
-	                        ps.setFloat(7, v.get(2).getY());
-	                        ps.addBatch();
-	                    }
-	                }
-	                ps.executeBatch();
-	            }
-	        }
-	    }
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
+			ps.setInt(1, mediaId);
+			ps.setString(2, hexColor);
+			ps.setInt(3, focusX);
+			ps.setInt(4, focusY);
+			ps.setBoolean(5, hasPersonObject);
+			ps.setBoolean(6, failed);
+			ps.execute();
+		}
+
+		if (!failed) {
+			if (labels != null && !labels.isEmpty()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
+					for (EntityAnnotation l : labels) {
+						ps.setInt(1, mediaId);
+						ps.setString(2, l.getDescription());
+						ps.setFloat(3, l.getScore());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (objects != null && !objects.isEmpty()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+					for (LocalizedObjectAnnotation obj : objects) {
+						List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
+						if (v.size() >= 3) {
+							ps.setInt(1, mediaId);
+							ps.setString(2, obj.getName());
+							ps.setFloat(3, obj.getScore());
+							ps.setFloat(4, v.get(0).getX());
+							ps.setFloat(5, v.get(0).getY());
+							ps.setFloat(6, v.get(2).getX());
+							ps.setFloat(7, v.get(2).getY());
+							ps.addBatch();
+						}
+					}
+					ps.executeBatch();
+				}
+			}
+		}
 	}
 
 	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
@@ -4094,21 +4093,21 @@ public class Dao {
 		}
 		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
 	}
-	
+
 	public void deleteMediaAnalysis(Connection c, int idMedia) throws SQLException {
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_label WHERE media_id=?")) {
-	        ps.setInt(1, idMedia);
-	        ps.executeUpdate();
-	    }
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_object WHERE media_id=?")) {
-	        ps.setInt(1, idMedia);
-	        ps.executeUpdate();
-	    }
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
-	        ps.setInt(1, idMedia);
-	        ps.executeUpdate();
-	    }
-	    logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_label WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_object WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
