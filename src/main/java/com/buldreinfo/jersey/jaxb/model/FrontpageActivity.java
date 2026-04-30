@@ -16,7 +16,7 @@ public record FrontpageActivity(List<FrontpageActivityFirstAscent> firstAscents,
 			int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade,
 			User u, boolean repeat) {}
-	public record FrontpageActivityMedia(MediaIdentity identity,
+	public record FrontpageActivityMedia(MediaIdentity identity, boolean isMovie,
 			int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
 			int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String grade) {}

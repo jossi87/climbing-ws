@@ -1513,7 +1513,7 @@ public class Dao {
 	public List<FrontpageActivityMedia> getFrontpageActivityNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 	    final List<FrontpageActivityMedia> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y,
+	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
 	                   a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
@@ -1526,7 +1526,6 @@ public class Dao {
 	                JOIN area ar1 ON s1.area_id=ar1.id
 	                JOIN media m1 ON a1.media_id=m1.id
 	                WHERE a1.type='MEDIA'
-	                  AND m1.is_movie=0
 	                  AND ar1.region_id IN (
 	                    SELECT r.id FROM region r 
 	                    JOIN region_type rt ON r.id=rt.region_id 
@@ -1546,7 +1545,7 @@ public class Dao {
 	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, a.id, a.name, a.locked_admin, a.locked_superadmin,
+	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie, a.id, a.name, a.locked_admin, a.locked_superadmin,
 	                     s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
 	            ORDER BY x.activity_timestamp DESC
 	            """;
@@ -1560,7 +1559,7 @@ public class Dao {
 	            while (rst.next()) {
 	                String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
 	                MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
-	                res.add(new FrontpageActivityMedia(mi, 
+	                res.add(new FrontpageActivityMedia(mi, rst.getBoolean("is_movie"),
 	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
 	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
