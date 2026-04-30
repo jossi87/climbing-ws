@@ -1337,7 +1337,7 @@ public class Dao {
 	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 	                      AND (r.id=? OR ur.user_id IS NOT NULL)
 	                )
-	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	                ORDER BY a1.activity_timestamp DESC LIMIT 8
 	            ) x
 	            JOIN problem p ON x.problem_id=p.id
 	            LEFT JOIN fa ON p.id=fa.problem_id
@@ -1408,7 +1408,7 @@ public class Dao {
 	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 	                      AND (r.id=? OR ur.user_id IS NOT NULL)
 	                )
-	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	                ORDER BY a1.activity_timestamp DESC LIMIT 4
 	            ) x
 	            JOIN guestbook g ON x.guestbook_id=g.id
 	            JOIN user u ON g.user_id=u.id
@@ -1469,7 +1469,7 @@ public class Dao {
 	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 	                      AND (r.id=? OR ur.user_id IS NOT NULL)
 	                )
-	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	                ORDER BY a1.activity_timestamp DESC LIMIT 8
 	            ) x
 	            JOIN problem p ON x.problem_id=p.id
 	            JOIN user u ON x.user_id=u.id
@@ -1534,7 +1534,7 @@ public class Dao {
 	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 	                      AND (r.id=? OR ur.user_id IS NOT NULL)
 	                )
-	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	                ORDER BY a1.activity_timestamp DESC LIMIT 12
 	            ) x
 	            JOIN media m ON x.media_id=m.id
 	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
