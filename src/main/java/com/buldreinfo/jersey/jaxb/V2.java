@@ -36,7 +36,6 @@ import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
 import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
-import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -292,38 +291,6 @@ public class V2 {
 	        Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
 	        return Response.ok().entity(res).build();
 	    });
-	}
-
-	@Operation(summary = "Get frontpage (random media)", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = FrontpageRandomMedia.class)))}),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@GET
-	@Path("/frontpage/random_media")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Deprecated // TODO 2026-04-30 - Remove when new frontpage is in production
-	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			var res = dao.getFrontpageRandomMedia(c, setup);
-			return Response.ok().entity(res).build();
-		});
-	}
-
-	@Operation(summary = "Get frontpage stats", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageStats.class))}),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/frontpage/stats")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Deprecated // TODO 2026-04-30 - Remove when new frontpage is in production
-	public Response getFrontpageStats(@Context HttpServletRequest request) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			FrontpageStats res = dao.getFrontpageStats(c, authUserId, setup);
-			return Response.ok().entity(res).build();
-		});
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {

@@ -1504,7 +1504,7 @@ public class Dao {
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 	    final List<FrontpageNewestMedia> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie, a.id area_id, a.name area_name,
+	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 	                   ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id
 	            FROM (
@@ -1534,7 +1534,7 @@ public class Dao {
 	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie, a.id, a.name,
+	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie,
 	                     p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
 	            ORDER BY x.activity_timestamp DESC
 	            """;
@@ -1548,9 +1548,7 @@ public class Dao {
 	            while (rst.next()) {
 	                String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
 	                MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
-	                res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("area_id"), rst.getString("area_name"),
-	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-	                        rst.getString("problem_name"), grade));
+	                res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), grade));
 	            }
 	        }
 	    }
