@@ -34,6 +34,7 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
@@ -146,7 +147,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-
+	
 	@Operation(summary = "Get administrators", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
@@ -269,6 +270,31 @@ public class V2 {
 			int elevation = GeoHelper.getElevation(latitude, longitude);
 			return Response.ok().entity(elevation).build();
 		});
+	}
+
+	@Operation(summary = "Get frontpage activity", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/frontpage/activity")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getFrontpageActivity(@Context HttpServletRequest request) {
+	    return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
+	        var f1 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
+	        var f2 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestAscents(c, authUserId, setup));
+	        var f3 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestMedia(c, authUserId, setup));
+	        var f4 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityLastComments(c, authUserId, setup));
+	        FrontpageActivity res = new FrontpageActivity(
+	            f1.join(), 
+	            f2.join(), 
+	            f3.join(), 
+	            f4.join()
+	        );
+	        return Response.ok().entity(res).build();
+	    });
 	}
 
 	@Operation(summary = "Get frontpage (random media)", responses = {

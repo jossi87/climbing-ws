@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,12 +33,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Response;
 
 public class Server {
+	@FunctionalInterface
+	public interface DaoTask<T> {
+	    T run(Dao dao, Connection c) throws SQLException;
+	}
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static volatile Server server;
 	private static Logger logger = LogManager.getLogger();
+
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
 
 	public static Collection<Setup> getSetups() {
@@ -45,6 +52,17 @@ public class Server {
 
 	public static void runAsync(Runnable action) {
 		getServer().executor.submit(action);
+	}
+
+	public static <T> T runParallel(FunctionDbUser<Connection, T> coordinator) {
+	    Server server = getServer();
+	    try (Connection c = server.ds.getConnection()) {
+	        Setup setup = null;
+	        Optional<Integer> authUserId = Optional.empty();
+	        return coordinator.get(server.dao, c, setup, authUserId, false);
+	    } catch (Exception e) {
+	        throw new RuntimeException(e);
+	    }
 	}
 
 	public static void runSql(Consumer<Connection> action) {
@@ -67,6 +85,19 @@ public class Server {
 		}
 	}
 
+	public static <T> CompletableFuture<T> submitDaoTask(DaoTask<T> task) {
+	    Server server = getServer();
+	    return CompletableFuture.supplyAsync(() -> {
+	        try (Connection c = server.ds.getConnection()) {
+	            T result = task.run(server.dao, c);
+	            c.commit();
+	            return result;
+	        } catch (SQLException e) {
+	            throw new CompletionException(e);
+	        }
+	    }, server.executor);
+	}
+
 	private static void cleanupHitsCooldownMap(long now) {
 		if (hitsCooldownMap.size() < HITS_COOLDOWN_CACHE_MAX_SIZE) {
 			return;
@@ -80,7 +111,7 @@ public class Server {
 		}
 		return "Invalid request parameters.";
 	}
-
+	
 	private static String getHitsCooldownKey(HttpServletRequest request) {
 		String ip = request.getHeader("CF-Connecting-IP");
 		if (ip == null || ip.isBlank()) {

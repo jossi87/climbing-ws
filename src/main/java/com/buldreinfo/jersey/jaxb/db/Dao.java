@@ -68,6 +68,10 @@ import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
 import com.buldreinfo.jersey.jaxb.model.DangerousSector;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityAscent;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityComment;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityMedia;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageFirstAscent;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Grade;
@@ -196,6 +200,22 @@ public class Dao {
 		}
 	}
 
+	public void deleteMediaAnalysis(Connection c, int idMedia) throws SQLException {
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_label WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_object WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
+			ps.setInt(1, idMedia);
+			ps.executeUpdate();
+		}
+		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
+	}
+
 	public void ensureCoordinatesInDbWithElevationAndId(Connection c, List<Coordinates> coordinates) throws SQLException, InterruptedException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
@@ -253,7 +273,7 @@ public class Dao {
 			throw new NoSuchElementException("Could not find user with id=" + userId);
 		}
 	}
-
+	
 	public void fillActivity(Connection c, int idProblem) throws SQLException {
 		/**
 		 * Delete existing activities on problem
@@ -479,7 +499,7 @@ public class Dao {
 			psAddActivity.executeBatch();
 		}
 	}
-
+	
 	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
@@ -769,7 +789,7 @@ public class Dao {
 		logger.debug("getActivity(offset={}) - res.size()={}, duration={}", offset, res.size(), stopwatch);
 		return res;
 	}
-
+	
 	public List<Administrator> getAdministrators(Connection c, int idRegion) throws SQLException {
 		List<Administrator> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -817,7 +837,7 @@ public class Dao {
 		}
 		return res;
 	}
-
+	
 	public Area getArea(Connection c, Setup s, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		if (shouldUpdateHits) {
@@ -1028,7 +1048,7 @@ public class Dao {
 		logger.debug("getArea(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
 		return a;
 	}
-
+	
 	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
@@ -1293,6 +1313,262 @@ public class Dao {
 			}
 		}
 		return res;
+	}
+
+	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageFirstAscent> res = new ArrayList<>();
+	    String sqlStr = """
+	            SELECT x.activity_timestamp, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
+	                   ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id,
+	                   GROUP_CONCAT(DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) SEPARATOR '|') user_data
+	            FROM (
+	                SELECT a1.id, a1.activity_timestamp, a1.problem_id 
+	                FROM activity a1
+	                JOIN problem p1 ON a1.problem_id=p1.id
+	                JOIN sector s1 ON p1.sector_id=s1.id
+	                JOIN area ar1 ON s1.area_id=ar1.id
+	                WHERE a1.type='FA'
+	                  AND ar1.region_id IN (
+	                    SELECT r.id FROM region r 
+	                    JOIN region_type rt ON r.id=rt.region_id 
+	                    LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL)
+	                )
+	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	            ) x
+	            JOIN problem p ON x.problem_id=p.id
+	            LEFT JOIN fa ON p.id=fa.problem_id
+	            LEFT JOIN user u ON fa.user_id=u.id
+	            LEFT JOIN media m ON u.media_id=m.id
+	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+	            LEFT JOIN tick t ON p.id=t.problem_id
+	            JOIN type ty ON p.type_id=ty.id 
+	            JOIN sector s ON p.sector_id=s.id 
+	            JOIN area a ON s.area_id=a.id 
+	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+	            GROUP BY x.activity_timestamp, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, p.grade
+	            ORDER BY x.activity_timestamp DESC
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        int ix = 1;
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
+	                String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
+	                List<User> users = new ArrayList<>();
+	                String rawUsers = rst.getString("user_data");
+	                if (rawUsers != null) {
+	                    for (String userRecord : rawUsers.split("\\|")) {
+	                        String[] p = userRecord.split(":");
+	                        int mediaId = Integer.parseInt(p[2]);
+	                        MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5])) : null;
+	                        users.add(new User(Integer.parseInt(p[0]), p[1], mi));
+	                    }
+	                }
+	                res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
+	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+	                        rst.getString("problem_name"), rst.getString("problem_subtype"), grade, users));
+	            }
+	        }
+	    }
+	    return res;
+	}
+
+	public List<FrontpageActivityComment> getFrontpageActivityLastComments(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageActivityComment> res = new ArrayList<>();
+	    String sqlStr = """
+	            SELECT x.activity_timestamp, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+	                   g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
+	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+	            FROM (
+	                SELECT a1.id, a1.activity_timestamp, a1.problem_id, a1.guestbook_id 
+	                FROM activity a1
+	                JOIN problem p1 ON a1.problem_id=p1.id
+	                JOIN sector s1 ON p1.sector_id=s1.id
+	                JOIN area ar1 ON s1.area_id=ar1.id
+	                WHERE a1.type='GUESTBOOK'
+	                  AND ar1.region_id IN (
+	                    SELECT r.id FROM region r 
+	                    JOIN region_type rt ON r.id=rt.region_id 
+	                    LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL)
+	                )
+	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	            ) x
+	            JOIN guestbook g ON x.guestbook_id=g.id
+	            JOIN user u ON g.user_id=u.id
+	            LEFT JOIN media m ON u.media_id=m.id
+	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+	            JOIN problem p ON x.problem_id=p.id
+	            JOIN sector s ON p.sector_id=s.id 
+	            JOIN area a ON s.area_id=a.id 
+	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+	            ORDER BY x.activity_timestamp DESC
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        int ix = 1;
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
+	                int mediaId = rst.getInt("media_id");
+	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
+	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
+	                res.add(new FrontpageActivityComment(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
+	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+	                        rst.getString("problem_name"), user, rst.getString("message")));
+	            }
+	        }
+	    }
+	    return res;
+	}
+
+	public List<FrontpageActivityAscent> getFrontpageActivityNewestAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageActivityAscent> res = new ArrayList<>();
+	    String sqlStr = """
+	            SELECT x.activity_timestamp, x.type activity_type, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
+	                   t.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
+	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+	            FROM (
+	                SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id, a1.user_id 
+	                FROM activity a1
+	                JOIN problem p1 ON a1.problem_id=p1.id
+	                JOIN sector s1 ON p1.sector_id=s1.id
+	                JOIN area ar1 ON s1.area_id=ar1.id
+	                WHERE a1.type IN ('TICK','TICK_REPEAT')
+	                  AND p1.grade>=22
+	                  AND ar1.region_id IN (
+	                    SELECT r.id FROM region r 
+	                    JOIN region_type rt ON r.id=rt.region_id 
+	                    LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL)
+	                )
+	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	            ) x
+	            JOIN problem p ON x.problem_id=p.id
+	            JOIN user u ON x.user_id=u.id
+	            JOIN tick t ON p.id=t.problem_id AND u.id=t.user_id
+	            LEFT JOIN media m ON u.media_id=m.id
+	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+	            JOIN type ty ON p.type_id=ty.id 
+	            JOIN sector s ON p.sector_id=s.id 
+	            JOIN area a ON s.area_id=a.id 
+	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+	            ORDER BY x.activity_timestamp DESC
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        int ix = 1;
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
+	                String tickGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("tick_grade"));
+	                boolean repeat = ACTIVITY_TYPE_TICK_REPEAT.equals(rst.getString("activity_type"));
+	                int mediaId = rst.getInt("media_id");
+	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
+	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
+	                res.add(new FrontpageActivityAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
+	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+	                        rst.getString("problem_name"), rst.getString("problem_subtype"), tickGrade, user, repeat));
+	            }
+	        }
+	    }
+	    return res;
+	}
+
+	public List<FrontpageActivityMedia> getFrontpageActivityNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageActivityMedia> res = new ArrayList<>();
+	    String sqlStr = """
+	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y,
+	                   a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+	                   ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id
+	            FROM (
+	                SELECT a1.id, a1.activity_timestamp, a1.problem_id, a1.media_id 
+	                FROM activity a1
+	                JOIN problem p1 ON a1.problem_id=p1.id
+	                JOIN sector s1 ON p1.sector_id=s1.id
+	                JOIN area ar1 ON s1.area_id=ar1.id
+	                JOIN media m1 ON a1.media_id=m1.id
+	                WHERE a1.type='MEDIA'
+	                  AND m1.is_movie=0
+	                  AND ar1.region_id IN (
+	                    SELECT r.id FROM region r 
+	                    JOIN region_type rt ON r.id=rt.region_id 
+	                    LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
+	                    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+	                      AND (r.id=? OR ur.user_id IS NOT NULL)
+	                )
+	                ORDER BY a1.activity_timestamp DESC LIMIT 10
+	            ) x
+	            JOIN media m ON x.media_id=m.id
+	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+	            JOIN problem p ON x.problem_id=p.id
+	            LEFT JOIN tick t ON p.id=t.problem_id
+	            JOIN sector s ON p.sector_id=s.id 
+	            JOIN area a ON s.area_id=a.id 
+	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, a.id, a.name, a.locked_admin, a.locked_superadmin,
+	                     s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
+	            ORDER BY x.activity_timestamp DESC
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        int ix = 1;
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, setup.idRegion());
+	        ps.setInt(ix++, authUserId.orElse(0));
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
+	                MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
+	                res.add(new FrontpageActivityMedia(mi, 
+	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
+	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+	                        rst.getString("problem_name"), grade));
+	            }
+	        }
+	    }
+	    return res;
 	}
 
 	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Connection c, Setup setup) throws SQLException {
@@ -4098,22 +4374,6 @@ public class Dao {
 			ps.executeUpdate();
 		}
 		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
-	}
-
-	public void deleteMediaAnalysis(Connection c, int idMedia) throws SQLException {
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_label WHERE media_id=?")) {
-			ps.setInt(1, idMedia);
-			ps.executeUpdate();
-		}
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_object WHERE media_id=?")) {
-			ps.setInt(1, idMedia);
-			ps.executeUpdate();
-		}
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
-			ps.setInt(1, idMedia);
-			ps.executeUpdate();
-		}
-		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {

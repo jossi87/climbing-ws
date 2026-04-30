@@ -50,7 +50,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}
-
+	
 	@Test
 	public void testGetAreas() throws Exception {
 		V2 tester = new V2();
@@ -74,6 +74,14 @@ public class V2Test {
 	public void testGetDangerous() throws Exception {
 		V2 tester = new V2();
 		try (Response r = tester.getDangerous(getRequest(Region.buldreinfo))) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		}
+	}
+
+	@Test
+	public void testGetFrontpageActivity() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getFrontpageActivity(getRequest(Region.brattelinjer))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}
