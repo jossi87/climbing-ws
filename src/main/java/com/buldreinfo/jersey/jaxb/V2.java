@@ -34,9 +34,9 @@ import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivity;
-import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
+import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
@@ -272,22 +272,24 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get frontpage activity", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageActivity.class))}),
+	@Operation(summary = "Get frontpage", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Frontpage.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("/frontpage/activity")
+	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getFrontpageActivity(@Context HttpServletRequest request) {
+	public Response getFrontpage(@Context HttpServletRequest request) {
 	    return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
-	        var f1 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
-	        var f2 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestAscents(c, authUserId, setup));
-	        var f3 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestMedia(c, authUserId, setup));
-	        var f4 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityLastComments(c, authUserId, setup));
-	        FrontpageActivity res = new FrontpageActivity(f1.join(), f2.join(), f3.join(), f4.join());
+	    	var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageStats(c, authUserId, setup));
+	    	var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRandomMedia(c, setup));
+	        var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
+	        var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestAscents(c, authUserId, setup));
+	        var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestMedia(c, authUserId, setup));
+	        var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageLastComments(c, authUserId, setup));
+	        Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
 	        return Response.ok().entity(res).build();
 	    });
 	}
@@ -299,6 +301,7 @@ public class V2 {
 	@GET
 	@Path("/frontpage/random_media")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Deprecated // TODO 2026-04-30 - Remove when new frontpage is in production
 	public Response getFrontpageRandomMedia(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
 			var res = dao.getFrontpageRandomMedia(c, setup);
@@ -315,6 +318,7 @@ public class V2 {
 	@GET
 	@Path("/frontpage/stats")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Deprecated // TODO 2026-04-30 - Remove when new frontpage is in production
 	public Response getFrontpageStats(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			FrontpageStats res = dao.getFrontpageStats(c, authUserId, setup);

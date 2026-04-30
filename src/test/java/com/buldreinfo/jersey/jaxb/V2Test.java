@@ -14,8 +14,6 @@ import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -79,35 +77,10 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetFrontpageActivity() throws Exception {
+	public void testGetFrontpage() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.getFrontpageActivity(getRequest(Region.brattelinjer))) {
+		try (Response r = tester.getFrontpage(getRequest(Region.brattelinjer))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-		}
-	}
-
-	@Test
-	public void testGetFrontpageRandomMedia() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getFrontpageRandomMedia(getRequest(Region.buldreinfo))) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof Collection<?>);
-			Collection<?> res = (Collection<?>)r.getEntity();
-			assertTrue(!res.isEmpty());
-			assertTrue(res.iterator().next() instanceof FrontpageRandomMedia);
-		}
-	}
-
-	@Test
-	public void testGetFrontpageStats() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getFrontpageStats(getRequest(Region.buldreinfo))) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof FrontpageStats);
-			FrontpageStats f = (FrontpageStats)r.getEntity();
-			assertTrue(f.areas()>0);
-			assertTrue(f.problems()>0);
-			assertTrue(f.ticks()>0);
 		}
 	}
 

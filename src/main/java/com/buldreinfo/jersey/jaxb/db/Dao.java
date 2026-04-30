@@ -68,12 +68,12 @@ import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
 import com.buldreinfo.jersey.jaxb.model.DangerousSector;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityAscent;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityComment;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityFirstAscent;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageFirstAscent;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageLastComment;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageNewestMedia;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRecentAscent;
+import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
@@ -1315,11 +1315,10 @@ public class Dao {
 		return res;
 	}
 
-	public List<FrontpageActivityFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageActivityFirstAscent> res = new ArrayList<>();
+	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageFirstAscent> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT x.activity_timestamp, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	            SELECT x.activity_timestamp, a.id area_id, a.name area_name,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 	                   ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id,
 	                   GROUP_CONCAT(DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) SEPARATOR '|') user_data
@@ -1352,7 +1351,7 @@ public class Dao {
 	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            GROUP BY x.activity_timestamp, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, p.grade
+	            GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, p.grade
 	            ORDER BY x.activity_timestamp DESC
 	            """;
 	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1375,9 +1374,8 @@ public class Dao {
 	                        users.add(new User(Integer.parseInt(p[0]), p[1], mi));
 	                    }
 	                }
-	                res.add(new FrontpageActivityFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
-	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
-	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+	                        rst.getInt("area_id"), rst.getString("area_name"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
 	                        rst.getString("problem_name"), rst.getString("problem_subtype"), grade, users));
 	            }
@@ -1386,11 +1384,10 @@ public class Dao {
 	    return res;
 	}
 
-	public List<FrontpageActivityComment> getFrontpageActivityLastComments(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageActivityComment> res = new ArrayList<>();
+	public List<FrontpageLastComment> getFrontpageLastComments(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageLastComment> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT x.activity_timestamp, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	            SELECT x.activity_timestamp, a.id area_id, a.name area_name,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 	                   g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
@@ -1435,9 +1432,7 @@ public class Dao {
 	                int mediaId = rst.getInt("media_id");
 	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
 	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-	                res.add(new FrontpageActivityComment(TimeAgo.getTimeAgo(ts.toLocalDate()), 
-	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
-	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                res.add(new FrontpageLastComment(TimeAgo.getTimeAgo(ts.toLocalDate()), rst.getInt("area_id"), rst.getString("area_name"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
 	                        rst.getString("problem_name"), user, rst.getString("message")));
 	            }
@@ -1446,11 +1441,10 @@ public class Dao {
 	    return res;
 	}
 
-	public List<FrontpageActivityAscent> getFrontpageActivityNewestAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageActivityAscent> res = new ArrayList<>();
+	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageRecentAscent> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT x.activity_timestamp, x.type activity_type, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	            SELECT x.activity_timestamp, x.type activity_type, a.id area_id, a.name area_name,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 	                   t.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
@@ -1498,9 +1492,7 @@ public class Dao {
 	                int mediaId = rst.getInt("media_id");
 	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
 	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-	                res.add(new FrontpageActivityAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
-	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
-	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                res.add(new FrontpageRecentAscent(TimeAgo.getTimeAgo(ts.toLocalDate()),  rst.getInt("area_id"), rst.getString("area_name"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
 	                        rst.getString("problem_name"), rst.getString("problem_subtype"), tickGrade, user, repeat));
 	            }
@@ -1509,12 +1501,10 @@ public class Dao {
 	    return res;
 	}
 
-	public List<FrontpageActivityMedia> getFrontpageActivityNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageActivityMedia> res = new ArrayList<>();
+	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageNewestMedia> res = new ArrayList<>();
 	    String sqlStr = """
-	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
-	                   a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	            SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie, a.id area_id, a.name area_name,
 	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 	                   ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id
 	            FROM (
@@ -1544,8 +1534,8 @@ public class Dao {
 	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie, a.id, a.name, a.locked_admin, a.locked_superadmin,
-	                     s.id, s.name, s.locked_admin, s.locked_superadmin, p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
+	            GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie, a.id, a.name,
+	                     p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
 	            ORDER BY x.activity_timestamp DESC
 	            """;
 	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1558,9 +1548,7 @@ public class Dao {
 	            while (rst.next()) {
 	                String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
 	                MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
-	                res.add(new FrontpageActivityMedia(mi, rst.getBoolean("is_movie"),
-	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
-	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
+	                res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("area_id"), rst.getString("area_name"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
 	                        rst.getString("problem_name"), grade));
 	            }
@@ -3255,13 +3243,18 @@ public class Dao {
 		// Fixed urls
 		urls.add(setup.url());
 		urls.add(setup.url() + "/about");
+		urls.add(setup.url() + "/activity");
 		urls.add(setup.url() + "/areas");
-		urls.add(setup.url() + "/filter");
+		urls.add(setup.url() + "/donate");
+		urls.add(setup.url() + "/dangerous");
 		urls.add(setup.url() + "/gpl-3.0.txt");
+		urls.add(setup.url() + "/graph");
+		urls.add(setup.url() + "/privacy-policy");
 		urls.add(setup.url() + "/problems");
 		urls.add(setup.url() + "/regions/bouldering");
 		urls.add(setup.url() + "/regions/climbing");
 		urls.add(setup.url() + "/regions/ice");
+		urls.add(setup.url() + "/webcams");
 		// Users
 		try (PreparedStatement ps = c.prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
 			ps.setInt(1, setup.idRegion());
