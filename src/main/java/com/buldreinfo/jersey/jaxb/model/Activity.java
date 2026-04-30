@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.Set;
 
 public class Activity {
+	record ActivityThumbnail(MediaIdentity identity, int userId, String name) {}
 	private final Set<Integer> activityIds;
-	private List<ActivityMedia> activityThumbnails;
+	private List<ActivityThumbnail> activityThumbnails;
 	private final String timeAgo;
 	private final int areaId;
 	private final String areaName;
@@ -60,7 +61,7 @@ public class Activity {
 		}
 		this.users.add(new User(userId>0? userId : 1049, name != null? name : "Unknown", identity));
 	}
-	public void appendActivityThumbnail(MediaIdentity identity) {
+	public void appendActivityThumbnail(MediaIdentity identity, int userId, String name) {
 		if (this.activityThumbnails == null) {
 			this.activityThumbnails = new ArrayList<>();
 		}
@@ -68,13 +69,13 @@ public class Activity {
 				.filter(x -> x.identity().id() == identity.id())
 				.findAny()
 				.isEmpty()) {
-			this.activityThumbnails.add(new ActivityMedia(identity, false, null));
+			this.activityThumbnails.add(new ActivityThumbnail(identity, userId, name));
 		}
 	}
 	public Set<Integer> getActivityIds() {
 		return activityIds;
 	}
-	public List<ActivityMedia> getActivityThumbnails() {
+	public List<ActivityThumbnail> getActivityThumbnails() {
 		return activityThumbnails;
 	}
 	public int getAreaId() {

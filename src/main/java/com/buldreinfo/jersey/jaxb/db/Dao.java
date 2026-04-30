@@ -604,13 +604,15 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(false, rst.getInt("user_id"), rst.getString("name"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							int userId = rst.getInt("user_id");
+							String name = rst.getString("name");
+							a.setTick(false, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY));
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
 							}
 						}
 					}
@@ -634,13 +636,15 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setTick(true, rst.getInt("user_id"), rst.getString("name"), rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							int userId = rst.getInt("user_id");
+							String name = rst.getString("name");
+							a.setTick(true, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY));
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
 							}
 						}
 					}
@@ -667,7 +671,9 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							a.setGuestbook(rst.getInt("user_id"), rst.getString("name"), rst.getString("message"));
+							int userId = rst.getInt("user_id");
+							String name = rst.getString("name");
+							a.setGuestbook(userId, name, rst.getString("message"));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -680,7 +686,7 @@ public class Dao {
 								long avatarMediaVersionStamp = rst.getLong("avatar_version_stamp");
 								int avatarFocusX = rst.getInt("avatar_focus_x");
 								int avatarFocusY = rst.getInt("avatar_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, avatarMediaVersionStamp, avatarFocusX, avatarFocusY));
+								a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, avatarMediaVersionStamp, avatarFocusX, avatarFocusY), userId, name);
 							}
 						}
 					}
@@ -720,8 +726,7 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
-								a.appendActivityThumbnail(mediaIdentity);
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
 							}
 							a.addUser(userId, name, mediaIdentity);
 						}
@@ -732,6 +737,7 @@ public class Dao {
 		if (!mediaIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id,
+						   u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
 					       m.is_movie, m.embed_url,
 					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
@@ -753,7 +759,7 @@ public class Dao {
 							a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getString("embed_url"));
 							if (a.getUsers() == null || a.getUsers().isEmpty()) {
 								// Don't append activity thumbnail if this is a new problem, only show FA users
-								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0));
+								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0), rst.getInt("user_id"), rst.getString("name"));
 							}
 						}
 					}
