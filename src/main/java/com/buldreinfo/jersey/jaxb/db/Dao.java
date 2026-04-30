@@ -1461,7 +1461,6 @@ public class Dao {
 	                JOIN sector s1 ON p1.sector_id=s1.id
 	                JOIN area ar1 ON s1.area_id=ar1.id
 	                WHERE a1.type IN ('TICK','TICK_REPEAT')
-	                  AND p1.grade>=22
 	                  AND ar1.region_id IN (
 	                    SELECT r.id FROM region r 
 	                    JOIN region_type rt ON r.id=rt.region_id 
