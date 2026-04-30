@@ -68,10 +68,10 @@ import com.buldreinfo.jersey.jaxb.model.DangerousProblem;
 import com.buldreinfo.jersey.jaxb.model.DangerousSector;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivityAscent;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivityComment;
-import com.buldreinfo.jersey.jaxb.model.FrontpageActivityMedia;
-import com.buldreinfo.jersey.jaxb.model.FrontpageFirstAscent;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityAscent;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityComment;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityFirstAscent;
+import com.buldreinfo.jersey.jaxb.model.FrontpageActivity.FrontpageActivityMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.FrontpageStats;
 import com.buldreinfo.jersey.jaxb.model.Grade;
@@ -1315,8 +1315,8 @@ public class Dao {
 		return res;
 	}
 
-	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageFirstAscent> res = new ArrayList<>();
+	public List<FrontpageActivityFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	    final List<FrontpageActivityFirstAscent> res = new ArrayList<>();
 	    String sqlStr = """
 	            SELECT x.activity_timestamp, a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 	                   s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
@@ -1375,7 +1375,7 @@ public class Dao {
 	                        users.add(new User(Integer.parseInt(p[0]), p[1], mi));
 	                    }
 	                }
-	                res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+	                res.add(new FrontpageActivityFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
 	                        rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
 	                        rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
 	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 

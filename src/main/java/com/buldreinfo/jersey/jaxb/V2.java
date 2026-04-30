@@ -273,7 +273,7 @@ public class V2 {
 	}
 
 	@Operation(summary = "Get frontpage activity", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = FrontpageActivity.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
@@ -287,12 +287,7 @@ public class V2 {
 	        var f2 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestAscents(c, authUserId, setup));
 	        var f3 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityNewestMedia(c, authUserId, setup));
 	        var f4 = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityLastComments(c, authUserId, setup));
-	        FrontpageActivity res = new FrontpageActivity(
-	            f1.join(), 
-	            f2.join(), 
-	            f3.join(), 
-	            f4.join()
-	        );
+	        FrontpageActivity res = new FrontpageActivity(f1.join(), f2.join(), f3.join(), f4.join());
 	        return Response.ok().entity(res).build();
 	    });
 	}

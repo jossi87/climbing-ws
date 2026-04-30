@@ -267,8 +267,8 @@ public class Server {
 	private final Dao dao = new Dao();
 	private final AuthHelper auth = new AuthHelper();
 	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
-	private final ExecutorService executor = Executors.newFixedThreadPool(1);
-
+	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+	
 	private Server() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
