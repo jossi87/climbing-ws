@@ -47,6 +47,9 @@ public class V2Test {
 		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
+		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, false, false, false, 0)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		}
 	}
 	
 	@Test
