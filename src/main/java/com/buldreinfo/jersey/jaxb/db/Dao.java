@@ -1565,7 +1565,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie,
 				         p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
-				ORDER BY x.activity_timestamp DESC
+				ORDER BY x.activity_timestamp DESC, m.id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
