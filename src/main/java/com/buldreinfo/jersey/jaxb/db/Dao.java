@@ -4619,6 +4619,15 @@ public class Dao {
 		}
 	}
 
+	public void setThemePreference(Connection c, Optional<Integer> authUserId, String themePreference) throws SQLException {
+		Preconditions.checkArgument(themePreference != null && (themePreference.equals("light") || themePreference.equals("dark")), "themePreference must be 'light' or 'dark'");
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET theme_preference=? WHERE id=?")) {
+			ps.setString(1, themePreference);
+			ps.setInt(2, authUserId.orElseThrow());
+			ps.execute();
+		}
+	}
+
 	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
