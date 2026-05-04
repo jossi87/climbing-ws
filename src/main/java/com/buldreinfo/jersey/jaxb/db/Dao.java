@@ -2299,7 +2299,7 @@ public class Dao {
 		}
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.firstname, u.lastname, u.email_visible_to_all,
+				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
 				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
 				        FROM user_email e 
@@ -2331,10 +2331,11 @@ public class Dao {
 							.trimResults()
 							.omitEmptyStrings()
 							.splitToList(emailsStr);
+					String themePreference = rst.getString("theme_preference");
 					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
 					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
 					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
-					res = new Profile(userId, firstname, lastname, emailVisibleToAll, mediaIdentity, emails, userRegions, lastActivity);
+					res = new Profile(userId, firstname, lastname, emailVisibleToAll, mediaIdentity, emails, userRegions, lastActivity, themePreference);
 				}
 			}
 		}
@@ -4597,11 +4598,22 @@ public class Dao {
 	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
-		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=? WHERE id=?")) {
+		// Only save themePreference if DB currently has no value (null).
+		// This prevents a login from computer B (light mode) from overwriting
+		// the dark mode preference saved by computer A.
+		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark")))
+				? profile.themePreference()
+				: null;
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=?, theme_preference=COALESCE(theme_preference, ?) WHERE id=?")) {
 			ps.setString(1, profile.firstname());
 			ps.setString(2, profile.lastname());
 			ps.setBoolean(3, profile.emailVisibleToAll());
-			ps.setInt(4, authUserId.orElseThrow());
+			if (theme != null) {
+				ps.setString(4, theme);
+			} else {
+				ps.setNull(4, java.sql.Types.VARCHAR);
+			}
+			ps.setInt(5, authUserId.orElseThrow());
 			ps.execute();
 		}
 		var avatar = multiPart.getField("avatar");
