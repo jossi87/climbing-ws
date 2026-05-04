@@ -4598,9 +4598,6 @@ public class Dao {
 	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
-		// Only save themePreference if DB currently has no value (null).
-		// This prevents a login from computer B (light mode) from overwriting
-		// the dark mode preference saved by computer A.
 		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark")))
 				? profile.themePreference()
 				: null;
@@ -4611,7 +4608,7 @@ public class Dao {
 			if (theme != null) {
 				ps.setString(4, theme);
 			} else {
-				ps.setNull(4, java.sql.Types.VARCHAR);
+				ps.setNull(4, Types.VARCHAR);
 			}
 			ps.setInt(5, authUserId.orElseThrow());
 			ps.execute();
