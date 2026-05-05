@@ -1236,7 +1236,7 @@ public class Dao {
 				x AS (
 				  SELECT g.base_no g_base, x.region_id, x.region, x.t, COUNT(id_p) num
 				  FROM (
-				    SELECT r.id region_id, r.name region, ty.subtype t, 
+				    SELECT r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, 
 				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
 				           p.id id_p
 				    FROM req
@@ -1784,7 +1784,7 @@ public class Dao {
 				x AS (
 				  SELECT g.base_no g_base, x.sorting, x.sector_id, x.sector, x.t, COUNT(id_p) num
 				  FROM (
-				    SELECT s.id sector_id, s.name sector, s.sorting, ty.subtype t, 
+				    SELECT s.id sector_id, s.name sector, s.sorting, COALESCE(ty.subtype,'Boulder') t, 
 				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
 				           p.id id_p
 				    FROM req

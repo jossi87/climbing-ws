@@ -92,7 +92,7 @@ public class GradeDistribution {
 			row = optRow.get();
 		} else {
 			row = new GradeDistributionRow(id, name);
-			rows.add(row);		
+			rows.add(row);
 		}
 		switch (type) {
 		case "Boulder" -> {
