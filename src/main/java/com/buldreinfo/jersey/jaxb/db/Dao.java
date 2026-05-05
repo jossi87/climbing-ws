@@ -1018,6 +1018,8 @@ public class Dao {
 			getSectorSlopes(c, true, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setApproach(e.getValue()));			
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
+			// Add grade distribution
+			a.setGradeDistribution(getGradeDistribution(c, authUserId, s, reqId, 0));
 		}
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT s.id,
@@ -1239,10 +1241,10 @@ public class Dao {
 			  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
 			  GROUP BY x.region_id, x.region, g.base_no, x.t
 			)
-			SELECT g.base_no grade, x.region_id, x.region, COALESCE(x.t, 'Boulder') t, x.num
+			SELECT g.base_no grade, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
 			FROM req
 			JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-			JOIN x ON g.base_no=x.g_base
+			LEFT JOIN x ON g.base_no=x.g_base
 			ORDER BY g.sort, x.region, x.t
 			""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -1251,8 +1253,11 @@ public class Dao {
 			ps.setString(3, setup.gradeSystem().toString());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new)
-					   .addSector(rst.getInt("region_id"), rst.getString("region"), rst.getString("t"), rst.getInt("num"));
+					GradeDistribution dist = res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new);
+					int regionId = rst.getInt("region_id");
+					if (!rst.wasNull()) {
+						dist.addSector(regionId, rst.getString("region"), rst.getString("t"), rst.getInt("num"));
+					}
 				}
 			}
 		}
@@ -1781,10 +1786,10 @@ public class Dao {
 			  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
 			  GROUP BY x.sorting, x.sector_id, x.sector, g.base_no, x.t
 			)
-			SELECT g.base_no grade, x.sector_id, x.sector, COALESCE(x.t, 'Boulder') t, x.num
+			SELECT g.base_no grade, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
 			FROM req
 			JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-			JOIN x ON g.base_no=x.g_base
+			LEFT JOIN x ON g.base_no=x.g_base
 			ORDER BY g.sort, x.sorting, x.sector, x.t
 			""";
 
@@ -1796,8 +1801,11 @@ public class Dao {
 
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new)
-					.addSector(rst.getInt("sector_id"), rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
+					GradeDistribution dist = res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new);
+					int sectorId = rst.getInt("sector_id");
+					if (!rst.wasNull()) {
+						dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
+					}
 				}
 			}
 		}

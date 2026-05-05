@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
@@ -49,19 +50,19 @@ public class Area {
 		public String getAccessClosed() {
 			return accessClosed;
 		}
-
+		
 		public String getAccessInfo() {
 			return accessInfo;
 		}
-
+		
 		public Slope getApproach() {
 			return approach;
 		}
-		
+
 		public String getAreaName() {
 			return areaName;
 		}
-		
+
 		public String getComment() {
 			return comment;
 		}
@@ -69,7 +70,7 @@ public class Area {
 		public Slope getDescent() {
 			return descent;
 		}
-
+		
 		public int getId() {
 			return id;
 		}
@@ -89,11 +90,11 @@ public class Area {
 		public Coordinates getParking() {
 			return parking;
 		}
-		
+
 		public List<SectorProblem> getProblems() {
 			return problems;
 		}
-
+		
 		public MediaIdentity getRandomMedia() {
 			return randomMedia;
 		}
@@ -117,11 +118,11 @@ public class Area {
 		public CompassDirection getWallDirectionCalculated() {
 			return wallDirectionCalculated;
 		}
-		
+
 		public CompassDirection getWallDirectionManual() {
 			return wallDirectionManual;
 		}
-
+		
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
@@ -133,11 +134,11 @@ public class Area {
 		public void setApproach(Slope approach) {
 			this.approach = approach;
 		}
-		
+
 		public void setDescent(Slope descent) {
 			this.descent = descent;
 		}
-
+		
 		public void setOutline(List<Coordinates> outline) {
 			this.outline = outline;
 		}
@@ -168,6 +169,7 @@ public class Area {
 	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 	private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
+	private Collection<GradeDistribution> gradeDistribution;
 
 	public Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
@@ -210,19 +212,23 @@ public class Area {
 	public String getAccessInfo() {
 		return accessInfo;
 	}
-
+	
 	public String getComment() {
 		return comment;
 	}
-
+	
 	public Coordinates getCoordinates() {
 		return coordinates;
 	}
-	
+
 	public List<ExternalLink> getExternalLinks() {
 		return externalLinks;
 	}
 
+	public Collection<GradeDistribution> getGradeDistribution() {
+		return gradeDistribution;
+	}
+	
 	public int getId() {
 		return id;
 	}
@@ -278,11 +284,11 @@ public class Area {
 	public List<Media> getTriviaMedia() {
 		return triviaMedia;
 	}
-	
+
 	public List<TypeNumTickedTodo> getTypeNumTickedTodo() {
 		return typeNumTickedTodo;
 	}
-
+	
 	public boolean isForDevelopers() {
 		return forDevelopers;
 	}
@@ -311,5 +317,9 @@ public class Area {
 
 	public void setCoordinates(Coordinates coordinates) {
 		this.coordinates = coordinates;
+	}
+
+	public void setGradeDistribution(Collection<GradeDistribution> gradeDistribution) {
+		this.gradeDistribution = gradeDistribution;
 	}
 }
