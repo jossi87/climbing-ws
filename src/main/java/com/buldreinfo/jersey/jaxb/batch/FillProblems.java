@@ -40,7 +40,8 @@ public class FillProblems {
 		private final String grade;
 		private final String fa;
 		private final String faDate;
-		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate) {
+		private final String trivia;
+		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate, String trivia) {
 			if (t.equals(T.BOLT)) {
 				this.typeId = 2;
 			}
@@ -74,6 +75,7 @@ public class FillProblems {
 			this.grade = grade;
 			this.fa = fa;
 			this.faDate = faDate;
+			this.trivia = trivia;
 		}
 		public int getTypeId() {
 			return typeId;
@@ -105,10 +107,13 @@ public class FillProblems {
 		public String getSector() {
 			return sector;
 		}
+		public String getTrivia() {
+			return trivia;
+		}
 		@Override
 		public String toString() {
 			return "Data [typeId=" + typeId + ", nr=" + nr + ", area=" + area + ", sector=" + sector + ", problem="
-					+ problem + ", comment=" + comment + ", grade=" + grade + ", fa=" + fa + ", faDate=" + faDate + "]";
+					+ problem + ", comment=" + comment + ", grade=" + grade + ", fa=" + fa + ", faDate=" + faDate + ", trivia=" + trivia + "]";
 		}
 	}
 	private final static Optional<Integer> AUTH_USER_ID = Optional.of(1);
@@ -127,7 +132,7 @@ public class FillProblems {
 				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + REGION_ID));
 		List<Data> data = new ArrayList<>();
 		// TODO Fill data (FA-date: yyyy-MM-dd)
-		data.add(new Data(1,"AREA","SECTOR","NAME", T.TRAD,"DESCRIPTION", 1,"6+","USER_1,USER_2&USER_3","9999-12-31"));
+		data.add(new Data(1,"AREA","SECTOR","NAME", T.TRAD, "DESCRIPTION", 1,"6+", "USER_1,USER_2&USER_3", "9999-12-31", null));
 		Preconditions.checkArgument(data.size() > 1, "Invalid data");
 		Server.runSql((dao, c) -> {
 			for (Data d : data) {
@@ -159,7 +164,7 @@ public class FillProblems {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
 		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
-		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, null, null, -1, 0, false, null, t, false, null, null, null, null, null, null, null, null);
+		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, null, null, -1, 0, false, null, t, false, null, null, d.getTrivia(), null, null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
