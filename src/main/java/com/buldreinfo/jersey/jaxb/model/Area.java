@@ -1,7 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
@@ -28,6 +27,7 @@ public class Area {
 		private final MediaIdentity randomMedia;
 		private final List<SectorProblem> problems = new ArrayList<>();
 		private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
+		private List<GradeCount> gradeCounts;
 
 		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, MediaIdentity randomMedia) {
 			this.areaName = null;
@@ -58,23 +58,27 @@ public class Area {
 		public Slope getApproach() {
 			return approach;
 		}
-
+		
 		public String getAreaName() {
 			return areaName;
 		}
-
+		
 		public String getComment() {
 			return comment;
 		}
-		
+
 		public Slope getDescent() {
 			return descent;
+		}
+
+		public List<GradeCount> getGradeCounts() {
+			return gradeCounts;
 		}
 		
 		public int getId() {
 			return id;
 		}
-
+		
 		public String getName() {
 			return name;
 		}
@@ -94,11 +98,11 @@ public class Area {
 		public List<SectorProblem> getProblems() {
 			return problems;
 		}
-		
+
 		public MediaIdentity getRandomMedia() {
 			return randomMedia;
 		}
-
+		
 		public int getSorting() {
 			return sorting;
 		}
@@ -122,11 +126,11 @@ public class Area {
 		public CompassDirection getWallDirectionManual() {
 			return wallDirectionManual;
 		}
-		
+
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
-
+		
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
 		}
@@ -138,11 +142,16 @@ public class Area {
 		public void setDescent(Slope descent) {
 			this.descent = descent;
 		}
+
+		public void setGradeCounts(List<GradeCount> gradeCounts) {
+			this.gradeCounts = gradeCounts;
+		}
 		
 		public void setOutline(List<Coordinates> outline) {
 			this.outline = outline;
 		}
 	}
+	public record GradeCount(String grade, int num) {}
 	public record AreaSectorOrder(int id, String name, int sorting) {}
 	private final String redirectUrl;
 	private final String regionName;
@@ -169,7 +178,6 @@ public class Area {
 	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 	private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
-	private Collection<GradeDistribution> gradeDistribution;
 
 	public Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
@@ -225,10 +233,6 @@ public class Area {
 		return externalLinks;
 	}
 
-	public Collection<GradeDistribution> getGradeDistribution() {
-		return gradeDistribution;
-	}
-	
 	public int getId() {
 		return id;
 	}
@@ -317,9 +321,5 @@ public class Area {
 
 	public void setCoordinates(Coordinates coordinates) {
 		this.coordinates = coordinates;
-	}
-
-	public void setGradeDistribution(Collection<GradeDistribution> gradeDistribution) {
-		this.gradeDistribution = gradeDistribution;
 	}
 }

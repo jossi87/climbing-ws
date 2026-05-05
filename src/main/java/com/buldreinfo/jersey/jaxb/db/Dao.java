@@ -1018,8 +1018,23 @@ public class Dao {
 			getSectorSlopes(c, true, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setApproach(e.getValue()));			
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
-			// Add grade distribution
-			a.setGradeDistribution(getGradeDistribution(c, authUserId, s, reqId, 0));
+			// Add grade counts
+			Collection<GradeDistribution> areaDist = getGradeDistribution(c, authUserId, s, reqId, 0);
+			for (GradeDistribution gd : areaDist) {
+				String gradeLabel = gd.getGrade();
+				for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
+					int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
+							row.getNumMixed() + row.getNumTopRope() + row.getNumAid() + 
+							row.getNumAidTrad() + row.getNumIce();
+					Area.AreaSector sector = sectorLookup.get(row.getId());
+					if (sector != null) {
+						if (sector.getGradeCounts() == null) {
+							sector.setGradeCounts(new ArrayList<>());
+						}
+						sector.getGradeCounts().add(new Area.GradeCount(gradeLabel, total));
+					}
+				}
+			}
 		}
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT s.id,
@@ -1214,39 +1229,39 @@ public class Dao {
 	public Collection<GradeDistribution> getContentGraph(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = """
-			WITH req AS (
-			  SELECT ? auth_user_id, ? region_id, ? grade_system
-			),
-			x AS (
-			  SELECT g.base_no g_base, x.region_id, x.region, x.t, COUNT(id_p) num
-			  FROM (
-			    SELECT r.id region_id, r.name region, ty.subtype t, 
-			           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
-			           p.id id_p
-			    FROM req
-			    JOIN region r ON 1=1
-			    JOIN region_type rt ON r.id=rt.region_id
-			    JOIN area a ON r.id=a.region_id
-			    JOIN sector s ON a.id=s.area_id
-			    JOIN problem p ON s.id=p.sector_id
-			    JOIN type ty ON p.type_id=ty.id
-			    LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-			    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
-			    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
-			      AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
-			      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-			    GROUP BY r.id, r.name, ty.subtype, p.id
-			  ) x
-			  JOIN req ON 1=1
-			  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
-			  GROUP BY x.region_id, x.region, g.base_no, x.t
-			)
-			SELECT g.base_no grade, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
-			FROM req
-			JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-			LEFT JOIN x ON g.base_no=x.g_base
-			ORDER BY g.sort, x.region, x.t
-			""";
+				WITH req AS (
+				  SELECT ? auth_user_id, ? region_id, ? grade_system
+				),
+				x AS (
+				  SELECT g.base_no g_base, x.region_id, x.region, x.t, COUNT(id_p) num
+				  FROM (
+				    SELECT r.id region_id, r.name region, ty.subtype t, 
+				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
+				           p.id id_p
+				    FROM req
+				    JOIN region r ON 1=1
+				    JOIN region_type rt ON r.id=rt.region_id
+				    JOIN area a ON r.id=a.region_id
+				    JOIN sector s ON a.id=s.area_id
+				    JOIN problem p ON s.id=p.sector_id
+				    JOIN type ty ON p.type_id=ty.id
+				    LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
+				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				      AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
+				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				    GROUP BY r.id, r.name, ty.subtype, p.id
+				  ) x
+				  JOIN req ON 1=1
+				  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
+				  GROUP BY x.region_id, x.region, g.base_no, x.t
+				)
+				SELECT g.base_no grade, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
+				FROM req
+				JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
+				LEFT JOIN x ON g.base_no=x.g_base
+				ORDER BY g.sort, x.region, x.t
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
@@ -1762,36 +1777,36 @@ public class Dao {
 	public Collection<GradeDistribution> getGradeDistribution(Connection c, Optional<Integer> authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		String sqlStr = """
-			WITH req AS (
-			  SELECT ? auth_user_id, ? sector_id, ? area_id, ? grade_system
-			),
-			x AS (
-			  SELECT g.base_no g_base, x.sorting, x.sector_id, x.sector, x.t, COUNT(id_p) num
-			  FROM (
-			    SELECT s.id sector_id, s.name sector, s.sorting, ty.subtype t, 
-			           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
-			           p.id id_p
-			    FROM req
-			    JOIN area a ON 1=1
-			    JOIN sector s ON a.id=s.area_id 
-			    JOIN problem p ON s.id=p.sector_id 
-			    JOIN type ty ON p.type_id=ty.id 
-			    LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id 
-			    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
-			    WHERE (CASE WHEN req.sector_id != 0 THEN p.sector_id ELSE a.id END) = COALESCE(NULLIF(req.sector_id, 0), req.area_id)
-			      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-			    GROUP BY s.id, s.name, ty.subtype, p.id
-			  ) x
-			  JOIN req ON 1=1
-			  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
-			  GROUP BY x.sorting, x.sector_id, x.sector, g.base_no, x.t
-			)
-			SELECT g.base_no grade, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
-			FROM req
-			JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-			LEFT JOIN x ON g.base_no=x.g_base
-			ORDER BY g.sort, x.sorting, x.sector, x.t
-			""";
+				WITH req AS (
+				  SELECT ? auth_user_id, ? sector_id, ? area_id, ? grade_system
+				),
+				x AS (
+				  SELECT g.base_no g_base, x.sorting, x.sector_id, x.sector, x.t, COUNT(id_p) num
+				  FROM (
+				    SELECT s.id sector_id, s.name sector, s.sorting, ty.subtype t, 
+				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
+				           p.id id_p
+				    FROM req
+				    JOIN area a ON 1=1
+				    JOIN sector s ON a.id=s.area_id 
+				    JOIN problem p ON s.id=p.sector_id 
+				    JOIN type ty ON p.type_id=ty.id 
+				    LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id 
+				    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
+				    WHERE (CASE WHEN req.sector_id != 0 THEN p.sector_id ELSE a.id END) = COALESCE(NULLIF(req.sector_id, 0), req.area_id)
+				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				    GROUP BY s.id, s.name, ty.subtype, p.id
+				  ) x
+				  JOIN req ON 1=1
+				  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
+				  GROUP BY x.sorting, x.sector_id, x.sector, g.base_no, x.t
+				)
+				SELECT g.base_no grade, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
+				FROM req
+				JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
+				LEFT JOIN x ON g.base_no=x.g_base
+				ORDER BY g.sort, x.sorting, x.sector, x.t
+				""";
 
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -4626,7 +4641,7 @@ public class Dao {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
 		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark")))
 				? profile.themePreference()
-				: null;
+						: null;
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=?, theme_preference=COALESCE(theme_preference, ?) WHERE id=?")) {
 			ps.setString(1, profile.firstname());
 			ps.setString(2, profile.lastname());
