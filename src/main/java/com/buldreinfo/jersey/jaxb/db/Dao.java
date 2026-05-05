@@ -121,7 +121,6 @@ import com.buldreinfo.jersey.jaxb.model.TopRank;
 import com.buldreinfo.jersey.jaxb.model.TopUser;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
-import com.buldreinfo.jersey.jaxb.model.TypeNumTickedTodo;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
 import com.google.cloud.vision.v1.EntityAnnotation;
@@ -1023,7 +1022,7 @@ public class Dao {
 			    String originalLabel = gd.getGrade();
 			    String baseLabel = (originalLabel == null || originalLabel.equalsIgnoreCase("n/a")) 
 			                       ? "n/a" 
-			                       : originalLabel.replaceAll("[a-zA-Z/]+$", "");
+			                       : originalLabel.replaceAll("[ABC]$", "");
 			    Map<Integer, Integer> sectorCountsForThisGrade = new HashMap<>();
 			    for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
 			        int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
@@ -1039,68 +1038,14 @@ public class Dao {
 			        Optional<Area.GradeCount> existing = sector.getGradeCounts().stream()
 			                .filter(gc -> gc.grade().equals(baseLabel))
 			                .findFirst();
-
 			        if (existing.isPresent()) {
 			            int index = sector.getGradeCounts().indexOf(existing.get());
-			            sector.getGradeCounts().set(index, new Area.GradeCount(baseLabel, existing.get().num() + count));
+			            int newTotal = existing.get().num() + count;
+			            sector.getGradeCounts().set(index, new Area.GradeCount(baseLabel, newTotal));
 			        } else {
 			            sector.getGradeCounts().add(new Area.GradeCount(baseLabel, count));
 			        }
 			    }
-			}
-		}
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT s.id,
-				       CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END type,
-				       COUNT(DISTINCT p.id) num,
-				       COUNT(DISTINCT CASE WHEN f.user_id IS NOT NULL OR t.user_id IS NOT NULL THEN p.id END) num_ticked,
-				       COUNT(DISTINCT td.id) num_todo
-				FROM area a
-				     INNER JOIN sector s ON a.id=s.area_id
-					 INNER JOIN problem p ON s.id=p.sector_id
-					 INNER JOIN type ty ON p.type_id=ty.id
-					 LEFT JOIN fa f ON p.id=f.problem_id AND f.user_id=?
-					 LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?
-					 LEFT JOIN todo td ON p.id=td.problem_id AND td.user_id=?
-					 LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE a.id=?
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END
-				ORDER BY s.id, CASE WHEN p.grade IS NULL OR p.grade=0 THEN 'Projects' WHEN p.broken IS NOT NULL THEN 'Broken' ELSE CONCAT(ty.type, 's', CASE WHEN ty.subtype IS NOT NULL THEN CONCAT(' (',ty.subtype,')') ELSE '' END) END
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, reqId);
-			Map<String, TypeNumTickedTodo> lookup = new LinkedHashMap<>();
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int sectorId = rst.getInt("id");
-					String type = rst.getString("type");
-					int num = rst.getInt("num");
-					int numTicked = rst.getInt("num_ticked");
-					int numTodo = rst.getInt("num_todo");
-					TypeNumTickedTodo typeNumTickedTodo = new TypeNumTickedTodo(type, num, numTicked, numTodo);
-					// Sector
-					Optional<Area.AreaSector> optSector = a.getSectors().stream().filter(x -> x.getId() == sectorId).findAny();
-					if (optSector.isPresent()) {
-						optSector.get().getTypeNumTickedTodo().add(typeNumTickedTodo);
-					}
-					// Area
-					TypeNumTickedTodo areaTnt = lookup.get(type);
-					if (areaTnt == null) {
-						areaTnt = new TypeNumTickedTodo(type, num, numTicked, numTodo);
-						a.getTypeNumTickedTodo().add(areaTnt);
-						lookup.put(type, areaTnt);
-					}
-					else {
-						areaTnt.addNum(num);
-						areaTnt.addTicked(numTicked);
-						areaTnt.addTodo(numTodo);
-					}
-				}
 			}
 		}
 		a.orderSectors();

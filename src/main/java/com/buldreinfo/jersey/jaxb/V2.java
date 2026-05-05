@@ -972,15 +972,11 @@ public class V2 {
 			final Optional<Integer> authUserId = Optional.empty();
 			Area a = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
 			String description = null;
-			String info = a.getTypeNumTickedTodo() == null || a.getTypeNumTickedTodo().isEmpty()? null : a.getTypeNumTickedTodo()
-					.stream()
-					.map(tnt -> tnt.getNum() + " " + tnt.getType().toLowerCase())
-					.collect(Collectors.joining(", "));
 			if (setup.gradeSystem().equals(GradeSystem.BOULDER)) {
-				description = String.format("Bouldering in %s (%s)", a.getName(), info);
+				description = String.format("Bouldering in %s", a.getName());
 			}
 			else {
-				description = String.format("Climbing in %s (%s)", a.getName(), info);
+				description = String.format("Climbing in %s", a.getName());
 			}
 			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().getFirst() : null;
 			String html = getHtml(setup,

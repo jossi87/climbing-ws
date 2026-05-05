@@ -26,7 +26,6 @@ public class Area {
 		private Slope descent;
 		private final MediaIdentity randomMedia;
 		private final List<SectorProblem> problems = new ArrayList<>();
-		private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
 		private List<GradeCount> gradeCounts;
 
 		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, MediaIdentity randomMedia) {
@@ -115,10 +114,6 @@ public class Area {
 			return sunToHour;
 		}
 
-		public List<TypeNumTickedTodo> getTypeNumTickedTodo() {
-			return typeNumTickedTodo;
-		}
-
 		public CompassDirection getWallDirectionCalculated() {
 			return wallDirectionCalculated;
 		}
@@ -177,7 +172,6 @@ public class Area {
 	private final List<NewMedia> newMedia;
 	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
-	private final List<TypeNumTickedTodo> typeNumTickedTodo = new ArrayList<>();
 
 	public Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
@@ -289,10 +283,6 @@ public class Area {
 		return triviaMedia;
 	}
 
-	public List<TypeNumTickedTodo> getTypeNumTickedTodo() {
-		return typeNumTickedTodo;
-	}
-	
 	public boolean isForDevelopers() {
 		return forDevelopers;
 	}
