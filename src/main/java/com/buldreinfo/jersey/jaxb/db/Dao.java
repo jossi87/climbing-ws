@@ -1018,9 +1018,12 @@ public class Dao {
 			getSectorSlopes(c, true, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setApproach(e.getValue()));			
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
-			// Add grade counts
+			// Add simplified grade counts
 			for (GradeDistribution gd : getGradeDistribution(c, authUserId, s, reqId, 0)) {
-			    String gradeLabel = gd.getGrade();
+			    String originalLabel = gd.getGrade();
+			    String baseLabel = (originalLabel == null || originalLabel.equalsIgnoreCase("n/a")) 
+			                       ? "n/a" 
+			                       : originalLabel.replaceAll("[a-zA-Z/]+$", "");
 			    Map<Integer, Integer> sectorCountsForThisGrade = new HashMap<>();
 			    for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
 			        int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
@@ -1033,7 +1036,16 @@ public class Dao {
 			            sector.setGradeCounts(new ArrayList<>());
 			        }
 			        int count = sectorCountsForThisGrade.getOrDefault(sector.getId(), 0);
-			        sector.getGradeCounts().add(new Area.GradeCount(gradeLabel, count));
+			        Optional<Area.GradeCount> existing = sector.getGradeCounts().stream()
+			                .filter(gc -> gc.grade().equals(baseLabel))
+			                .findFirst();
+
+			        if (existing.isPresent()) {
+			            int index = sector.getGradeCounts().indexOf(existing.get());
+			            sector.getGradeCounts().set(index, new Area.GradeCount(baseLabel, existing.get().num() + count));
+			        } else {
+			            sector.getGradeCounts().add(new Area.GradeCount(baseLabel, count));
+			        }
 			    }
 			}
 		}
