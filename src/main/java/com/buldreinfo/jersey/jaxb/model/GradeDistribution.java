@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public class GradeDistribution {
 	public class GradeDistributionRow {
+		private final int id;
 		private final String name;
 		private int numBoulder = 0;
 		private int numSport = 0;
@@ -15,8 +16,12 @@ public class GradeDistribution {
 		private int numAid = 0;
 		private int numAidTrad = 0;
 		private int numIce = 0;
-		public GradeDistributionRow(String name) {
+		public GradeDistributionRow(int id, String name) {
+			this.id = id;
 			this.name = name;
+		}
+		public int getId() {
+			return id;
 		}
 		public String getName() {
 			return name;
@@ -80,13 +85,13 @@ public class GradeDistribution {
 		this.grade = grade;
 	}
 	
-	public void addSector(String name, String type, int num) {
+	public void addSector(int id, String name, String type, int num) {
 		GradeDistributionRow row = null;
-		Optional<GradeDistributionRow> optRow = rows.stream().filter(x -> x.getName().equals(name)).findAny();
+		Optional<GradeDistributionRow> optRow = rows.stream().filter(x -> x.getId() == id).findAny();
 		if (optRow.isPresent()) {
 			row = optRow.get();
 		} else {
-			row = new GradeDistributionRow(name);
+			row = new GradeDistributionRow(id, name);
 			rows.add(row);		
 		}
 		switch (type) {

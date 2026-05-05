@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.model;
 
+@Deprecated // TODO 2026-05-05 - JOOY - Remove when graph is used on sector cards
 public class TypeNumTickedTodo {
 	private final String type;
 	private int num;
