@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -26,8 +28,12 @@ import com.google.common.base.Strings;
 
 public class FillProblems {
 	private static Logger logger = LogManager.getLogger();
-	public static enum T {BOLT, TRAD, MIXED, TOPROPE, AID, AIDTRAD, ICE}
+	public static enum T {BOULDER, BOLT, TRAD, MIXED, TOPROPE, AID, AIDTRAD, ICE}
 	private final boolean shouldUpdateHits = false;
+
+	private final Map<String, Integer> areaCache = new HashMap<>();
+	private final Map<Integer, Map<String, Integer>> sectorCache = new HashMap<>();
+	private final Map<String, User> userCache = new HashMap<>();
 
 	private class Data {
 		private final int typeId;
@@ -42,30 +48,16 @@ public class FillProblems {
 		private final String faDate;
 		private final String trivia;
 		public Data(int nr, String area, String sector, String problem, T t, String comment, int numPitches, String grade, String fa, String faDate, String trivia) {
-			if (t.equals(T.BOLT)) {
-				this.typeId = 2;
-			}
-			else if (t.equals(T.TRAD)) {
-				this.typeId = 3;
-			}
-			else if (t.equals(T.MIXED)) {
-				this.typeId = 4;
-			}
-			else if (t.equals(T.TOPROPE)) {
-				this.typeId = 5;
-			}
-			else if (t.equals(T.AID)) {
-				this.typeId = 6;
-			}
-			else if (t.equals(T.AIDTRAD)) {
-				this.typeId = 7;
-			}
-			else if (t.equals(T.ICE)) {
-				this.typeId = 10;	
-			}
-			else {
-				throw new RuntimeException("Invalid t=" + t);
-			}
+			this.typeId = switch (t) {
+			case BOULDER -> 1;
+			case BOLT -> 2;
+			case TRAD -> 3;
+			case MIXED -> 4;
+			case TOPROPE -> 5;
+			case AID -> 6;
+			case AIDTRAD -> 7;
+			case ICE -> 10;
+			};
 			this.nr = nr;
 			this.area = area;
 			this.sector = sector;
@@ -117,7 +109,7 @@ public class FillProblems {
 		}
 	}
 	private final static Optional<Integer> AUTH_USER_ID = Optional.of(1);
-	private final static int REGION_ID = -1; // TODO Fill region
+	private final static int REGION_ID = -1; 
 	private final Setup setup;
 
 	public static void main(String[] args) {
@@ -131,8 +123,7 @@ public class FillProblems {
 				.findAny()
 				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + REGION_ID));
 		List<Data> data = new ArrayList<>();
-		// TODO Fill data (FA-date: yyyy-MM-dd)
-		data.add(new Data(1,"AREA","SECTOR","NAME", T.TRAD, "DESCRIPTION", 1,"6+", "USER_1,USER_2&USER_3", "9999-12-31", null));
+		data.add(new Data(1, "AREA", "SECTOR", "NAME", T.TRAD, "DESCRIPTION", 1, "6+", "USER_1,USER_2&USER_3", "9999-12-31", null)); // TODO
 		Preconditions.checkArgument(data.size() > 1, "Invalid data");
 		Server.runSql((dao, c) -> {
 			for (Data d : data) {
@@ -147,14 +138,20 @@ public class FillProblems {
 		List<User> res = new ArrayList<>();
 		if (!Strings.isNullOrEmpty(fa)) {
 			String splitter = fa.contains("&")? "&" : ",";
-			for (String user : fa.split(splitter)) {
-				user = user.trim();
+			for (String userName : fa.split(splitter)) {
+				userName = userName.trim();
+				if (userCache.containsKey(userName)) {
+					res.add(userCache.get(userName));
+					continue;
+				}
 				int id = -1;
-				List<User> users = dao.getUserSearch(c, AUTH_USER_ID, user);
+				List<User> users = dao.getUserSearch(c, AUTH_USER_ID, userName);
 				if (!users.isEmpty()) {
 					id = users.getFirst().id();
 				}
-				res.add(User.from(id, user));
+				User user = User.from(id, userName);
+				userCache.put(userName, user);
+				res.add(user);
 			}
 		}
 		return res;
@@ -174,25 +171,36 @@ public class FillProblems {
 	}
 
 	private int upsertArea(Dao dao, Connection c, Data d) throws IOException, SQLException, InterruptedException {
+		if (areaCache.containsKey(d.getArea())) {
+			return areaCache.get(d.getArea());
+		}
 		for (Area a : dao.getAreaList(c, AUTH_USER_ID, REGION_ID)) {
 			if (a.getName().equals(d.getArea())) {
+				areaCache.put(d.getArea(), a.getId());
 				return a.getId();
 			}
 		}
 		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null);
 		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a, null);
+		areaCache.put(d.getArea(), r.idArea());
 		return r.idArea();
 	}
 
 	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
+		Map<String, Integer> areaSectors = sectorCache.computeIfAbsent(idArea, _ -> new HashMap<>());
+		if (areaSectors.containsKey(d.getSector())) {
+			return areaSectors.get(d.getSector());
+		}
 		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
 		for (AreaSector s : a.getSectors()) {
 			if (s.getName().equals(d.getSector())) {
+				areaSectors.put(d.getSector(), s.getId());
 				return s.getId();
 			}
 		}
 		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null);
 		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s, null);
+		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();
 	}
 }
