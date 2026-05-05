@@ -1019,21 +1019,22 @@ public class Dao {
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
 			// Add grade counts
-			Collection<GradeDistribution> areaDist = getGradeDistribution(c, authUserId, s, reqId, 0);
-			for (GradeDistribution gd : areaDist) {
-				String gradeLabel = gd.getGrade();
-				for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
-					int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
-							row.getNumMixed() + row.getNumTopRope() + row.getNumAid() + 
-							row.getNumAidTrad() + row.getNumIce();
-					Area.AreaSector sector = sectorLookup.get(row.getId());
-					if (sector != null) {
-						if (sector.getGradeCounts() == null) {
-							sector.setGradeCounts(new ArrayList<>());
-						}
-						sector.getGradeCounts().add(new Area.GradeCount(gradeLabel, total));
-					}
-				}
+			for (GradeDistribution gd : getGradeDistribution(c, authUserId, s, reqId, 0)) {
+			    String gradeLabel = gd.getGrade();
+			    Map<Integer, Integer> sectorCountsForThisGrade = new HashMap<>();
+			    for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
+			        int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
+			                    row.getNumMixed() + row.getNumTopRope() + row.getNumAid() + 
+			                    row.getNumAidTrad() + row.getNumIce();
+			        sectorCountsForThisGrade.put(row.getId(), total);
+			    }
+			    for (Area.AreaSector sector : sectorLookup.values()) {
+			        if (sector.getGradeCounts() == null) {
+			            sector.setGradeCounts(new ArrayList<>());
+			        }
+			        int count = sectorCountsForThisGrade.getOrDefault(sector.getId(), 0);
+			        sector.getGradeCounts().add(new Area.GradeCount(gradeLabel, count));
+			    }
 			}
 		}
 		try (PreparedStatement ps = c.prepareStatement("""
