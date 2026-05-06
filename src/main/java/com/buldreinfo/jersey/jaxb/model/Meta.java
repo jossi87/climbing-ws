@@ -61,14 +61,10 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Integer> faYears = dao.getFaYears(c, setup.idRegion());
 		int defaultZoom = setup.defaultZoom();
 		LatLng defaultCenter = setup.defaultCenter();
-		GradeSystem gradeSystem = setup.gradeSystem();
-		boolean isBouldering = gradeSystem.equals(GradeSystem.BOULDER);
-		boolean isClimbing = gradeSystem.equals(GradeSystem.CLIMBING);
-		boolean isIce = gradeSystem.equals(GradeSystem.ICE);
 		String url = setup.url();
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Region> regions = dao.getRegions(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaIdentity, grades, faYears, defaultZoom, defaultCenter, isBouldering, isClimbing, isIce, url, types, regions, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaIdentity, grades, faYears, defaultZoom, defaultCenter, setup.isBouldering(), setup.isClimbing(), setup.isIce(), url, types, regions, compassDirections);
 	}
 }

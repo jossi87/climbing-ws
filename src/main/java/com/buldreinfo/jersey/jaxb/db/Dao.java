@@ -575,7 +575,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
 					Set<Integer> currentActivityIds = new HashSet<>();
 					String raw = rst.getString("activities");
 					if (raw != null) {
@@ -625,7 +625,7 @@ public class Dao {
 						if (a != null) {
 							int userId = rst.getInt("user_id");
 							String name = rst.getString("name");
-							a.setTick(false, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(false, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade")));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -657,7 +657,7 @@ public class Dao {
 						if (a != null) {
 							int userId = rst.getInt("user_id");
 							String name = rst.getString("name");
-							a.setTick(true, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade")));
+							a.setTick(true, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade")));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -1304,7 +1304,7 @@ public class Dao {
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromIdGrade(grade), postBy, postWhen, postTxt));
+					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), postBy, postWhen, postTxt));
 				}
 			}
 		}
@@ -1378,7 +1378,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
+					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade_id"));
 					List<User> users = new ArrayList<>();
 					String rawUsers = rst.getString("user_data");
 					if (rawUsers != null) {
@@ -1502,7 +1502,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String tickGrade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("tick_grade"));
+					String tickGrade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("tick_grade"));
 					boolean repeat = ACTIVITY_TYPE_TICK_REPEAT.equals(rst.getString("activity_type"));
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
@@ -1561,7 +1561,7 @@ public class Dao {
 			ps.setInt(ix++, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					String grade = setup.gradeConverter().getGradeFromIdGrade(rst.getInt("grade_id"));
+					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade_id"));
 					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
 					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), grade));
 				}
@@ -1691,7 +1691,7 @@ public class Dao {
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
 					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
-					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromIdGrade(grade), photographer, tagged));
+					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), photographer, tagged));
 				}
 			}
 		}
@@ -2064,8 +2064,8 @@ public class Dao {
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
 							neighbourPrev, neighbourNext,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							s.gradeConverter().getGradeFromIdGrade(grade),
-							s.gradeConverter().getGradeFromIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
+							s.gradeConverter().getGradeFromDeprecatedIdGrade(grade),
+							s.gradeConverter().getGradeFromDeprecatedIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
@@ -2123,7 +2123,7 @@ public class Dao {
 						noPersonalGrade = true;
 					}
 					else {
-						grade = s.gradeConverter().getGradeFromIdGrade(idGrade);
+						grade = s.gradeConverter().getGradeFromDeprecatedIdGrade(idGrade);
 					}
 					boolean writable = idUser == authUserId.orElse(0);
 					ProblemTick t = p.addTick(id, idUser, mediaIdentity, date, name, grade, noPersonalGrade, comment, stars, writable);
@@ -2241,12 +2241,12 @@ public class Dao {
 								.toList();
 						p.getMedia().removeAll(sectionMedia);
 					}
-					p.addSection(id, nr, description, s.gradeConverter().getGradeFromIdGrade(grade), sectionMedia);
+					p.addSection(id, nr, description, s.gradeConverter().getGradeFromDeprecatedIdGrade(grade), sectionMedia);
 				}
 			}
 		}
 		// First aid ascent
-		if (!s.gradeSystem().equals(GradeSystem.BOULDER)) {
+		if (!s.isBouldering()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
@@ -2629,7 +2629,7 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
@@ -2688,12 +2688,12 @@ public class Dao {
 					boolean fa = rst.getBoolean("fa");
 					int grade = rst.getInt("grade");
 					boolean noPersonalGrade = false;
-					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
 				}
 			}
 		}
 		// First aid ascent
-		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+		if (!setup.isBouldering()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT r.name region_name,
 					       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
@@ -2757,7 +2757,7 @@ public class Dao {
 							}
 						}
 						else {
-							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromIdGrade(grade), grade, noPersonalGrade);
+							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
 							idProblemTickMap.put(idProblem, tick);
 						}
 					}
@@ -2846,7 +2846,7 @@ public class Dao {
 					int problemGrade = rst.getInt("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade));
+					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade));
 					s.problems().add(p);
 					problemLookup.put(problemId, p);
 				}
@@ -3070,7 +3070,7 @@ public class Dao {
 					case "PROBLEM" -> {
 						int grade = rst.getInt("grade");
 						String rock = rst.getString("rock");
-						String fullTitle = title + " [" + setup.gradeConverter().getGradeFromIdGrade(grade) + "]";
+						String fullTitle = title + " [" + setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade) + "]";
 						String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
 						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
@@ -3230,7 +3230,15 @@ public class Dao {
 
 	public List<Setup> getSetups(Connection c) throws SQLException {
 		List<Setup> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group FROM region r, region_type rt, type t WHERE r.id=rt.region_id AND rt.type_id=t.id GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group ORDER BY r.id")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
+				FROM region r
+				JOIN region_type rt ON r.id=rt.region_id
+				JOIN type t ON rt.type_id=t.id
+				JOIN type_grade_system tgs ON t.id=tgs.type_id
+				GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
+				ORDER BY r.id
+				""")) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idRegion = rst.getInt("id_region");
@@ -3241,15 +3249,10 @@ public class Dao {
 					double longitude = rst.getDouble("longitude");
 					int defaultZoom = rst.getInt("default_zoom");
 					String group = rst.getString("group");
-					GradeSystem gradeSystem = switch (group) {
-					case "Bouldering" -> GradeSystem.BOULDER;
-					case "Climbing" -> GradeSystem.CLIMBING;
-					case "Ice" -> GradeSystem.ICE;
-					default -> throw new IllegalArgumentException("Invalid group: " + group);
-					};
+					int gradeSystemId = rst.getInt("grade_system_id");
 					List<CompassDirection> compassDirections = getCompassDirections(c);
-					GradeConverter gradeConverter = new GradeConverter(getGrades(c, gradeSystem));
-					res.add(Setup.newBuilder(domain, gradeSystem)
+					GradeConverter gradeConverter = new GradeConverter(getGrades(c, gradeSystemId));
+					res.add(Setup.newBuilder(domain, group, gradeSystemId, GradeSystem.ofGroup(group))
 							.withIdRegion(idRegion)
 							.withTitle(title)
 							.withDescription(description)
@@ -3364,7 +3367,7 @@ public class Dao {
 					ticks.add(new PublicAscent(
 							areaId, areaName, areaLockedAdmin, areaLockedSuperadmin,
 							sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin,
-							problemId, setup.gradeConverter().getGradeFromIdGrade(problemGrade),
+							problemId, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade),
 							problemName, problemLockedAdmin, problemLockedSuperadmin, date, name
 							));
 				}
@@ -3485,7 +3488,7 @@ public class Dao {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, startingAltitude, coordinates, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, startingAltitude, coordinates, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
 					s.problems().add(p);
 					numProblems++;
 				}
@@ -3540,7 +3543,7 @@ public class Dao {
 					int pitch = rst.getInt("pitch");
 					int grade = rst.getInt("grade");
 					String description = rst.getString("description");
-					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromIdGrade(grade), description));
+					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), description));
 				}
 			}
 		}
@@ -3605,7 +3608,7 @@ public class Dao {
 						int problemGrade = rst.getInt("problem_grade");
 						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromIdGrade(problemGrade), new ArrayList<>());
+						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade), new ArrayList<>());
 						s.problems().add(p);
 						problemLookup.put(problemId, p);
 					}
@@ -3892,7 +3895,7 @@ public class Dao {
 								.filter(x -> x.idRegion() == regionId)
 								.findAny()
 								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
-								.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+								.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -3943,7 +3946,7 @@ public class Dao {
 								.filter(x -> x.idRegion() == regionId)
 								.findAny()
 								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
-								.gradeConverter().getGradeFromIdGrade(rst.getInt("grade"));
+								.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
 						ExcelSheet sheet = sheets.get(type);
 						if (sheet == null) {
 							sheet = workbook.addSheet(type);
@@ -4395,7 +4398,7 @@ public class Dao {
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
-		final boolean orderByGrade = s.gradeSystem().equals(GradeSystem.BOULDER);
+		final boolean orderByGrade = s.isBouldering();
 		final LocalDate dt = Strings.isNullOrEmpty(p.getFaDate())? null : LocalDate.parse(p.getFaDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		int idProblem = -1;
 		final boolean isLockedAdmin = p.isLockedSuperadmin()? false : p.isLockedAdmin();
@@ -4409,27 +4412,28 @@ public class Dao {
 		}
 		tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 		if (p.getId() > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
-				ps.setInt(5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setObject(6, dt);
-				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(8, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(9, isLockedAdmin);
-				ps.setBoolean(10, p.isLockedSuperadmin());
-				ps.setInt(11, p.getNr());
-				ps.setInt(12, p.getT().id());
-				ps.setString(13, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(14, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(15, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(16, GlobalFunctions.stripString(p.getRouteLength()));
-				ps.setString(17, GlobalFunctions.stripString(p.getDescent()));
-				ps.setBoolean(18, p.isTrash());
-				ps.setInt(19, p.isTrash()? authUserId.orElseThrow() : 0);
-				ps.setInt(20, p.getId());
+				setNullablePositiveInteger(ps, 5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setInt(6, s.gradeConverter().getDeprecatedIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setObject(7, dt);
+				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
+				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(10, isLockedAdmin);
+				ps.setBoolean(11, p.isLockedSuperadmin());
+				ps.setInt(12, p.getNr());
+				ps.setInt(13, p.getT().id());
+				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
+				ps.setString(17, GlobalFunctions.stripString(p.getRouteLength()));
+				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
+				ps.setBoolean(19, p.isTrash());
+				ps.setInt(20, p.isTrash()? authUserId.orElseThrow() : 0);
+				ps.setInt(21, p.getId());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
@@ -4437,25 +4441,26 @@ public class Dao {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
 				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
-				ps.setInt(6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setObject(7, dt);
-				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(10, isLockedAdmin);
-				ps.setBoolean(11, p.isLockedSuperadmin());
-				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(13, p.getT().id());
-				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(17, GlobalFunctions.stripString(p.getRouteLength()));
-				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
+				setNullablePositiveInteger(ps, 6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setInt(7, s.gradeConverter().getDeprecatedIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setObject(8, dt);
+				setNullablePositiveInteger(ps, 9, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
+				ps.setString(10, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(11, isLockedAdmin);
+				ps.setBoolean(12, p.isLockedSuperadmin());
+				ps.setInt(13, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(14, p.getT().id());
+				ps.setString(15, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(16, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(17, GlobalFunctions.stripString(p.getAspect()));
+				ps.setString(18, GlobalFunctions.stripString(p.getRouteLength()));
+				ps.setString(19, GlobalFunctions.stripString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4539,19 +4544,20 @@ public class Dao {
 			ps.execute();
 		}
 		if (p.getSections() != null && p.getSections().size() > 1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade) VALUES (?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade_id, grade) VALUES (?, ?, ?, ?, ?)")) {
 				for (ProblemSection section : p.getSections()) {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.nr());
 					ps.setString(3, GlobalFunctions.stripString(section.description()));
-					ps.setInt(4, s.gradeConverter().getIdGradeFromGrade(section.grade()));
+					setNullablePositiveInteger(ps, 4, s.gradeConverter().getIdGradeFromGrade(section.grade()));
+					ps.setInt(5, s.gradeConverter().getDeprecatedIdGradeFromGrade(section.grade()));
 					ps.addBatch();
 				}
 				ps.executeBatch();
 			}
 		}
 		// First aid ascent
-		if (!s.gradeSystem().equals(GradeSystem.BOULDER)) {
+		if (!s.isBouldering()) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa_aid WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
 				ps.execute();
@@ -4862,13 +4868,14 @@ public class Dao {
 			}
 		}
 		else if (t.id() == -1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade_id, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId.orElseThrow());
 				ps.setObject(3, dt);
-				ps.setInt(4, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
-				ps.setString(5, GlobalFunctions.stripString(t.comment()));
-				ps.setDouble(6, t.stars());
+				setNullablePositiveInteger(ps, 4, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setInt(5, setup.gradeConverter().getDeprecatedIdGradeFromGrade(t.grade()));
+				ps.setString(6, GlobalFunctions.stripString(t.comment()));
+				ps.setDouble(7, t.stars());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4879,14 +4886,15 @@ public class Dao {
 			}
 		}
 		else if (t.id() > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade_id=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setObject(1, dt);
-				ps.setInt(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
-				ps.setString(3, GlobalFunctions.stripString(t.comment()));
-				ps.setDouble(4, t.stars());
-				ps.setInt(5, t.id());
-				ps.setInt(6, t.idProblem());
-				ps.setInt(7, authUserId.orElseThrow());
+				setNullablePositiveInteger(ps, 2, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
+				ps.setInt(3, setup.gradeConverter().getDeprecatedIdGradeFromGrade(t.grade()));
+				ps.setString(4, GlobalFunctions.stripString(t.comment()));
+				ps.setDouble(5, t.stars());
+				ps.setInt(6, t.id());
+				ps.setInt(7, t.idProblem());
+				ps.setInt(8, authUserId.orElseThrow());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
@@ -5589,15 +5597,21 @@ public class Dao {
 		return res;
 	}
 
-	private List<Grade> getGrades(Connection c, GradeSystem gradeSystem) throws SQLException {
+	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
 		List<Grade> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT grade_id, grade FROM grade WHERE t=? ORDER BY grade_id")) {
-			ps.setString(1, gradeSystem.toString());
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT g.id, g.grade, g.grade_id deprecated_grade_id
+				FROM grade g
+				WHERE g.grade_system_id=?
+				ORDER BY g.weight
+				""")) {
+			ps.setInt(1, gradeSystemId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int gradeId = rst.getInt("grade_id");
+					int id = rst.getInt("id");
 					String grade = rst.getString("grade");
-					res.add(new Grade(gradeId, grade));
+					int deprecatedGradeId = rst.getInt("deprecated_grade_id");
+					res.add(new Grade(id, grade, deprecatedGradeId));
 				}
 			}
 		}
@@ -5839,7 +5853,7 @@ public class Dao {
 			// Only images without topo lines or images with topo lines for this problem
 			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
 		}
-		else if (!showHiddenMedia && s.gradeSystem().equals(GradeSystem.BOULDER) && optionalIdProblem != 0) {
+		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
 			// In bouldering we don't want to show all rocks with lines if this one does not have a line
 			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
 		}
@@ -5959,7 +5973,7 @@ public class Dao {
 	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
 		List<SectorProblem> res = new ArrayList<>();
 		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+		if (!setup.isBouldering()) {
 			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
 		}
 		String sqlStr = """
@@ -6022,7 +6036,7 @@ public class Dao {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromIdGrade(grade), fa, faDateStr, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
+					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), fa, faDateStr, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
 				}
 			}
 		}

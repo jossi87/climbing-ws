@@ -19,7 +19,6 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
-import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
@@ -672,7 +671,7 @@ public class V2 {
 	public Response getSectors(@Context HttpServletRequest request,
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final boolean orderByGrade = setup.gradeSystem().equals(GradeSystem.BOULDER);
+			final boolean orderByGrade = setup.isBouldering();
 			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			Response response = Response.ok().entity(s).build();
 			return response;
@@ -793,7 +792,7 @@ public class V2 {
 										type += " (" + p.t().subType() + ")";			
 									}
 									sheet.writeString("TYPE", type);
-									if (!setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+									if (!setup.isBouldering()) {
 										sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
 									}
 									sheet.writeString("FA", p.fa());
@@ -945,7 +944,7 @@ public class V2 {
 					meta.regions().size(),
 					stats.areas(),
 					stats.problems(),
-					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
+					(setup.isBouldering()? "boulders" : "routes"),
 					stats.ticks());
 			String html = getHtml(setup,
 					setup.url(),
@@ -972,7 +971,7 @@ public class V2 {
 			final Optional<Integer> authUserId = Optional.empty();
 			Area a = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
 			String description = null;
-			if (setup.gradeSystem().equals(GradeSystem.BOULDER)) {
+			if (setup.isBouldering()) {
 				description = String.format("Bouldering in %s", a.getName());
 			}
 			else {
@@ -1079,11 +1078,11 @@ public class V2 {
 			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
-					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "Bouldering" : "Climbing"),
+					(setup.isBouldering()? "Bouldering" : "Climbing"),
 					s.getAreaName(),
 					s.getName(),
 					(s.getProblems() != null? s.getProblems().size() : 0),
-					(setup.gradeSystem().equals(GradeSystem.BOULDER)? "boulders" : "routes"),
+					(setup.isBouldering()? "boulders" : "routes"),
 					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
 			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().getFirst() : null;
 			String html = getHtml(setup,
