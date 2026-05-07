@@ -5801,7 +5801,7 @@ public class Dao {
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
 		List<Grade> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT g.id, g.grade, g.label_major, c.hex_code color, g.grade_id deprecated_grade_id
+				SELECT g.id, g.grade, g.label_major, c.hex_code color
 				FROM grade g
 				JOIN grade_color c ON g.grade_color_id=c.id
 				WHERE g.grade_system_id=?
@@ -5814,8 +5814,7 @@ public class Dao {
 					String grade = rst.getString("grade");
 					String labelMajor = rst.getString("label_major");
 					String color = rst.getString("color");
-					int deprecatedGradeId = rst.getInt("deprecated_grade_id");
-					res.add(new Grade(id, grade, labelMajor, color, deprecatedGradeId));
+					res.add(new Grade(id, grade, labelMajor, color));
 				}
 			}
 		}
