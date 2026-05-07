@@ -42,7 +42,6 @@ import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
-import com.buldreinfo.jersey.jaxb.beans.GradeSystem;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
@@ -509,55 +508,84 @@ public class Dao {
 		final Set<Integer> gbIds = new HashSet<>();
 		boolean disableDateLimit = offset > 0 ||lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
 		String sqlStr = """
-				SELECT x.activity_timestamp, a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
-				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
-				       x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
-				       ty.subtype problem_subtype,
-				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade,
-				       GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
-				FROM (
-				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
-				    FROM activity a1
-				    JOIN problem p1 ON a1.problem_id=p1.id
-				    JOIN sector s1 ON p1.sector_id=s1.id
-				    JOIN area ar1 ON s1.area_id=ar1.id
-				    WHERE ar1.region_id IN (
-				        SELECT r.id 
-				        FROM region r 
-				        JOIN region_type rt ON r.id=rt.region_id 
-				        LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				          AND (r.id=? OR ur.user_id IS NOT NULL)
-				    )
-				      AND (?=TRUE OR a1.activity_timestamp>DATE_SUB(NOW(), INTERVAL 2 YEAR))
-				      AND (?=TRUE OR a1.type!='FA')
-				      AND (?=TRUE OR a1.type!='GUESTBOOK')
-				      AND (?=TRUE OR a1.type NOT IN ('TICK','TICK_REPEAT'))
-				      AND (?=TRUE OR a1.type!='MEDIA')
-				      AND (?=0 OR p1.grade>=?)
-				      AND (?=0 OR s1.area_id=?)
-				      AND (?=0 OR s1.id=?)
-				    ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
-				    LIMIT ?, 50
-				) x
-				JOIN problem p ON x.problem_id=p.id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				JOIN type ty ON p.type_id=ty.id 
-				JOIN sector s ON p.sector_id=s.id 
-				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY x.activity_timestamp, a.id, a.locked_admin, a.locked_superadmin, a.name, 
-				         s.id, s.locked_admin, s.locked_superadmin, s.name, 
-				         x.problem_id, p.locked_admin, p.locked_superadmin, p.name, p.grade, ty.subtype
-				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
+				WITH req AS (
+				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
+				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight,
+				         ? filter_area_id, ? filter_sector_id
+				),
+				x AS (
+				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
+				  FROM activity a1
+				  JOIN req ON 1=1
+				  JOIN problem p1 ON a1.problem_id = p1.id
+				  JOIN sector s1 ON p1.sector_id = s1.id
+				  JOIN area ar1 ON s1.area_id = ar1.id
+				  WHERE ar1.region_id IN (
+				      SELECT r.id FROM region r 
+				      JOIN region_type rt ON r.id = rt.region_id 
+				      LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = req.auth_user_id)
+				      WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				        AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
+				  )
+				    AND (req.show_all_time = 1 OR a1.activity_timestamp > DATE_SUB(NOW(), INTERVAL 2 YEAR))
+				    AND (req.hide_fa = 0 OR a1.type != 'FA')
+				    AND (req.hide_guestbook = 0 OR a1.type != 'GUESTBOOK')
+				    AND (req.hide_ticks = 0 OR a1.type NOT IN ('TICK','TICK_REPEAT'))
+				    AND (req.hide_media = 0 OR a1.type != 'MEDIA')
+				    AND (req.min_grade_weight = 0 OR p1.grade_id IN (SELECT id FROM grade WHERE weight >= req.min_grade_weight))
+				    AND (req.filter_area_id = 0 OR s1.area_id = req.filter_area_id)
+				    AND (req.filter_sector_id = 0 OR s1.id = req.filter_sector_id)
+				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
+				  LIMIT 50 OFFSET ?
+				),
+				problem_data AS (
+				  SELECT 
+				    x.activity_timestamp, x.id activity_id, x.type activity_type,
+				    a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, 
+				    s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, 
+				    x.problem_id, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, p.name problem_name, 
+				    ty.subtype problem_subtype,
+				    tgs.grade_system_id,
+				    ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) calc_weight
+				  FROM x
+				  JOIN req ON 1=1
+				  JOIN problem p ON x.problem_id = p.id
+				  JOIN type ty ON p.type_id = ty.id 
+				  JOIN sector s ON p.sector_id = s.id 
+				  JOIN area a ON s.area_id = a.id 
+				  JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				  JOIN grade g_orig ON p.grade_id = g_orig.id
+				  LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
+				  LEFT JOIN (tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a') ON p.id = tk.problem_id
+				  WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
+				    AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
+				    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				  GROUP BY 
+				    x.activity_timestamp, x.id, x.type, a.id, a.locked_admin, a.locked_superadmin, a.name, 
+				    s.id, s.locked_admin, s.locked_superadmin, s.name, 
+				    x.problem_id, p.locked_admin, p.locked_superadmin, p.name, g_orig.weight, ty.subtype, tgs.grade_system_id,
+				    ur.admin_read, ur.superadmin_read, a.trash, s.trash, p.trash
+				)
+				SELECT 
+				    pd.activity_timestamp, pd.area_id, pd.area_locked_admin, pd.area_locked_superadmin, pd.area_name, 
+				    pd.sector_id, pd.sector_locked_admin, pd.sector_locked_superadmin, pd.sector_name, 
+				    pd.problem_id, pd.problem_locked_admin, pd.problem_locked_superadmin, pd.problem_name, 
+				    pd.problem_subtype,
+				    g_final.grade grade,
+				    GROUP_CONCAT(DISTINCT concat(pd.activity_id,'-',pd.activity_type) SEPARATOR ',') activities 
+				FROM problem_data pd
+				LEFT JOIN grade g_final ON pd.calc_weight = g_final.weight AND g_final.grade_system_id = pd.grade_system_id
+				GROUP BY 
+				    pd.activity_timestamp, pd.area_id, pd.area_locked_admin, pd.area_locked_superadmin, pd.area_name, 
+				    pd.sector_id, pd.sector_locked_admin, pd.sector_locked_superadmin, pd.sector_name, 
+				    pd.problem_id, pd.problem_locked_admin, pd.problem_locked_superadmin, pd.problem_name, 
+				    pd.problem_subtype, g_final.grade
+				ORDER BY pd.activity_timestamp DESC, pd.problem_id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
 			ps.setInt(ix++, setup.idRegion());
 			ps.setBoolean(ix++, disableDateLimit);
 			ps.setBoolean(ix++, fa);
@@ -565,17 +593,12 @@ public class Dao {
 			ps.setBoolean(ix++, ticks);
 			ps.setBoolean(ix++, media);
 			ps.setInt(ix++, lowerGrade);
-			ps.setInt(ix++, lowerGrade);
 			ps.setInt(ix++, idArea);
-			ps.setInt(ix++, idArea);
-			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, offset);
-			ps.setInt(ix++, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
 					Set<Integer> currentActivityIds = new HashSet<>();
 					String raw = rst.getString("activities");
 					if (raw != null) {
@@ -597,7 +620,7 @@ public class Dao {
 							rst.getInt("area_id"), rst.getString("area_name"), rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"),
 							rst.getInt("sector_id"), rst.getString("sector_name"), rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"),
 							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-							rst.getString("problem_name"), rst.getString("problem_subtype"), grade));
+							rst.getString("problem_name"), rst.getString("problem_subtype"), rst.getString("grade")));
 				}
 			}
 		}
@@ -611,9 +634,10 @@ public class Dao {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
-					       t.comment description, t.stars, t.grade
+					       t.comment description, t.stars, g.grade
 					FROM activity a
 					JOIN tick t ON a.problem_id=t.problem_id
+					LEFT JOIN grade g ON t.grade_id=g.id
 					JOIN user u ON t.user_id=u.id AND a.user_id=u.id
 					LEFT JOIN media m ON u.media_id=m.id
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
@@ -625,7 +649,11 @@ public class Dao {
 						if (a != null) {
 							int userId = rst.getInt("user_id");
 							String name = rst.getString("name");
-							a.setTick(false, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade")));
+							String grade = rst.getString("grade");
+							if (grade == null) {
+								grade = GradeConverter.NO_PERSONAL_GRADE;
+							}
+							a.setTick(false, userId, name, rst.getString("description"), rst.getInt("stars"), grade);
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -642,10 +670,11 @@ public class Dao {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
-					       r.comment description, t.stars, t.grade
+					       r.comment description, t.stars, g.grade
 					FROM activity a
 					JOIN user u ON a.user_id=u.id
 					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
+					LEFT JOIN grade g ON t.grade_id=g.id
 					JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
 					LEFT JOIN media m ON u.media_id=m.id
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
@@ -657,7 +686,11 @@ public class Dao {
 						if (a != null) {
 							int userId = rst.getInt("user_id");
 							String name = rst.getString("name");
-							a.setTick(true, userId, name, rst.getString("description"), rst.getInt("stars"), setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade")));
+							String grade = rst.getString("grade");
+							if (grade == null) {
+								grade = GradeConverter.NO_PERSONAL_GRADE;
+							}
+							a.setTick(true, userId, name, rst.getString("description"), rst.getInt("stars"), grade);
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -1294,12 +1327,13 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
 				       s.id sector_id, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour,
-				       p.id problem_id, p.broken problem_broken, p.nr problem_nr, p.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       p.id problem_id, p.broken problem_broken, p.nr problem_nr, gr.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message
 				FROM area a
 				JOIN region_type rt ON a.region_id=rt.region_id
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
+				JOIN grade gr ON p.grade_id=gr.id
 				JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)
 				JOIN user u ON g.user_id=u.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
@@ -1308,7 +1342,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour,
 				         s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, s.sun_from_hour, s.sun_to_hour,
-				         p.id, p.broken, p.nr, p.grade, p.name, p.locked_admin, p.locked_superadmin,
+				         p.id, p.broken, p.nr, gr.grade, p.name, p.locked_admin, p.locked_superadmin,
 				         u.firstname, u.lastname, g.post_time, g.message
 				ORDER BY a.name, s.name, p.nr
 				""")) {
@@ -1348,14 +1382,14 @@ public class Dao {
 					int id = rst.getInt("problem_id");
 					String broken = rst.getString("problem_broken");
 					int nr = rst.getInt("problem_nr");
-					int grade = rst.getInt("problem_grade");
+					String grade = rst.getString("problem_grade");
 					boolean lockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
 					String name = rst.getString("problem_name");
 					String postBy = rst.getString("name");
 					String postWhen = rst.getString("post_time");
 					String postTxt = rst.getString("message");
-					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), postBy, postWhen, postTxt));
+					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, grade, postBy, postWhen, postTxt));
 				}
 			}
 		}
@@ -1384,11 +1418,7 @@ public class Dao {
 	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageFirstAscent> res = new ArrayList<>();
 		String sqlStr = """
-				SELECT x.activity_timestamp, a.id area_id, a.name area_name,
-				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
-				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id,
-				       GROUP_CONCAT(DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) SEPARATOR '|') user_data
-				FROM (
+				WITH x AS (
 				    SELECT a1.id, a1.activity_timestamp, a1.problem_id 
 				    FROM activity a1
 				    JOIN problem p1 ON a1.problem_id=p1.id
@@ -1403,22 +1433,47 @@ public class Dao {
 				          AND (r.id=? OR ur.user_id IS NOT NULL)
 				    )
 				    ORDER BY a1.activity_timestamp DESC LIMIT 8
-				) x
-				JOIN problem p ON x.problem_id=p.id
-				LEFT JOIN fa ON p.id=fa.problem_id
+				),
+				calc AS (
+				    SELECT 
+				        x.activity_timestamp, 
+				        a.id area_id, a.name area_name, a.locked_admin area_la, a.locked_superadmin area_lsa, a.trash area_t,
+				        s.id sector_id, s.locked_admin sector_la, s.locked_superadmin sector_lsa, s.trash sector_t,
+				        p.id problem_id, p.name problem_name, p.locked_admin problem_la, p.locked_superadmin problem_lsa, p.trash problem_t,
+				        ty.subtype problem_subtype,
+				        tgs.grade_system_id,
+				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) as final_weight,
+				        ur.admin_read, ur.superadmin_read
+				    FROM x
+				    JOIN problem p ON x.problem_id=p.id
+				    JOIN type ty ON p.type_id=ty.id 
+				    JOIN sector s ON p.sector_id=s.id 
+				    JOIN area a ON s.area_id = a.id 
+				    JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+				    JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				    JOIN grade g_orig ON p.grade_id = g_orig.id
+				    LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				    LEFT JOIN (
+				        tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				    ) ON p.id = tk.problem_id
+				    GROUP BY x.id, x.activity_timestamp, a.id, s.id, p.id, ty.subtype, tgs.grade_system_id, g_orig.weight, ur.admin_read, ur.superadmin_read
+				)
+				SELECT 
+				    c.activity_timestamp, c.area_id, c.area_name,
+				    c.problem_id, c.problem_name, c.problem_la problem_locked_admin, c.problem_lsa problem_locked_superadmin, c.problem_subtype,
+				    g_final.grade grade,
+				    GROUP_CONCAT(DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) SEPARATOR '|') user_data
+				FROM calc c
+				LEFT JOIN grade g_final ON g_final.grade_system_id = c.grade_system_id AND g_final.weight = c.final_weight
+				LEFT JOIN fa ON c.problem_id=fa.problem_id
 				LEFT JOIN user u ON fa.user_id=u.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				JOIN type ty ON p.type_id=ty.id 
-				JOIN sector s ON p.sector_id=s.id 
-				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, p.grade
-				ORDER BY x.activity_timestamp DESC
+				WHERE is_readable(c.admin_read, c.superadmin_read, c.area_la, c.area_lsa, c.area_t)=1 
+				  AND is_readable(c.admin_read, c.superadmin_read, c.sector_la, c.sector_lsa, c.sector_t)=1 
+				  AND is_readable(c.admin_read, c.superadmin_read, c.problem_la, c.problem_lsa, c.problem_t)=1
+				GROUP BY c.activity_timestamp, c.area_id, c.area_name, c.problem_id, c.problem_name, c.problem_la, c.problem_lsa, c.problem_subtype, g_final.grade
+				ORDER BY c.activity_timestamp DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
@@ -1429,7 +1484,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade_id"));
+					String grade = rst.getString("grade");
 					List<User> users = new ArrayList<>();
 					String rawUsers = rst.getString("user_data");
 					if (rawUsers != null) {
@@ -1512,7 +1567,7 @@ public class Dao {
 		String sqlStr = """
 				SELECT x.activity_timestamp, x.type activity_type, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
-				       t.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
+				       g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
 				FROM (
 				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id, a1.user_id 
@@ -1533,6 +1588,7 @@ public class Dao {
 				JOIN problem p ON x.problem_id=p.id
 				JOIN user u ON x.user_id=u.id
 				JOIN tick t ON p.id=t.problem_id AND u.id=t.user_id
+				LEFT JOIN grade g ON t.grade_id=g.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN type ty ON p.type_id=ty.id 
@@ -1553,7 +1609,10 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					String tickGrade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("tick_grade"));
+					String tickGrade = rst.getString("tick_grade");
+					if (tickGrade == null) {
+						tickGrade = GradeConverter.NO_PERSONAL_GRADE;
+					}
 					boolean repeat = ACTIVITY_TYPE_TICK_REPEAT.equals(rst.getString("activity_type"));
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
@@ -1570,10 +1629,7 @@ public class Dao {
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageNewestMedia> res = new ArrayList<>();
 		String sqlStr = """
-				SELECT m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
-				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
-				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade_id
-				FROM (
+				WITH x AS (
 				    SELECT a1.id, a1.activity_timestamp, a1.problem_id, a1.media_id 
 				    FROM activity a1
 				    JOIN problem p1 ON a1.problem_id=p1.id
@@ -1589,20 +1645,42 @@ public class Dao {
 				          AND (r.id=? OR ur.user_id IS NOT NULL)
 				    )
 				    ORDER BY a1.activity_timestamp DESC LIMIT 12
-				) x
-				JOIN media m ON x.media_id=m.id
+				),
+				calc AS (
+				    SELECT 
+				        x.activity_timestamp, x.media_id,
+				        a.id area_id, a.locked_admin area_la, a.locked_superadmin area_lsa, a.trash area_t,
+				        s.id sector_id, s.locked_admin sector_la, s.locked_superadmin sector_lsa, s.trash sector_t,
+				        p.id problem_id, p.name problem_name, p.locked_admin problem_la, p.locked_superadmin problem_lsa, p.trash problem_t,
+				        ty.id type_id, tgs.grade_system_id,
+				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) as final_weight,
+				        ur.admin_read, ur.superadmin_read
+				    FROM x
+				    JOIN problem p ON x.problem_id=p.id
+				    JOIN type ty ON p.type_id=ty.id 
+				    JOIN sector s ON p.sector_id=s.id 
+				    JOIN area a ON s.area_id = a.id 
+				    JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+				    JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				    JOIN grade g_orig ON p.grade_id = g_orig.id
+				    LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				    LEFT JOIN (
+				        tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				    ) ON p.id = tk.problem_id
+				    WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				      AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				    GROUP BY x.id, x.activity_timestamp, x.media_id, a.id, s.id, p.id, ty.id, tgs.grade_system_id, g_orig.weight, ur.admin_read, ur.superadmin_read
+				)
+				SELECT 
+				    c.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
+				    c.problem_id, c.problem_name, c.problem_la problem_locked_admin, c.problem_lsa problem_locked_superadmin,
+				    g_final.grade grade
+				FROM calc c
+				JOIN media m ON c.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN problem p ON x.problem_id=p.id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				JOIN sector s ON p.sector_id=s.id 
-				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY x.activity_timestamp, m.id, m.updated_at, mma.focus_x, mma.focus_y, m.is_movie,
-				         p.id, p.name, p.locked_admin, p.locked_superadmin, p.grade
-				ORDER BY x.activity_timestamp DESC, m.id DESC
+				LEFT JOIN grade g_final ON g_final.grade_system_id = c.grade_system_id AND g_final.weight = c.final_weight
+				ORDER BY c.activity_timestamp DESC, c.media_id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
@@ -1612,9 +1690,8 @@ public class Dao {
 			ps.setInt(ix++, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					String grade = setup.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade_id"));
 					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
-					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), grade));
+					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), rst.getString("grade")));
 				}
 			}
 		}
@@ -1625,15 +1702,67 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<FrontpageRandomMedia> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH random_id AS (
+				    SELECT id FROM (
+				        SELECT m_sub.id, 
+				               AVG(t_sub.stars) as sub_avg,
+				               mma_sub.is_action_shot,
+				               ROW_NUMBER() OVER (ORDER BY 
+				                   IFNULL(mma_sub.is_action_shot, 0) DESC, 
+				                   (AVG(t_sub.stars) >= 2) DESC, 
+				                   RAND()
+				               ) as random_rank
+				        FROM media m_sub
+				        JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
+				        JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
+				        JOIN sector s_sub ON p_sub.sector_id=s_sub.id
+				        JOIN area a_sub ON s_sub.area_id=a_sub.id
+				        JOIN region r_sub ON a_sub.region_id=r_sub.id
+				        LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+				        LEFT JOIN media_ml_analysis mma_sub ON m_sub.id = mma_sub.media_id
+				        WHERE r_sub.id=?
+				          AND m_sub.deleted_user_id IS NULL
+				          AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
+				          AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
+				          AND m_sub.is_movie=0
+				          AND mp_sub.trivia=0
+				          AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
+				          AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
+				          AND a_sub.locked_admin=0 AND a_sub.locked_superadmin=0
+				        GROUP BY m_sub.id
+				    ) ranked_pool
+				    WHERE (sub_avg>=2 AND is_action_shot=1) OR random_rank<=500
+				    ORDER BY RAND()
+				    LIMIT 20
+				),
+				calc AS (
+				    SELECT 
+				        m.id as mid,
+				        p.id as pid,
+				        tgs.grade_system_id,
+				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) as final_weight
+				    FROM random_id
+				    JOIN media m ON m.id=random_id.id
+				    JOIN media_problem mp ON m.id=mp.media_id AND mp.trivia=0
+				    JOIN problem p ON mp.problem_id=p.id
+				    JOIN type ty ON p.type_id=ty.id
+				    JOIN sector s ON p.sector_id=s.id
+				    JOIN area a ON s.area_id=a.id
+				    JOIN region_type rt ON a.region_id=rt.region_id AND rt.type_id=ty.id
+				    JOIN type_grade_system tgs ON rt.type_id=tgs.type_id
+				    JOIN grade g_orig ON p.grade_id=g_orig.id
+				    LEFT JOIN (
+				        tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				    ) ON p.id = tk.problem_id
+				    GROUP BY m.id, p.id, tgs.grade_system_id, g_orig.weight
+				)
 				SELECT m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
 				       m.width, m.height, 
 				       a.id id_area, a.name area, 
 				       s.id id_sector, s.name sector, 
 				       p.id id_problem, p.name problem,
-				       -- Grade is still needed for the UI
-				       ROUND((IFNULL(SUM(NULLIF(t_grade.grade, -1)), 0) + p.grade) / (COUNT(CASE WHEN t_grade.grade > 0 THEN t_grade.id END) + 1)) grade,
-
-				       -- Photographer: mediaIdentity is NULL if no profile pic exists
+				       g_final.grade grade,
+				
 				       IF(u.id IS NULL, NULL, 
 				          CONCAT('{"id":', u.id, 
 				                 ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\"'), 
@@ -1644,8 +1773,7 @@ public class Dao {
 				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), '}')
 				                       ), '}')
 				       ) photographer,
-
-				       -- Tagged: mediaIdentity is NULL if no profile pic exists
+				
 				       GROUP_CONCAT(DISTINCT 
 				           IF(u2.id IS NULL, NULL, 
 				              CONCAT('{"id":', u2.id, 
@@ -1658,70 +1786,24 @@ public class Dao {
 				                           ), '}')
 				           ) SEPARATOR ', '
 				       ) tagged
-				FROM (
-				    SELECT id FROM (
-				        SELECT id FROM (
-				            SELECT m_sub.id, 
-				                   AVG(t_sub.stars) as sub_avg,
-				                   mma_sub.is_action_shot,
-				                   ROW_NUMBER() OVER (ORDER BY 
-				                       IFNULL(mma_sub.is_action_shot, 0) DESC, 
-				                       (AVG(t_sub.stars) >= 2) DESC, 
-				                       RAND()
-				                   ) as random_rank
-				            FROM media m_sub
-				            JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
-				            JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
-				            JOIN sector s_sub ON p_sub.sector_id=s_sub.id
-				            JOIN area a_sub ON s_sub.area_id=a_sub.id
-				            JOIN region r_sub ON a_sub.region_id=r_sub.id
-				            -- Subquery needs tick for the "star" priority logic
-				            LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				            LEFT JOIN media_ml_analysis mma_sub ON m_sub.id = mma_sub.media_id
-				            WHERE r_sub.id=?
-				              AND m_sub.deleted_user_id IS NULL
-				              AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
-				              AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
-				              AND m_sub.is_movie=0
-				              AND mp_sub.trivia=0
-				              AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
-				              AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
-				              AND a_sub.locked_admin=0 AND a_sub.locked_superadmin=0
-				            GROUP BY m_sub.id
-				        ) ranked_pool
-				        WHERE (sub_avg>=2 AND is_action_shot=1) OR random_rank<=500
-				        ORDER BY RAND()
-				        LIMIT 20
-				    ) final_selection
-				) random_id
-				JOIN media m ON m.id=random_id.id
+				FROM calc c
+				JOIN media m ON m.id=c.mid
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN media_problem mp ON (m.is_movie=0 AND m.id=mp.media_id AND mp.trivia=0)
-				JOIN problem p ON mp.problem_id=p.id AND p.locked_admin=0 AND p.locked_superadmin=0
-				JOIN sector s ON p.sector_id=s.id AND s.locked_admin=0 AND s.locked_superadmin=0
-				JOIN area a ON s.area_id=a.id AND a.locked_admin=0 AND a.locked_superadmin=0
-				JOIN region r ON a.region_id=r.id
-
+				JOIN problem p ON p.id=c.pid
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				LEFT JOIN grade g_final ON g_final.grade_system_id = c.grade_system_id AND g_final.weight = c.final_weight
 				LEFT JOIN user u ON m.photographer_user_id=u.id AND u.id!=1049 
 				LEFT JOIN media ma ON u.media_id=ma.id
 				LEFT JOIN media_ml_analysis mma_u ON ma.id = mma_u.media_id
-
-				LEFT JOIN tick t_grade ON p.id=t_grade.problem_id
-
 				LEFT JOIN media_user mu ON m.id=mu.media_id AND mu.user_id!=1049 
 				LEFT JOIN user u2 ON mu.user_id=u2.id
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
 				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
-
-				WHERE r.id=?
-				  AND m.deleted_user_id IS NULL
-				  AND a.trash IS NULL AND s.trash IS NULL AND p.trash IS NULL
-				  AND a.access_closed IS NULL AND s.access_closed IS NULL
 				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at,
-				         mma.focus_x, mma.focus_y, mma_u.focus_x, mma_u.focus_y
+				         mma.focus_x, mma.focus_y, mma_u.focus_x, mma_u.focus_y, g_final.grade
 				         """)) {
 			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id_media");
@@ -1736,13 +1818,13 @@ public class Dao {
 					String sector = rst.getString("sector");
 					int idProblem = rst.getInt("id_problem");
 					String problem = rst.getString("problem");
-					int grade = rst.getInt("grade");
+					String grade = rst.getString("grade");
 					String photographerJson = rst.getString("photographer");
 					String taggedJson = rst.getString("tagged");
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
 					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
-					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), photographer, tagged));
+					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged));
 				}
 			}
 		}
@@ -1994,10 +2076,37 @@ public class Dao {
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id, ? problem_id
+				    SELECT ? auth_user_id, ? problem_id
+				),
+				calc AS (
+				    SELECT 
+				        p.id pid,
+				        tgs.grade_system_id,
+				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) final_weight,
+				        g_orig.weight as orig_weight,
+				        COUNT(DISTINCT t.id) num_ticks,
+				        ROUND(ROUND(AVG(NULLIF(t.stars, -1)) * 2) / 2, 1) stars
+				    FROM req
+				    JOIN problem p ON p.id = req.problem_id
+				    JOIN type ty ON p.type_id = ty.id
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+				    JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				    JOIN grade g_orig ON p.grade_id = g_orig.id
+				    LEFT JOIN tick t ON p.id = t.problem_id
+				    LEFT JOIN (
+				        tick tk2 JOIN grade gtick ON tk2.grade_id = gtick.id AND gtick.grade != 'n/a'
+				    ) ON t.id = tk2.id
+				    GROUP BY p.id, tgs.grade_system_id, g_orig.weight
 				)
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
-				       ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, p.grade original_grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
+				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
+				       sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
+				       s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
+				       p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m-%y') fa_date_hr,
+				       gf.grade grade, go.grade original_grade,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
 				       GROUP_CONCAT(DISTINCT 
 				           IF(u.id IS NULL, NULL, 
 				              CONCAT('{"id":', u.id, 
@@ -2009,34 +2118,33 @@ public class Dao {
 				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
 				                           ), '}')
 				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
-
-				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
-				       MAX(CASE WHEN (t.user_id = (SELECT auth_user_id FROM req) OR u.id = (SELECT auth_user_id FROM req)) THEN 1 END) ticked, ty.id type_id, ty.type, ty.subtype,
+				       ca.num_ticks, ca.stars,
+				       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
+				       ty.id type_id, ty.type, ty.subtype,
 				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
-				FROM req, area a
-				JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)
-				JOIN type ty ON p.type_id=ty.id
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id
-				LEFT JOIN coordinates c ON p.coordinates_id=c.id
-				LEFT JOIN fa f ON p.id=f.problem_id
-				LEFT JOIN user u ON f.user_id=u.id
+				FROM req
+				JOIN calc ca ON req.problem_id = ca.pid
+				JOIN problem p ON p.id = ca.pid
+				JOIN type ty ON p.type_id = ty.id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				JOIN region r ON a.region_id = r.id
+				LEFT JOIN grade gf ON gf.weight = ca.final_weight AND gf.grade_system_id = ca.grade_system_id
+				LEFT JOIN grade go ON go.weight = ca.orig_weight AND go.grade_system_id = ca.grade_system_id
+				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+				LEFT JOIN coordinates c ON p.coordinates_id = c.id
+				LEFT JOIN fa f ON p.id = f.problem_id
+				LEFT JOIN user u ON f.user_id = u.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = (SELECT region_id FROM req))
-				  AND p.id = (SELECT problem_id FROM req)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				  AND (r.id = (SELECT region_id FROM req) OR ur.user_id IS NOT NULL)
-				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, ty.id, ty.type, ty.subtype, p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
+				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				GROUP BY a.id, s.id, p.id, ca.final_weight, ca.orig_weight, ca.grade_system_id, gf.grade, go.grade, sc.id, c.id, ty.id
 				ORDER BY p.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, s.idRegion());
-			ps.setInt(3, reqId);
+			ps.setInt(2, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
@@ -2068,8 +2176,8 @@ public class Dao {
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int nr = rst.getInt("nr");
-					int grade = rst.getInt("grade");
-					int originalGrade = rst.getInt("original_grade");
+					String grade = rst.getString("grade");
+					String originalGrade = rst.getString("original_grade");
 					String faDate = rst.getString("fa_date");
 					String faDateHr = rst.getString("fa_date_hr");
 					String name = rst.getString("name");
@@ -2128,8 +2236,7 @@ public class Dao {
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
 							neighbourPrev, neighbourNext,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							s.gradeConverter().getGradeFromDeprecatedIdGrade(grade),
-							s.gradeConverter().getGradeFromDeprecatedIdGrade(originalGrade), faDate, faDateHr, fa, coordinates,
+							grade, originalGrade, faDate, faDateHr, fa, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
 							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
 				}
@@ -2155,8 +2262,9 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT t.id id_tick, u.id id_user,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
-				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, t.grade
+				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, g.grade
 				FROM tick t
+				LEFT JOIN grade g ON t.grade_id=g.id
 				JOIN user u ON t.user_id=u.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
@@ -2180,15 +2288,8 @@ public class Dao {
 					String name = rst.getString("name");
 					String comment = rst.getString("comment");
 					double stars = rst.getDouble("stars");
-					int idGrade = rst.getInt("grade");
-					String grade = null;
-					boolean noPersonalGrade = false;
-					if (idGrade == -1) {
-						noPersonalGrade = true;
-					}
-					else {
-						grade = s.gradeConverter().getGradeFromDeprecatedIdGrade(idGrade);
-					}
+					String grade = rst.getString("grade");
+					boolean noPersonalGrade = grade == null;
 					boolean writable = idUser == authUserId.orElse(0);
 					ProblemTick t = p.addTick(id, idUser, mediaIdentity, date, name, grade, noPersonalGrade, comment, stars, writable);
 					tickLookup.put(id, t);
@@ -2643,9 +2744,11 @@ public class Dao {
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr,
 				       CASE WHEN t.id IS NULL THEN -1 ELSE t.stars END stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa,
-				       (CASE WHEN t.id IS NOT NULL AND t.grade>=0 THEN t.grade ELSE p.grade END) grade,
-				       CASE WHEN t.id IS NOT NULL AND t.grade=-1 THEN 1 ELSE 0 END no_personal_grade
+				       (CASE WHEN t.id IS NOT NULL AND gt.grade IS NOT NULL THEN gt.weight ELSE g.weight END) grade,
+				       (CASE WHEN t.id IS NOT NULL AND gt.grade IS NOT NULL THEN gt.grade ELSE g.grade END) grade,
+				       CASE WHEN t.id IS NOT NULL AND gt.id IS NULL THEN 1 ELSE 0 END no_personal_grade
 				FROM problem p
+				JOIN grade g ON p.grade_id=g.id
 				JOIN type ty ON p.type_id=ty.id
 				JOIN sector s ON p.sector_id=s.id
 				JOIN area a ON s.area_id=a.id
@@ -2654,11 +2757,12 @@ public class Dao {
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?
+				LEFT JOIN grade gt ON t.grade_id=gt.id
 				LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)
 				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -2692,9 +2796,10 @@ public class Dao {
 					String dateHr = rst.getString("date_hr");
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
-					int grade = rst.getInt("grade");
+					int gradeWeight = rst.getInt("grade_weight");
+					String grade = rst.getString("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
+					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
@@ -2706,7 +2811,7 @@ public class Dao {
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
 				       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
-				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, t.grade
+				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, g.weight grade_weight, g.grade
 				FROM problem p
 				JOIN type ty ON p.type_id=ty.id
 				JOIN sector s ON p.sector_id=s.id
@@ -2714,11 +2819,12 @@ public class Dao {
 				JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id
 				JOIN tick t ON p.id=t.problem_id AND t.user_id=?
+				LEFT JOIN grade g ON t.grade_id=g.id
 				JOIN tick_repeat tr ON t.id=tr.tick_id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, t.grade
+				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
@@ -2751,9 +2857,10 @@ public class Dao {
 					String dateHr = rst.getString("date_hr");
 					double stars = rst.getDouble("stars");
 					boolean fa = rst.getBoolean("fa");
-					int grade = rst.getInt("grade");
-					boolean noPersonalGrade = false;
-					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
+					int gradeWeight = rst.getInt("grade_weight");
+					String grade = rst.getString("grade");
+					boolean noPersonalGrade = grade == null;
+					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
 				}
 			}
 		}
@@ -2805,7 +2912,8 @@ public class Dao {
 						}
 						String date = rst.getString("date");
 						String dateHr = rst.getString("date_hr");
-						int grade = 0;
+						String grade = "n/a";
+						int gradeWeight = 0;
 						boolean noPersonalGrade = false;
 						Optional<ProfileStatistics.ProfileStatisticsTick> optTick = res.getTicks().stream()
 								.filter(x -> x.getIdProblem() == idProblem)
@@ -2822,7 +2930,7 @@ public class Dao {
 							}
 						}
 						else {
-							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), grade, noPersonalGrade);
+							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, grade, gradeWeight, noPersonalGrade);
 							idProblemTickMap.put(idProblem, tick);
 						}
 					}
@@ -2861,18 +2969,19 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin
+				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin
 				FROM area a
 				JOIN region_type rt ON a.region_id=rt.region_id
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
+				JOIN grade g ON p.grade_id=g.id
 				LEFT JOIN todo t ON p.id=t.problem_id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
 				  AND t.user_id=?
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, p.grade, p.locked_admin, p.locked_superadmin
+				GROUP BY t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, g.grade, p.locked_admin, p.locked_superadmin
 				ORDER BY a.name, s.name, p.nr
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -2908,10 +3017,10 @@ public class Dao {
 					int problemId = rst.getInt("problem_id");
 					int problemNr = rst.getInt("problem_nr");
 					String problemName = rst.getString("problem_name");
-					int problemGrade = rst.getInt("problem_grade");
+					String problemGrade = rst.getString("problem_grade");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade));
+					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade);
 					s.problems().add(p);
 					problemLookup.put(problemId, p);
 				}
@@ -3016,24 +3125,22 @@ public class Dao {
 				(SELECT 'AREA' result_type, a.id, a.name main_title, r.name sub_title, 
 				        a.locked_admin, a.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
-				        a.hits, NULL external_url, 0 grade, NULL rock
+				        a.hits, NULL external_url, NULL grade, NULL rock
 				 FROM req
-				 JOIN region_type rt ON rt.region_id=req.region_id
-				 JOIN region r ON rt.region_id=r.id OR r.id IN (SELECT region_id FROM region_type WHERE type_id=rt.type_id)
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_area_media rm ON a.id=rm.area_id AND rm.rn=1
-				 WHERE (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				   AND REGEXP_LIKE(a.name, req.search_regex, 'i')
+				 WHERE REGEXP_LIKE(a.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
-
+				
 				UNION ALL
-
+				
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
 				        0, 0, 0, 0, 0, 0,
-				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), 0, NULL
+				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), NULL grade, NULL rock
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
 				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
@@ -3044,55 +3151,63 @@ public class Dao {
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY a_ext.id, r_ext.name, r_ext.url
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-
+				
 				UNION ALL
-
+				
 				(SELECT 'SECTOR' result_type, s.id, s.name, a.name, 
 				        s.locked_admin, s.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
-				        s.hits, NULL, 0, NULL
+				        s.hits, NULL, NULL, NULL
 				 FROM req
-				 JOIN region_type rt ON rt.region_id=req.region_id
-				 JOIN region r ON rt.region_id=r.id OR r.id IN (SELECT region_id FROM region_type WHERE type_id=rt.type_id)
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
 				 JOIN sector s ON a.id=s.area_id
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_sector_media rm ON s.id=rm.sector_id AND rm.rn=1
-				 WHERE (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				   AND REGEXP_LIKE(s.name, req.search_regex, 'i')
+				 WHERE REGEXP_LIKE(s.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-
+				
 				UNION ALL
-
+				
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
 				        p.hits, NULL, 
-				        (SELECT ROUND((IFNULL(SUM(NULLIF(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) 
-				         FROM tick t WHERE t.problem_id = p.id), 
+				        (SELECT g_label.grade 
+				         FROM grade g_label
+				         WHERE g_label.grade_system_id = tgs.grade_system_id
+				           AND g_label.weight = (
+				               SELECT ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1))
+				               FROM tick tk 
+				               JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				               WHERE tk.problem_id = p.id
+				           )
+				         LIMIT 1
+				        ) grade, 
 				        p.rock
 				 FROM req
-				 JOIN region_type rt ON rt.region_id=req.region_id
-				 JOIN region r ON rt.region_id=r.id OR r.id IN (SELECT region_id FROM region_type WHERE type_id=rt.type_id)
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
 				 JOIN sector s ON a.id=s.area_id
 				 JOIN problem p ON s.id=p.sector_id
+				 JOIN type ty ON p.type_id=ty.id
+				 JOIN type_grade_system tgs ON ty.id=tgs.type_id
+				 JOIN grade g_orig ON p.grade_id=g_orig.id
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_problem_media rm ON p.id=rm.problem_id AND rm.rn=1
-				 WHERE (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				   AND (REGEXP_LIKE(p.name, req.search_regex, 'i') OR REGEXP_LIKE(p.rock, req.search_regex, 'i'))
+				 WHERE (REGEXP_LIKE(p.name, req.search_regex, 'i') OR REGEXP_LIKE(p.rock, req.search_regex, 'i'))
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
+				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, tgs.grade_system_id, g_orig.weight
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
-
+				
 				UNION ALL
-
+				
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
 				        0, 0,
 				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y,
-				        0, NULL, 0, NULL
+				        0, NULL, NULL, NULL
 				 FROM req
 				 JOIN user u ON REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
 				 LEFT JOIN media m ON u.media_id=m.id
@@ -3133,9 +3248,9 @@ public class Dao {
 						sectors.add(new Search(title, subTitle, "/sector/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
 					case "PROBLEM" -> {
-						int grade = rst.getInt("grade");
+						String grade = rst.getString("grade");
 						String rock = rst.getString("rock");
-						String fullTitle = title + " [" + setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade) + "]";
+						String fullTitle = title + " [" + grade + "]";
 						String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
 						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
 					}
@@ -3287,7 +3402,7 @@ public class Dao {
 			s.addProblem(sp);
 		}
 		if (!s.getProblems().isEmpty() && orderByGrade) {
-			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::gradeNumber).reversed());
+			Collections.sort(s.getProblems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());
 		}
 		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
 		return s;
@@ -3317,7 +3432,7 @@ public class Dao {
 					int gradeSystemId = rst.getInt("grade_system_id");
 					List<CompassDirection> compassDirections = getCompassDirections(c);
 					GradeConverter gradeConverter = new GradeConverter(getGrades(c, gradeSystemId));
-					res.add(Setup.newBuilder(domain, group, GradeSystem.ofGroup(group))
+					res.add(Setup.newBuilder(domain, group)
 							.withIdRegion(idRegion)
 							.withTitle(title)
 							.withDescription(description)
@@ -3381,7 +3496,7 @@ public class Dao {
 		String sqlStr = """
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       p.id problem_id, t.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       p.id problem_id, g.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       DATE_FORMAT(t.date,'%Y.%m.%d') ts, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name,
 				       COUNT(*) OVER() as total_count
 				FROM region r
@@ -3390,6 +3505,7 @@ public class Dao {
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
 				JOIN tick t ON p.id=t.problem_id
+				LEFT JOIN grade g ON t.grade_id=g.id
 				JOIN user u ON t.user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
@@ -3423,7 +3539,10 @@ public class Dao {
 					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 					int problemId = rst.getInt("problem_id");
-					int problemGrade = rst.getInt("problem_grade");
+					String problemGrade = rst.getString("problem_grade");
+					if (problemGrade == null) {
+						problemGrade = GradeConverter.NO_PERSONAL_GRADE;
+					}
 					String problemName = rst.getString("problem_name");
 					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
@@ -3432,7 +3551,7 @@ public class Dao {
 					ticks.add(new PublicAscent(
 							areaId, areaName, areaLockedAdmin, areaLockedSuperadmin,
 							sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin,
-							problemId, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade),
+							problemId, problemGrade,
 							problemName, problemLockedAdmin, problemLockedSuperadmin, date, name
 							));
 				}
@@ -3449,44 +3568,75 @@ public class Dao {
 		Map<Integer, TocSector> sectorLookup = new HashMap<>();
 		int numProblems = 0;
 		String sqlStr = """
-				SELECT r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
-				       s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, REGEXP_SUBSTR(p.starting_altitude,'[0-9]+') starting_altitude,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, 
-				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, year(p.fa_date) fa_year,
-				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars, 
-				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,
-				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
-				       ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches 
-				FROM area a
-				JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON s.id=p.sector_id AND rt.type_id=p.type_id
-				JOIN type ty ON p.type_id=ty.id
-				LEFT JOIN coordinates ac ON a.coordinates_id=ac.id
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id
-				LEFT JOIN coordinates c ON p.coordinates_id=c.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				LEFT JOIN fa f ON p.id=f.problem_id
-				LEFT JOIN user u ON f.user_id=u.id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN todo ON p.id=todo.problem_id AND todo.user_id=?
-				LEFT JOIN problem_section ps ON p.id=ps.problem_id 
-				WHERE (a.region_id=? OR ur.user_id IS NOT NULL) 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1 
-				GROUP BY r.id, r.name, r.url, a.id, a.name, ac.id, ac.latitude, ac.longitude, ac.elevation, ac.elevation_source, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour, s.sorting, s.id, s.name, s.sorting, s.sun_from_hour, s.sun_to_hour, sc.id, sc.latitude, sc.longitude, sc.elevation, sc.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.starting_altitude, year(p.fa_date), c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.grade, ty.id, ty.type, ty.subtype, todo.id
+				WITH req AS (
+				    SELECT ? auth_user_id, ? region_id
+				),
+				p_stats AS (
+				    SELECT 
+				        p.id AS pid,
+				        tgs.grade_system_id,
+				        g_orig.weight AS orig_weight,
+				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) AS final_weight,
+				        COUNT(DISTINCT t.id) AS num_ticks,
+				        ROUND(ROUND(AVG(NULLIF(t.stars, -1)) * 2) / 2, 1) AS stars
+				    FROM req
+				    JOIN problem p ON 1=1
+				    JOIN type ty ON p.type_id = ty.id
+				    JOIN type_grade_system tgs ON ty.id = tgs.type_id
+				    JOIN grade g_orig ON p.grade_id = g_orig.id
+				    LEFT JOIN tick t ON p.id = t.problem_id
+				    LEFT JOIN (
+				        tick tk2 
+				        JOIN grade gtick ON tk2.grade_id = gtick.id AND gtick.grade != 'n/a'
+				    ) ON t.id = tk2.id
+				    GROUP BY p.id, tgs.grade_system_id, g_orig.weight
+				)
+				SELECT 
+				    r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, 
+				    ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, 
+				    a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
+				    s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
+				    sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
+				    s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
+				    s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+				    p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, REGEXP_SUBSTR(p.starting_altitude,'[0-9]+') starting_altitude,
+				    c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				    gf.grade,
+				    GROUP_CONCAT(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, 
+				    YEAR(p.fa_date) fa_year,
+				    ps_calc.num_ticks, ps_calc.stars, 
+				    MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked,
+				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
+				    ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches 
+				FROM req
+				JOIN area a ON 1=1
+				JOIN region r ON a.region_id = r.id
+				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				JOIN sector s ON a.id = s.area_id
+				JOIN problem p ON s.id = p.sector_id AND rt.type_id = p.type_id
+				JOIN p_stats ps_calc ON p.id = ps_calc.pid
+				JOIN type ty ON p.type_id = ty.id
+				LEFT JOIN grade gf ON gf.grade_system_id = ps_calc.grade_system_id AND gf.weight = ps_calc.final_weight
+				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id
+				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+				LEFT JOIN coordinates c ON p.coordinates_id = c.id
+				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				LEFT JOIN fa f ON p.id = f.problem_id
+				LEFT JOIN user u ON f.user_id = u.id
+				LEFT JOIN tick t ON p.id = t.problem_id
+				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.auth_user_id
+				LEFT JOIN problem_section ps ON p.id = ps.problem_id 
+				WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL) 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1 
+				GROUP BY 
+				    p.id, r.id, a.id, s.id, ps_calc.final_weight, ps_calc.grade_system_id, gf.grade, todo.id, ty.id
 				ORDER BY r.name, a.name, s.sorting, s.name, p.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.idRegion());
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, authUserId.orElse(0));
-			ps.setInt(6, setup.idRegion());
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					// Region
@@ -3545,7 +3695,7 @@ public class Dao {
 					int faYear = rst.getInt("fa_year");
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					int grade = rst.getInt("grade");
+					String grade = rst.getString("grade");
 					String fa = rst.getString("fa");
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
@@ -3553,7 +3703,7 @@ public class Dao {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, startingAltitude, coordinates, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, startingAltitude, coordinates, grade, fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
 					s.problems().add(p);
 					numProblems++;
 				}
@@ -3606,9 +3756,9 @@ public class Dao {
 					String sectorName = rst.getString("sector_name");
 					String problemName = rst.getString("problem_name");
 					int pitch = rst.getInt("pitch");
-					int grade = rst.getInt("grade");
+					String grade = rst.getString("grade");
 					String description = rst.getString("description");
-					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), description));
+					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, grade, description));
 				}
 			}
 		}
@@ -3633,12 +3783,13 @@ public class Dao {
 			throw new RuntimeException("Invalid arguments");
 		}
 		String sqlStr = """
-				SELECT s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, p.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				SELECT s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) user_name
 				FROM region r
 				JOIN area a ON r.id=a.region_id
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
+				JOIN grade g ON p.grade_id=g.id
 				JOIN todo t ON p.id=t.problem_id
 				JOIN user u ON t.user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
@@ -3670,10 +3821,10 @@ public class Dao {
 					if (p == null) {
 						int problemNr = rst.getInt("problem_nr");
 						String problemName = rst.getString("problem_name");
-						int problemGrade = rst.getInt("problem_grade");
+						String problemGrade = rst.getString("problem_grade");
 						boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
 						boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, setup.gradeConverter().getGradeFromDeprecatedIdGrade(problemGrade), new ArrayList<>());
+						p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade, new ArrayList<>());
 						s.problems().add(p);
 						problemLookup.put(problemId, p);
 					}
@@ -3930,150 +4081,140 @@ public class Dao {
 
 	@SuppressWarnings("resource")
 	public byte[] getUserTicks(Connection c, Optional<Integer> authUserId) throws SQLException, IOException {
-		byte[] bytes;
-		try (ExcelWorkbook workbook = new ExcelWorkbook()) {
-			String sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment, DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date, t.stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa, (CASE WHEN t.id IS NOT NULL THEN t.grade ELSE p.grade END) grade" + 
-					" FROM (((((((((problem p INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)) LEFT JOIN tick t ON p.id=t.problem_id AND t.user_id=?) LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)" + 
-					" WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
-					" GROUP BY r.id, ty.type, pt.subtype, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, t.grade, p.grade" + 
-					" ORDER BY ty.type, a.name, s.name, p.name";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, authUserId.orElseThrow());
-				ps.setInt(2, authUserId.orElseThrow());
-				ps.setInt(3, authUserId.orElseThrow());
-				try (ResultSet rst = ps.executeQuery()) {
-					Map<String, ExcelSheet> sheets = new HashMap<>();
-					while (rst.next()) {
-						int regionId = rst.getInt("region_id");
-						String type = rst.getString("type");
-						String subType = rst.getString("subtype");
-						int numPitches = rst.getInt("num_pitches");
-						String url = rst.getString("url");
-						String areaName = rst.getString("area_name");
-						String sectorName = rst.getString("sector_name");
-						String name = rst.getString("name");
-						String comment = rst.getString("comment");
-						LocalDate date = rst.getObject("date", LocalDate.class);
-						int stars = rst.getInt("stars");
-						boolean fa = rst.getBoolean("fa");
-						String grade = Server.getSetups().stream()
-								.filter(x -> x.idRegion() == regionId)
-								.findAny()
-								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
-								.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
-						ExcelSheet sheet = sheets.get(type);
-						if (sheet == null) {
-							sheet = workbook.addSheet(type);
-							sheets.put(type, sheet);
-						}
-						sheet.incrementRow();
-						sheet.writeString("AREA", areaName);
-						sheet.writeString("SECTOR", sectorName);
-						if (subType != null) {
-							sheet.writeString("TYPE", subType);
-							sheet.writeInt("PITCHES", numPitches > 0? numPitches : 1);
-						}
-						sheet.writeString("NAME", name);
-						sheet.writeString("FIRST ASCENT", fa? "Yes" : "No");
-						sheet.writeDate("DATE", date);
-						sheet.writeString("GRADE", grade);
-						sheet.writeDouble("STARS", stars);
-						sheet.writeString("DESCRIPTION", comment);
-						sheet.writeHyperlink("URL", url);
-					}
-					sheets.values().forEach(sheet -> sheet.close());
-				}
-			}
-			sqlStr = "SELECT r.id region_id, ty.type, pt.subtype, COUNT(DISTINCT ps.id) num_pitches, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, tr.comment, DATE_FORMAT(tr.date,'%Y-%m-%d') date, t.stars, 0 fa, t.grade grade"
-					+ " FROM (((((((((problem p INNER JOIN type pt ON p.type_id=pt.id) INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) INNER JOIN tick t ON p.id=t.problem_id AND t.user_id=?) INNER JOIN tick_repeat tr ON t.id=tr.tick_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)"
-					+ " WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1"
-					+ " GROUP BY r.id, ty.type, pt.subtype, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, t.id, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, p.fa_date, tr.date, t.stars, t.grade, p.grade"
-					+ " ORDER BY ty.type, a.name, s.name, p.name, tr.date";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, authUserId.orElseThrow());
-				ps.setInt(2, authUserId.orElseThrow());
-				try (ResultSet rst = ps.executeQuery()) {
-					Map<String, ExcelSheet> sheets = new HashMap<>();
-					while (rst.next()) {
-						int regionId = rst.getInt("region_id");
-						String type = rst.getString("type") + " (repeats)";
-						String subType = rst.getString("subtype");
-						int numPitches = rst.getInt("num_pitches");
-						String url = rst.getString("url");
-						String areaName = rst.getString("area_name");
-						String sectorName = rst.getString("sector_name");
-						String name = rst.getString("name");
-						String comment = rst.getString("comment");
-						LocalDate date = rst.getObject("date", LocalDate.class);
-						int stars = rst.getInt("stars");
-						boolean fa = rst.getBoolean("fa");
-						String grade = Server.getSetups().stream()
-								.filter(x -> x.idRegion() == regionId)
-								.findAny()
-								.orElseThrow(() -> new RuntimeException("Invalid regionId=" + regionId))
-								.gradeConverter().getGradeFromDeprecatedIdGrade(rst.getInt("grade"));
-						ExcelSheet sheet = sheets.get(type);
-						if (sheet == null) {
-							sheet = workbook.addSheet(type);
-							sheets.put(type, sheet);
-						}
-						sheet.incrementRow();
-						sheet.writeString("AREA", areaName);
-						sheet.writeString("SECTOR", sectorName);
-						if (subType != null) {
-							sheet.writeString("TYPE", subType);
-							sheet.writeInt("PITCHES", numPitches > 0? numPitches : 1);
-						}
-						sheet.writeString("NAME", name);
-						sheet.writeString("FIRST ASCENT", fa? "Yes" : "No");
-						sheet.writeDate("DATE", date);
-						sheet.writeString("GRADE", grade);
-						sheet.writeDouble("STARS", stars);
-						sheet.writeString("DESCRIPTION", comment);
-						sheet.writeHyperlink("URL", url);
-					}
-					sheets.values().forEach(sheet -> sheet.close());
-				}
-			}
-			sqlStr = "SELECT r.id region_id, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name, aid.aid_description comment, DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date" + 
-					" FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN type ty ON rt.type_id=ty.id) INNER JOIN fa_aid aid ON p.id=aid.problem_id) INNER JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?) LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?))" + 
-					" WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1" + 
-					" GROUP BY r.id, ty.type, r.url, a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date" + 
-					" ORDER BY ty.type, a.name, s.name, p.name";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, authUserId.orElseThrow());
-				ps.setInt(2, authUserId.orElseThrow());
-				ExcelSheet sheet = null;
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						if (sheet == null) {
-							sheet = workbook.addSheet("First_AID_Ascent");
-						}
-						String url = rst.getString("url");
-						String areaName = rst.getString("area_name");
-						String sectorName = rst.getString("sector_name");
-						String name = rst.getString("name");
-						String comment = rst.getString("comment");
-						LocalDate date = rst.getObject("date", LocalDate.class);
-						sheet.incrementRow();
-						sheet.writeString("AREA", areaName);
-						sheet.writeString("SECTOR", sectorName);
-						sheet.writeString("NAME", name);
-						sheet.writeDate("DATE", date);
-						sheet.writeString("DESCRIPTION", comment);
-						sheet.writeHyperlink("URL", url);
-					}
-				}
-				if (sheet != null) {
-					sheet.close();
-				}
-			}
-			try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-				workbook.write(os);
-				bytes = os.toByteArray();
-			}
-		}
-		return bytes;
+	    int userId = authUserId.orElseThrow();
+	    try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
+	        Map<String, ExcelSheet> sheets = new HashMap<>();
+
+	        // 1. PRIMARY TICKS & FAs
+	        String sqlTicks = """
+	            SELECT 
+				    ty.type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+				    IF(t.id IS NOT NULL, t.comment, p.description) AS comment,
+				    DATE_FORMAT(IF(t.date IS NULL AND f.user_id IS NOT NULL, p.fa_date, t.date), '%Y-%m-%d') AS date,
+				    t.stars, IF(f.user_id IS NOT NULL, 1, 0) AS fa, g.grade,
+				    COUNT(DISTINCT ps.id) AS num_pitches
+				FROM problem p
+				JOIN type pt ON p.type_id = pt.id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				JOIN region r ON a.region_id = r.id
+				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
+				JOIN type ty ON rt.type_id = ty.id
+				JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+				LEFT JOIN problem_section ps ON p.id = ps.problem_id
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+				LEFT JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
+				LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = ?
+				LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id 
+				    AND g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
+				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				GROUP BY p.id, t.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
+				ORDER BY ty.type, a.name, s.name, p.name
+	            """;
+	        try (var ps = c.prepareStatement(sqlTicks)) {
+	            ps.setInt(1, userId);
+	            ps.setInt(2, userId);
+	            ps.setInt(3, userId);
+	            try (var rst = ps.executeQuery()) {
+	                while (rst.next()) {
+	                    writeRow(workbook, sheets, rst, rst.getString("type"));
+	                }
+	            }
+	        }
+
+	        // 2. REPEAT TICKS
+	        String sqlRepeats = """
+	            SELECT 
+				    CONCAT(ty.type, ' (repeats)') AS type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+				    tr.comment, DATE_FORMAT(tr.date, '%Y-%m-%d') AS date, t.stars, 0 AS fa, g.grade,
+				    COUNT(DISTINCT ps.id) AS num_pitches
+				FROM problem p
+				JOIN type pt ON p.type_id = pt.id
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				JOIN region r ON a.region_id = r.id
+				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
+				JOIN type ty ON rt.type_id = ty.id
+				JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+				JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
+				JOIN tick_repeat tr ON t.id = tr.tick_id
+				LEFT JOIN problem_section ps ON p.id = ps.problem_id
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+				LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id AND g.id = t.grade_id
+				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
+				ORDER BY ty.type, a.name, s.name, p.name, tr.date
+	            """;
+	        try (var ps = c.prepareStatement(sqlRepeats)) {
+	            ps.setInt(1, userId);
+	            ps.setInt(2, userId);
+	            try (var rst = ps.executeQuery()) {
+	                while (rst.next()) {
+	                    writeRow(workbook, sheets, rst, rst.getString("type"));
+	                }
+	            }
+	        }
+
+	        // 3. FIRST AID ASCENTS
+	        String sqlAid = """
+	            SELECT 
+				    p.id AS problem_id, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+				    aid.aid_description AS comment, DATE_FORMAT(aid.aid_date, '%Y-%m-%d') AS date
+				FROM problem p
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				JOIN region r ON a.region_id = r.id
+				JOIN fa_aid aid ON p.id = aid.problem_id
+				JOIN fa_aid_user aid_u ON p.id = aid_u.problem_id AND aid_u.user_id = ?
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				GROUP BY p.id, r.url, a.name, s.name, p.name, aid.aid_description, aid.aid_date
+				ORDER BY a.name, s.name, p.name
+	            """;
+	        try (var ps = c.prepareStatement(sqlAid)) {
+	            ps.setInt(1, userId);
+	            ps.setInt(2, userId);
+	            try (var rst = ps.executeQuery()) {
+	                ExcelSheet aidSheet = null;
+	                while (rst.next()) {
+	                    if (aidSheet == null) aidSheet = workbook.addSheet("First_AID_Ascent");
+	                    aidSheet.incrementRow();
+	                    aidSheet.writeString("AREA", rst.getString("area_name"));
+	                    aidSheet.writeString("SECTOR", rst.getString("sector_name"));
+	                    aidSheet.writeString("NAME", rst.getString("name"));
+	                    aidSheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
+	                    aidSheet.writeString("DESCRIPTION", rst.getString("comment"));
+	                    aidSheet.writeHyperlink("URL", rst.getString("url") + "/problem/" + rst.getInt("problem_id"));
+	                }
+	                if (aidSheet != null) aidSheet.close();
+	            }
+	        }
+
+	        sheets.values().forEach(ExcelSheet::close);
+	        workbook.write(os);
+	        return os.toByteArray();
+	    }
+	}
+
+	private void writeRow(ExcelWorkbook wb, Map<String, ExcelSheet> sheets, ResultSet rst, String sheetName) throws SQLException {
+	    ExcelSheet sheet = sheets.computeIfAbsent(sheetName, wb::addSheet);
+	    sheet.incrementRow();
+	    sheet.writeString("AREA", rst.getString("area_name"));
+	    sheet.writeString("SECTOR", rst.getString("sector_name"));
+	    String subType = rst.getString("subtype");
+	    if (subType != null) {
+	        sheet.writeString("TYPE", subType);
+	        int pitches = rst.getInt("num_pitches");
+	        sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
+	    }
+	    sheet.writeString("NAME", rst.getString("name"));
+	    sheet.writeString("FIRST ASCENT", rst.getBoolean("fa") ? "Yes" : "No");
+	    sheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
+	    sheet.writeString("GRADE", rst.getString("grade"));
+	    sheet.writeDouble("STARS", rst.getDouble("stars"));
+	    sheet.writeString("DESCRIPTION", rst.getString("comment"));
+	    sheet.writeHyperlink("URL", rst.getString("url"));
 	}
 
 	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
@@ -4477,28 +4618,27 @@ public class Dao {
 		}
 		tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 		if (p.getId() > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.grade=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
 				setNullablePositiveInteger(ps, 5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setInt(6, s.gradeConverter().getDeprecatedIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setObject(7, dt);
-				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(10, isLockedAdmin);
-				ps.setBoolean(11, p.isLockedSuperadmin());
-				ps.setInt(12, p.getNr());
-				ps.setInt(13, p.getT().id());
-				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(17, GlobalFunctions.stripString(p.getRouteLength()));
-				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
-				ps.setBoolean(19, p.isTrash());
-				ps.setInt(20, p.isTrash()? authUserId.orElseThrow() : 0);
-				ps.setInt(21, p.getId());
+				ps.setObject(6, dt);
+				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
+				ps.setString(8, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(9, isLockedAdmin);
+				ps.setBoolean(10, p.isLockedSuperadmin());
+				ps.setInt(11, p.getNr());
+				ps.setInt(12, p.getT().id());
+				ps.setString(13, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(14, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(15, GlobalFunctions.stripString(p.getAspect()));
+				ps.setString(16, GlobalFunctions.stripString(p.getRouteLength()));
+				ps.setString(17, GlobalFunctions.stripString(p.getDescent()));
+				ps.setBoolean(18, p.isTrash());
+				ps.setInt(19, p.isTrash()? authUserId.orElseThrow() : 0);
+				ps.setInt(20, p.getId());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
@@ -4506,26 +4646,25 @@ public class Dao {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, grade, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
 				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
 				setNullablePositiveInteger(ps, 6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setInt(7, s.gradeConverter().getDeprecatedIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setObject(8, dt);
-				setNullablePositiveInteger(ps, 9, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(10, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(11, isLockedAdmin);
-				ps.setBoolean(12, p.isLockedSuperadmin());
-				ps.setInt(13, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(14, p.getT().id());
-				ps.setString(15, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(16, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(17, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(18, GlobalFunctions.stripString(p.getRouteLength()));
-				ps.setString(19, GlobalFunctions.stripString(p.getDescent()));
+				ps.setObject(7, dt);
+				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
+				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(10, isLockedAdmin);
+				ps.setBoolean(11, p.isLockedSuperadmin());
+				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(13, p.getT().id());
+				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
+				ps.setString(17, GlobalFunctions.stripString(p.getRouteLength()));
+				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4932,14 +5071,13 @@ public class Dao {
 			}
 		}
 		else if (t.id() == -1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade_id, grade, comment, stars) VALUES (?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, t.idProblem());
 				ps.setInt(2, authUserId.orElseThrow());
 				ps.setObject(3, dt);
 				setNullablePositiveInteger(ps, 4, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
-				ps.setInt(5, setup.gradeConverter().getDeprecatedIdGradeFromGrade(t.grade()));
-				ps.setString(6, GlobalFunctions.stripString(t.comment()));
-				ps.setDouble(7, t.stars());
+				ps.setString(5, GlobalFunctions.stripString(t.comment()));
+				ps.setDouble(6, t.stars());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4950,15 +5088,14 @@ public class Dao {
 			}
 		}
 		else if (t.id() > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade_id=?, grade=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")) {
 				ps.setObject(1, dt);
 				setNullablePositiveInteger(ps, 2, setup.gradeConverter().getIdGradeFromGrade(t.grade()));
-				ps.setInt(3, setup.gradeConverter().getDeprecatedIdGradeFromGrade(t.grade()));
-				ps.setString(4, GlobalFunctions.stripString(t.comment()));
-				ps.setDouble(5, t.stars());
-				ps.setInt(6, t.id());
-				ps.setInt(7, t.idProblem());
-				ps.setInt(8, authUserId.orElseThrow());
+				ps.setString(3, GlobalFunctions.stripString(t.comment()));
+				ps.setDouble(4, t.stars());
+				ps.setInt(5, t.id());
+				ps.setInt(6, t.idProblem());
+				ps.setInt(7, authUserId.orElseThrow());
 				int res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
@@ -6038,76 +6175,108 @@ public class Dao {
 	}
 
 	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
-		List<SectorProblem> res = new ArrayList<>();
-		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.isBouldering()) {
-			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
-		}
-		String sqlStr = """
-				SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, ROUND((IFNULL(SUM(nullif(t.grade,-1)),0) + p.grade) / (COUNT(CASE WHEN t.grade>0 THEN t.id END) + 1)) grade, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       COUNT(DISTINCT ps.id) num_pitches,
-				       COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
-				       COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,
-				       CASE WHEN MAX(svg.problem_id) IS NOT NULL THEN 1 ELSE 0 END has_topo,
-				       group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,
-				       p.fa_date,
-				       COUNT(DISTINCT t.id) num_ticks, ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
-				       MAX(CASE WHEN (t.user_id=? OR u.id=?) THEN 1 END) ticked,
-				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
-				       ty.id type_id, ty.type, ty.subtype,
-				       danger.danger
-				FROM ((((((((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN problem p ON s.id=p.sector_id) INNER JOIN type ty ON p.type_id=ty.id) LEFT JOIN coordinates c ON p.coordinates_id=c.id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) LEFT JOIN (media_problem mp LEFT JOIN media m ON (mp.media_id=m.id AND mp.trivia=0 AND m.deleted_user_id IS NULL)) ON p.id=mp.problem_id) LEFT JOIN fa f ON p.id=f.problem_id) LEFT JOIN user u ON f.user_id=u.id) LEFT JOIN tick t ON p.id=t.problem_id) LEFT JOIN todo ON (p.id=todo.problem_id AND todo.user_id=?)) LEFT JOIN (SELECT problem_id, danger FROM guestbook WHERE (danger=1 OR resolved=1) AND id IN (SELECT max(id) id FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)) danger ON p.id=danger.problem_id) LEFT JOIN problem_section ps ON p.id=ps.problem_id) LEFT JOIN (SELECT DISTINCT problem_id problem_id FROM svg) svg ON p.id=svg.problem_id
-				WHERE p.sector_id=?
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.grade, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, p.fa_date, todo.id, ty.id, ty.type, ty.subtype, danger.danger
-				ORDER BY p.nr
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, authUserId.orElse(0));
-			ps.setInt(4, authUserId.orElse(0));
-			ps.setInt(5, sectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					String broken = rst.getString("broken");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					int grade = rst.getInt("grade");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					String name = rst.getString("name");
-					String rock = rst.getString("rock");
-					String comment = rst.getString("description");
-					String fa = rst.getString("fa");
-					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
-						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
-						if (fa == null) {
-							fa = faAid;
-						}
-						else {
-							fa = faAid + ". FFA: " + fa;
-						}
-					}
-					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-					String faDateStr = faDate == null? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-					int numPitches = rst.getInt("num_pitches");
-					boolean hasImages = rst.getInt("num_images")>0;
-					boolean hasMovies = rst.getInt("num_movies")>0;
-					boolean hasTopo = rst.getBoolean("has_topo");
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					boolean todo = rst.getBoolean("todo");
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					boolean danger = rst.getBoolean("danger");
-					res.add(new SectorProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, setup.gradeConverter().getGradeFromDeprecatedIdGrade(grade), fa, faDateStr, numPitches, hasImages, hasMovies, hasTopo, coordinates, numTicks, stars, ticked, todo, t, danger));
-				}
-			}
-		}
-		return res;
+	    List<SectorProblem> res = new ArrayList<>();
+	    Map<Integer, String> problemIdFirstAidAscentLookup = null;
+	    if (!setup.isBouldering()) {
+	        problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
+	    }
+	    String sqlStr = """
+	            WITH req AS (
+	              SELECT ? auth_user_id, ? sector_id
+	            ),
+	            x AS (
+	              SELECT p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
+	                     group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,
+	                     ty.id type_id, ty.type, ty.subtype,
+	                     ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) gradeWeight,
+	                     COUNT(DISTINCT t.id) total_ticks,
+	                     ROUND(ROUND(AVG(nullif(t.stars,-1))*2)/2,1) stars,
+	                     MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked,
+	                     CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
+	                     danger.danger,
+	                     tgs.grade_system_id,
+	                     co.id coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
+	                     COUNT(DISTINCT ps.id) num_pitches,
+	                     COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
+	                     COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,
+	                     CASE WHEN MAX(svg.problem_id) IS NOT NULL THEN 1 ELSE 0 END has_topo
+	              FROM req
+	              JOIN sector s ON s.id = req.sector_id
+	              JOIN area a ON s.area_id = a.id
+	              JOIN problem p ON s.id = p.sector_id
+	              JOIN type ty ON p.type_id = ty.id
+	              JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+	              JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+	              JOIN grade g_orig ON p.grade_id = g_orig.id
+	              LEFT JOIN coordinates co ON p.coordinates_id = co.id
+	              LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+	              LEFT JOIN (media_problem mp JOIN media m ON mp.media_id = m.id AND mp.trivia = 0 AND m.deleted_user_id IS NULL) ON p.id = mp.problem_id
+	              LEFT JOIN fa f ON p.id = f.problem_id
+	              LEFT JOIN user u ON f.user_id = u.id
+	              LEFT JOIN tick t ON p.id = t.problem_id
+	              LEFT JOIN (tick tk2 JOIN grade gtick ON tk2.grade_id = gtick.id AND gtick.grade != 'n/a') ON t.id = tk2.id
+	              LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.auth_user_id
+	              LEFT JOIN (
+	                SELECT problem_id, danger FROM guestbook 
+	                WHERE (danger=1 OR resolved=1) 
+	                AND id IN (SELECT max(id) FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)
+	              ) danger ON p.id = danger.problem_id
+	              LEFT JOIN problem_section ps ON p.id = ps.problem_id
+	              LEFT JOIN (SELECT DISTINCT problem_id FROM svg) svg ON p.id = svg.problem_id
+	              WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	              GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
+	                       ty.id, ty.type, ty.subtype, g_orig.weight, todo.id, danger.danger, tgs.grade_system_id,
+	                       co.id, co.latitude, co.longitude, co.elevation, co.elevation_source
+	            )
+	            SELECT x.*, g.grade problem_grade
+	            FROM x
+	            LEFT JOIN grade g ON x.gradeWeight = g.weight AND g.grade_system_id = x.grade_system_id
+	            ORDER BY x.nr
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, authUserId.orElse(0));
+	        ps.setInt(2, sectorId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int id = rst.getInt("id");
+	                String fa = rst.getString("fa");
+	                if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
+	                    String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
+	                    fa = (fa == null) ? faAid : faAid + ". FFA: " + fa;
+	                }
+	                int idCoordinates = rst.getInt("coordinates_id");
+	                Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+	                LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
+	                String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
+	                res.add(new SectorProblem(
+	                    id, 
+	                    rst.getString("broken"), 
+	                    rst.getBoolean("locked_admin"), 
+	                    rst.getBoolean("locked_superadmin"), 
+	                    rst.getInt("nr"), 
+	                    rst.getString("name"), 
+	                    rst.getString("rock"), 
+	                    rst.getString("description"), 
+	                    rst.getInt("gradeWeight"), 
+	                    rst.getString("problem_grade"), 
+	                    fa, 
+	                    faDateStr, 
+	                    rst.getInt("num_pitches"), 
+	                    rst.getInt("num_images") > 0, 
+	                    rst.getInt("num_movies") > 0, 
+	                    rst.getBoolean("has_topo"), 
+	                    coordinates, 
+	                    rst.getInt("total_ticks"), 
+	                    rst.getDouble("stars"), 
+	                    rst.getBoolean("ticked"), 
+	                    rst.getBoolean("todo"), 
+	                    new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), 
+	                    rst.getBoolean("danger")
+	                ));
+	            }
+	        }
+	    }
+	    return res;
 	}
 
 	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
@@ -6202,7 +6371,7 @@ public class Dao {
 	                       svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger, req.auth_user_id
 	            )
 	            SELECT x.problem_id, x.problem_name,
-	                   COALESCE(g.grade, 'n/a') problem_grade, clr.hex_code problem_grade_color, 
+	                   g.grade problem_grade, clr.hex_code problem_grade_color, 
 	                   x.problem_subtype, x.nr, x.pitch, x.problem_section_grade, x.problem_section_grade_color,
 	                   x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
 	            FROM x
