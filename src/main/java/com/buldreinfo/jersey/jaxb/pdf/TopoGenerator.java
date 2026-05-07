@@ -119,7 +119,7 @@ public class TopoGenerator {
 				boolean isTargetPitch = (highlightPitch <= 0) || (svg.pitch() == highlightPitch);
 				boolean isHighlight = isTargetProblem && isTargetPitch;
 
-				String lineColor = getGroupColor(svg.problemGradeGroup());
+				String lineColor = svg.problemGradeColor();
 				String dash = (svg.problemSubtype() == null || svg.problemSubtype().equalsIgnoreCase("bolt")) ? String.valueOf(10 * scale) : null;
 
 				addReactHaloPath(doc, scale, svgRoot, d, lineColor, isHighlight, dash);
@@ -219,16 +219,5 @@ public class TopoGenerator {
 		c.setAttributeNS(null, "stroke-opacity", String.valueOf(opacity));
 		c.setAttributeNS(null, "stroke-width", String.valueOf(2.5 * scale));
 		parent.appendChild(c);
-	}
-
-	private static String getGroupColor(int group) {
-		return switch (group) {
-		case 1 -> "#00FF00";
-		case 2 -> "#0000FF";
-		case 3 -> "#FFFF00";
-		case 4 -> "#FF0000";
-		case 5 -> "#FF00FF";
-		default -> "#FFFFFF";
-		};
 	}
 }
