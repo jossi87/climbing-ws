@@ -532,7 +532,7 @@ public class Dao {
 				    AND (req.hide_guestbook = 0 OR a1.type != 'GUESTBOOK')
 				    AND (req.hide_ticks = 0 OR a1.type NOT IN ('TICK','TICK_REPEAT'))
 				    AND (req.hide_media = 0 OR a1.type != 'MEDIA')
-				    AND (req.min_grade_weight = 0 OR p1.grade_id IN (SELECT id FROM grade WHERE weight >= req.min_grade_weight))
+				    AND (req.min_grade_weight = 0 OR p1.grade_id IN (SELECT id FROM grade WHERE id >= req.min_grade_weight))
 				    AND (req.filter_area_id = 0 OR s1.area_id = req.filter_area_id)
 				    AND (req.filter_sector_id = 0 OR s1.id = req.filter_sector_id)
 				  ORDER BY a1.activity_timestamp DESC, a1.problem_id DESC
