@@ -6,8 +6,8 @@ import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 
-public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, int gradeSystemId, GradeSystem gradeSystem, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
-	public static SetupBuilder newBuilder(String domain, String group, int gradeSystemId, GradeSystem gradeSystem) {
+public record Setup(String domain, String url, int idRegion, boolean isBouldering, boolean isClimbing, boolean isIce, int idGradeSystem, GradeSystem gradeSystem, GradeConverter gradeConverter, List<CompassDirection> compassDirections, String title, String description, LatLng defaultCenter, int defaultZoom) {
+	public static SetupBuilder newBuilder(String domain, String group, int idGradeSystem, GradeSystem gradeSystem) {
 		boolean isBouldering = false;
 		boolean isClimbing = false;
 		boolean isIce = false;
@@ -17,7 +17,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		case "Ice" -> isIce = true;
 		default -> throw new IllegalArgumentException("Invalid group: " + group);
 		};
-		return new SetupBuilder(domain, isBouldering, isClimbing, isIce, gradeSystemId, gradeSystem);
+		return new SetupBuilder(domain, isBouldering, isClimbing, isIce, idGradeSystem, gradeSystem);
 	}
 
 	public static class SetupBuilder {
@@ -26,7 +26,7 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		private final boolean isBouldering;
 		private final boolean isClimbing;
 		private final boolean isIce;
-		private final int gradeSystemId;
+		@Deprecated private final int idGradeSystem; // TODO Dont need this
 		private int idRegion;
 		private final GradeSystem gradeSystem;
 		private GradeConverter gradeConverter;
@@ -36,18 +36,18 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 		private LatLng defaultCenter;
 		private int defaultZoom;
 
-		public SetupBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce, int gradeSystemId, GradeSystem gradeSystem) {
+		public SetupBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce, int idGradeSystem, GradeSystem gradeSystem) {
 			this.domain = domain;
 			this.url = "https://" + domain;
 			this.isBouldering = isBouldering;
 			this.isClimbing = isClimbing;
 			this.isIce = isIce;
-			this.gradeSystemId = gradeSystemId;
+			this.idGradeSystem = idGradeSystem;
 			this.gradeSystem = gradeSystem;
 		}
 
 		public Setup build() {
-			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, gradeSystemId, gradeSystem, gradeConverter, compassDirections, title, description, defaultCenter, defaultZoom);
+			return new Setup(domain, url, idRegion, isBouldering, isClimbing, isIce, idGradeSystem, gradeSystem, gradeConverter, compassDirections, title, description, defaultCenter, defaultZoom);
 		}
 
 		public SetupBuilder withCompassDirections(List<CompassDirection> compassDirections) {

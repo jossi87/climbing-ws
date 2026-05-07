@@ -76,13 +76,15 @@ public class GradeDistribution {
 		}
 	}
 	private final String grade;
+	private final String color;
 	private int num = 0;
 	private int prim = 0;
 	private int sec = 0;
 	private final List<GradeDistributionRow> rows = new ArrayList<>();
 	
-	public GradeDistribution(String grade) {
+	public GradeDistribution(String grade, String color) {
 		this.grade = grade;
+		this.color = color;
 	}
 	
 	public void addSector(int id, String name, String type, int num) {
@@ -132,10 +134,14 @@ public class GradeDistribution {
 		this.num += num;
 	}
 	
+	public String getColor() {
+		return color;
+	}
+
 	public String getGrade() {
 		return grade;
 	}
-
+	
 	public int getNum() {
 		return num;
 	}

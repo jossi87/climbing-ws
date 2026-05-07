@@ -195,7 +195,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Area area = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
+			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.AreaSector sector : area.getSectors()) {
@@ -305,8 +305,8 @@ public class V2 {
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<GradeDistribution> res = dao.getGradeDistribution(c, authUserId, setup, idArea, idSector);
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+			Collection<GradeDistribution> res = dao.getGradeDistribution(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -692,7 +692,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Sector sector = dao.getSector(c, authUserId, false, setup, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, 0, id);
+			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, 0, id);
 			final Area area = dao.getArea(c, setup, authUserId, sector.getAreaId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override

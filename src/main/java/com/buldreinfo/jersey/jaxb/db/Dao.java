@@ -1018,39 +1018,76 @@ public class Dao {
 			// Fill sector descents
 			getSectorSlopes(c, false, sectorLookup.keySet()).entrySet().forEach(e -> sectorLookup.get(e.getKey().intValue()).setDescent(e.getValue()));
 			// Add simplified grade counts
-			for (GradeDistribution gd : getGradeDistribution(c, authUserId, s, reqId, 0)) {
-			    String originalLabel = gd.getGrade();
-			    String baseLabel = (originalLabel == null || originalLabel.equalsIgnoreCase("n/a")) 
-			                       ? "n/a" 
-			                       : originalLabel.replaceAll("[ABC]$", "");
-			    Map<Integer, Integer> sectorCountsForThisGrade = new HashMap<>();
-			    for (GradeDistribution.GradeDistributionRow row : gd.getRows()) {
-			        int total = row.getNumBoulder() + row.getNumSport() + row.getNumTrad() + 
-			                    row.getNumMixed() + row.getNumTopRope() + row.getNumAid() + 
-			                    row.getNumAidTrad() + row.getNumIce();
-			        sectorCountsForThisGrade.put(row.getId(), total);
-			    }
-			    for (Area.AreaSector sector : sectorLookup.values()) {
-			        if (sector.getGradeCounts() == null) {
-			            sector.setGradeCounts(new ArrayList<>());
-			        }
-			        int count = sectorCountsForThisGrade.getOrDefault(sector.getId(), 0);
-			        Optional<Area.GradeCount> existing = sector.getGradeCounts().stream()
-			                .filter(gc -> gc.grade().equals(baseLabel))
-			                .findFirst();
-			        if (existing.isPresent()) {
-			            int index = sector.getGradeCounts().indexOf(existing.get());
-			            int newTotal = existing.get().num() + count;
-			            sector.getGradeCounts().set(index, new Area.GradeCount(baseLabel, newTotal));
-			        } else {
-			            sector.getGradeCounts().add(new Area.GradeCount(baseLabel, count));
-			        }
-			    }
-			}
+			loadSimplifiedGradeCounts(c, authUserId, reqId, sectorLookup);
 		}
 		a.orderSectors();
 		logger.debug("getArea(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
 		return a;
+	}
+	
+	public void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
+	    String sqlStr = """
+	            WITH req AS (
+	              SELECT ? auth_user_id, ? area_id
+	            ),
+	            target_systems AS (
+	              SELECT DISTINCT tgs.grade_system_id 
+	              FROM req 
+	              JOIN area a ON a.id = req.area_id
+	              JOIN region_type rt ON a.region_id = rt.region_id 
+	              JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+	            ),
+	            problem_intensity AS (
+	              SELECT p.sector_id, p.id as problem_id,
+	                     ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) as gid
+	              FROM req
+	              JOIN sector s ON s.area_id = req.area_id
+	              JOIN problem p ON s.id = p.sector_id
+	              JOIN grade g_orig ON p.grade_id = g_orig.id
+	              LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = (SELECT region_id FROM area WHERE id = req.area_id)
+	              LEFT JOIN (
+	                tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+	              ) ON p.id = tk.problem_id
+	              WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	              GROUP BY p.sector_id, p.id, g_orig.weight, ur.admin_read, ur.superadmin_read
+	            )
+	            SELECT 
+	                s.id as sector_id, 
+	                g_list.label_compact, 
+	                MAX(clr.hex_code) as color, 
+	                COUNT(pi.problem_id) as num
+	            FROM req
+	            JOIN sector s ON s.area_id = req.area_id
+	            JOIN target_systems ts ON 1=1
+	            JOIN (
+	              SELECT label_compact, grade_system_id, grade_color_id, MIN(weight) as sort_weight 
+	              FROM grade 
+	              GROUP BY label_compact, grade_system_id, grade_color_id
+	            ) g_list ON g_list.grade_system_id = ts.grade_system_id
+	            JOIN grade_color clr ON g_list.grade_color_id = clr.id
+	            LEFT JOIN problem_intensity pi ON pi.sector_id = s.id AND pi.gid IN (
+	                SELECT weight FROM grade WHERE label_compact = g_list.label_compact AND grade_system_id = g_list.grade_system_id
+	            )
+	            GROUP BY s.id, g_list.label_compact, g_list.sort_weight
+	            ORDER BY s.id, g_list.sort_weight
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, authUserId.orElse(0));
+	        ps.setInt(2, areaId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                Area.AreaSector sector = sectorLookup.get(rst.getInt("sector_id"));
+	                if (sector != null) {
+	                    if (sector.getGradeCounts() == null) sector.setGradeCounts(new ArrayList<>());
+	                    sector.getGradeCounts().add(new Area.GradeCount(
+	                        rst.getString("label_compact"), 
+	                        rst.getString("color"), 
+	                        rst.getInt("num")
+	                    ));
+	                }
+	            }
+	        }
+	    }
 	}
 
 	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
@@ -1185,56 +1222,70 @@ public class Dao {
 	}
 
 	public Collection<GradeDistribution> getContentGraph(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
-		String sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? region_id, ? grade_system
-				),
-				x AS (
-				  SELECT g.base_no g_base, x.region_id, x.region, x.t, COUNT(id_p) num
-				  FROM (
-				    SELECT r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, 
-				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
-				           p.id id_p
-				    FROM req
-				    JOIN region r ON 1=1
-				    JOIN region_type rt ON r.id=rt.region_id
-				    JOIN area a ON r.id=a.region_id
-				    JOIN sector s ON a.id=s.area_id
-				    JOIN problem p ON s.id=p.sector_id
-				    JOIN type ty ON p.type_id=ty.id
-				    LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
-				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
-				      AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
-				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				    GROUP BY r.id, r.name, ty.subtype, p.id
-				  ) x
-				  JOIN req ON 1=1
-				  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
-				  GROUP BY x.region_id, x.region, g.base_no, x.t
-				)
-				SELECT g.base_no grade, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
-				FROM req
-				JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-				LEFT JOIN x ON g.base_no=x.g_base
-				ORDER BY g.sort, x.region, x.t
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setString(3, setup.gradeSystem().toString());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					GradeDistribution dist = res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new);
-					int regionId = rst.getInt("region_id");
-					if (!rst.wasNull()) {
-						dist.addSector(regionId, rst.getString("region"), rst.getString("t"), rst.getInt("num"));
-					}
-				}
-			}
-		}
-		return res.values();
+	    Map<String, GradeDistribution> res = new LinkedHashMap<>();
+	    String sqlStr = """
+	            WITH req AS (
+	              SELECT ? auth_user_id, ? region_id
+	            ),
+	            target_systems AS (
+	              SELECT DISTINCT tgs.grade_system_id FROM req 
+	              JOIN region_type rt ON req.region_id = rt.region_id 
+	              JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+	            ),
+	            x AS (
+	              SELECT g.label_major g_base, x.region_id, x.region, x.t, COUNT(id_p) num
+	              FROM (
+	                SELECT r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, 
+	                       ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) gid, 
+	                       p.id id_p
+	                FROM req
+	                JOIN region r ON 1=1
+	                JOIN region_type rt ON r.id = rt.region_id
+	                JOIN area a ON r.id = a.region_id
+	                JOIN sector s ON a.id = s.area_id
+	                JOIN problem p ON s.id = p.sector_id
+	                JOIN type ty ON p.type_id = ty.id
+	                JOIN grade g_orig ON p.grade_id = g_orig.id
+	                LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
+	                LEFT JOIN (
+	                    tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+	                ) ON p.id = tk.problem_id
+	                WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+	                  AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
+	                  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	                GROUP BY r.id, r.name, ty.subtype, p.id, g_orig.weight
+	              ) x
+	              JOIN target_systems ts ON 1=1
+	              JOIN grade g ON x.gid = g.weight AND g.grade_system_id = ts.grade_system_id
+	              GROUP BY x.region_id, x.region, g.label_major, x.t
+	            )
+	            SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
+	            FROM req
+	            JOIN target_systems ts ON 1=1
+	            JOIN (
+	              SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort 
+	              FROM grade GROUP BY label_major, grade_system_id, grade_color_id
+	            ) g ON g.grade_system_id = ts.grade_system_id
+	            JOIN grade_color clr ON g.grade_color_id = clr.id
+	            LEFT JOIN x ON g.label_major = x.g_base
+	            ORDER BY g.sort, x.region, x.t
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, authUserId.orElse(0));
+	        ps.setInt(2, setup.idRegion());
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                String label = rst.getString("grade");
+	                String color = rst.getString("color");
+	                GradeDistribution dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+	                int regionId = rst.getInt("region_id");
+	                if (!rst.wasNull()) {
+	                    dist.addSector(regionId, rst.getString("region"), rst.getString("t"), rst.getInt("num"));
+	                }
+	            }
+	        }
+	    }
+	    return res.values();
 	}
 
 	public Collection<DangerousArea> getDangerous(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
@@ -1732,57 +1783,70 @@ public class Dao {
 		return res;
 	}
 
-	public Collection<GradeDistribution> getGradeDistribution(Connection c, Optional<Integer> authUserId, Setup setup, int optionalAreaId, int optionalSectorId) throws SQLException {
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
-		String sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? sector_id, ? area_id, ? grade_system
-				),
-				x AS (
-				  SELECT g.base_no g_base, x.sorting, x.sector_id, x.sector, x.t, COUNT(id_p) num
-				  FROM (
-				    SELECT s.id sector_id, s.name sector, s.sorting, COALESCE(ty.subtype,'Boulder') t, 
-				           ROUND((IFNULL(SUM(NULLIF(t.grade, -1)), 0) + p.grade) / (COUNT(t.grade) + 1)) gid, 
-				           p.id id_p
-				    FROM req
-				    JOIN area a ON 1=1
-				    JOIN sector s ON a.id=s.area_id 
-				    JOIN problem p ON s.id=p.sector_id 
-				    JOIN type ty ON p.type_id=ty.id 
-				    LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id 
-				    LEFT JOIN tick t ON (p.id=t.problem_id AND t.grade>0)
-				    WHERE (CASE WHEN req.sector_id != 0 THEN p.sector_id ELSE a.id END) = COALESCE(NULLIF(req.sector_id, 0), req.area_id)
-				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				    GROUP BY s.id, s.name, ty.subtype, p.id
-				  ) x
-				  JOIN req ON 1=1
-				  JOIN grade g ON x.gid=g.grade_id AND g.t=req.grade_system
-				  GROUP BY x.sorting, x.sector_id, x.sector, g.base_no, x.t
-				)
-				SELECT g.base_no grade, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
-				FROM req
-				JOIN (SELECT base_no, MIN(grade_id) sort, t FROM grade GROUP BY base_no, t) g ON g.t=req.grade_system
-				LEFT JOIN x ON g.base_no=x.g_base
-				ORDER BY g.sort, x.sorting, x.sector, x.t
-				""";
-
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, optionalSectorId);
-			ps.setInt(3, optionalAreaId);
-			ps.setString(4, setup.gradeSystem().toString());
-
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					GradeDistribution dist = res.computeIfAbsent(rst.getString("grade"), GradeDistribution::new);
-					int sectorId = rst.getInt("sector_id");
-					if (!rst.wasNull()) {
-						dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
-					}
-				}
-			}
-		}
-		return res.values();
+	public Collection<GradeDistribution> getGradeDistribution(Connection c, Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) throws SQLException {
+	    Map<String, GradeDistribution> res = new LinkedHashMap<>();
+	    String sqlStr = """
+	            WITH req AS (
+	              SELECT ? auth_user_id, ? sector_id, ? area_id
+	            ),
+	            target_systems AS (
+	              SELECT DISTINCT tgs.grade_system_id 
+	              FROM req 
+	              JOIN area a ON a.id = COALESCE(NULLIF(req.area_id, 0), (SELECT area_id FROM sector WHERE id = req.sector_id))
+	              JOIN region_type rt ON a.region_id = rt.region_id 
+	              JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+	            ),
+	            x AS (
+	              SELECT g.label_major g_base, x.sorting, x.sector_id, x.sector, x.t, COUNT(id_p) num
+	              FROM (
+	                SELECT s.id sector_id, s.name sector, s.sorting, COALESCE(ty.subtype,'Boulder') t, 
+	                       ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) gid, 
+	                       p.id id_p
+	                FROM req
+	                JOIN sector s ON (CASE WHEN req.sector_id != 0 THEN s.id = req.sector_id ELSE s.area_id = req.area_id END)
+	                JOIN area a ON s.area_id = a.id
+	                JOIN problem p ON s.id = p.sector_id 
+	                JOIN type ty ON p.type_id = ty.id 
+	                JOIN grade g_orig ON p.grade_id = g_orig.id
+	                LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id 
+	                LEFT JOIN (
+	                    tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+	                ) ON p.id = tk.problem_id
+	                WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	                GROUP BY s.id, s.name, s.sorting, ty.subtype, p.id, g_orig.weight
+	              ) x
+	              JOIN target_systems ts ON 1=1
+	              JOIN grade g ON x.gid = g.weight AND g.grade_system_id = ts.grade_system_id
+	              GROUP BY x.sorting, x.sector_id, x.sector, g.label_major, x.t
+	            )
+	            SELECT g.label_major grade, clr.hex_code color, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
+	            FROM req
+	            JOIN target_systems ts ON 1=1
+	            JOIN (
+	              SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort 
+	              FROM grade GROUP BY label_major, grade_system_id, grade_color_id
+	            ) g ON g.grade_system_id = ts.grade_system_id
+	            JOIN grade_color clr ON g.grade_color_id = clr.id
+	            LEFT JOIN x ON g.label_major = x.g_base
+	            ORDER BY g.sort, x.sorting, x.sector, x.t
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, authUserId.orElse(0));
+	        ps.setInt(2, optionalSectorId);
+	        ps.setInt(3, optionalAreaId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                String label = rst.getString("grade");
+	                String color = rst.getString("color");
+	                GradeDistribution dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+	                int sectorId = rst.getInt("sector_id");
+	                if (!rst.wasNull()) {
+	                    dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
+	                }
+	            }
+	        }
+	    }
+	    return res.values();
 	}
 
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {

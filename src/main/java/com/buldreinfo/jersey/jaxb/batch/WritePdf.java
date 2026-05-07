@@ -34,7 +34,7 @@ public class WritePdf {
 			}
 			// Area
 			area = dao.getArea(c, setup, authUserId, 2754, shouldUpdateHits);
-			var gradeDistribution = dao.getGradeDistribution(c, authUserId, setup, area.getId(), 0);
+			var gradeDistribution = dao.getGradeDistribution(c, authUserId, area.getId(), 0);
 			Path pArea = Path.of("C:/Users/JosteinØygarden/Desktop/area.pdf");
 			final List<Sector> sectors = new ArrayList<>();
 			for (var areaSector : area.getSectors()) {

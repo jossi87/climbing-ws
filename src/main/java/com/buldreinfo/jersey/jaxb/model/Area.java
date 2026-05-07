@@ -146,7 +146,7 @@ public class Area {
 			this.outline = outline;
 		}
 	}
-	public record GradeCount(String grade, int num) {}
+	public record GradeCount(String grade, String color, int num) {}
 	public record AreaSectorOrder(int id, String name, int sorting) {}
 	private final String redirectUrl;
 	private final String regionName;
