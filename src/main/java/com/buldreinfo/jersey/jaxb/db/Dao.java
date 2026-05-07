@@ -290,9 +290,10 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT p.fa_date, p.last_updated, f.user_id
 				FROM problem p
+				JOIN grade g ON p.grade_id=g.id
 				LEFT JOIN fa f ON p.id=f.problem_id
 				WHERE p.id=?
-				  AND (p.grade>0 OR f.user_id IS NOT NULL)
+				  AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
 				""")) {
 			ps.setInt(1, idProblem);
 			try (ResultSet rst = ps.executeQuery()) {
