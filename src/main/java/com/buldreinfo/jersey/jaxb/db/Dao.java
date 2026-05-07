@@ -1565,65 +1565,68 @@ public class Dao {
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageNewestMedia> res = new ArrayList<>();
 		String sqlStr = """
-				WITH x AS (
-				    SELECT a1.id, a1.activity_timestamp, a1.problem_id, a1.media_id 
-				    FROM activity a1
-				    JOIN problem p1 ON a1.problem_id=p1.id
-				    JOIN sector s1 ON p1.sector_id=s1.id
-				    JOIN area ar1 ON s1.area_id=ar1.id
-				    JOIN media m1 ON a1.media_id=m1.id
-				    WHERE a1.type='MEDIA'
-				      AND ar1.region_id IN (
+				WITH req AS (
+				  SELECT ? auth_user_id, ? region_id
+				),
+				m_list AS (
+				  SELECT m.id AS media_id, mp.problem_id
+				  FROM req, media m
+				  JOIN media_problem mp ON m.id = mp.media_id AND mp.trivia = 0
+				  JOIN problem p1 ON mp.problem_id = p1.id
+				  JOIN sector s1 ON p1.sector_id = s1.id
+				  JOIN area ar1 ON s1.area_id = ar1.id
+				  WHERE m.deleted_user_id IS NULL
+				    AND ar1.region_id IN (
 				        SELECT r.id FROM region r 
-				        JOIN region_type rt ON r.id=rt.region_id 
-				        LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				          AND (r.id=? OR ur.user_id IS NOT NULL)
+				        JOIN region_type rt ON r.id = rt.region_id 
+				        LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = req.auth_user_id)
+				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
 				    )
-				    ORDER BY a1.activity_timestamp DESC LIMIT 12
+				  ORDER BY m.id DESC
+				  LIMIT 12
 				),
 				calc AS (
-				    SELECT 
-				        x.activity_timestamp, x.media_id,
-				        a.id area_id, a.locked_admin area_la, a.locked_superadmin area_lsa, a.trash area_t,
-				        s.id sector_id, s.locked_admin sector_la, s.locked_superadmin sector_lsa, s.trash sector_t,
-				        p.id problem_id, p.name problem_name, p.locked_admin problem_la, p.locked_superadmin problem_lsa, p.trash problem_t,
-				        ty.id type_id, tgs.grade_system_id,
-				        ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) as final_weight,
-				        ur.admin_read, ur.superadmin_read
-				    FROM x
-				    JOIN problem p ON x.problem_id=p.id
-				    JOIN type ty ON p.type_id=ty.id 
-				    JOIN sector s ON p.sector_id=s.id 
-				    JOIN area a ON s.area_id = a.id 
-				    JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
-				    JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
-				    JOIN grade g_orig ON p.grade_id = g_orig.id
-				    LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-				    LEFT JOIN (
-				        tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
-				    ) ON p.id = tk.problem_id
-				    WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				      AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				    GROUP BY x.id, x.activity_timestamp, x.media_id, a.id, s.id, p.id, ty.id, tgs.grade_system_id, g_orig.weight, ur.admin_read, ur.superadmin_read
+				  SELECT 
+				    ml.media_id,
+				    a.id area_id, a.locked_admin area_la, a.locked_superadmin area_lsa, a.trash area_t,
+				    s.id sector_id, s.locked_admin sector_la, s.locked_superadmin sector_lsa, s.trash sector_t,
+				    p.id problem_id, p.name problem_name, p.locked_admin problem_la, p.locked_superadmin problem_lsa, p.trash problem_t,
+				    ty.id type_id, tgs.grade_system_id,
+				    ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.id) + 1)) as final_weight,
+				    ur.admin_read, ur.superadmin_read
+				  FROM m_list ml
+				  JOIN req ON 1=1
+				  JOIN problem p ON ml.problem_id = p.id
+				  JOIN type ty ON p.type_id = ty.id 
+				  JOIN sector s ON p.sector_id = s.id 
+				  JOIN area a ON s.area_id = a.id 
+				  JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				  JOIN grade g_orig ON p.grade_id = g_orig.id
+				  LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
+				  LEFT JOIN (
+				      tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				  ) ON p.id = tk.problem_id
+				  WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
+				    AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
+				    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				  GROUP BY ml.media_id, p.id, ty.id, tgs.grade_system_id, g_orig.weight, ur.admin_read, ur.superadmin_read
 				)
 				SELECT 
 				    c.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
 				    c.problem_id, c.problem_name, c.problem_la problem_locked_admin, c.problem_lsa problem_locked_superadmin,
 				    g_final.grade grade
 				FROM calc c
-				JOIN media m ON c.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				JOIN media m ON c.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN grade g_final ON g_final.grade_system_id = c.grade_system_id AND g_final.weight = c.final_weight
-				ORDER BY c.activity_timestamp DESC, c.media_id DESC
+				ORDER BY c.media_id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
 			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
