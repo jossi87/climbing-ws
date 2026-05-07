@@ -1058,71 +1058,6 @@ public class Dao {
 		return a;
 	}
 
-	public void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
-		String sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? area_id
-				),
-				target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id 
-				  FROM req 
-				  JOIN area a ON a.id = req.area_id
-				  JOIN region_type rt ON a.region_id = rt.region_id 
-				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
-				),
-				problem_intensity AS (
-				  SELECT p.sector_id, p.id as problem_id,
-				         ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) as gid
-				  FROM req
-				  JOIN sector s ON s.area_id = req.area_id
-				  JOIN problem p ON s.id = p.sector_id
-				  JOIN grade g_orig ON p.grade_id = g_orig.id
-				  LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = (SELECT region_id FROM area WHERE id = req.area_id)
-				  LEFT JOIN (
-				    tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
-				  ) ON p.id = tk.problem_id
-				  WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				  GROUP BY p.sector_id, p.id, g_orig.weight, ur.admin_read, ur.superadmin_read
-				)
-				SELECT 
-				    s.id as sector_id, 
-				    g_list.label_compact, 
-				    MAX(clr.hex_code) as color, 
-				    COUNT(pi.problem_id) as num
-				FROM req
-				JOIN sector s ON s.area_id = req.area_id
-				JOIN target_systems ts ON 1=1
-				JOIN (
-				  SELECT label_compact, grade_system_id, grade_color_id, MIN(weight) as sort_weight 
-				  FROM grade 
-				  GROUP BY label_compact, grade_system_id, grade_color_id
-				) g_list ON g_list.grade_system_id = ts.grade_system_id
-				JOIN grade_color clr ON g_list.grade_color_id = clr.id
-				LEFT JOIN problem_intensity pi ON pi.sector_id = s.id AND pi.gid IN (
-				    SELECT weight FROM grade WHERE label_compact = g_list.label_compact AND grade_system_id = g_list.grade_system_id
-				)
-				GROUP BY s.id, g_list.label_compact, g_list.sort_weight
-				ORDER BY s.id, g_list.sort_weight
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, areaId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					Area.AreaSector sector = sectorLookup.get(rst.getInt("sector_id"));
-					if (sector != null) {
-						if (sector.getGradeCounts() == null) sector.setGradeCounts(new ArrayList<>());
-						sector.getGradeCounts().add(new Area.GradeCount(
-								rst.getString("label_compact"), 
-								rst.getString("color"), 
-								rst.getInt("num")
-								));
-					}
-				}
-			}
-		}
-	}
-
 	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
@@ -4197,24 +4132,69 @@ public class Dao {
 	    }
 	}
 
-	private void writeRow(ExcelWorkbook wb, Map<String, ExcelSheet> sheets, ResultSet rst, String sheetName) throws SQLException {
-	    ExcelSheet sheet = sheets.computeIfAbsent(sheetName, wb::addSheet);
-	    sheet.incrementRow();
-	    sheet.writeString("AREA", rst.getString("area_name"));
-	    sheet.writeString("SECTOR", rst.getString("sector_name"));
-	    String subType = rst.getString("subtype");
-	    if (subType != null) {
-	        sheet.writeString("TYPE", subType);
-	        int pitches = rst.getInt("num_pitches");
-	        sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
-	    }
-	    sheet.writeString("NAME", rst.getString("name"));
-	    sheet.writeString("FIRST ASCENT", rst.getBoolean("fa") ? "Yes" : "No");
-	    sheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
-	    sheet.writeString("GRADE", rst.getString("grade"));
-	    sheet.writeDouble("STARS", rst.getDouble("stars"));
-	    sheet.writeString("DESCRIPTION", rst.getString("comment"));
-	    sheet.writeHyperlink("URL", rst.getString("url"));
+	public void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
+		String sqlStr = """
+				WITH req AS (
+				  SELECT ? auth_user_id, ? area_id
+				),
+				target_systems AS (
+				  SELECT DISTINCT tgs.grade_system_id 
+				  FROM req 
+				  JOIN area a ON a.id = req.area_id
+				  JOIN region_type rt ON a.region_id = rt.region_id 
+				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				),
+				problem_intensity AS (
+				  SELECT p.sector_id, p.id as problem_id,
+				         ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) as gid
+				  FROM req
+				  JOIN sector s ON s.area_id = req.area_id
+				  JOIN problem p ON s.id = p.sector_id
+				  JOIN grade g_orig ON p.grade_id = g_orig.id
+				  LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = (SELECT region_id FROM area WHERE id = req.area_id)
+				  LEFT JOIN (
+				    tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a'
+				  ) ON p.id = tk.problem_id
+				  WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				  GROUP BY p.sector_id, p.id, g_orig.weight, ur.admin_read, ur.superadmin_read
+				)
+				SELECT 
+				    s.id as sector_id, 
+				    g_list.label_compact, 
+				    MAX(clr.hex_code) as color, 
+				    COUNT(pi.problem_id) as num
+				FROM req
+				JOIN sector s ON s.area_id = req.area_id
+				JOIN target_systems ts ON 1=1
+				JOIN (
+				  SELECT label_compact, grade_system_id, grade_color_id, MIN(weight) as sort_weight 
+				  FROM grade 
+				  GROUP BY label_compact, grade_system_id, grade_color_id
+				) g_list ON g_list.grade_system_id = ts.grade_system_id
+				JOIN grade_color clr ON g_list.grade_color_id = clr.id
+				LEFT JOIN problem_intensity pi ON pi.sector_id = s.id AND pi.gid IN (
+				    SELECT weight FROM grade WHERE label_compact = g_list.label_compact AND grade_system_id = g_list.grade_system_id
+				)
+				GROUP BY s.id, g_list.label_compact, g_list.sort_weight
+				ORDER BY s.id, g_list.sort_weight
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, areaId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					Area.AreaSector sector = sectorLookup.get(rst.getInt("sector_id"));
+					if (sector != null) {
+						if (sector.getGradeCounts() == null) sector.setGradeCounts(new ArrayList<>());
+						sector.getGradeCounts().add(new Area.GradeCount(
+								rst.getString("label_compact"), 
+								rst.getString("color"), 
+								rst.getInt("num")
+								));
+					}
+				}
+			}
+		}
 	}
 
 	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
@@ -4827,15 +4807,6 @@ public class Dao {
 		}
 	}
 
-	public void setThemePreference(Connection c, Optional<Integer> authUserId, String themePreference) throws SQLException {
-		Preconditions.checkArgument(themePreference != null && (themePreference.equals("light") || themePreference.equals("dark")), "themePreference must be 'light' or 'dark'");
-		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET theme_preference=? WHERE id=?")) {
-			ps.setString(1, themePreference);
-			ps.setInt(2, authUserId.orElseThrow());
-			ps.execute();
-		}
-	}
-
 	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
@@ -5046,6 +5017,15 @@ public class Dao {
 		}
 		logger.debug("setSector() - res={}", res);
 		return res;
+	}
+
+	public void setThemePreference(Connection c, Optional<Integer> authUserId, String themePreference) throws SQLException {
+		Preconditions.checkArgument(themePreference != null && (themePreference.equals("light") || themePreference.equals("dark")), "themePreference must be 'light' or 'dark'");
+		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET theme_preference=? WHERE id=?")) {
+			ps.setString(1, themePreference);
+			ps.setInt(2, authUserId.orElseThrow());
+			ps.execute();
+		}
 	}
 
 	public void setTick(Connection c, Optional<Integer> authUserId, Setup setup, Tick t) throws SQLException {
@@ -5801,7 +5781,7 @@ public class Dao {
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
 		List<Grade> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT g.id, g.grade, g.label_major, c.hex_code color
+				SELECT g.id, g.grade, g.label_compact, c.hex_code color
 				FROM grade g
 				JOIN grade_color c ON g.grade_color_id=c.id
 				WHERE g.grade_system_id=?
@@ -5812,9 +5792,9 @@ public class Dao {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String grade = rst.getString("grade");
-					String labelMajor = rst.getString("label_major");
+					String labelCompact = rst.getString("label_major");
 					String color = rst.getString("color");
-					res.add(new Grade(id, grade, labelMajor, color));
+					res.add(new Grade(id, grade, labelCompact, color));
 				}
 			}
 		}
@@ -6660,5 +6640,25 @@ public class Dao {
 				}
 			}
 		}
+	}
+
+	private void writeRow(ExcelWorkbook wb, Map<String, ExcelSheet> sheets, ResultSet rst, String sheetName) throws SQLException {
+	    ExcelSheet sheet = sheets.computeIfAbsent(sheetName, wb::addSheet);
+	    sheet.incrementRow();
+	    sheet.writeString("AREA", rst.getString("area_name"));
+	    sheet.writeString("SECTOR", rst.getString("sector_name"));
+	    String subType = rst.getString("subtype");
+	    if (subType != null) {
+	        sheet.writeString("TYPE", subType);
+	        int pitches = rst.getInt("num_pitches");
+	        sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
+	    }
+	    sheet.writeString("NAME", rst.getString("name"));
+	    sheet.writeString("FIRST ASCENT", rst.getBoolean("fa") ? "Yes" : "No");
+	    sheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
+	    sheet.writeString("GRADE", rst.getString("grade"));
+	    sheet.writeDouble("STARS", rst.getDouble("stars"));
+	    sheet.writeString("DESCRIPTION", rst.getString("comment"));
+	    sheet.writeHyperlink("URL", rst.getString("url"));
 	}
 }
