@@ -2679,7 +2679,7 @@ public class Dao {
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr,
 				       CASE WHEN t.id IS NULL THEN -1 ELSE t.stars END stars, CASE WHEN (f.user_id IS NOT NULL) THEN f.user_id ELSE 0 END fa,
-				       (CASE WHEN t.id IS NOT NULL AND gt.grade IS NOT NULL THEN gt.weight ELSE g.weight END) grade,
+				       (CASE WHEN t.id IS NOT NULL AND gt.grade IS NOT NULL THEN gt.weight ELSE g.weight END) grade_weight,
 				       (CASE WHEN t.id IS NOT NULL AND gt.grade IS NOT NULL THEN gt.grade ELSE g.grade END) grade,
 				       CASE WHEN t.id IS NOT NULL AND gt.id IS NULL THEN 1 ELSE 0 END no_personal_grade
 				FROM problem p
@@ -5792,7 +5792,7 @@ public class Dao {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String grade = rst.getString("grade");
-					String labelCompact = rst.getString("label_major");
+					String labelCompact = rst.getString("label_compact");
 					String color = rst.getString("color");
 					res.add(new Grade(id, grade, labelCompact, color));
 				}
