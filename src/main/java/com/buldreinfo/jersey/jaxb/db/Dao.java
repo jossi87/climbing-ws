@@ -587,11 +587,11 @@ public class Dao {
 			int ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
 			ps.setInt(ix++, setup.idRegion());
-			ps.setBoolean(ix++, disableDateLimit);
-			ps.setBoolean(ix++, fa);
-			ps.setBoolean(ix++, comments);
-			ps.setBoolean(ix++, ticks);
-			ps.setBoolean(ix++, media);
+			ps.setBoolean(ix++, !disableDateLimit);
+			ps.setBoolean(ix++, !fa);
+			ps.setBoolean(ix++, !comments);
+			ps.setBoolean(ix++, !ticks);
+			ps.setBoolean(ix++, !media);
 			ps.setInt(ix++, lowerGrade);
 			ps.setInt(ix++, idArea);
 			ps.setInt(ix++, idSector);
@@ -3783,11 +3783,12 @@ public class Dao {
 				    FROM area a
 				    JOIN sector s ON a.id = s.area_id
 				    JOIN problem p ON s.id = p.sector_id AND p.broken IS NULL
+				    JOIN grade g ON p.grade_id = g.id
 				    LEFT JOIN fa f ON p.id = f.problem_id
 				    LEFT JOIN tick t ON p.id = t.problem_id
 				    LEFT JOIN fa_aid_user aid ON p.id = aid.problem_id
 				    WHERE %1$s = ? 
-				      AND (p.grade != 0 OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
+				      AND (g.grade != 'n/a' OR aid.user_id IS NOT NULL OR f.user_id IS NOT NULL OR t.id IS NOT NULL)
 				),
 				user_completions AS (
 				    SELECT f.user_id, p.id AS problem_id

@@ -23,6 +23,7 @@ import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Toc;
+import com.buldreinfo.jersey.jaxb.model.Top;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 
@@ -47,9 +48,15 @@ public class V2Test {
 		V2 tester = new V2();
 		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Collection<?>);
+			Collection<?> res = (Collection<?>)r.getEntity();
+			assertTrue(res.size() > 1);
 		}
 		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, false, false, false, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Collection<?>);
+			Collection<?> res = (Collection<?>)r.getEntity();
+			assertTrue(res.size() > 1);
 		}
 	}
 	
@@ -149,8 +156,6 @@ public class V2Test {
 		try (Response r = tester.getProfileStatistics(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof ProfileStatistics);
-			Profile u = (Profile)r.getEntity();
-			assertTrue(u.firstname() != null);
 		}
 	}
 	
@@ -192,16 +197,28 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof Toc);
 		}
 	}
-
+	
 	@Test
 	public void testGetTodo() throws Exception {
 		V2 tester = new V2();
-		// User: Jostein
 		try (Response r = tester.getProfileTodo(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof ProfileTodo);
 			ProfileTodo t = (ProfileTodo)r.getEntity();
 			assertTrue(!t.areas().isEmpty());
+		}
+	}
+
+	@Test
+	public void testGetTop() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getTop(getRequest(Region.brattelinjer), 2738, 0)) { // Dale
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Top);
+		}
+		try (Response r = tester.getTop(getRequest(Region.brattelinjer), 0, 2857)) { // Dale / Hovedveggen
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Top);
 		}
 	}
 
