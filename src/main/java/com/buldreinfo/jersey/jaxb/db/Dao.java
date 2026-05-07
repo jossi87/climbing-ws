@@ -2285,8 +2285,9 @@ public class Dao {
 		}
 		// Sections
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT ps.id, ps.nr, ps.description, ps.grade
+				SELECT ps.id, ps.nr, ps.description, g.grade
 				FROM problem_section ps
+				JOIN grade g ON ps.grade_id=g.id
 				WHERE ps.problem_id=?
 				ORDER BY ps.nr
 				""")) {
@@ -2296,7 +2297,7 @@ public class Dao {
 					int id = rst.getInt("id");
 					int nr = rst.getInt("nr");
 					String description = rst.getString("description");
-					int grade = rst.getInt("grade");
+					String grade = rst.getString("grade");
 					List<Media> sectionMedia = null;
 					if (p.getMedia() != null) {
 						sectionMedia = p.getMedia()
@@ -2305,7 +2306,7 @@ public class Dao {
 								.toList();
 						p.getMedia().removeAll(sectionMedia);
 					}
-					p.addSection(id, nr, description, s.gradeConverter().getGradeFromDeprecatedIdGrade(grade), sectionMedia);
+					p.addSection(id, nr, description, grade, sectionMedia);
 				}
 			}
 		}
@@ -3316,7 +3317,7 @@ public class Dao {
 					int gradeSystemId = rst.getInt("grade_system_id");
 					List<CompassDirection> compassDirections = getCompassDirections(c);
 					GradeConverter gradeConverter = new GradeConverter(getGrades(c, gradeSystemId));
-					res.add(Setup.newBuilder(domain, group, gradeSystemId, GradeSystem.ofGroup(group))
+					res.add(Setup.newBuilder(domain, group, GradeSystem.ofGroup(group))
 							.withIdRegion(idRegion)
 							.withTitle(title)
 							.withDescription(description)
@@ -3577,20 +3578,20 @@ public class Dao {
 	public List<TocPitch> getTocPitches(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		List<TocPitch> res = new ArrayList<>();
 		String sqlStr = """
-				SELECT r.name region_name, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name problem_name, ps.nr pitch, ps.grade, ps.description
+				SELECT r.name region_name, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name problem_name, ps.nr pitch, g.grade, ps.description
 				FROM area a INNER JOIN region r ON a.region_id=r.id
 				JOIN region_type rt ON r.id=rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON (s.id=p.sector_id AND rt.type_id=p.type_id)
 				JOIN problem_section ps ON p.id=ps.problem_id
-				JOIN grade g
+				JOIN grade g ON ps.grade_id=g.id
 				JOIN type ty ON p.type_id=ty.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE (a.region_id=? OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, ps.grade, ps.description
+				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, g.grade, ps.description
 				ORDER BY r.name, a.name, s.sorting, s.name, p.nr, ps.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -4608,13 +4609,12 @@ public class Dao {
 			ps.execute();
 		}
 		if (p.getSections() != null && p.getSections().size() > 1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade_id, grade) VALUES (?, ?, ?, ?, ?)")) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)")) {
 				for (ProblemSection section : p.getSections()) {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.nr());
 					ps.setString(3, GlobalFunctions.stripString(section.description()));
 					setNullablePositiveInteger(ps, 4, s.gradeConverter().getIdGradeFromGrade(section.grade()));
-					ps.setInt(5, s.gradeConverter().getDeprecatedIdGradeFromGrade(section.grade()));
 					ps.addBatch();
 				}
 				ps.executeBatch();
@@ -5664,8 +5664,9 @@ public class Dao {
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
 		List<Grade> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT g.id, g.grade, g.grade_id deprecated_grade_id
+				SELECT g.id, g.grade, g.label_major, c.hex_code color, g.grade_id deprecated_grade_id
 				FROM grade g
+				JOIN grade_color c ON g.grade_color_id=c.id
 				WHERE g.grade_system_id=?
 				ORDER BY g.weight
 				""")) {
@@ -5674,8 +5675,10 @@ public class Dao {
 				while (rst.next()) {
 					int id = rst.getInt("id");
 					String grade = rst.getString("grade");
+					String labelMajor = rst.getString("label_major");
+					String color = rst.getString("color");
 					int deprecatedGradeId = rst.getInt("deprecated_grade_id");
-					res.add(new Grade(id, grade, deprecatedGradeId));
+					res.add(new Grade(id, grade, labelMajor, color, deprecatedGradeId));
 				}
 			}
 		}
@@ -5838,7 +5841,7 @@ public class Dao {
 						}
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
@@ -5898,7 +5901,7 @@ public class Dao {
 					String tagged = rst.getString("tagged");
 					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, s, authUserId, idMedia);
+					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
 							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
@@ -6156,78 +6159,88 @@ public class Dao {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Connection c, Setup setup, Optional<Integer> authUserId, int idMedia) throws SQLException {
-		List<Svg> res = null;
-		String sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? media_id, ? grade_system_id
-				),
-				x AS (
-				  SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) gid, 
-				         ty.subtype problem_subtype, p.nr, ps.nr pitch, 
-				         g_sect.grade problem_section_grade, clr_sect.hex_code problem_section_grade_color,
-				         svg.id, svg.path, svg.has_anchor, svg.texts, svg.anchors, svg.trad_belay_stations, 
-				         CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
-				         MAX(CASE WHEN tk.user_id = req.auth_user_id OR fa.user_id IS NOT NULL THEN 1 ELSE 0 END) is_ticked, 
-				         CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, 
-				         IFNULL(danger.danger, 0) is_dangerous
-				  FROM req
-				  JOIN svg ON svg.media_id = req.media_id
-				  JOIN problem p ON svg.problem_id = p.id
-				  JOIN type ty ON p.type_id = ty.id
-				  JOIN grade g_orig ON p.grade_id = g_orig.id
-				  JOIN sector s ON p.sector_id = s.id
-				  JOIN area a ON s.area_id = a.id
-				  LEFT JOIN fa ON p.id = fa.problem_id AND fa.user_id = req.auth_user_id
-				  LEFT JOIN problem_section ps ON ps.problem_id = p.id AND ps.nr = svg.pitch
-				  LEFT JOIN grade g_sect ON ps.grade_id = g_sect.id AND g_sect.grade_system_id = req.grade_system_id
-				  LEFT JOIN grade_color clr_sect ON g_sect.grade_color_id = clr_sect.id
-				  LEFT JOIN (tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a') ON p.id = tk.problem_id
-				  LEFT JOIN todo t2 ON p.id = t2.problem_id AND t2.user_id = req.auth_user_id
-				  LEFT JOIN (
-				    SELECT problem_id, danger 
-				    FROM guestbook 
-				    WHERE (danger = 1 OR resolved = 1) 
-				    AND id IN (SELECT max(id) FROM guestbook WHERE (danger = 1 OR resolved = 1) GROUP BY problem_id)
-				  ) danger ON p.id = danger.problem_id
-				  LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = a.region_id
-				  WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				  GROUP BY p.id, p.name, g_orig.weight, ty.subtype, p.nr, ps.id, ps.nr, 
-				           g_sect.grade, clr_sect.hex_code, svg.id, svg.path, svg.has_anchor, 
-				           svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger, req.auth_user_id, req.grade_system_id
-				)
-				SELECT x.problem_id, x.problem_name,
-				       COALESCE(g.grade, 'n/a') problem_grade, clr.hex_code problem_grade_color, 
-				       x.problem_subtype, x.nr, x.pitch, x.problem_section_grade, x.problem_section_grade_color,
-				       x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
-				FROM x
-				JOIN req ON 1=1
-				LEFT JOIN grade g ON x.gid = g.weight AND g.grade_system_id = req.grade_system_id
-				LEFT JOIN grade_color clr ON g.grade_color_id = clr.id
-				ORDER BY x.nr
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, idMedia);
-			ps.setInt(3, setup.idGradeSystem());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					if (res == null) res = new ArrayList<>();
-					int problemId = rst.getInt("problem_id");
-					String problemName = rst.getString("problem_name");
-					int pitch = rst.getInt("pitch");
-					String problemGrade = (pitch == 0) ? rst.getString("problem_grade") : rst.getString("problem_section_grade");
-					String problemGradeColor = (pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color");
-					res.add(new Svg(false, rst.getInt("id"),
-							problemId, problemName, problemGrade, problemGradeColor, 
-							rst.getString("problem_subtype"), rst.getInt("nr"), 
-							pitch,
-							rst.getString("path"), rst.getBoolean("has_anchor"), rst.getString("texts"), rst.getString("anchors"), rst.getString("trad_belay_stations"), 
-							rst.getBoolean("prim"), rst.getBoolean("is_ticked"), rst.getBoolean("is_todo"), rst.getBoolean("is_dangerous")));
-				}
-			}
-		}
-		return res;
+	private List<Svg> getSvgs(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
+	    List<Svg> res = null;
+	    String sqlStr = """
+	            WITH req AS (
+	              SELECT ? auth_user_id, ? media_id
+	            ),
+	            x AS (
+	              SELECT p.id problem_id, p.name problem_name, ROUND((IFNULL(SUM(gtick.weight), 0) + g_orig.weight) / (COUNT(gtick.weight) + 1)) gid, 
+	                     ty.subtype problem_subtype, p.nr, ps.nr pitch, tgs.grade_system_id,
+	                     g_sect.grade problem_section_grade, clr_sect.hex_code problem_section_grade_color,
+	                     svg.id, svg.path, svg.has_anchor, svg.texts, svg.anchors, svg.trad_belay_stations, 
+	                     CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
+	                     MAX(CASE WHEN tk.user_id = req.auth_user_id OR fa.user_id IS NOT NULL THEN 1 ELSE 0 END) is_ticked, 
+	                     CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, 
+	                     IFNULL(danger.danger, 0) is_dangerous
+	              FROM req
+	              JOIN svg ON svg.media_id = req.media_id
+	              JOIN problem p ON svg.problem_id = p.id
+	              JOIN type ty ON p.type_id = ty.id
+	              JOIN sector s ON p.sector_id = s.id
+	              JOIN area a ON s.area_id = a.id
+	              JOIN region_type rt ON a.region_id = rt.region_id AND rt.type_id = ty.id
+	              JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+	              JOIN grade g_orig ON p.grade_id = g_orig.id
+	              LEFT JOIN fa ON p.id = fa.problem_id AND fa.user_id = req.auth_user_id
+	              LEFT JOIN problem_section ps ON ps.problem_id = p.id AND ps.nr = svg.pitch
+	              LEFT JOIN grade g_sect ON ps.grade_id = g_sect.id AND g_sect.grade_system_id = tgs.grade_system_id
+	              LEFT JOIN grade_color clr_sect ON g_sect.grade_color_id = clr_sect.id
+	              LEFT JOIN (tick tk JOIN grade gtick ON tk.grade_id = gtick.id AND gtick.grade != 'n/a') ON p.id = tk.problem_id
+	              LEFT JOIN todo t2 ON p.id = t2.problem_id AND t2.user_id = req.auth_user_id
+	              LEFT JOIN (
+	                SELECT problem_id, danger 
+	                FROM guestbook 
+	                WHERE (danger = 1 OR resolved = 1) 
+	                AND id IN (SELECT max(id) FROM guestbook WHERE (danger = 1 OR resolved = 1) GROUP BY problem_id)
+	              ) danger ON p.id = danger.problem_id
+	              LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = a.region_id
+	              WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	              GROUP BY p.id, p.name, g_orig.weight, ty.subtype, p.nr, ps.id, ps.nr, tgs.grade_system_id,
+	                       g_sect.grade, clr_sect.hex_code, svg.id, svg.path, svg.has_anchor, 
+	                       svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger, req.auth_user_id
+	            )
+	            SELECT x.problem_id, x.problem_name,
+	                   COALESCE(g.grade, 'n/a') problem_grade, clr.hex_code problem_grade_color, 
+	                   x.problem_subtype, x.nr, x.pitch, x.problem_section_grade, x.problem_section_grade_color,
+	                   x.id, x.path, x.has_anchor, x.texts, x.anchors, x.trad_belay_stations, x.prim, x.is_ticked, x.is_todo, x.is_dangerous
+	            FROM x
+	            LEFT JOIN grade g ON x.gid = g.weight AND g.grade_system_id = x.grade_system_id
+	            LEFT JOIN grade_color clr ON g.grade_color_id = clr.id
+	            ORDER BY x.nr
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, authUserId.orElse(0));
+	        ps.setInt(2, idMedia);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                if (res == null) res = new ArrayList<>();
+	                int pitch = rst.getInt("pitch");
+	                res.add(new Svg(
+	                    false, 
+	                    rst.getInt("id"),
+	                    rst.getInt("problem_id"), 
+	                    rst.getString("problem_name"), 
+	                    (pitch == 0) ? rst.getString("problem_grade") : rst.getString("problem_section_grade"), 
+	                    (pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color"), 
+	                    rst.getString("problem_subtype"), 
+	                    rst.getInt("nr"), 
+	                    pitch,
+	                    rst.getString("path"), 
+	                    rst.getBoolean("has_anchor"), 
+	                    rst.getString("texts"), 
+	                    rst.getString("anchors"), 
+	                    rst.getString("trad_belay_stations"), 
+	                    rst.getBoolean("prim"), 
+	                    rst.getBoolean("is_ticked"), 
+	                    rst.getBoolean("is_todo"), 
+	                    rst.getBoolean("is_dangerous")
+	                ));
+	            }
+	        }
+	    }
+	    return res;
 	}
 
 	private byte[] readBytesWithLimit(InputStream is, long maxBytes) throws IOException {
