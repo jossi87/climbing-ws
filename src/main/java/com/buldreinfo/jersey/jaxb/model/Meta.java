@@ -27,7 +27,7 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		if (authUserId.isPresent()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM user u
 					LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?)
 					LEFT JOIN media m ON u.media_id=m.id
@@ -50,7 +50,8 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 							long mediaVersionStamp = rst.getLong("media_version_stamp");
 							int mediaFocusX = rst.getInt("media_focus_x");
 							int mediaFocusY = rst.getInt("media_focus_y");
-							mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+							String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+							mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 						}
 					}
 				}

@@ -634,7 +634,7 @@ public class Dao {
 		if (!tickIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 					       t.comment description, t.stars, g.grade
 					FROM activity a
 					JOIN tick t ON a.problem_id=t.problem_id
@@ -660,7 +660,8 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
+								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 						}
 					}
@@ -669,9 +670,9 @@ public class Dao {
 		}
 		if (!repeatIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
-					       r.comment description, t.stars, g.grade
+		SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+		       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+		       r.comment description, t.stars, g.grade
 					FROM activity a
 					JOIN user u ON a.user_id=u.id
 					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
@@ -697,7 +698,8 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
+								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 						}
 					}
@@ -707,9 +709,9 @@ public class Dao {
 		if (!gbIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y,
+					       ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex,
 					       g.message,
-					       mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+					       mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM activity a
 					JOIN guestbook g ON a.guestbook_id=g.id
 					JOIN user u ON g.user_id=u.id
@@ -732,14 +734,16 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.addMedia(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), false, null);
+								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								a.addMedia(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), false, null);
 							}
 							int avatarMediaId = rst.getInt("avatar_media_id");
 							if (avatarMediaId > 0) {
 								long avatarMediaVersionStamp = rst.getLong("avatar_version_stamp");
 								int avatarFocusX = rst.getInt("avatar_focus_x");
 								int avatarFocusY = rst.getInt("avatar_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, avatarMediaVersionStamp, avatarFocusX, avatarFocusY), userId, name);
+								String avatarPrimaryColorHex = rst.getString("avatar_primary_color_hex");
+								a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, avatarMediaVersionStamp, avatarFocusX, avatarFocusY, avatarPrimaryColorHex), userId, name);
 							}
 						}
 					}
@@ -749,7 +753,7 @@ public class Dao {
 		if (!faIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM activity a
 					JOIN problem p ON a.problem_id=p.id
 					LEFT JOIN fa ON p.id=fa.problem_id
@@ -779,7 +783,8 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY), userId, name);
+								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 							a.addUser(userId, name, mediaIdentity);
 						}
@@ -794,7 +799,7 @@ public class Dao {
 				if (!problemIds.isEmpty()) {
 					try (PreparedStatement ps = c.prepareStatement("""
 							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, 
-							       mma.focus_x, mma.focus_y, m.is_movie, m.embed_url
+							       mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.embed_url
 							FROM media_problem mp
 							JOIN media m ON mp.media_id = m.id
 							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
@@ -807,7 +812,7 @@ public class Dao {
 										.filter(act -> act.getProblemId() == pId && act.getActivityIds().stream().anyMatch(faIds::contains))
 										.toList();
 								for (var a : activities) {
-									var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
+									var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 									a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getString("embed_url"));
 								}
 							}
@@ -820,7 +825,7 @@ public class Dao {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT a.id,
 						   u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 					       m.is_movie, m.embed_url,
 					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
 					FROM activity a
@@ -837,11 +842,11 @@ public class Dao {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
+							var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 							a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getString("embed_url"));
 							if (a.getUsers() == null || a.getUsers().isEmpty()) {
 								// Don't append activity thumbnail if this is a new problem, only show FA users
-								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0), rst.getInt("user_id"), rst.getString("name"));
+								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0, null), rst.getInt("user_id"), rst.getString("name"));
 							}
 						}
 					}
@@ -858,7 +863,7 @@ public class Dao {
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 				       CASE WHEN u.email_visible_to_all=1 THEN (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') FROM user_email e WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') END emails,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       DATE_FORMAT(l_agg.last_login_raw, '%Y.%m.%d') last_login
 				FROM (SELECT l.user_id, MAX(l.when) last_login_raw
 				      FROM user_login l
@@ -889,7 +894,8 @@ public class Dao {
 						long versionStamp = rst.getLong("media_version_stamp");
 						int focusX = rst.getInt("media_focus_x");
 						int focusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, versionStamp, focusX, focusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					}
 					String lastLogin = rst.getString("last_login");
 					String timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
@@ -974,7 +980,7 @@ public class Dao {
 				),
 				ranked_media AS (
 				  SELECT s.id sector_id,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.id DESC) rn
 				  FROM req
 				  JOIN area a ON req.area_id=a.id
@@ -988,7 +994,7 @@ public class Dao {
 				)
 				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual,
-				       rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
+				       rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
 				FROM req
 				JOIN area a ON a.id=req.area_id
 				JOIN sector s ON a.id=s.area_id
@@ -1022,7 +1028,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					else {
 						boolean inherited = false;
@@ -1427,7 +1434,7 @@ public class Dao {
 						for (String userRecord : rawUsers.split("\\|")) {
 							String[] p = userRecord.split(":");
 							int mediaId = Integer.parseInt(p[2]);
-							MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5])) : null;
+							MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), p.length > 6 ? p[6] : null) : null;
 							users.add(new User(Integer.parseInt(p[0]), p[1], mi));
 						}
 					}
@@ -1447,7 +1454,7 @@ public class Dao {
 				SELECT x.activity_timestamp, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 				FROM (
 				    SELECT a1.id, a1.activity_timestamp, a1.problem_id, a1.guestbook_id 
 				    FROM activity a1
@@ -1487,7 +1494,7 @@ public class Dao {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
 					int mediaId = rst.getInt("media_id");
-					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
+					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
 					User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
 					res.add(new FrontpageLastComment(TimeAgo.getTimeAgo(ts.toLocalDate()), rst.getInt("area_id"), rst.getString("area_name"),
 							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
@@ -1504,7 +1511,7 @@ public class Dao {
 				SELECT x.activity_timestamp, x.type activity_type, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 				       g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 				FROM (
 				    SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id, a1.user_id 
 				    FROM activity a1
@@ -1551,7 +1558,7 @@ public class Dao {
 					}
 					boolean repeat = ACTIVITY_TYPE_TICK_REPEAT.equals(rst.getString("activity_type"));
 					int mediaId = rst.getInt("media_id");
-					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y")) : null;
+					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
 					User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
 					res.add(new FrontpageRecentAscent(TimeAgo.getTimeAgo(ts.toLocalDate()),  rst.getInt("area_id"), rst.getString("area_name"),
 							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
@@ -1614,7 +1621,7 @@ public class Dao {
 				  GROUP BY ml.media_id, p.id, ty.id, tgs.grade_system_id, g_orig.weight, ur.admin_read, ur.superadmin_read
 				)
 				SELECT 
-				    c.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, m.is_movie,
+				    c.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie,
 				    c.problem_id, c.problem_name, c.problem_la problem_locked_admin, c.problem_lsa problem_locked_superadmin,
 				    g_final.grade grade
 				FROM calc c
@@ -1629,7 +1636,7 @@ public class Dao {
 			ps.setInt(ix++, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"));
+					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), rst.getString("grade")));
 				}
 			}
@@ -1695,7 +1702,7 @@ public class Dao {
 				    ) ON p.id = tk.problem_id
 				    GROUP BY m.id, p.id, tgs.grade_system_id, g_orig.weight
 				)
-				SELECT m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				SELECT m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.width, m.height, 
 				       a.id id_area, a.name area, 
 				       s.id id_sector, s.name sector, 
@@ -1709,7 +1716,8 @@ public class Dao {
 				                          CONCAT('"mediaIdentity":{"id":', ma.id, 
 				                                 ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at), 0), 
 				                                 ',"focusX":', COALESCE(mma_u.focus_x, 0), 
-				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), '}')
+				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), 
+				                                 ',"primaryColorHex":"', COALESCE(mma_u.primary_color_hex, ''), '"}')
 				                       ), '}')
 				       ) photographer,
 				
@@ -1721,7 +1729,8 @@ public class Dao {
 				                              CONCAT('"mediaIdentity":{"id":', ma2.id, 
 				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at), 0), 
 				                                     ',"focusX":', COALESCE(mma_u2.focus_x, 0), 
-				                                     ',"focusY":', COALESCE(mma_u2.focus_y, 0), '}')
+				                                     ',"focusY":', COALESCE(mma_u2.focus_y, 0), 
+				                                     ',"primaryColorHex":"', COALESCE(mma_u2.primary_color_hex, ''), '"}')
 				                           ), '}')
 				           ) SEPARATOR ', '
 				       ) tagged
@@ -1740,7 +1749,7 @@ public class Dao {
 				LEFT JOIN media ma2 ON u2.media_id=ma2.id
 				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
 				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at,
-				         mma.focus_x, mma.focus_y, mma_u.focus_x, mma_u.focus_y, g_final.grade
+				         mma.focus_x, mma.focus_y, mma.primary_color_hex, mma_u.focus_x, mma_u.focus_y, g_final.grade
 				         """)) {
 			ps.setInt(1, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
@@ -1760,7 +1769,8 @@ public class Dao {
 					String grade = rst.getString("grade");
 					String photographerJson = rst.getString("photographer");
 					String taggedJson = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					User photographer = photographerJson == null? null : gson.fromJson(photographerJson, User.class);
 					List<User> tagged = taggedJson == null? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){});
 					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged));
@@ -1873,7 +1883,7 @@ public class Dao {
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		Media res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, m.width, m.height, m.is_movie, m.embed_url,
 					   DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
 					   TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
@@ -1894,6 +1904,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = null;
 					int pitch = 0;
@@ -1906,7 +1917,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					res = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
@@ -1924,12 +1935,12 @@ public class Dao {
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT x.id, x.name,
-				       x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y,
+				       x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y, x.media_primary_color_hex,
 				       DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
 				FROM (
 				  SELECT u.id, 
 				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				         l_agg.last_login,
 				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
 				  FROM (SELECT user_id, MAX(`when`) last_login
@@ -1946,7 +1957,7 @@ public class Dao {
 
 				  SELECT u.id, 
 				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				         l_agg.last_login,
 				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
 				  FROM user_region ur
@@ -1960,7 +1971,7 @@ public class Dao {
 				  ) l_agg ON u.id=l_agg.user_id
 				  WHERE ur.region_id=?
 				) x
-				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
+				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y, x.media_primary_color_hex, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
 				ORDER BY COALESCE(x.superadmin_write,0) DESC, COALESCE(x.superadmin_read,0) DESC, COALESCE(x.admin_write,0) DESC, COALESCE(x.admin_read,0) DESC, x.name
 				         """)) {
 			ps.setInt(1, idRegion);
@@ -1978,7 +1989,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					String lastLogin = rst.getString("last_login");
 					boolean adminRead = rst.getBoolean("admin_read");
@@ -2200,7 +2212,7 @@ public class Dao {
 		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT t.id id_tick, u.id id_user,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, g.grade
 				FROM tick t
 				LEFT JOIN grade g ON t.grade_id=g.id
@@ -2221,7 +2233,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					String date = rst.getString("date");
 					String name = rst.getString("name");
@@ -2255,7 +2268,7 @@ public class Dao {
 		// Todos
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.id,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name
 				FROM todo t
 				JOIN user u ON t.user_id=u.id
@@ -2274,7 +2287,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					String name = rst.getString("name");
 					p.addTodo(idUser, mediaIdentity, name);
@@ -2284,7 +2298,7 @@ public class Dao {
 		// Comments
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
 				FROM guestbook g
 				JOIN user u ON g.user_id=u.id
@@ -2305,7 +2319,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					String name = rst.getString("name");
 					String message = rst.getString("message");
@@ -2354,7 +2369,7 @@ public class Dao {
 		if (!s.isBouldering()) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM fa_aid a
 					LEFT JOIN fa_aid_user au ON a.problem_id=au.problem_id
 					LEFT JOIN user u ON au.user_id=u.id
@@ -2382,7 +2397,8 @@ public class Dao {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 							}
 							User user = User.from(userId, userName, mediaIdentity);
 							faAid.users().add(user);
@@ -2404,7 +2420,7 @@ public class Dao {
 		Profile res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
 				        FROM user_email e 
 				        WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') emails,
@@ -2428,7 +2444,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					String emailsStr = rst.getString("emails");
 					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
@@ -2452,7 +2469,7 @@ public class Dao {
 	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
 		String sqlStr = """
 				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, MAX(a.name) location,
 				       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 				       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
@@ -2467,7 +2484,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.id DESC
 				""";
 		List<Media> res = new ArrayList<>();
@@ -2497,7 +2514,8 @@ public class Dao {
 					String url = rst.getString("url");
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
 					res.add(m);
 				}
@@ -2509,7 +2527,7 @@ public class Dao {
 	public List<Media> getProfileMediaCapturedSector(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
 		String sqlStr = """
 				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url
@@ -2524,7 +2542,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.id DESC
 				""";
 		List<Media> res = new ArrayList<>();
@@ -2540,6 +2558,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -2552,7 +2571,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String url = rst.getString("url");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
@@ -2568,7 +2587,7 @@ public class Dao {
 		if (captured) {
 			sqlStr = """
 					SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, m.description,
+					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
 					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t,
 					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
@@ -2585,14 +2604,14 @@ public class Dao {
 					LEFT JOIN media_user mu ON m.id=mu.media_id
 					LEFT JOIN user u ON mu.user_id=u.id
 					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 					ORDER BY m.id DESC
 					""";
 		}
 		else {
 			sqlStr = """
 					SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged,
-					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, m.description,
+					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location,
 					       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 					       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t,
@@ -2610,7 +2629,7 @@ public class Dao {
 					JOIN region r ON a.region_id=r.id
 					LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
 					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-					GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
+					GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
 					ORDER BY m.id DESC
 					""";
 		}
@@ -2627,6 +2646,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -2639,7 +2659,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String url = rst.getString("url");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
@@ -3040,21 +3060,21 @@ public class Dao {
 				  SELECT ? auth_user_id, ? region_id, ? search_regex
 				),
 				ranked_area_media AS (
-				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				          ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.id DESC) rn
 				   FROM media_area ma
 				   JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				),
 				ranked_sector_media AS (
-				   SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				   SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				          ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.id DESC) rn
 				   FROM media_sector ms
 				   JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				),
 				ranked_problem_media AS (
-				   SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				   SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				          ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.id DESC) rn
 				   FROM media_problem mp
 				   JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
@@ -3063,7 +3083,7 @@ public class Dao {
 				)
 				(SELECT 'AREA' result_type, a.id, a.name main_title, r.name sub_title, 
 				        a.locked_admin, a.locked_superadmin,
-				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
+				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
 				        a.hits, NULL external_url, NULL grade, NULL rock
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
@@ -3072,13 +3092,13 @@ public class Dao {
 				 LEFT JOIN ranked_area_media rm ON a.id=rm.area_id AND rm.rn=1
 				 WHERE REGEXP_LIKE(a.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
+				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
 				
 				UNION ALL
 				
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
-				        0, 0, 0, 0, 0, 0,
+				        0, 0, 0, 0, 0, 0, NULL,
 				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), NULL grade, NULL rock
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
@@ -3095,7 +3115,7 @@ public class Dao {
 				
 				(SELECT 'SECTOR' result_type, s.id, s.name, a.name, 
 				        s.locked_admin, s.locked_superadmin,
-				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
+				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
 				        s.hits, NULL, NULL, NULL
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
@@ -3105,14 +3125,14 @@ public class Dao {
 				 LEFT JOIN ranked_sector_media rm ON s.id=rm.sector_id AND rm.rn=1
 				 WHERE REGEXP_LIKE(s.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y
+				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
 				
 				UNION ALL
 				
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin,
-				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y,
+				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
 				        p.hits, NULL, 
 				        (SELECT g_label.grade 
 				         FROM grade g_label
@@ -3138,14 +3158,14 @@ public class Dao {
 				 LEFT JOIN ranked_problem_media rm ON p.id=rm.problem_id AND rm.rn=1
 				 WHERE (REGEXP_LIKE(p.name, req.search_regex, 'i') OR REGEXP_LIKE(p.rock, req.search_regex, 'i'))
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, tgs.grade_system_id, g_orig.weight
+				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, tgs.grade_system_id, g_orig.weight
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
 				
 				UNION ALL
 				
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
 				        0, 0,
-				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y,
+				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y, mma.primary_color_hex,
 				        0, NULL, NULL, NULL
 				 FROM req
 				 JOIN user u ON REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
@@ -3171,7 +3191,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
@@ -3179,6 +3200,7 @@ public class Dao {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
 						areas.add(new Search(title, subTitle, "/area/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
+
 					}
 					case "EXTERNAL" -> {
 						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), null, false, false, hits, pageViews));
@@ -3823,14 +3845,14 @@ public class Dao {
 				SELECT 
 				    u.id AS user_id,
 				    TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
-				    m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y,
+				    m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				    ROUND((COUNT(DISTINCT uc.problem_id) / NULLIF(tp.sum, 0)) * 100, 2) AS percentage
 				FROM user_completions uc
 				JOIN user u ON uc.user_id = u.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				CROSS JOIN total_problems tp
-				GROUP BY u.id, u.firstname, u.lastname, m.id, mma.focus_x, mma.focus_y, m.updated_at, tp.sum
+				GROUP BY u.id, u.firstname, u.lastname, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, tp.sum
 				ORDER BY percentage DESC, name ASC
 				""".formatted(columnCondition);
 		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
@@ -3853,7 +3875,8 @@ public class Dao {
 						long mediaVersionStamp = rst.getLong("media_version_stamp");
 						int mediaFocusX = rst.getInt("media_focus_x");
 						int mediaFocusY = rst.getInt("media_focus_y");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY);
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					double percentage = rst.getDouble("percentage");
 					if (prevPercentage != percentage) {
@@ -5809,7 +5832,7 @@ public class Dao {
 	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url,
+				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
 				FROM media m
@@ -5819,7 +5842,7 @@ public class Dao {
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, id);
@@ -5831,6 +5854,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
@@ -5846,7 +5870,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
@@ -5859,7 +5883,7 @@ public class Dao {
 	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		List<Media> media = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, m.description,
+				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
@@ -5874,7 +5898,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
 				WHERE g.id=?
-				GROUP BY m.id, mma.focus_x, mma.focus_y, m.uploader_user_id, m.updated_at, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""")) {
 			ps.setInt(1, id);
@@ -5886,6 +5910,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = 0;
@@ -5898,7 +5923,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
@@ -5911,7 +5936,7 @@ public class Dao {
 	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y,
+				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
@@ -5925,7 +5950,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
 				WHERE p.id=?
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, problemId);
@@ -5937,6 +5962,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					int pitch = rst.getInt("pitch");
@@ -5963,7 +5989,7 @@ public class Dao {
 					}
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
 					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
 				}
@@ -5979,7 +6005,7 @@ public class Dao {
 		List<Media> allMedia = new ArrayList<>();
 		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
 		String sqlStr = """
-				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, UNIX_TIMESTAMP(m.updated_at) version_stamp,
+				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
 				       ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
@@ -5992,7 +6018,7 @@ public class Dao {
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
 				WHERE s.id=?
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -6005,6 +6031,7 @@ public class Dao {
 					long versionStamp = rst.getLong("version_stamp");
 					int focusX = rst.getInt("focus_x");
 					int focusY = rst.getInt("focus_y");
+					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					String description = rst.getString("description");
 					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
@@ -6020,7 +6047,7 @@ public class Dao {
 					String dateTaken = rst.getString("date_taken");
 					String capturer = rst.getString("capturer");
 					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY);
+					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
 					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
 					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
