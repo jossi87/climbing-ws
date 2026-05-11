@@ -3503,6 +3503,46 @@ public class Dao {
 		int numPages = (int) Math.ceil((double) totalCount / take);
 		return new Ticks(ticks, page, numPages);
 	}
+	
+	private void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
+	    String sql = """
+	        UPDATE problem p
+	        JOIN (
+	            SELECT 
+	                p_inner.id AS pid,
+	                tgs.grade_system_id,
+	                ROUND(AVG(sub.weight)) AS avg_weight
+	            FROM problem p_inner
+	            JOIN type_grade_system tgs ON p_inner.type_id = tgs.type_id
+	            JOIN (
+	                SELECT f.user_id, g_fa.weight, f.problem_id
+	                FROM fa f
+	                JOIN problem p_fa ON f.problem_id = p_fa.id
+	                JOIN grade g_fa ON p_fa.grade_id = g_fa.id
+	                
+	                UNION
+	                
+	                SELECT t.user_id, g_tick.weight, t.problem_id
+	                FROM tick t
+	                JOIN grade g_tick ON t.grade_id = g_tick.id
+	                WHERE g_tick.grade != 'n/a'
+	            ) sub ON p_inner.id = sub.problem_id
+	            WHERE p_inner.id = ?
+	            GROUP BY p_inner.id, tgs.grade_system_id
+	        ) calc ON p.id = calc.pid
+	        SET p.consensus_grade_id = (
+	            SELECT g.id 
+	            FROM grade g 
+	            WHERE g.grade_system_id = calc.grade_system_id 
+	              AND g.weight = calc.avg_weight 
+	            LIMIT 1
+	        )
+	        """;
+	    try (PreparedStatement ps = c.prepareStatement(sql)) {
+	        ps.setInt(1, problemId);
+	        ps.executeUpdate();
+	    }
+	}
 
 	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
@@ -4607,6 +4647,7 @@ public class Dao {
 			}
 		}
 		tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
+		int gradeId = s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade());
 		if (p.getId() > 0) {
 			try (PreparedStatement ps = c.prepareStatement("""
 					UPDATE problem p
@@ -4620,7 +4661,7 @@ public class Dao {
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
-				setNullablePositiveInteger(ps, 5, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
+				ps.setInt(5, gradeId);
 				ps.setObject(6, dt);
 				setNullablePositiveInteger(ps, 7, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(8, GlobalFunctions.stripString(p.getBroken()));
@@ -4642,8 +4683,9 @@ public class Dao {
 				}
 			}
 			idProblem = p.getId();
+			updateProblemConsensusGrade(c, idProblem);
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
@@ -4651,17 +4693,18 @@ public class Dao {
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
 				setNullablePositiveInteger(ps, 6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
 				ps.setObject(7, dt);
-				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(10, isLockedAdmin);
-				ps.setBoolean(11, p.isLockedSuperadmin());
-				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(13, p.getT().id());
-				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
-				setNullablePositiveInteger(ps, 17, p.getLengthMeter());
-				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
+				ps.setInt(8, gradeId);
+				ps.setInt(9, gradeId);
+				ps.setString(10, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(11, isLockedAdmin);
+				ps.setBoolean(12, p.isLockedSuperadmin());
+				ps.setInt(13, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(14, p.getT().id());
+				ps.setString(15, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(16, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(17, GlobalFunctions.stripString(p.getAspect()));
+				setNullablePositiveInteger(ps, 18, p.getLengthMeter());
+				ps.setString(19, GlobalFunctions.stripString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -5103,6 +5146,7 @@ public class Dao {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
 		fillActivity(c, t.idProblem());
+		updateProblemConsensusGrade(c, t.idProblem());
 	}
 
 	public void setUserRegion(Connection c, Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {
