@@ -6369,10 +6369,10 @@ public class Dao {
 	private void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
 	    String sql = """
 	        UPDATE problem p
-	        JOIN (
+	        LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+	        LEFT JOIN (
 	            SELECT ROUND(AVG(w)) as avg_weight
 	            FROM (
-	                /* 1. All valid human ticks (47, 47, 47, 48 etc.) */
 	                SELECT gt.weight as w
 	                FROM tick t
 	                JOIN grade gt ON t.grade_id = gt.id
@@ -6380,13 +6380,10 @@ public class Dao {
 	                
 	                UNION ALL
 	                
-	                /* 2. The original system grade (p.grade_id) */
 	                SELECT g.weight as w
 	                FROM problem p_inner
 	                JOIN grade g ON p_inner.grade_id = g.id
-	                WHERE p_inner.id = ?
-                      AND g.grade != 'n/a'
-	                /* CONDITION: Ignore this if the FA user has ticked with the SAME grade */
+	                WHERE p_inner.id = ? AND g.grade != 'n/a'
 	                AND NOT EXISTS (
 	                    SELECT 1 FROM tick t_check
 	                    JOIN fa f_check ON t_check.user_id = f_check.user_id
@@ -6396,17 +6393,11 @@ public class Dao {
 	                )
 	            ) votes
 	        ) calc ON 1=1
-	        SET p.consensus_grade_id = (
-	            SELECT g_final.id 
-	            FROM grade g_final 
-	            JOIN type_grade_system tgs ON p.type_id = tgs.type_id
-	            WHERE g_final.grade_system_id = tgs.grade_system_id 
-	              AND g_final.weight = calc.avg_weight
-	            LIMIT 1
-	        )
+	        LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
+	                               AND g_final.weight = calc.avg_weight
+	        SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 	        WHERE p.id = ?
 	        """;
-
 	    try (PreparedStatement ps = c.prepareStatement(sql)) {
 	        ps.setInt(1, problemId);
 	        ps.setInt(2, problemId);
