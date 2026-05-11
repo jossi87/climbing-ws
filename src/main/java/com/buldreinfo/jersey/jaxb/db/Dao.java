@@ -3542,7 +3542,7 @@ public class Dao {
 				    sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
 				    s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
 				    s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				    p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, REGEXP_SUBSTR(p.starting_altitude,'[0-9]+') starting_altitude,
+				    p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.length_meter, REGEXP_SUBSTR(p.starting_altitude,'[0-9]+') starting_altitude,
 				    c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
 				    gf.grade,
 				    GROUP_CONCAT(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, 
@@ -3573,8 +3573,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1 
-				GROUP BY 
-				    p.id, r.id, a.id, s.id, ps_calc.final_weight, ps_calc.grade_system_id, gf.grade, todo.id, ty.id
+				GROUP BY p.id, r.id, a.id, s.id, ps_calc.final_weight, ps_calc.grade_system_id, gf.grade, todo.id, ty.id
 				ORDER BY r.name, a.name, s.sorting, s.name, p.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -3634,6 +3633,7 @@ public class Dao {
 					int nr = rst.getInt("nr");
 					String name = rst.getString("name");
 					String description = rst.getString("description");
+					int lengthMeter = rst.getInt("length_meter");
 					int startingAltitude = rst.getInt("starting_altitude");
 					int faYear = rst.getInt("fa_year");
 					int idCoordinates = rst.getInt("coordinates_id");
@@ -3646,7 +3646,7 @@ public class Dao {
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, startingAltitude, coordinates, grade, fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
 					s.problems().add(p);
 					numProblems++;
 				}

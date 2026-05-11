@@ -340,6 +340,10 @@ public class PdfGenerator implements AutoCloseable {
 			info.addCell(createKeyCell("Description"));
 			info.addCell(createValueCell(problem.getComment()));
 		}
+		if (problem.getLengthMeter() != 0) {
+			info.addCell(createKeyCell("Length"));
+			info.addCell(createValueCell(problem.getLengthMeter() + "m"));
+		}
 		document.add(info);
 
 		List<Media> combinedMedia = new ArrayList<>();

@@ -787,6 +787,8 @@ public class V2 {
 									sheet.writeString("NAME", p.name());
 									sheet.writeString("GRADE", p.grade());
 									sheet.writeInt("FA_YEAR", p.faYear());
+									sheet.writeInt("LENGTH_METER", p.lengthMeter());
+									sheet.writeInt("STARTING_ATITUDE", p.startingAltitude());
 									String type = p.t().type();
 									if (p.t().subType() != null) {
 										type += " (" + p.t().subType() + ")";			
