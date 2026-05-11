@@ -6385,6 +6385,7 @@ public class Dao {
 	                FROM problem p_inner
 	                JOIN grade g ON p_inner.grade_id = g.id
 	                WHERE p_inner.id = ?
+                      AND g.grade != 'n/a'
 	                /* CONDITION: Ignore this if the FA user has ticked with the SAME grade */
 	                AND NOT EXISTS (
 	                    SELECT 1 FROM tick t_check
