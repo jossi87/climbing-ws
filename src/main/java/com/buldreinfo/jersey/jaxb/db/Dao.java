@@ -6194,7 +6194,7 @@ public class Dao {
 	                     MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked,
 	                     CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
 	                     danger.danger,
-	                     tgs.grade_system_id,
+	                     tgs.grade_system_id, p.length_meter,
 	                     co.id coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
 	                     COUNT(DISTINCT ps.id) num_pitches,
 	                     COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
@@ -6225,7 +6225,7 @@ public class Dao {
 	              LEFT JOIN (SELECT DISTINCT problem_id FROM svg) svg ON p.id = svg.problem_id
 	              WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 	              GROUP BY p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
-	                       ty.id, ty.type, ty.subtype, g_orig.weight, todo.id, danger.danger, tgs.grade_system_id,
+	                       ty.id, ty.type, ty.subtype, g_orig.weight, todo.id, danger.danger, tgs.grade_system_id, p.length_meter,
 	                       co.id, co.latitude, co.longitude, co.elevation, co.elevation_source
 	            )
 	            SELECT x.*, g.grade problem_grade
@@ -6248,30 +6248,12 @@ public class Dao {
 	                Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 	                LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
 	                String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-	                res.add(new SectorProblem(
-	                    id, 
-	                    rst.getString("broken"), 
-	                    rst.getBoolean("locked_admin"), 
-	                    rst.getBoolean("locked_superadmin"), 
-	                    rst.getInt("nr"), 
-	                    rst.getString("name"), 
-	                    rst.getString("rock"), 
-	                    rst.getString("description"), 
-	                    rst.getInt("gradeWeight"), 
-	                    rst.getString("problem_grade"), 
-	                    fa, 
-	                    faDateStr, 
-	                    rst.getInt("num_pitches"), 
-	                    rst.getInt("num_images") > 0, 
-	                    rst.getInt("num_movies") > 0, 
-	                    rst.getBoolean("has_topo"), 
-	                    coordinates, 
-	                    rst.getInt("total_ticks"), 
-	                    rst.getDouble("stars"), 
-	                    rst.getBoolean("ticked"), 
-	                    rst.getBoolean("todo"), 
-	                    new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), 
-	                    rst.getBoolean("danger")
+	                res.add(new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
+	                		rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
+	                		rst.getInt("gradeWeight"), rst.getString("problem_grade"), fa, faDateStr, rst.getInt("length_meter"),
+	                		rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
+	                		coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
+	                		new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
 	                ));
 	            }
 	        }
