@@ -2050,10 +2050,11 @@ public class Dao {
 				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
 				                           ), '}')
 				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+				       p.length_meter,
 				       ca.num_ticks, ca.stars,
 				       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
 				       ty.id type_id, ty.type, ty.subtype,
-				       p.trivia, p.starting_altitude, p.aspect, p.route_length, p.descent
+				       p.trivia, p.starting_altitude, p.aspect, p.descent
 				FROM req
 				JOIN calc ca ON req.problem_id = ca.pid
 				JOIN problem p ON p.id = ca.pid
@@ -2117,6 +2118,7 @@ public class Dao {
 					String comment = rst.getString("description");
 					String faStr = rst.getString("fa");
 					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
+					int lengthMeter = rst.getInt("length_meter");
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					int numTicks = rst.getInt("num_ticks");
@@ -2136,7 +2138,6 @@ public class Dao {
 					String trivia = rst.getString("trivia");
 					String startingAltitude = rst.getString("starting_altitude");
 					String aspect = rst.getString("aspect");
-					String routeLength = rst.getString("route_length");
 					String descent = rst.getString("descent");
 
 					SectorProblem neighbourPrev = null;
@@ -2168,9 +2169,9 @@ public class Dao {
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
 							neighbourPrev, neighbourNext,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							grade, originalGrade, faDate, faDateHr, fa, coordinates,
+							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
-							trivia, triviaMedia, startingAltitude, aspect, routeLength, descent);
+							trivia, triviaMedia, startingAltitude, aspect, descent);
 				}
 			}
 		}
@@ -2179,7 +2180,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -4607,7 +4608,14 @@ public class Dao {
 		}
 		tryFixSectorOrdering(c, p.getSectorId(), p.getId(), p.getNr());
 		if (p.getId() > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE ((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)) SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, route_length=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now() WHERE p.id=?")) {
+			try (PreparedStatement ps = c.prepareStatement("""
+					UPDATE problem p
+					JOIN sector s ON p.sector_id=s.id
+					JOIN area a ON s.area_id=a.id
+					JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)
+					SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, length_meter=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now()
+					WHERE p.id=?
+					""")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setString(2, GlobalFunctions.stripString(p.getName()));
 				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
@@ -4623,7 +4631,7 @@ public class Dao {
 				ps.setString(13, GlobalFunctions.stripString(p.getTrivia()));
 				ps.setString(14, GlobalFunctions.stripString(p.getStartingAltitude()));
 				ps.setString(15, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(16, GlobalFunctions.stripString(p.getRouteLength()));
+				setNullablePositiveInteger(ps, 16, p.getLengthMeter());
 				ps.setString(17, GlobalFunctions.stripString(p.getDescent()));
 				ps.setBoolean(18, p.isTrash());
 				ps.setInt(19, p.isTrash()? authUserId.orElseThrow() : 0);
@@ -4635,7 +4643,7 @@ public class Dao {
 			}
 			idProblem = p.getId();
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, route_length, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setLong(1, System.currentTimeMillis());
 				ps.setInt(2, p.getSectorId());
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
@@ -4652,7 +4660,7 @@ public class Dao {
 				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
 				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
 				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
-				ps.setString(17, GlobalFunctions.stripString(p.getRouteLength()));
+				setNullablePositiveInteger(ps, 17, p.getLengthMeter());
 				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {

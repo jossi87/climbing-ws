@@ -44,6 +44,7 @@ public class Problem {
 	private final String faDate;
 	private final String faDateHr;
 	private final List<User> fa;
+	private final int lengthMeter;
 	private Coordinates coordinates;
 	private final List<Media> media;
 	private final int numTicks;
@@ -63,14 +64,13 @@ public class Problem {
 	private final List<Media> triviaMedia;
 	private final String startingAltitude;
 	private final String aspect;
-	private final String routeLength;
 	private final String descent;
 	
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
 			int sectorSunFromHour, int sectorSunToHour,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
-			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String routeLength, String descent) {
+			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, int lengthMeter, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
+			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
 		this.areaLockedAdmin = areaLockedAdmin;
@@ -111,6 +111,7 @@ public class Problem {
 		this.faDate = faDate;
 		this.faDateHr = faDateHr;
 		this.fa = fa;
+		this.lengthMeter = lengthMeter;
 		this.coordinates = coordinates;
 		this.media = media;
 		this.numTicks = numTics;
@@ -125,7 +126,6 @@ public class Problem {
 		this.triviaMedia = triviaMedia;
 		this.startingAltitude = startingAltitude;
 		this.aspect = aspect;
-		this.routeLength = routeLength;
 		this.descent = descent;
 	}
 	
@@ -237,6 +237,10 @@ public class Problem {
 		return id;
 	}
 	
+	public int getLengthMeter() {
+		return lengthMeter;
+	}
+	
 	public List<Media> getMedia() {
 		return media;
 	}
@@ -248,11 +252,11 @@ public class Problem {
 	public SectorProblem getNeighbourNext() {
 		return neighbourNext;
 	}
-	
+
 	public SectorProblem getNeighbourPrev() {
 		return neighbourPrev;
 	}
-
+	
 	public List<NewMedia> getNewMedia() {
 		return newMedia;
 	}
@@ -276,13 +280,9 @@ public class Problem {
 	public String getRedirectUrl() {
 		return redirectUrl;
 	}
-	
+
 	public String getRock() {
 		return rock;
-	}
-
-	public String getRouteLength() {
-		return routeLength;
 	}
 	
 	public List<ProblemSection> getSections() {
