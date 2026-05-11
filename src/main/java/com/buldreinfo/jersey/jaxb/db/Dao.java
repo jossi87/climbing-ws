@@ -6369,35 +6369,56 @@ public class Dao {
 	private void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
 	    String sql = """
 	        UPDATE problem p
-	        JOIN (
-	            SELECT 
-	                p_inner.id AS pid,
-	                tgs.grade_system_id,
-	                ROUND(AVG(sub.weight)) AS avg_weight
-	            FROM problem p_inner
-	            JOIN type_grade_system tgs ON p_inner.type_id = tgs.type_id
-	            JOIN (
-	                SELECT 0 as user_id, g_orig.weight, p_orig.id as problem_id
-	                FROM problem p_orig
-	                JOIN grade g_orig ON p_orig.grade_id = g_orig.id
-	                
-	                UNION
-	                
-	                SELECT t.user_id, g_tick.weight, t.problem_id
-	                FROM tick t
-	                JOIN grade g_tick ON t.grade_id = g_tick.id
-	                WHERE g_tick.grade != 'n/a'
-	            ) sub ON p_inner.id = sub.problem_id
-	            WHERE p_inner.id = ?
-	            GROUP BY p_inner.id, tgs.grade_system_id
-	        ) calc ON p.id = calc.pid
-	        SET p.consensus_grade_id = (
-	            SELECT g.id 
-	            FROM grade g 
-	            WHERE g.grade_system_id = calc.grade_system_id 
-	              AND g.weight = calc.avg_weight 
-	            LIMIT 1
-	        )
+			JOIN (
+			    SELECT 
+			        p_inner.id AS pid,
+			        tgs.grade_system_id,
+			        ROUND(AVG(sub.user_weight)) AS avg_weight
+			    FROM problem p_inner
+			    JOIN type_grade_system tgs ON p_inner.type_id = tgs.type_id
+			    JOIN (
+			        SELECT user_id, problem_id, MAX(weight) as user_weight
+			        FROM (
+			            SELECT t.user_id, g_tick.weight, t.problem_id, 1 as priority
+			            FROM tick t
+			            JOIN grade g_tick ON t.grade_id = g_tick.id
+			            WHERE g_tick.grade != 'n/a'
+			            
+			            UNION ALL
+			            
+			            SELECT f.user_id, g_fa.weight, f.problem_id, 2 as priority
+			            FROM fa f
+			            JOIN problem p_fa ON f.problem_id = p_fa.id
+			            JOIN grade g_fa ON p_fa.grade_id = g_fa.id
+			            
+			            UNION ALL
+			            
+			            /* The system base weight is priority 3 and user_id 0 */
+			            SELECT 0 as user_id, p_orig.id as problem_id, g_orig.weight, 3 as priority
+			            FROM problem p_orig
+			            JOIN grade g_orig ON p_orig.grade_id = g_orig.id
+			        ) raw_votes
+			        GROUP BY user_id, problem_id
+			    ) sub ON p_inner.id = sub.problem_id
+			    WHERE p_inner.id = ?
+			    /* ONLY count the System Base (User 0) if it is the ONLY vote */
+			    AND (
+			        sub.user_id != 0 
+			        OR NOT EXISTS (
+			            SELECT 1 FROM tick t2 WHERE t2.problem_id = p_inner.id
+			            UNION
+			            SELECT 1 FROM fa f2 WHERE f2.problem_id = p_inner.id
+			        )
+			    )
+			    GROUP BY p_inner.id, tgs.grade_system_id
+			) calc ON p.id = calc.pid
+			SET p.consensus_grade_id = (
+			    SELECT g.id 
+			    FROM grade g 
+			    WHERE g.grade_system_id = calc.grade_system_id 
+			      AND g.weight = calc.avg_weight 
+			    LIMIT 1
+			)
 	        """;
 	    try (PreparedStatement ps = c.prepareStatement(sql)) {
 	        ps.setInt(1, problemId);
