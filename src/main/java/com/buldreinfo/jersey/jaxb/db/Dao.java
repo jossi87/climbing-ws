@@ -5804,13 +5804,11 @@ public class Dao {
 		List<Integer> ids = new ArrayList<>();
 		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (SELECT ? id, ? authUserId)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.width, m.height, m.is_movie, m.embed_url,
+				       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM req
-				JOIN guestbook g ON g.id=req.id
+				FROM guestbook g
 				JOIN media_guestbook mg ON g.id=mg.guestbook_id
 				JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL)
 				JOIN problem p ON g.problem_id=p.id
@@ -5820,11 +5818,11 @@ public class Dao {
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
-				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+				WHERE g.id=?
+				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""")) {
 			ps.setInt(1, id);
-			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
