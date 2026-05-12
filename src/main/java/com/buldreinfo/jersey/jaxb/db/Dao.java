@@ -1909,7 +1909,7 @@ public class Dao {
 		Problem p = null;
 		try (PreparedStatement ps = c.prepareStatement("""
 				WITH req AS (
-				    SELECT ? auth_user_id, ? problem_id
+				    SELECT ? auth_user_id, ? region_id, ? problem_id
 				),
 				stars_count AS (
 				    SELECT 
@@ -1961,12 +1961,14 @@ public class Dao {
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN tick t ON p.id=t.problem_id
 				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				WHERE (r.id=req.region_id OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
 				ORDER BY p.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, reqId);
+			ps.setInt(2, s.idRegion());
+			ps.setInt(3, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
