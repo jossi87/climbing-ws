@@ -2533,23 +2533,22 @@ public class Dao {
 				      JOIN fa f ON f.user_id=req.auth_user_id
 				      JOIN problem p ON f.problem_id=p.id
 				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON p.consensus_grade_id=g.id
+				      JOIN grade g ON p.grade_id=g.id
 				      JOIN grade_color clr ON g.grade_color_id=clr.id
 
 				      UNION ALL
 
 				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 1 is_tick
 				      FROM req
-				      JOIN tick t ON t.user_id = req.auth_user_id
-				      JOIN problem p ON t.problem_id = p.id
-				      JOIN target_types tt ON p.type_id = tt.type_id
-				      JOIN grade g ON t.grade_id = g.id
-				      JOIN grade_color clr ON g.grade_color_id = clr.id
-				      WHERE g.grade != 'n/a'
-				        AND NOT EXISTS (SELECT 1 FROM fa f2  WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
+				      JOIN tick t ON t.user_id=req.auth_user_id
+				      JOIN problem p ON t.problem_id=p.id
+				      JOIN target_types tt ON p.type_id=tt.type_id
+				      JOIN grade g ON t.grade_id=g.id
+				      JOIN grade_color clr ON g.grade_color_id=clr.id
+				        AND NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
 				) v
 				GROUP BY v.grade, v.color, v.weight
-				ORDER BY v.weight ASC;
+				ORDER BY v.weight DESC;
 				""")) {
 			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, userId);
@@ -2567,7 +2566,7 @@ public class Dao {
 		return res;
 	}
 
-	public ProfileIdentity getProfileIdentity(Connection c, Optional<Integer> authUserId, Setup setup, int userId) throws SQLException {
+	public ProfileIdentity getProfileIdentity(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
@@ -2604,7 +2603,7 @@ public class Dao {
 							.trimResults()
 							.omitEmptyStrings()
 							.splitToList(emailsStr);
-					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
+					List<UserRegion> userRegions = getUserRegion(c, setup, userId);
 					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
 					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
 					var res = new ProfileIdentity(userId, firstname, lastname, emailVisibleToAll, themePreference, mediaIdentity, emails, userRegions, lastActivity);
@@ -3924,12 +3923,58 @@ public class Dao {
 		return res;
 	}
 
-	public List<UserRegion> getUserRegion(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	public List<UserRegion> getUserRegion(Connection c, Setup setup, int userId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<UserRegion> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT r.id, r.name, CASE WHEN r.id=? OR ur.admin_read=1 OR ur.admin_write=1 OR ur.superadmin_read=1 OR ur.superadmin_write=1 THEN 1 ELSE 0 END read_only, ur.region_visible, CASE WHEN ur.superadmin_write=1 THEN 'Superadmin' WHEN ur.superadmin_read=1 THEN 'Superadmin (read)' WHEN ur.admin_read=1 THEN 'Admin (read)' WHEN ur.admin_write=1 THEN 'Admin' END role FROM (region r INNER JOIN region_type rt ON r.id=rt.region_id) LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=? WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) GROUP BY r.id, r.name ORDER BY r.name")) {
+		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+				    SELECT ? region_id, ? user_id
+				),
+				target_types AS (
+				    SELECT rt.type_id 
+				    FROM region_type rt 
+				    JOIN req ON rt.region_id = req.region_id
+				),
+				user_activity AS (
+				    SELECT DISTINCT region_id FROM (
+				        SELECT a.region_id 
+				        FROM fa f
+				        JOIN problem p ON f.problem_id = p.id
+				        JOIN sector s ON p.sector_id = s.id
+				        JOIN area a ON s.area_id = a.id
+				        JOIN req ON f.user_id = req.user_id
+				        
+				        UNION ALL
+				        
+				        SELECT a.region_id 
+				        FROM tick t
+				        JOIN problem p ON t.problem_id = p.id
+				        JOIN sector s ON p.sector_id = s.id
+				        JOIN area a ON s.area_id = a.id
+				        JOIN req ON t.user_id = req.user_id
+				    ) acts
+				)
+				SELECT r.id, r.name,
+				       MAX(CASE WHEN r.id = req.region_id OR ur.admin_read = 1 OR ur.admin_write = 1 OR ur.superadmin_read = 1 OR ur.superadmin_write = 1 THEN 1 ELSE 0 END) AS read_only,
+				       MAX(ur.region_visible) AS region_visible,
+				       MAX(CASE 
+				           WHEN ur.superadmin_write = 1 THEN 'Superadmin' 
+				           WHEN ur.superadmin_read = 1 THEN 'Superadmin (read)' 
+				           WHEN ur.admin_read = 1 THEN 'Admin (read)' 
+				           WHEN ur.admin_write = 1 THEN 'Admin' 
+				       END) AS role,
+				       MAX(CASE WHEN ua.region_id IS NOT NULL THEN 1 ELSE 0 END) AS activity
+				FROM req
+				JOIN region r ON 1=1
+				JOIN region_type rt ON r.id = rt.region_id
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.user_id
+				LEFT JOIN user_activity ua ON r.id = ua.region_id
+				WHERE rt.type_id IN (SELECT type_id FROM target_types)
+				GROUP BY r.id, r.name 
+				ORDER BY r.name
+				""")) {
 			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.idRegion());
+			ps.setInt(2, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int id = rst.getInt("id");
@@ -3937,10 +3982,12 @@ public class Dao {
 					String role = rst.getString("role");
 					boolean readOnly = rst.getBoolean("read_only");
 					boolean enabled = readOnly || rst.getBoolean("region_visible");
-					res.add(new UserRegion(id, name, role, enabled, readOnly));
+					boolean activity = rst.getBoolean("activity");
+					res.add(new UserRegion(id, name, role, enabled, readOnly, activity));
 				}
 			}
 		}
+		logger.debug("getUserRegion(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
 		return res;
 	}
 
@@ -4692,11 +4739,10 @@ public class Dao {
 	}
 
 	public void setProfile(Connection c, Optional<Integer> authUserId, ProfileIdentity profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+		Preconditions.checkArgument(authUserId.orElse(0) == profile.id(), "Wrong input");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
-		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark")))
-				? profile.themePreference()
-						: null;
+		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark"))) ? profile.themePreference() : null;
 		try (PreparedStatement ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=?, theme_preference=COALESCE(theme_preference, ?) WHERE id=?")) {
 			ps.setString(1, profile.firstname());
 			ps.setString(2, profile.lastname());

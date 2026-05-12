@@ -569,11 +569,11 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfile(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao1, c1, setup, authUserId, _) -> {
+		return Server.buildResponseWithSqlAndAuth(request, (dao1, c1, setup, _, _) -> {
 			if (reqUserId > 0) {
 				dao1.ensureUserExists(c1, reqUserId);
 			}
-			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, authUserId, setup, reqUserId));
+			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, setup, reqUserId));
 	    	var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
 	        var gradeDistribution = Server.submitDaoTask((dao, c) -> dao.getProfileGradeDistribution(c, setup, reqUserId));
 	        Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get());
