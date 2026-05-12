@@ -2552,7 +2552,7 @@ public class Dao {
 				      JOIN tick t ON t.user_id=req.auth_user_id
 				      JOIN problem p ON t.problem_id=p.id
 				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON COALESCE(t.grade_id,1)=g.id
+				      JOIN grade g ON COALESCE(t.grade_id,p.consensus_grade_id)=g.id
 				      JOIN grade_color clr ON g.grade_color_id=clr.id
 				        AND NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
 				) v
