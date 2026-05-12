@@ -2616,32 +2616,53 @@ public class Dao {
 	}
 
 	public ProfileKpis getProfileKpis(Connection c, int userId) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		int numImagesCreated = 0;
-		int numVideosCreated = 0;
-		int numImageTags = 0;
-		int numVideoTags = 0;
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id")) {
-			ps.setInt(1, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					numImagesCreated = rst.getInt("num_images_created");
-					numVideosCreated = rst.getInt("num_videos_created");
-				}
-			}
-		}
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM (((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id")) {
-			ps.setInt(1, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					numImageTags = rst.getInt("num_image_tags");
-					numVideoTags = rst.getInt("num_video_tags");
-				}
-			}
-		}
-		var res = new ProfileKpis(numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
-		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, stopwatch);
-		return res;
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    ProfileKpis res = null;
+	    String sqlStr = """
+	        WITH req AS (
+	            SELECT ? user_id
+	        ),
+	        valid_media AS (
+	            SELECT m.id, m.is_movie, m.photographer_user_id
+	            FROM media m
+	            WHERE m.deleted_user_id IS NULL
+	              AND (
+	                EXISTS (SELECT 1 FROM media_area ma 
+	                        JOIN area a ON ma.area_id = a.id 
+	                        JOIN region_type rt ON a.region_id = rt.region_id 
+	                        WHERE ma.media_id = m.id)
+	                OR EXISTS (SELECT 1 FROM media_sector ms 
+	                           JOIN sector s ON ms.sector_id = s.id 
+	                           JOIN area a ON s.area_id = a.id
+	                           JOIN region_type rt ON a.region_id = rt.region_id
+	                           WHERE ms.media_id = m.id)
+	                OR EXISTS (SELECT 1 FROM media_problem mp 
+	                           JOIN problem p ON mp.problem_id = p.id 
+	                           JOIN sector s ON p.sector_id = s.id
+	                           JOIN area a ON s.area_id = a.id
+	                           JOIN region_type rt ON a.region_id = rt.region_id
+	                           WHERE mp.media_id = m.id)
+	              )
+	        )
+	        SELECT 
+	            COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as created_img,
+	            COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 1 THEN vm.id END) as created_vid,
+	            COUNT(DISTINCT CASE WHEN mu.user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as tagged_img,
+	            COUNT(DISTINCT CASE WHEN mu.user_id = req.user_id AND vm.is_movie = 1 THEN vm.id END) as tagged_vid
+	        FROM req
+	        CROSS JOIN valid_media vm
+	        LEFT JOIN media_user mu ON vm.id = mu.media_id AND mu.user_id = req.user_id
+	        """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, userId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            if (rst.next()) {
+	                res =new ProfileKpis(rst.getInt("created_img"), rst.getInt("created_vid"), rst.getInt("tagged_img"), rst.getInt("tagged_vid"));
+	            }
+	        }
+	    }
+	    logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, stopwatch);
+	    return res;
 	}
 
 	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
