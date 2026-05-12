@@ -555,7 +555,7 @@ public class Dao {
 				JOIN type ty ON p.type_id = ty.id 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
-				LEFT JOIN grade g ON p.consensus_grade_id = g.id
+				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
