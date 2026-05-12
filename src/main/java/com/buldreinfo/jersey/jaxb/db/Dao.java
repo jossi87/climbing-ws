@@ -896,19 +896,26 @@ public class Dao {
 		}
 		Area a = null;
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+					SELECT ? region_id, ? auth_user_id, ? area_id
+				)
 				SELECT r.name region_name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
-				FROM area a
+				FROM req
+				JOIN area a ON req.area_id=a.id
 				JOIN region r ON a.region_id=r.id
+				JOIN region_type rt ON r.id=rt.region_id
 				LEFT JOIN coordinates c ON a.coordinates_id=c.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE a.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				GROUP BY r.name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, reqId);
-			ps.setInt(3, s.idRegion());
+			ps.setInt(1, s.idRegion());
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setInt(3, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String regionName = rst.getString("region_name");
@@ -1953,6 +1960,7 @@ public class Dao {
 				JOIN sector s ON p.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
 				JOIN region r ON a.region_id = r.id
+				JOIN region_type rt ON r.id = rt.region_id
 				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
 				LEFT JOIN grade go ON p.grade_id = go.id
 				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
@@ -1963,7 +1971,8 @@ public class Dao {
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN tick t ON p.id=t.problem_id
 				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
-				WHERE (r.id=req.region_id OR ur.user_id IS NOT NULL)
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
 				ORDER BY p.name
@@ -3235,18 +3244,25 @@ public class Dao {
 		}
 		Sector s = null;
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+					SELECT ? region_id, ? auth_user_id, ? sector_id
+				)
 				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
-				FROM area a
+				FROM req
+				JOIN sector s ON req.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
 				JOIN region r ON a.region_id=r.id
-				INNER JOIN sector s ON a.id=s.area_id
+				JOIN region_type rt ON r.id=rt.region_id
 				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE s.id=? AND (r.id=? OR ur.user_id IS NOT NULL) AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=auth_user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
 				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, reqId);
-			ps.setInt(3, setup.idRegion());
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElse(0));
+			ps.setInt(3, reqId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
