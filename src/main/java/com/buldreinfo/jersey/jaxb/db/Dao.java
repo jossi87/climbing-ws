@@ -2536,8 +2536,8 @@ public class Dao {
 				    FROM region_type rt
 				    JOIN req ON rt.region_id = req.region_id
 				)
-				SELECT v.grade, v.color, SUM(v.is_fa) fa, SUM(v.is_tick) tick
-				FROM (SELECT g.grade, clr.hex_code color, COALESCE(g.weight,0) weight, 1 is_fa, 0 is_tick
+				SELECT v.grade, v.color, SUM(v.is_fa) num_fa, SUM(v.is_tick) num_tick, SUM(v.is_repeat) num_repeat
+				FROM (SELECT g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick, 0 is_repeat
 					  FROM req
 				      JOIN fa f ON f.user_id=req.auth_user_id
 				      JOIN problem p ON f.problem_id=p.id
@@ -2547,7 +2547,7 @@ public class Dao {
 
 				      UNION ALL
 
-				      SELECT g.grade, clr.hex_code color, g.weight weight, 0 is_fa, 1 is_tick
+				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 1 is_tick, 0 is_repeat
 				      FROM req
 				      JOIN tick t ON t.user_id=req.auth_user_id
 				      JOIN problem p ON t.problem_id=p.id
@@ -2555,6 +2555,17 @@ public class Dao {
 				      JOIN grade g ON COALESCE(t.grade_id,p.consensus_grade_id)=g.id
 				      JOIN grade_color clr ON g.grade_color_id=clr.id
 				        AND NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
+				        
+				      UNION ALL
+				      
+				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 0 is_tick, 1 is_repeat
+				      FROM req
+				      JOIN tick t ON req.auth_user_id=t.user_id
+				      JOIN tick_repeat tr ON t.id=tr.tick_id
+				      JOIN problem p ON t.problem_id=p.id
+				      JOIN target_types tt ON p.type_id=tt.type_id
+				      JOIN grade g ON COALESCE(t.grade_id,p.consensus_grade_id)=g.id
+				      JOIN grade_color clr ON g.grade_color_id=clr.id
 				) v
 				GROUP BY v.grade, v.color, v.weight
 				ORDER BY v.weight DESC
@@ -2565,9 +2576,10 @@ public class Dao {
 				while (rst.next()) {
 					String grade = rst.getString("grade");
 					String color = rst.getString("color");
-					int fa = rst.getInt("fa");
-					int tick = rst.getInt("tick");
-					res.add(new ProfileGradeDistribution(grade, color, fa, tick));
+					int fa = rst.getInt("num_fa");
+					int tick = rst.getInt("num_tick");
+					int repeat = rst.getInt("num_repeat");
+					res.add(new ProfileGradeDistribution(grade, color, fa, tick, repeat));
 				}
 			}
 		}
@@ -2666,7 +2678,7 @@ public class Dao {
 	        ps.setInt(1, userId);
 	        try (ResultSet rst = ps.executeQuery()) {
 	            if (rst.next()) {
-	                res =new ProfileKpis(rst.getInt("created_img"), rst.getInt("created_vid"), rst.getInt("tagged_img"), rst.getInt("tagged_vid"));
+	                res = new ProfileKpis(rst.getInt("created_img"), rst.getInt("created_vid"), rst.getInt("tagged_img"), rst.getInt("tagged_vid"));
 	            }
 	        }
 	    }
