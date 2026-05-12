@@ -6200,7 +6200,7 @@ public class Dao {
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
 		String sqlStr = """
 				WITH req AS (
-				  SELECT ? auth_user_id, ? area_id
+				  SELECT ? AS auth_user_id, ? AS area_id
 				),
 				target_systems AS (
 				  SELECT DISTINCT tgs.grade_system_id 
@@ -6208,27 +6208,37 @@ public class Dao {
 				  JOIN area a ON a.id = req.area_id
 				  JOIN region_type rt ON a.region_id = rt.region_id 
 				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				),
+				all_labels AS (
+				  SELECT 
+				    g.label_compact, 
+				    g.grade_system_id, 
+				    clr.hex_code, 
+				    MIN(g.weight) as sort_weight
+				  FROM grade g
+				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
+				  JOIN grade_color clr ON g.grade_color_id = clr.id
+				  GROUP BY g.label_compact, g.grade_system_id, clr.hex_code
 				)
 				SELECT 
 				    s.id as sector_id, 
-				    g_list.label_compact, 
-				    MAX(clr.hex_code) as color, 
+				    al.label_compact, 
+				    al.hex_code as color, 
 				    COUNT(p.id) as num
 				FROM req
 				JOIN sector s ON s.area_id = req.area_id
-				JOIN problem p ON s.id = p.sector_id
-				JOIN target_systems ts ON 1=1
-				JOIN grade g_actual ON p.consensus_grade_id = g_actual.id
-				JOIN (
-				  SELECT label_compact, grade_system_id, grade_color_id, MIN(weight) as sort_weight 
-				  FROM grade 
-				  GROUP BY label_compact, grade_system_id, grade_color_id
-				) g_list ON g_list.grade_system_id = ts.grade_system_id AND g_actual.label_compact = g_list.label_compact
-				JOIN grade_color clr ON g_list.grade_color_id = clr.id
+				CROSS JOIN all_labels al
 				LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = (SELECT region_id FROM area WHERE id = req.area_id)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY s.id, g_list.label_compact, g_list.sort_weight
-				ORDER BY s.id, g_list.sort_weight
+				LEFT JOIN problem p ON s.id = p.sector_id 
+				    AND EXISTS (
+				        SELECT 1 FROM grade g_p 
+				        WHERE p.consensus_grade_id = g_p.id 
+				        AND g_p.label_compact = al.label_compact 
+				        AND g_p.grade_system_id = al.grade_system_id
+				    )
+				    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				GROUP BY s.id, al.label_compact, al.hex_code, al.sort_weight
+				ORDER BY s.id, al.sort_weight
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
