@@ -10,8 +10,9 @@ import java.util.Optional;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.db.Dao;
 
-public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
-		String authenticatedName, MediaIdentity mediaIdentity,
+public record Meta(String title,
+		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
+		int userId, String authenticatedName, String themePreference, MediaIdentity mediaIdentity,
 		List<Grade> grades, List<Integer> faYears,
 		int defaultZoom, LatLng defaultCenter,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
@@ -22,11 +23,14 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		boolean isAuthenticated = false;
 		boolean isAdmin = false;
 		boolean isSuperAdmin = false;
+		int userId = 0;
 		String authenticatedName = null;
+		String themePreference = null;
 		MediaIdentity mediaIdentity = null;
 		if (authUserId.isPresent()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT ur.admin_write, ur.superadmin_write, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name,
+					SELECT ur.admin_write, ur.superadmin_write,
+					       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name, u.theme_preference,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM user u
 					LEFT JOIN user_region ur ON (u.id=ur.user_id AND ur.region_id=?)
@@ -44,7 +48,9 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 						if (isSuperAdmin) { // climbing-web often only checks for isAdmin
 							isAdmin = true;
 						}
+						userId = rst.getInt("user_id");
 						authenticatedName = rst.getString("authenticated_name");
+						themePreference = rst.getString("theme_preference");
 						int mediaId = rst.getInt("media_id");
 						if (mediaId > 0) {
 							long mediaVersionStamp = rst.getLong("media_version_stamp");
@@ -65,6 +71,6 @@ public record Meta(String title, boolean isAuthenticated, boolean isAdmin, boole
 		List<Type> types = dao.getTypes(c, setup.idRegion());
 		List<Region> regions = dao.getRegions(c, setup.idRegion());
 		List<CompassDirection> compassDirections = setup.compassDirections();
-		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, authenticatedName, mediaIdentity, grades, faYears, defaultZoom, defaultCenter, setup.isBouldering(), setup.isClimbing(), setup.isIce(), url, types, regions, compassDirections);
+		return new Meta(title, isAuthenticated, isAdmin, isSuperAdmin, userId, authenticatedName, themePreference, mediaIdentity, grades, faYears, defaultZoom, defaultCenter, setup.isBouldering(), setup.isClimbing(), setup.isIce(), url, types, regions, compassDirections);
 	}
 }

@@ -17,7 +17,6 @@ import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -137,7 +136,16 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Profile);
 			Profile u = (Profile)r.getEntity();
-			assertTrue(u.firstname() != null);
+			assertTrue(u.identity() != null);
+		}
+	}
+	
+	@Test
+	public void testGetProfileAscents() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getProfileAscents(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof List<?>);
 		}
 	}
 	
@@ -147,15 +155,6 @@ public class V2Test {
 		try (Response r = tester.getProfileMedia(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN, true)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof List<?>);
-		}
-	}
-	
-	@Test
-	public void testGetProfileStatistics() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getProfileStatistics(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof ProfileStatistics);
 		}
 	}
 	

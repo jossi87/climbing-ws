@@ -42,7 +42,8 @@ import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
+import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Search;
@@ -567,61 +568,63 @@ public class V2 {
 	@Path("/profile")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfile(@Context HttpServletRequest request,
-			@Parameter(description = "User id (will return logged in user without this attribute)", required = false) @QueryParam("id") int reqUserId) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao1, c1, setup, authUserId, _) -> {
 			if (reqUserId > 0) {
-				dao.ensureUserExists(c, reqUserId);
+				dao1.ensureUserExists(c1, reqUserId);
 			}
-			Profile res = dao.getProfile(c, authUserId, setup, reqUserId);
+			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, authUserId, setup, reqUserId));
+	    	var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
+	        var gradeDistribution = Server.submitDaoTask((dao, c) -> dao.getProfileGradeDistribution(c, setup, reqUserId));
+	        Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get());
+	        return Response.ok().entity(res).build();
+		});
+	}
+
+	@Operation(summary = "Get profile ascents", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProfileAscent.class)))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/profile/ascents")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getProfileAscents(@Context HttpServletRequest request,
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.ensureUserExists(c, id);
+			List<ProfileAscent> res = dao.getProfileAscents(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
 
 	@Operation(summary = "Get profile media by id", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
-			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
+	        @ApiResponse(responseCode = "404", description = "User not found"),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfileMedia(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
-			) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.ensureUserExists(c, id);
-			List<Media> res = dao.getProfileMediaProblem(c, authUserId, id, captured);
-			if (captured) {
-				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
-				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
-				res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
-			}
-			return Response.ok().entity(res).build();
-		});
+	        @Parameter(description = "User id", required = true) @QueryParam("id") int id,
+	        @Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
+	        ) {
+	    return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+	        dao.ensureUserExists(c, id);
+	        List<Media> res = new ArrayList<>(dao.getProfileMediaProblem(c, authUserId, id, captured));
+	        if (captured) {
+	            res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
+	            res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
+	            res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
+	        }
+	        return Response.ok().entity(res).build();
+	    });
 	}
-
-	@Operation(summary = "Get profile statistics by id", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileStatistics.class))}),
-			@ApiResponse(responseCode = "404", description = "User not found"),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/profile/statistics")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getProfileStatistics(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
-		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.ensureUserExists(c, id);
-			ProfileStatistics res = dao.getProfileStatistics(c, authUserId, setup, id);
-			return Response.ok().entity(res).build();
-		});
-	}
-
+	
 	@Operation(summary = "Get profile todo", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
@@ -1257,7 +1260,7 @@ public class V2 {
 	@Path("/profile")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Profile profile = new Gson().fromJson(multiPart.getField("json").getValue(), Profile.class);
+		ProfileIdentity profile = new Gson().fromJson(multiPart.getField("json").getValue(), ProfileIdentity.class);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.setProfile(c, authUserId, profile, multiPart);
 			return Response.ok().build();

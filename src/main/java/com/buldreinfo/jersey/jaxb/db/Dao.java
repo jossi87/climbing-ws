@@ -88,12 +88,14 @@ import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
-import com.buldreinfo.jersey.jaxb.model.Profile;
-import com.buldreinfo.jersey.jaxb.model.ProfileStatistics;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileGradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileKpis;
+import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
-import com.buldreinfo.jersey.jaxb.model.ProfileTodoArea;
-import com.buldreinfo.jersey.jaxb.model.ProfileTodoProblem;
-import com.buldreinfo.jersey.jaxb.model.ProfileTodoSector;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodo.ProfileTodoArea;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodo.ProfileTodoProblem;
+import com.buldreinfo.jersey.jaxb.model.ProfileTodo.ProfileTodoSector;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Region;
@@ -648,18 +650,18 @@ public class Dao {
 		}
 		if (!repeatIds.isEmpty()) {
 			try (PreparedStatement ps = c.prepareStatement("""
-		SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-		       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-		       r.comment description, t.stars, g.grade
-					FROM activity a
-					JOIN user u ON a.user_id=u.id
-					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
-					LEFT JOIN grade g ON t.grade_id=g.id
-					JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
-					LEFT JOIN media m ON u.media_id=m.id
-					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-					WHERE a.id IN (%s)
-					""".formatted(Joiner.on(",").join(repeatIds)))) {
+					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+					       r.comment description, t.stars, g.grade
+								FROM activity a
+								JOIN user u ON a.user_id=u.id
+								JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
+								LEFT JOIN grade g ON t.grade_id=g.id
+								JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
+								LEFT JOIN media m ON u.media_id=m.id
+								LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+								WHERE a.id IN (%s)
+								""".formatted(Joiner.on(",").join(repeatIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
 						Activity a = activityLookup.get(rst.getInt("id"));
@@ -1328,9 +1330,9 @@ public class Dao {
 	}
 
 	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageFirstAscent> res = new ArrayList<>();
-	    String sqlStr = """
-	            WITH x AS (
+		final List<FrontpageFirstAscent> res = new ArrayList<>();
+		String sqlStr = """
+				         WITH x AS (
 				    SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
 				    FROM problem p1
 				    JOIN sector s1 ON p1.sector_id = s1.id
@@ -1366,138 +1368,138 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, p.id DESC
-	            """;
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        int ix = 1;
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        ps.setInt(ix++, setup.idRegion());
-	        ps.setInt(ix++, setup.idRegion());
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-	                String grade = rst.getString("grade");
-	                List<User> users = new ArrayList<>();
-	                String rawUsers = rst.getString("user_data");
-	                if (rawUsers != null) {
-	                    for (String userRecord : rawUsers.split("\\|")) {
-	                        String[] p = userRecord.split(":");
-	                        int mediaId = Integer.parseInt(p[2]);
-	                        MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), p.length > 6 ? p[6] : null) : null;
-	                        users.add(new User(Integer.parseInt(p[0]), p[1], mi));
-	                    }
-	                }
-	                res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
-	                        rst.getInt("area_id"), rst.getString("area_name"),
-	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-	                        rst.getString("problem_name"), rst.getString("problem_subtype"), grade, users));
-	            }
-	        }
-	    }
-	    return res;
+				         """;
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int ix = 1;
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(ix++, authUserId.orElse(0));
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
+					String grade = rst.getString("grade");
+					List<User> users = new ArrayList<>();
+					String rawUsers = rst.getString("user_data");
+					if (rawUsers != null) {
+						for (String userRecord : rawUsers.split("\\|")) {
+							String[] p = userRecord.split(":");
+							int mediaId = Integer.parseInt(p[2]);
+							MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), p.length > 6 ? p[6] : null) : null;
+							users.add(new User(Integer.parseInt(p[0]), p[1], mi));
+						}
+					}
+					res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
+							rst.getInt("area_id"), rst.getString("area_name"),
+							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+							rst.getString("problem_name"), rst.getString("problem_subtype"), grade, users));
+				}
+			}
+		}
+		return res;
 	}
 
 	public List<FrontpageLastComment> getFrontpageLastComments(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageLastComment> res = new ArrayList<>();
-	    String sqlStr = """
-	            SELECT g.post_time AS activity_timestamp, a.id area_id, a.name area_name,
-	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
-	                   g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
-	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-	            FROM guestbook g
-	            JOIN user u ON g.user_id=u.id
-	            LEFT JOIN media m ON u.media_id=m.id
-	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-	            JOIN problem p ON g.problem_id=p.id
-	            JOIN sector s ON p.sector_id=s.id 
-	            JOIN area a ON s.area_id=a.id 
-	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-	            WHERE a.region_id IN (
-	                SELECT r.id FROM region r 
-	                JOIN region_type rt ON r.id=rt.region_id 
-	                LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
-	                WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-	                  AND (r.id=? OR ur2.user_id IS NOT NULL)
-	            )
-	            AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-	            AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-	            AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            ORDER BY g.id DESC LIMIT 4
-	            """;
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        int ix = 1;
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        ps.setInt(ix++, setup.idRegion());
-	        ps.setInt(ix++, setup.idRegion());
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-	                int mediaId = rst.getInt("media_id");
-	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
-	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-	                res.add(new FrontpageLastComment(TimeAgo.getTimeAgo(ts.toLocalDate()), rst.getInt("area_id"), rst.getString("area_name"),
-	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-	                        rst.getString("problem_name"), user, rst.getString("message")));
-	            }
-	        }
-	    }
-	    return res;
+		final List<FrontpageLastComment> res = new ArrayList<>();
+		String sqlStr = """
+				SELECT g.post_time AS activity_timestamp, a.id area_id, a.name area_name,
+				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+				       g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
+				FROM guestbook g
+				JOIN user u ON g.user_id=u.id
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				JOIN problem p ON g.problem_id=p.id
+				JOIN sector s ON p.sector_id=s.id 
+				JOIN area a ON s.area_id=a.id 
+				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				WHERE a.region_id IN (
+				    SELECT r.id FROM region r 
+				    JOIN region_type rt ON r.id=rt.region_id 
+				    LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
+				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				      AND (r.id=? OR ur2.user_id IS NOT NULL)
+				)
+				AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				ORDER BY g.id DESC LIMIT 4
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int ix = 1;
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(ix++, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
+					int mediaId = rst.getInt("media_id");
+					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
+					User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
+					res.add(new FrontpageLastComment(TimeAgo.getTimeAgo(ts.toLocalDate()), rst.getInt("area_id"), rst.getString("area_name"),
+							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+							rst.getString("problem_name"), user, rst.getString("message")));
+				}
+			}
+		}
+		return res;
 	}
 
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-	    final List<FrontpageRecentAscent> res = new ArrayList<>();
-	    String sqlStr = """
-	            SELECT t.date AS activity_timestamp, t.id AS tick_id, a.id area_id, a.name area_name,
-	                   p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
-	                   g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
-	                   m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-	            FROM tick t
-	            JOIN problem p ON t.problem_id=p.id
-	            JOIN user u ON t.user_id=u.id
-	            LEFT JOIN grade g ON t.grade_id=g.id
-	            LEFT JOIN media m ON u.media_id=m.id
-	            LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-	            JOIN type ty ON p.type_id=ty.id 
-	            JOIN sector s ON p.sector_id=s.id 
-	            JOIN area a ON s.area_id=a.id 
-	            LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-	            WHERE a.region_id IN (
-	                SELECT r.id FROM region r 
-	                JOIN region_type rt ON r.id=rt.region_id 
-	                LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
-	                WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-	                  AND (r.id=? OR ur2.user_id IS NOT NULL)
-	            )
-	            AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-	            AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-	            AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-	            ORDER BY t.date DESC, t.id DESC LIMIT 8
-	            """;
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        int ix = 1;
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        ps.setInt(ix++, authUserId.orElse(0));
-	        ps.setInt(ix++, setup.idRegion());
-	        ps.setInt(ix++, setup.idRegion());
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-	                String tickGrade = rst.getString("tick_grade");
-	                if (tickGrade == null) {
-	                    tickGrade = GradeConverter.NO_PERSONAL_GRADE;
-	                }
-	                boolean repeat = false; 
-	                int mediaId = rst.getInt("media_id");
-	                MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
-	                User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-	                res.add(new FrontpageRecentAscent(TimeAgo.getTimeAgo(ts.toLocalDate()),  rst.getInt("area_id"), rst.getString("area_name"),
-	                        rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-	                        rst.getString("problem_name"), rst.getString("problem_subtype"), tickGrade, user, repeat));
-	            }
-	        }
-	    }
-	    return res;
+		final List<FrontpageRecentAscent> res = new ArrayList<>();
+		String sqlStr = """
+				SELECT t.date AS activity_timestamp, t.id AS tick_id, a.id area_id, a.name area_name,
+				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
+				       g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
+				FROM tick t
+				JOIN problem p ON t.problem_id=p.id
+				JOIN user u ON t.user_id=u.id
+				LEFT JOIN grade g ON t.grade_id=g.id
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				JOIN type ty ON p.type_id=ty.id 
+				JOIN sector s ON p.sector_id=s.id 
+				JOIN area a ON s.area_id=a.id 
+				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				WHERE a.region_id IN (
+				    SELECT r.id FROM region r 
+				    JOIN region_type rt ON r.id=rt.region_id 
+				    LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
+				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
+				      AND (r.id=? OR ur2.user_id IS NOT NULL)
+				)
+				AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
+				AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
+				AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				ORDER BY t.date DESC, t.id DESC LIMIT 8
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int ix = 1;
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(ix++, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
+					String tickGrade = rst.getString("tick_grade");
+					if (tickGrade == null) {
+						tickGrade = GradeConverter.NO_PERSONAL_GRADE;
+					}
+					boolean repeat = false; 
+					int mediaId = rst.getInt("media_id");
+					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
+					User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
+					res.add(new FrontpageRecentAscent(TimeAgo.getTimeAgo(ts.toLocalDate()),  rst.getInt("area_id"), rst.getString("area_name"),
+							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
+							rst.getString("problem_name"), rst.getString("problem_subtype"), tickGrade, user, repeat));
+				}
+			}
+		}
+		return res;
 	}
 
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
@@ -1599,7 +1601,7 @@ public class Dao {
 				       s.id id_sector, s.name sector, 
 				       p.id id_problem, p.name problem,
 				       g.grade grade,
-				
+
 				       IF(u.id IS NULL, NULL, 
 				          CONCAT('{"id":', u.id, 
 				                 ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\"'), 
@@ -1611,7 +1613,7 @@ public class Dao {
 				                                 ',"primaryColorHex":"', COALESCE(mma_u.primary_color_hex, ''), '"}')
 				                       ), '}')
 				       ) photographer,
-				
+
 				       GROUP_CONCAT(DISTINCT 
 				           IF(u2.id IS NULL, NULL, 
 				              CONCAT('{"id":', u2.id, 
@@ -1669,7 +1671,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getFrontpageRandomMedia(setup={}) - res={}, duration={}", setup, res, stopwatch);
+		logger.debug("getFrontpageRandomMedia(setup={}) - res.size()={}, duration={}", setup, res.size(), stopwatch);
 		return res;
 	}
 
@@ -1763,53 +1765,53 @@ public class Dao {
 	}
 
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
-		Media res = null;
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.embed_url,
-					   DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
-					   TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-					   GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM media m
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN user c ON m.photographer_user_id=c.id
-				LEFT JOIN media_user mu ON m.id=mu.media_id
-				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE m.id=?
-				""")) {
-			ps.setInt(1, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = null;
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					res = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null);
-				}
-			}
-		}
-		if (res == null) {
-			throw new NoSuchElementException("Could not find media with id=" + id);
-		}
-		return res;
+	    String sql = """
+	            WITH req AS (
+	                SELECT ? AS mediaId, ? AS authUserId
+	            )
+	            SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
+	                   m.description, m.width, m.height, m.is_movie, m.embed_url,
+	                   DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
+	                   TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+	                   GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
+	            FROM req
+	            JOIN media m ON m.id = req.mediaId
+	            LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+	            JOIN user c ON m.photographer_user_id = c.id
+	            LEFT JOIN media_user mu ON m.id = mu.media_id
+	            LEFT JOIN user u ON mu.user_id = u.id
+	            GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+	            """;
+	    Media res = null;
+	    int currentAuthUserId = authUserId.orElse(0);
+	    try (PreparedStatement ps = c.prepareStatement(sql)) {
+	        ps.setInt(1, id);
+	        ps.setInt(2, currentAuthUserId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            if (rst.next()) {
+	                MediaIdentity identity = new MediaIdentity(
+	                    rst.getInt("id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), 
+	                    rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
+	                );
+	                MediaMetadata metadata = MediaMetadata.from(
+	                    rst.getString("date_created"), rst.getString("date_taken"), 
+	                    rst.getString("capturer"), rst.getString("tagged"), 
+	                    rst.getString("description"), null
+	                );
+	                res = new Media(
+	                    identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+	                    0, false, rst.getInt("width"), rst.getInt("height"), 
+	                    rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, 
+	                    metadata, rst.getString("embed_url"), false, 0, 0, 0, null
+	                );
+	            }
+	        }
+	    }
+	    if (res == null) {
+	        throw new NoSuchElementException("Could not find media with id=" + id);
+	    }
+	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, List.of(id));
+	    return res.withMediaSvgs(svgMap.getOrDefault(id, List.of()));
 	}
 
 	public List<PermissionUser> getPermissions(Connection c, Optional<Integer> authUserId, int idRegion) throws SQLException {
@@ -1901,7 +1903,7 @@ public class Dao {
 			for (ProfileTodoArea ta : todo.areas()) {
 				for (ProfileTodoSector ts : ta.sectors()) {
 					for (ProfileTodoProblem tp : ts.problems()) {
-						todoIdProblems.add(tp.getId());
+						todoIdProblems.add(tp.id());
 					}
 				}
 			}
@@ -2284,287 +2286,9 @@ public class Dao {
 		return p;
 	}
 
-	public Profile getProfile(Connection c, Optional<Integer> authUserId, Setup setup, int reqUserId) throws SQLException {
-		int userId = reqUserId > 0 ? reqUserId : authUserId.orElse(0);
-		if (userId <= 0) {
-			logger.warn("getProfile called without a valid userId (guest access without id param)");
-			return null; 
-		}
-		Profile res = null;
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
-				        FROM user_email e 
-				        WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') emails,
-					   (SELECT MAX(l.when)
-				        FROM user_login l 
-				        WHERE l.user_id=u.id) last_login
-				FROM user u
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				WHERE u.id=?
-				""")) {
-			ps.setInt(1, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String firstname = rst.getString("firstname");
-					String lastname = rst.getString("lastname");
-					boolean emailVisibleToAll = rst.getBoolean("email_visible_to_all");
-					int mediaId = rst.getInt("media_id");
-					MediaIdentity mediaIdentity = null;
-					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
-					}
-					String emailsStr = rst.getString("emails");
-					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
-							.trimResults()
-							.omitEmptyStrings()
-							.splitToList(emailsStr);
-					String themePreference = rst.getString("theme_preference");
-					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
-					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
-					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
-					res = new Profile(userId, firstname, lastname, emailVisibleToAll, mediaIdentity, emails, userRegions, lastActivity, themePreference);
-				}
-			}
-		}
-		if (res == null) {
-			throw new NoSuchElementException("Could not find user with id=" + userId);
-		}
-		return res;
-	}
-
-	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
-		String sqlStr = """
-				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, MAX(a.name) location,
-				       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
-				       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-				                   CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
-				FROM media m
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
-				JOIN media_area ma ON m.id=ma.media_id
-				JOIN area a ON ma.area_id=a.id
-				JOIN region r ON a.region_id=r.id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				LEFT JOIN media_user mu ON m.id=mu.media_id
-				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
-				ORDER BY m.id DESC
-				""";
-		List<Media> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId.orElse(0));
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String tagged = rst.getString("tagged");
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String url = rst.getString("url");
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
-					res.add(m);
-				}
-			}
-		}
-		return res;
-	}
-
-	public List<Media> getProfileMediaCapturedSector(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
-		String sqlStr = """
-				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
-				       0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-				       CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url
-				FROM media m
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
-				JOIN media_sector ms ON m.id=ms.media_id
-				JOIN sector s ON ms.sector_id=s.id
-				JOIN area a ON s.area_id=a.id
-				JOIN region r ON a.region_id=r.id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				LEFT JOIN media_user mu ON m.id=mu.media_id
-				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
-				ORDER BY m.id DESC
-				""";
-		List<Media> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId.orElse(0));
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String tagged = rst.getString("tagged");
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String url = rst.getString("url");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
-					res.add(m);
-				}
-			}
-		}
-		return res;
-	}
-
-	public List<Media> getProfileMediaProblem(Connection c, Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
-		String sqlStr = null;
-		if (captured) {
-			sqlStr = """
-					SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
-					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
-					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t,
-					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
-					FROM media m
-					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-					JOIN user c ON m.photographer_user_id=? AND m.deleted_user_id IS NULL AND m.photographer_user_id=c.id
-					JOIN media_problem mp ON m.id=mp.media_id
-					JOIN problem p ON mp.problem_id=p.id
-					JOIN sector s ON p.sector_id=s.id
-					JOIN area a ON s.area_id=a.id
-					JOIN region r ON a.region_id=r.id
-					LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-					LEFT JOIN media_user mu ON m.id=mu.media_id
-					LEFT JOIN user u ON mu.user_id=u.id
-					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
-					ORDER BY m.id DESC
-					""";
-		}
-		else {
-			sqlStr = """
-					SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged,
-					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-					       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location,
-					       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
-					       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t,
-					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
-					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
-					FROM user u
-					JOIN media_user mu ON u.id=? AND u.id=mu.user_id
-					JOIN media m ON mu.media_id=m.id AND m.deleted_user_id IS NULL
-					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-					JOIN user c ON m.photographer_user_id=c.id
-					JOIN media_problem mp ON m.id=mp.media_id
-					JOIN problem p ON mp.problem_id=p.id
-					JOIN sector s ON p.sector_id=s.id
-					JOIN area a ON s.area_id=a.id
-					JOIN region r ON a.region_id=r.id
-					LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-					GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
-					ORDER BY m.id DESC
-					""";
-		}
-		List<Media> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, reqId);
-			ps.setInt(2, authUserId.orElse(0));
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String tagged = rst.getString("tagged");
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String url = rst.getString("url");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, url);
-					res.add(m);
-				}
-			}
-		}
-		return res;
-	}
-
-	public ProfileStatistics getProfileStatistics(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
-		Map<Integer, ProfileStatistics.ProfileStatisticsTick> idProblemTickMap = new HashMap<>();
-		ProfileStatistics res = new ProfileStatistics();
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id")) {
-			ps.setInt(1, reqId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.setNumImagesCreated(rst.getInt("num_images_created"));
-					res.setNumVideosCreated(rst.getInt("num_videos_created"));
-				}
-			}
-		}
-		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM (((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id")) {
-			ps.setInt(1, reqId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.setNumImageTags(rst.getInt("num_image_tags"));
-					res.setNumVideoTags(rst.getInt("num_video_tags"));
-				}
-			}
-		}
-
+	public List<ProfileAscent> getProfileAscents(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
+		List<ProfileAscent> res = new ArrayList<>();
+		Map<Integer, ProfileAscent> idProblemTickMap = new HashMap<>();
 		// Tick
 		String sqlStr = """
 				SELECT r.name region_name,
@@ -2631,7 +2355,8 @@ public class Dao {
 					int gradeWeight = rst.getInt("grade_weight");
 					String grade = rst.getString("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
+					ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
+					res.add(tick);
 					idProblemTickMap.put(idProblem, tick);
 				}
 			}
@@ -2692,7 +2417,7 @@ public class Dao {
 					int gradeWeight = rst.getInt("grade_weight");
 					String grade = rst.getString("grade");
 					boolean noPersonalGrade = grade == null;
-					res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
+					res.add(new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade));
 				}
 			}
 		}
@@ -2747,12 +2472,12 @@ public class Dao {
 						String grade = "n/a";
 						int gradeWeight = 0;
 						boolean noPersonalGrade = false;
-						Optional<ProfileStatistics.ProfileStatisticsTick> optTick = res.getTicks().stream()
+						Optional<ProfileAscent> optTick = res.stream()
 								.filter(x -> x.getIdProblem() == idProblem)
 								.findAny();
 						if (optTick.isPresent()) {
 							// User has ticked route, update this (don't add an extra First Ascent (AID))
-							ProfileStatistics.ProfileStatisticsTick tick = optTick.get();
+							ProfileAscent tick = optTick.get();
 							tick.setFa(true);
 							if (tick.getDate() == null && date != null) {
 								tick.setDate(date);
@@ -2762,7 +2487,7 @@ public class Dao {
 							}
 						}
 						else {
-							ProfileStatistics.ProfileStatisticsTick tick = res.addTick(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, grade, gradeWeight, noPersonalGrade);
+							ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, grade, gradeWeight, noPersonalGrade);
 							idProblemTickMap.put(idProblem, tick);
 						}
 					}
@@ -2778,119 +2503,480 @@ public class Dao {
 			}
 		}
 		// Order ticks
-		res.getTicks().sort((t1, t2) -> -ComparisonChain
+		res.sort((t1, t2) -> -ComparisonChain
 				.start()
 				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
 				.compare(t1.getId(), t2.getId())
 				.compare(t1.getIdProblem(), t2.getIdProblem())
 				.result());
-		for (int i = 0; i < res.getTicks().size(); i++) {
-			res.getTicks().get(i).setNum(i);
+		for (int i = 0; i < res.size(); i++) {
+			res.get(i).setNum(i);
 		}
 		return res;
 	}
 
-	public ProfileTodo getProfileTodo(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
-		final int userId = reqId > 0? reqId : authUserId.orElse(0);
-		ProfileTodo res = new ProfileTodo(new ArrayList<>());
-
-		// Build lists
-		Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
-		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
-		Map<Integer, ProfileTodoProblem> problemLookup = new HashMap<>();
+	public List<ProfileGradeDistribution> getProfileGradeDistribution(Connection c, Setup setup, int userId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<ProfileGradeDistribution> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
-				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				       t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin
-				FROM area a
-				JOIN region_type rt ON a.region_id=rt.region_id
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON s.id=p.sector_id
-				JOIN grade g ON p.grade_id=g.id
-				LEFT JOIN todo t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
-				  AND t.user_id=?
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY t.id, a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.locked_admin, s.locked_superadmin, s.name, p.id, p.nr, p.name, g.grade, p.locked_admin, p.locked_superadmin
-				ORDER BY a.name, s.name, p.nr
+				WITH req AS (
+				    SELECT ? region_id, ? auth_user_id
+				),
+				target_types AS (
+				    SELECT rt.type_id 
+				    FROM region_type rt
+				    JOIN req ON rt.region_id = req.region_id
+				)
+				SELECT v.grade, v.color, SUM(v.is_fa) fa, SUM(v.is_tick) tick
+				FROM (SELECT g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick
+					  FROM req
+				      JOIN fa f ON f.user_id=req.auth_user_id
+				      JOIN problem p ON f.problem_id=p.id
+				      JOIN target_types tt ON p.type_id=tt.type_id
+				      JOIN grade g ON p.consensus_grade_id=g.id
+				      JOIN grade_color clr ON g.grade_color_id=clr.id
+
+				      UNION ALL
+
+				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 1 is_tick
+				      FROM req
+				      JOIN tick t ON t.user_id = req.auth_user_id
+				      JOIN problem p ON t.problem_id = p.id
+				      JOIN target_types tt ON p.type_id = tt.type_id
+				      JOIN grade g ON t.grade_id = g.id
+				      JOIN grade_color clr ON g.grade_color_id = clr.id
+				      WHERE g.grade != 'n/a'
+				        AND NOT EXISTS (SELECT 1 FROM fa f2  WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
+				) v
+				GROUP BY v.grade, v.color, v.weight
+				ORDER BY v.weight ASC;
 				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setInt(4, userId);
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, userId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					// Area
-					int areaId = rst.getInt("area_id");
-					ProfileTodoArea a = areaLookup.get(areaId);
-					if (a == null) {
-						String areaName = rst.getString("area_name");
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						a = new ProfileTodoArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, new ArrayList<>());
-						res.areas().add(a);
-						areaLookup.put(areaId, a);
-					}
-					// Sector
-					int sectorId = rst.getInt("sector_id");
-					ProfileTodoSector s = sectorLookup.get(sectorId);
-					if (s == null) {
-						String sectorName = rst.getString("sector_name");
-						boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = new ProfileTodoSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
-						a.sectors().add(s);
-						sectorLookup.put(sectorId, s);
-					}
-					// Problem
-					int todoId = rst.getInt("todo_id");
-					int problemId = rst.getInt("problem_id");
-					int problemNr = rst.getInt("problem_nr");
-					String problemName = rst.getString("problem_name");
-					String problemGrade = rst.getString("problem_grade");
-					boolean problemLockedAdmin = rst.getBoolean("problem_locked_admin");
-					boolean problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					ProfileTodoProblem p = new ProfileTodoProblem(todoId, problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade);
-					s.problems().add(p);
-					problemLookup.put(problemId, p);
+					String grade = rst.getString("grade");
+					String color = rst.getString("color");
+					int fa = rst.getInt("fa");
+					int tick = rst.getInt("tick");
+					res.add(new ProfileGradeDistribution(grade, color, fa, tick));
 				}
 			}
 		}
-		if (!problemLookup.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
-					SELECT t.problem_id, u.id,
-					       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
-					FROM todo t
-					JOIN user u ON t.user_id=u.id
-					WHERE t.user_id!=? AND problem_id IN (%s)
-					ORDER BY t.problem_id, u.firstname, u.lastname
-					""".formatted(Joiner.on(",").join(problemLookup.keySet())))) {
-				ps.setInt(1, userId);
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int problemId = rst.getInt("problem_id");
-						int id = rst.getInt("id");
-						String name = rst.getString("name");
-						User u = User.from(id, name);
-						problemLookup.get(problemId).getPartners().add(u);
-					}
-				}
-			}
-			if (!problemLookup.isEmpty()) {
-				// Fill coordinates
-				Map<Integer, Coordinates> idProblemCoordinates = getProblemCoordinates(c, problemLookup.keySet());
-				for (int idProblem : idProblemCoordinates.keySet()) {
-					Coordinates coordinates = idProblemCoordinates.get(idProblem);
-					problemLookup.get(idProblem).setCoordinates(coordinates);
-				}
-			}
-		}
-		// Sort areas (ae, oe, aa is sorted wrong by MySql):
-		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
-		logger.debug("getProfileTodo(authUserId={}, idRegion={}, reqId={}) - res.areas().size()={}", authUserId, setup.idRegion(), reqId, res.areas().size());
+		logger.debug("getProfileGradeDistribution(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
 		return res;
+	}
+
+	public ProfileIdentity getProfileIdentity(Connection c, Optional<Integer> authUserId, Setup setup, int userId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
+				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
+				        FROM user_email e 
+				        WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') emails,
+					   (SELECT MAX(l.when)
+				        FROM user_login l 
+				        WHERE l.user_id=u.id) last_login
+				FROM user u
+				LEFT JOIN media m ON u.media_id=m.id
+				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				WHERE u.id=?
+				""")) {
+			ps.setInt(1, userId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					String firstname = rst.getString("firstname");
+					String lastname = rst.getString("lastname");
+					boolean emailVisibleToAll = rst.getBoolean("email_visible_to_all");
+					String themePreference = rst.getString("theme_preference");
+					int mediaId = rst.getInt("media_id");
+					MediaIdentity mediaIdentity = null;
+					if (mediaId > 0) {
+						long mediaVersionStamp = rst.getLong("media_version_stamp");
+						int mediaFocusX = rst.getInt("media_focus_x");
+						int mediaFocusY = rst.getInt("media_focus_y");
+						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
+					}
+					String emailsStr = rst.getString("emails");
+					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
+							.trimResults()
+							.omitEmptyStrings()
+							.splitToList(emailsStr);
+					List<UserRegion> userRegions = userId == authUserId.orElse(0)? getUserRegion(c, authUserId, setup) : null;
+					LocalDateTime lastLogin = rst.getObject("last_login", LocalDateTime.class);
+					String lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
+					var res = new ProfileIdentity(userId, firstname, lastname, emailVisibleToAll, themePreference, mediaIdentity, emails, userRegions, lastActivity);
+					logger.debug("getProfileIdentity(userId={}) - res={}, duration={}", userId, res, stopwatch);
+					return res;
+				}
+			}
+		}
+		throw new NoSuchElementException("Could not find user with id=" + userId);
+	}
+
+	public ProfileKpis getProfileKpis(Connection c, int userId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		int numImagesCreated = 0;
+		int numVideosCreated = 0;
+		int numImageTags = 0;
+		int numVideoTags = 0;
+		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN m_a2.is_movie=0 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=0 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=0 THEN m_p2.id END) num_images_created, COUNT(DISTINCT CASE WHEN m_a2.is_movie=1 THEN m_a2.id END)+COUNT(DISTINCT CASE WHEN m_s2.is_movie=1 THEN m_s2.id END)+COUNT(DISTINCT CASE WHEN m_p2.is_movie=1 THEN m_p2.id END) num_videos_created FROM ((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL AND m_a2.photographer_user_id=u.id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL AND m_s2.photographer_user_id=u.id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL AND m_p2.photographer_user_id=u.id")) {
+			ps.setInt(1, userId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					numImagesCreated = rst.getInt("num_images_created");
+					numVideosCreated = rst.getInt("num_videos_created");
+				}
+			}
+		}
+		try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=0 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=0 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=0 THEN m_p.id END) num_image_tags, COUNT(DISTINCT CASE WHEN mu_a.user_id IS NOT NULL AND m_a2.is_movie=1 THEN m_a.id END)+COUNT(DISTINCT CASE WHEN mu_s.user_id IS NOT NULL AND m_s2.is_movie=1 THEN m_s.id END)+COUNT(DISTINCT CASE WHEN mu_p.user_id IS NOT NULL AND m_p2.is_movie=1 THEN m_p.id END) num_video_tags FROM (((((((((((((area a INNER JOIN region r ON a.region_id=r.id) INNER JOIN region_type rt ON r.id=rt.region_id) INNER JOIN user u ON u.id=?) LEFT JOIN media_area m_a ON a.id=m_a.area_id) LEFT JOIN media m_a2 ON m_a.media_id=m_a2.id AND m_a2.deleted_user_id IS NULL) LEFT JOIN media_user mu_a ON m_a2.id=mu_a.media_id AND u.id=mu_a.user_id) LEFT JOIN sector s ON a.id=s.area_id) LEFT JOIN media_sector m_s ON s.id=m_s.sector_id) LEFT JOIN media m_s2 ON m_s.media_id=m_s2.id AND m_s2.deleted_user_id IS NULL) LEFT JOIN media_user mu_s ON m_s2.id=mu_s.media_id AND u.id=mu_s.user_id) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem m_p ON p.id=m_p.problem_id) LEFT JOIN media m_p2 ON m_p.media_id=m_p2.id AND m_p2.deleted_user_id IS NULL) LEFT JOIN media_user mu_p ON m_p2.id=mu_p.media_id AND u.id=mu_p.user_id")) {
+			ps.setInt(1, userId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					numImageTags = rst.getInt("num_image_tags");
+					numVideoTags = rst.getInt("num_video_tags");
+				}
+			}
+		}
+		var res = new ProfileKpis(numImagesCreated, numVideosCreated, numImageTags, numVideoTags);
+		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, stopwatch);
+		return res;
+	}
+
+	public List<Media> getProfileMediaCapturedArea(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    String sqlStr = """
+	            WITH req AS (
+	                SELECT ? AS photographerId, ? AS authUserId
+	            )
+	            SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
+	                   m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
+	                   m.description, MAX(a.name) location,
+	                   m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
+	                   DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+	                   CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
+	            FROM req
+	            JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+	            LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+	            JOIN user c ON m.photographer_user_id = c.id
+	            JOIN media_area ma ON m.id = ma.media_id
+	            JOIN area a ON ma.area_id = a.id
+	            JOIN region r ON a.region_id = r.id
+	            LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+	            LEFT JOIN media_user mu ON m.id = mu.media_id
+	            LEFT JOIN user u ON mu.user_id = u.id
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
+	            GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+	            ORDER BY m.id DESC
+	            """;
+	    List<Media> initialList = new ArrayList<>();
+	    List<Integer> mediaIds = new ArrayList<>();
+	    int currentAuthUserId = authUserId.orElse(0);
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, reqId);
+	        ps.setInt(2, currentAuthUserId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int idMedia = rst.getInt("id");
+	                mediaIds.add(idMedia);
+
+	                MediaIdentity identity = new MediaIdentity(
+	                    idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), 
+	                    rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
+	                );
+
+	                MediaMetadata metadata = MediaMetadata.from(
+	                    rst.getString("date_created"), rst.getString("date_taken"), 
+	                    rst.getString("capturer"), rst.getString("tagged"), 
+	                    rst.getString("description"), rst.getString("location")
+	                );
+
+	                initialList.add(new Media(
+	                    identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+	                    0, false, rst.getInt("width"), rst.getInt("height"), 
+	                    rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, 
+	                    metadata, rst.getString("embed_url"), false, 0, 0, 0, rst.getString("url")
+	                ));
+	            }
+	        }
+	    }
+	    if (initialList.isEmpty()) {
+	        return initialList;
+	    }
+	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, mediaIds);
+	    List<Media> res = initialList.stream()
+	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of())))
+	            .toList();
+
+	    logger.debug("getProfileMediaCapturedArea(reqId={}) - res.size()={}, duration={}", reqId, res.size(), stopwatch);
+	    return res;
+	}
+
+	public List<Media> getProfileMediaCapturedSector(Connection c, Optional<Integer> authUserId, int reqId) throws SQLException {
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    String sqlStr = """
+	            WITH req AS (
+	                SELECT ? AS photographerId, ? AS authUserId
+	            )
+	            SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
+	                   m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
+	                   m.description, CONCAT(MAX(s.name),' (',MAX(a.name),')') location, m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
+	                   0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+	                   CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url
+	            FROM req
+	            JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+	            LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+	            JOIN user c ON m.photographer_user_id = c.id
+	            JOIN media_sector ms ON m.id = ms.media_id
+	            JOIN sector s ON ms.sector_id = s.id
+	            JOIN area a ON s.area_id = a.id
+	            JOIN region r ON a.region_id = r.id
+	            LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+	            LEFT JOIN media_user mu ON m.id = mu.media_id
+	            LEFT JOIN user u ON mu.user_id = u.id
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
+	            GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+	            ORDER BY m.id DESC
+	            """;
+	    List<Media> initialList = new ArrayList<>();
+	    List<Integer> mediaIds = new ArrayList<>();
+	    int currentAuthUserId = authUserId.orElse(0);
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, reqId);
+	        ps.setInt(2, currentAuthUserId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int idMedia = rst.getInt("id");
+	                mediaIds.add(idMedia);
+	                MediaIdentity identity = new MediaIdentity(
+	                    idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), 
+	                    rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
+	                );
+	                MediaMetadata metadata = MediaMetadata.from(
+	                    rst.getString("date_created"), rst.getString("date_taken"), 
+	                    rst.getString("capturer"), rst.getString("tagged"), 
+	                    rst.getString("description"), rst.getString("location")
+	                );
+	                initialList.add(new Media(
+	                    identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+	                    0, false, rst.getInt("width"), rst.getInt("height"), 
+	                    rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, 
+	                    metadata, rst.getString("embed_url"), false, 0, 0, 0, rst.getString("url")
+	                ));
+	            }
+	        }
+	    }
+	    if (initialList.isEmpty()) {
+	        return initialList;
+	    }
+	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, mediaIds);
+	    List<Media> res = initialList.stream()
+	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of())))
+	            .toList();
+
+	    logger.debug("getProfileMediaCapturedSector(reqId={}) - res.size()={}, duration={}", reqId, res.size(), stopwatch);
+	    return res;
+	}
+
+	public List<Media> getProfileMediaProblem(Connection c, Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    String sqlStr;
+	    if (captured) {
+	        sqlStr = """
+	                WITH req AS (
+	                    SELECT ? AS photographerId, ? AS authUserId
+	                )
+	                SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
+	                       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
+	                       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
+	                       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, MAX(mp.pitch) pitch, 0 t,
+	                       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+	                       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
+	                FROM req
+	                JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+	                LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+	                JOIN user c ON m.photographer_user_id = c.id
+	                JOIN media_problem mp ON m.id = mp.media_id
+	                JOIN problem p ON mp.problem_id = p.id
+	                JOIN sector s ON p.sector_id = s.id
+	                JOIN area a ON s.area_id = a.id
+	                JOIN region r ON a.region_id = r.id
+	                LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+	                LEFT JOIN media_user mu ON m.id = mu.media_id
+	                LEFT JOIN user u ON mu.user_id = u.id
+	                WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	                GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
+	                ORDER BY m.id DESC
+	                """;
+	    } else {
+	        sqlStr = """
+	                WITH req AS (
+	                    SELECT ? AS taggedUserId, ? AS authUserId
+	                )
+	                SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged,
+	                       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
+	                       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location,
+	                       m.width, m.height, m.is_movie, m.embed_url, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
+	                       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, 0 t,
+	                       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
+	                       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
+	                FROM req
+	                JOIN user u ON u.id = req.taggedUserId
+	                JOIN media_user mu ON u.id = mu.user_id
+	                JOIN media m ON mu.media_id = m.id AND m.deleted_user_id IS NULL
+	                LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+	                JOIN user c ON m.photographer_user_id = c.id
+	                JOIN media_problem mp ON m.id = mp.media_id
+	                JOIN problem p ON mp.problem_id = p.id
+	                JOIN sector s ON p.sector_id = s.id
+	                JOIN area a ON s.area_id = a.id
+	                JOIN region r ON a.region_id = r.id
+	                LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+	                WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	                GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
+	                ORDER BY m.id DESC
+	                """;
+	    }
+	    List<Media> initialList = new ArrayList<>();
+	    List<Integer> mediaIds = new ArrayList<>();
+	    int currentAuthUserId = authUserId.orElse(0);
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, reqId);
+	        ps.setInt(2, currentAuthUserId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int idMedia = rst.getInt("id");
+	                mediaIds.add(idMedia);
+	                MediaIdentity identity = new MediaIdentity(
+	                    idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), 
+	                    rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
+	                );
+	                MediaMetadata metadata = MediaMetadata.from(
+	                    rst.getString("date_created"), rst.getString("date_taken"), 
+	                    rst.getString("capturer"), rst.getString("tagged"), 
+	                    rst.getString("description"), rst.getString("location")
+	                );
+	                initialList.add(new Media(
+	                    identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+	                    rst.getInt("pitch"), false, rst.getInt("width"), rst.getInt("height"), 
+	                    rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, 
+	                    metadata, rst.getString("embed_url"), false, 0, 0, 0, rst.getString("url")
+	                ));
+	            }
+	        }
+	    }
+	    if (initialList.isEmpty()) {
+	        return initialList;
+	    }
+	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, mediaIds);
+	    List<Media> res = initialList.stream()
+	            .map(m -> m.withMediaSvgs(svgMap.get(m.identity().id())))
+	            .toList();
+	    logger.debug("getProfileMediaProblem(reqId={}, captured={}) - res.size()={}, duration={}", reqId, captured, res.size(), stopwatch);
+	    return res;
+	}
+
+	public ProfileTodo getProfileTodo(Connection c, Optional<Integer> authUserId, Setup setup, int userId) throws SQLException {
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    ProfileTodo res = new ProfileTodo(new ArrayList<>());
+	    Map<Integer, ProfileTodoArea> areaLookup = new HashMap<>();
+	    Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
+	    String sql = """
+	        WITH req AS (
+	            SELECT ? AS userId, ? AS authUserId, ? AS regionId
+	        )
+	        SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
+	               s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
+	               t.id todo_id, p.id problem_id, p.nr problem_nr, p.name problem_name, g.grade problem_grade, 
+	               p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
+	               COALESCE(pc.id, oc.id, sc.id, ac.id) coord_id,
+	               COALESCE(pc.latitude, oc.latitude, sc.latitude, ac.latitude) lat,
+	               COALESCE(pc.longitude, oc.longitude, sc.longitude, ac.longitude) lon,
+	               COALESCE(pc.elevation, oc.elevation, sc.elevation, ac.elevation) ele,
+	               COALESCE(pc.elevation_source, oc.elevation_source, sc.elevation_source, ac.elevation_source) ele_src,
+	               (SELECT GROUP_CONCAT(CONCAT(u_other.id, ':', u_other.firstname, ' ', COALESCE(u_other.lastname, '')) SEPARATOR '|')
+	                FROM todo t_other
+	                JOIN user u_other ON t_other.user_id = u_other.id
+	                CROSS JOIN req
+	                WHERE t_other.problem_id = p.id AND t_other.user_id != req.userId) AS partners_raw
+	        FROM req
+	        JOIN todo t ON t.user_id = req.userId
+	        JOIN problem p ON t.problem_id = p.id
+	        JOIN sector s ON p.sector_id = s.id
+	        JOIN area a ON s.area_id = a.id
+	        JOIN region_type rt ON a.region_id = rt.region_id
+	        JOIN grade g ON p.grade_id = g.id
+	        LEFT JOIN coordinates ac ON a.coordinates_id = ac.id
+	        LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+	        LEFT JOIN coordinates pc ON p.coordinates_id = pc.id
+	        LEFT JOIN sector_outline so ON s.id = so.sector_id AND so.sorting = 1
+	        LEFT JOIN coordinates oc ON so.coordinates_id = oc.id
+	        LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.authUserId
+	        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.regionId)
+	          AND (a.region_id = req.regionId OR ur.user_id IS NOT NULL)
+	          AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	        GROUP BY p.id, t.id
+	        ORDER BY a.name, s.name, p.nr
+	        """;
+	    try (PreparedStatement ps = c.prepareStatement(sql)) {
+	        ps.setInt(1, userId);
+	        ps.setInt(2, authUserId.orElse(0));
+	        ps.setInt(3, setup.idRegion());
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int areaId = rst.getInt("area_id");
+	                ProfileTodoArea a = areaLookup.computeIfAbsent(areaId, id -> {
+	                    try {
+	                        ProfileTodoArea newArea = new ProfileTodoArea(id, rst.getString("area_name"), 
+	                            rst.getBoolean("area_locked_admin"), rst.getBoolean("area_locked_superadmin"), new ArrayList<>());
+	                        res.areas().add(newArea);
+	                        return newArea;
+	                    } catch (SQLException e) {
+	                        throw new RuntimeException(e);
+	                    }
+	                });
+	                int sectorId = rst.getInt("sector_id");
+	                ProfileTodoSector s = sectorLookup.computeIfAbsent(sectorId, id -> {
+	                    try {
+	                        ProfileTodoSector newSector = new ProfileTodoSector(id, rst.getString("sector_name"), 
+	                            rst.getBoolean("sector_locked_admin"), rst.getBoolean("sector_locked_superadmin"), new ArrayList<>());
+	                        a.sectors().add(newSector);
+	                        return newSector;
+	                    } catch (SQLException e) {
+	                        throw new RuntimeException(e);
+	                    }
+	                });
+	                Coordinates coords = null;
+	                int coordId = rst.getInt("coord_id");
+	                if (!rst.wasNull() && coordId > 0) {
+	                    coords = new Coordinates(coordId, rst.getDouble("lat"), rst.getDouble("lon"), 
+	                        rst.getDouble("ele"), rst.getString("ele_src"));
+	                }
+	                List<User> partners = new ArrayList<>();
+	                String rawPartners = rst.getString("partners_raw");
+	                if (rawPartners != null && !rawPartners.isEmpty()) {
+	                    for (String part : rawPartners.split("\\|")) {
+	                        String[] bits = part.split(":", 2);
+	                        if (bits.length == 2) {
+	                            partners.add(User.from(Integer.parseInt(bits[0]), bits[1]));
+	                        }
+	                    }
+	                }
+	                ProfileTodoProblem p = new ProfileTodoProblem(
+	                    rst.getInt("todo_id"), rst.getInt("problem_id"), 
+	                    rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"),
+	                    rst.getInt("problem_nr"), rst.getString("problem_name"), 
+	                    rst.getString("problem_grade"), coords, partners
+	                );
+	                s.problems().add(p);
+	            }
+	        }
+	    }
+	    res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
+	    logger.debug("getProfileTodo(id={}) - duration={}", userId, stopwatch);
+	    return res;
 	}
 
 	public List<Region> getRegions(Connection c, int currIdRegion) throws SQLException {
@@ -2967,9 +3053,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
 				        0, 0, 0, 0, 0, 0, NULL,
 				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), NULL, NULL
@@ -2983,9 +3069,9 @@ public class Dao {
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
 				 GROUP BY a_ext.id, r_ext.name, r_ext.url
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'SECTOR' result_type, s.id, s.name, a.name, 
 				        s.locked_admin, s.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
@@ -3000,9 +3086,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
 				        p.locked_admin, p.locked_superadmin,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
@@ -3019,9 +3105,9 @@ public class Dao {
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, g.grade
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
-				
+
 				UNION ALL
-				
+
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
 				        0, 0,
 				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y, mma.primary_color_hex,
@@ -3380,7 +3466,7 @@ public class Dao {
 		int numPages = (int) Math.ceil((double) totalCount / take);
 		return new Ticks(ticks, page, numPages);
 	}
-	
+
 	public Toc getToc(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
@@ -3893,120 +3979,120 @@ public class Dao {
 
 	@SuppressWarnings("resource")
 	public byte[] getUserTicks(Connection c, Optional<Integer> authUserId) throws SQLException, IOException {
-	    int userId = authUserId.orElseThrow();
-	    try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
-	        Map<String, ExcelSheet> sheets = new HashMap<>();
+		int userId = authUserId.orElseThrow();
+		try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
+			Map<String, ExcelSheet> sheets = new HashMap<>();
 
-	        // 1. PRIMARY TICKS & FAs
-	        String sqlTicks = """
-	            SELECT 
-				    ty.type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
-				    IF(t.id IS NOT NULL, t.comment, p.description) AS comment,
-				    DATE_FORMAT(IF(t.date IS NULL AND f.user_id IS NOT NULL, p.fa_date, t.date), '%Y-%m-%d') AS date,
-				    t.stars, IF(f.user_id IS NOT NULL, 1, 0) AS fa, g.grade,
-				    COUNT(DISTINCT ps.id) AS num_pitches
-				FROM problem p
-				JOIN type pt ON p.type_id = pt.id
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN region r ON a.region_id = r.id
-				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
-				JOIN type ty ON rt.type_id = ty.id
-				JOIN type_grade_system tgs ON p.type_id = tgs.type_id
-				LEFT JOIN problem_section ps ON p.id = ps.problem_id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
-				LEFT JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
-				LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = ?
-				LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id 
-				    AND g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
-				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY p.id, t.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
-				ORDER BY ty.type, a.name, s.name, p.name
-	            """;
-	        try (var ps = c.prepareStatement(sqlTicks)) {
-	            ps.setInt(1, userId);
-	            ps.setInt(2, userId);
-	            ps.setInt(3, userId);
-	            try (var rst = ps.executeQuery()) {
-	                while (rst.next()) {
-	                    writeRow(workbook, sheets, rst, rst.getString("type"));
-	                }
-	            }
-	        }
+			// 1. PRIMARY TICKS & FAs
+			String sqlTicks = """
+					         SELECT 
+					    ty.type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					    IF(t.id IS NOT NULL, t.comment, p.description) AS comment,
+					    DATE_FORMAT(IF(t.date IS NULL AND f.user_id IS NOT NULL, p.fa_date, t.date), '%Y-%m-%d') AS date,
+					    t.stars, IF(f.user_id IS NOT NULL, 1, 0) AS fa, g.grade,
+					    COUNT(DISTINCT ps.id) AS num_pitches
+					FROM problem p
+					JOIN type pt ON p.type_id = pt.id
+					JOIN sector s ON p.sector_id = s.id
+					JOIN area a ON s.area_id = a.id
+					JOIN region r ON a.region_id = r.id
+					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
+					JOIN type ty ON rt.type_id = ty.id
+					JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+					LEFT JOIN problem_section ps ON p.id = ps.problem_id
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+					LEFT JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
+					LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = ?
+					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id 
+					    AND g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
+					WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
+					  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					GROUP BY p.id, t.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
+					ORDER BY ty.type, a.name, s.name, p.name
+					         """;
+			try (var ps = c.prepareStatement(sqlTicks)) {
+				ps.setInt(1, userId);
+				ps.setInt(2, userId);
+				ps.setInt(3, userId);
+				try (var rst = ps.executeQuery()) {
+					while (rst.next()) {
+						writeRow(workbook, sheets, rst, rst.getString("type"));
+					}
+				}
+			}
 
-	        // 2. REPEAT TICKS
-	        String sqlRepeats = """
-	            SELECT 
-				    CONCAT(ty.type, ' (repeats)') AS type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
-				    tr.comment, DATE_FORMAT(tr.date, '%Y-%m-%d') AS date, t.stars, 0 AS fa, g.grade,
-				    COUNT(DISTINCT ps.id) AS num_pitches
-				FROM problem p
-				JOIN type pt ON p.type_id = pt.id
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN region r ON a.region_id = r.id
-				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
-				JOIN type ty ON rt.type_id = ty.id
-				JOIN type_grade_system tgs ON p.type_id = tgs.type_id
-				JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
-				JOIN tick_repeat tr ON t.id = tr.tick_id
-				LEFT JOIN problem_section ps ON p.id = ps.problem_id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
-				LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id AND g.id = t.grade_id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
-				ORDER BY ty.type, a.name, s.name, p.name, tr.date
-	            """;
-	        try (var ps = c.prepareStatement(sqlRepeats)) {
-	            ps.setInt(1, userId);
-	            ps.setInt(2, userId);
-	            try (var rst = ps.executeQuery()) {
-	                while (rst.next()) {
-	                    writeRow(workbook, sheets, rst, rst.getString("type"));
-	                }
-	            }
-	        }
+			// 2. REPEAT TICKS
+			String sqlRepeats = """
+					         SELECT 
+					    CONCAT(ty.type, ' (repeats)') AS type, pt.subtype, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					    tr.comment, DATE_FORMAT(tr.date, '%Y-%m-%d') AS date, t.stars, 0 AS fa, g.grade,
+					    COUNT(DISTINCT ps.id) AS num_pitches
+					FROM problem p
+					JOIN type pt ON p.type_id = pt.id
+					JOIN sector s ON p.sector_id = s.id
+					JOIN area a ON s.area_id = a.id
+					JOIN region r ON a.region_id = r.id
+					JOIN region_type rt ON r.id = rt.region_id AND rt.type_id = p.type_id
+					JOIN type ty ON rt.type_id = ty.id
+					JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+					JOIN tick t ON p.id = t.problem_id AND t.user_id = ?
+					JOIN tick_repeat tr ON t.id = tr.tick_id
+					LEFT JOIN problem_section ps ON p.id = ps.problem_id
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id AND g.id = t.grade_id
+					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
+					ORDER BY ty.type, a.name, s.name, p.name, tr.date
+					         """;
+			try (var ps = c.prepareStatement(sqlRepeats)) {
+				ps.setInt(1, userId);
+				ps.setInt(2, userId);
+				try (var rst = ps.executeQuery()) {
+					while (rst.next()) {
+						writeRow(workbook, sheets, rst, rst.getString("type"));
+					}
+				}
+			}
 
-	        // 3. FIRST AID ASCENTS
-	        String sqlAid = """
-	            SELECT 
-				    p.id AS problem_id, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
-				    aid.aid_description AS comment, DATE_FORMAT(aid.aid_date, '%Y-%m-%d') AS date
-				FROM problem p
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN region r ON a.region_id = r.id
-				JOIN fa_aid aid ON p.id = aid.problem_id
-				JOIN fa_aid_user aid_u ON p.id = aid_u.problem_id AND aid_u.user_id = ?
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY p.id, r.url, a.name, s.name, p.name, aid.aid_description, aid.aid_date
-				ORDER BY a.name, s.name, p.name
-	            """;
-	        try (var ps = c.prepareStatement(sqlAid)) {
-	            ps.setInt(1, userId);
-	            ps.setInt(2, userId);
-	            try (var rst = ps.executeQuery()) {
-	                ExcelSheet aidSheet = null;
-	                while (rst.next()) {
-	                    if (aidSheet == null) aidSheet = workbook.addSheet("First_AID_Ascent");
-	                    aidSheet.incrementRow();
-	                    aidSheet.writeString("AREA", rst.getString("area_name"));
-	                    aidSheet.writeString("SECTOR", rst.getString("sector_name"));
-	                    aidSheet.writeString("NAME", rst.getString("name"));
-	                    aidSheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
-	                    aidSheet.writeString("DESCRIPTION", rst.getString("comment"));
-	                    aidSheet.writeHyperlink("URL", rst.getString("url") + "/problem/" + rst.getInt("problem_id"));
-	                }
-	                if (aidSheet != null) aidSheet.close();
-	            }
-	        }
+			// 3. FIRST AID ASCENTS
+			String sqlAid = """
+					         SELECT 
+					    p.id AS problem_id, r.url, a.name AS area_name, s.name AS sector_name, p.name, 
+					    aid.aid_description AS comment, DATE_FORMAT(aid.aid_date, '%Y-%m-%d') AS date
+					FROM problem p
+					JOIN sector s ON p.sector_id = s.id
+					JOIN area a ON s.area_id = a.id
+					JOIN region r ON a.region_id = r.id
+					JOIN fa_aid aid ON p.id = aid.problem_id
+					JOIN fa_aid_user aid_u ON p.id = aid_u.problem_id AND aid_u.user_id = ?
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
+					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					GROUP BY p.id, r.url, a.name, s.name, p.name, aid.aid_description, aid.aid_date
+					ORDER BY a.name, s.name, p.name
+					         """;
+			try (var ps = c.prepareStatement(sqlAid)) {
+				ps.setInt(1, userId);
+				ps.setInt(2, userId);
+				try (var rst = ps.executeQuery()) {
+					ExcelSheet aidSheet = null;
+					while (rst.next()) {
+						if (aidSheet == null) aidSheet = workbook.addSheet("First_AID_Ascent");
+						aidSheet.incrementRow();
+						aidSheet.writeString("AREA", rst.getString("area_name"));
+						aidSheet.writeString("SECTOR", rst.getString("sector_name"));
+						aidSheet.writeString("NAME", rst.getString("name"));
+						aidSheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
+						aidSheet.writeString("DESCRIPTION", rst.getString("comment"));
+						aidSheet.writeHyperlink("URL", rst.getString("url") + "/problem/" + rst.getInt("problem_id"));
+					}
+					if (aidSheet != null) aidSheet.close();
+				}
+			}
 
-	        sheets.values().forEach(ExcelSheet::close);
-	        workbook.write(os);
-	        return os.toByteArray();
-	    }
+			sheets.values().forEach(ExcelSheet::close);
+			workbook.write(os);
+			return os.toByteArray();
+		}
 	}
 
 	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
@@ -4605,7 +4691,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public void setProfile(Connection c, Optional<Integer> authUserId, Profile profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public void setProfile(Connection c, Optional<Integer> authUserId, ProfileIdentity profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
 		String theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark")))
@@ -5625,14 +5711,18 @@ public class Dao {
 	}
 
 	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
-		List<Media> media = new ArrayList<>();
+		List<Media> initialList = new ArrayList<>();
+		List<Integer> ids = new ArrayList<>();
+		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (SELECT ? id, ? authUserId)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM media m
+				FROM req
+				JOIN media m ON m.deleted_user_id IS NULL
+				JOIN media_area ma ON m.id=ma.media_id AND ma.area_id=req.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN media_area ma ON m.id=ma.media_id AND m.deleted_user_id IS NULL AND ma.area_id=?
 				JOIN area a ON ma.area_id=a.id
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
@@ -5641,153 +5731,123 @@ public class Dao {
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, id);
+			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
 					if (inherited && trivia) {
 						continue; // Don't inherit trivia image
 					}
-					int pitch = 0;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+					int idMedia = rst.getInt("id");
+					ids.add(idMedia);
+					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
+					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
+					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, 0, trivia, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
 		}
-		return media;
+		if (initialList.isEmpty()) {
+			return initialList;
+		}
+		Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
+		return initialList.stream().map(m -> m.withMediaSvgs(svgMap.get(m.identity().id()))).toList();
 	}
 
 	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
-		List<Media> media = new ArrayList<>();
+		List<Media> initialList = new ArrayList<>();
+		List<Integer> ids = new ArrayList<>();
+		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (SELECT ? id, ? authUserId)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM area a
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON s.id=p.sector_id
-				JOIN guestbook g ON p.id=g.problem_id
+				FROM req
+				JOIN guestbook g ON g.id=req.id
 				JOIN media_guestbook mg ON g.id=mg.guestbook_id
 				JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL)
+				JOIN problem p ON g.problem_id=p.id
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE g.id=?
 				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, a.name, s.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""")) {
 			ps.setInt(1, id);
+			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = 0;
-					boolean trivia = false;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, 0, null, mediaMetadata, embedUrl, false, 0, 0, 0, null));
+					ids.add(idMedia);
+					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
+					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
+					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, 0, false, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), false, 0, 0, 0, null));
 				}
 			}
 		}
-		return media;
+		if (initialList.isEmpty()) {
+			return initialList;
+		}
+		Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
+		return initialList.stream().map(m -> m.withMediaSvgs(svgMap.get(m.identity().id()))).toList();
 	}
 
 	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
+		List<Media> pMediaList = new ArrayList<>();
+		List<Integer> ids = new ArrayList<>();
+		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (SELECT ? problemId, ? authUserId)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM area a
-				JOIN sector s ON a.id=s.area_id
-				JOIN problem p ON s.id=p.sector_id
+				FROM req
+				JOIN problem p ON p.id=req.problemId
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
 				JOIN media_problem mp ON p.id=mp.problem_id
 				JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE p.id=?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, problemId);
+			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
-					int pitch = rst.getInt("pitch");
-					boolean trivia = rst.getBoolean("trivia");
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
+					ids.add(idMedia);
 					String embedUrl = rst.getString("embed_url");
 					String t = rst.getString("t");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
 					if (embedUrl != null) {
 						long seconds = Long.parseLong(t);
 						if (seconds > 0) {
-							if (embedUrl.contains("youtu")) {
-								embedUrl += "?start=" + seconds;
-							}
-							else {
-								embedUrl += "#t=" + seconds + "s";
-							}
+							if (embedUrl.contains("youtu")) embedUrl += "?start=" + seconds;
+							else embedUrl += "#t=" + seconds + "s";
 						}
 					}
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					media.add(new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, t, mediaSvgs, problemId, svgs, mediaMetadata, embedUrl, false, (svgs == null || svgs.isEmpty()? areaId : 0), sectorId, 0, null));
+					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
+					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
+					pMediaList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, rst.getInt("pitch"), rst.getBoolean("trivia"), rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, t, null, problemId, null, metadata, embedUrl, false, 0, sectorId, 0, null));
 				}
+			}
+		}
+		if (!pMediaList.isEmpty()) {
+			Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
+			Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
+			for (Media m : pMediaList) {
+				List<Svg> svgs = svgsMap.get(m.identity().id());
+				if (media == null) media = new ArrayList<>();
+				media.add(m.withMediaSvgs(svgMap.get(m.identity().id())).withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0)));
 			}
 		}
 		if (media != null && media.isEmpty()) {
@@ -5797,66 +5857,56 @@ public class Dao {
 	}
 
 	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
-		List<Media> allMedia = new ArrayList<>();
-		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
-		String sqlStr = """
+		List<Media> initialList = new ArrayList<>();
+		List<Integer> ids = new ArrayList<>();
+		int currentAuthUserId = authUserId.orElse(0);
+		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (SELECT ? idSector, ? authUserId)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
 				       ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM area a
-				JOIN sector s ON a.id=s.area_id
+				FROM req
+				JOIN sector s ON s.id=req.idSector
+				JOIN area a ON a.id=s.area_id
 				JOIN media_sector ms ON s.id=ms.sector_id
 				JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
-				WHERE s.id=?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+				""")) {
 			ps.setInt(1, idSector);
+			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					int uploaderUserId = rst.getInt("uploader_user_id");
-					boolean uploadedByMe = uploaderUserId == authUserId.orElse(0);
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					String description = rst.getString("description");
-					String location = rst.getString("location");
 					boolean trivia = rst.getBoolean("trivia");
-					if (inherited && trivia) {
-						continue; // Don't inherit trivia image
-					}
-					int pitch = 0;
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int tyId = rst.getBoolean("is_movie") ? 2 : 1;
-					String embedUrl = rst.getString("embed_url");
-					String dateCreated = rst.getString("date_created");
-					String dateTaken = rst.getString("date_taken");
-					String capturer = rst.getString("capturer");
-					String tagged = rst.getString("tagged");
-					MediaIdentity identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					List<MediaSvgElement> mediaSvgs = getMediaSvgElements(c, idMedia);
-					List<Svg> svgs = getSvgs(c, authUserId, idMedia);
-					MediaMetadata mediaMetadata = MediaMetadata.from(dateCreated, dateTaken, capturer, tagged, description, location);
-					Media m = new Media(identity, uploadedByMe, pitch, trivia, width, height, tyId, null, mediaSvgs, optionalIdProblem, svgs, mediaMetadata, embedUrl, inherited,
-							(svgs == null || svgs.isEmpty()? enableMoveToIdArea : 0),
-							enableMoveToIdSector,
-							(svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()? enableMoveToIdProblem : 0),
-							null);
-					if (optionalIdProblem != 0 && svgs != null && svgs.stream().filter(svg -> svg.problemId() == optionalIdProblem).findAny().isPresent()) {
-						mediaWithRequestedTopoLine.add(m);
-					}
-					allMedia.add(m);
+					if (inherited && trivia) continue; // Don't inherit trivia image
+					int idMedia = rst.getInt("id");
+					ids.add(idMedia);
+					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
+					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
+					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, 0, trivia, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, optionalIdProblem, null, metadata, rst.getString("embed_url"), inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
+		}
+		if (initialList.isEmpty()) return initialList;
+		Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
+		Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
+		List<Media> allMedia = new ArrayList<>();
+		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
+		for (Media m : initialList) {
+			List<Svg> svgs = svgsMap.get(m.identity().id());
+			Media fullMedia = m.withMediaSvgs(svgMap.get(m.identity().id()))
+					.withSvgs(svgs, (svgs == null || svgs.isEmpty() ? enableMoveToIdArea : 0));
+			// Update logic based on svgs
+			fullMedia = new Media(fullMedia.identity(), fullMedia.uploadedByMe(), fullMedia.pitch(), fullMedia.trivia(), fullMedia.width(), fullMedia.height(), fullMedia.idType(), fullMedia.t(), fullMedia.mediaSvgs(), fullMedia.svgProblemId(), fullMedia.svgs(), fullMedia.mediaMetadata(), fullMedia.embedUrl(), fullMedia.inherited(), fullMedia.enableMoveToIdArea(), fullMedia.enableMoveToIdSector(), (svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty() ? enableMoveToIdProblem : 0), null);
+			if (optionalIdProblem != 0 && svgs != null && svgs.stream().anyMatch(svg -> svg.problemId() == optionalIdProblem)) {
+				mediaWithRequestedTopoLine.add(fullMedia);
+			}
+			allMedia.add(fullMedia);
 		}
 		// Figure out what to actually return
 		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
@@ -5870,30 +5920,27 @@ public class Dao {
 		return allMedia;
 	}
 
-	private List<MediaSvgElement> getMediaSvgElements(Connection c, int idMedia) throws SQLException {
-		List<MediaSvgElement> res = null;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id=?")) {
-			ps.setInt(1, idMedia);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					if (res == null) {
-						res = new ArrayList<>();
-					}
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					if (path != null) {
-						res.add(MediaSvgElement.fromPath(id, path));
-					}
-					else {
-						int rappelX = rst.getInt("rappel_x");
-						int rappelY = rst.getInt("rappel_y");
-						boolean rappelBolted = rst.getBoolean("rappel_bolted");
-						res.add(MediaSvgElement.fromRappel(id, rappelX, rappelY, rappelBolted));
-					}
-				}
-			}
-		}
-		return res;
+	private Map<Integer, List<MediaSvgElement>> getMediaSvgElements(Connection c, Collection<Integer> mediaIds) throws SQLException {
+	    if (mediaIds == null || mediaIds.isEmpty()) {
+	        return Collections.emptyMap();
+	    }
+	    Map<Integer, List<MediaSvgElement>> res = new HashMap<>();
+	    String inClause = Joiner.on(",").join(mediaIds);
+	    String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + inClause + ")";
+	    try (PreparedStatement ps = c.prepareStatement(sql)) {
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                int mediaId = rst.getInt("media_id");
+	                int id = rst.getInt("id");
+	                String path = rst.getString("path");
+	                MediaSvgElement element = (path != null) 
+	                    ? MediaSvgElement.fromPath(id, path) 
+	                    : MediaSvgElement.fromRappel(id, rst.getInt("rappel_x"), rst.getInt("rappel_y"), rst.getBoolean("rappel_bolted"));
+	                res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(element);
+	            }
+	        }
+	    }
+	    return res;
 	}
 
 	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
@@ -5981,13 +6028,14 @@ public class Dao {
 	}
 
 	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
-	    List<SectorProblem> res = new ArrayList<>();
-	    Map<Integer, String> problemIdFirstAidAscentLookup = null;
-	    if (!setup.isBouldering()) {
-	        problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
-	    }
-	    String sqlStr = """
-	            WITH req AS (
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<SectorProblem> res = new ArrayList<>();
+		Map<Integer, String> problemIdFirstAidAscentLookup = null;
+		if (!setup.isBouldering()) {
+			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
+		}
+		String sqlStr = """
+				WITH req AS (
 				  SELECT ? auth_user_id, ? sector_id
 				)
 				SELECT 
@@ -6033,33 +6081,34 @@ public class Dao {
 				    ty.id, ty.type, ty.subtype, g.weight, g.grade, todo.id, danger.danger, p.length_meter,
 				    co.id, co.latitude, co.longitude, co.elevation, co.elevation_source
 				ORDER BY p.nr
-	            """;
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        ps.setInt(1, authUserId.orElse(0));
-	        ps.setInt(2, sectorId);
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                int id = rst.getInt("id");
-	                String fa = rst.getString("fa");
-	                if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
-	                    String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
-	                    fa = (fa == null) ? faAid : faAid + ". FFA: " + fa;
-	                }
-	                int idCoordinates = rst.getInt("coordinates_id");
-	                Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-	                LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-	                String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-	                res.add(new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
-	                		rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
-	                		rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), fa, faDateStr, rst.getInt("length_meter"),
-	                		rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
-	                		coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
-	                		new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
-	                ));
-	            }
-	        }
-	    }
-	    return res;
+				         """;
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, sectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					String fa = rst.getString("fa");
+					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
+						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
+						fa = (fa == null) ? faAid : faAid + ". FFA: " + fa;
+					}
+					int idCoordinates = rst.getInt("coordinates_id");
+					Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
+					String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
+					res.add(new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
+							rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
+							rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), fa, faDateStr, rst.getInt("length_meter"),
+							rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
+							coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
+							new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
+							));
+				}
+			}
+		}
+		logger.debug("getSectorProblems(sectorId={}) - res.size()={}, duration={}", sectorId, res.size(), stopwatch);
+		return res;
 	}
 
 	private Map<Integer, Slope> getSectorSlopes(Connection c, boolean approachNotDescent, Collection<Integer> idSectors) throws SQLException {
@@ -6111,88 +6160,95 @@ public class Dao {
 		return res;
 	}
 
-	private List<Svg> getSvgs(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
-	    List<Svg> res = null;
+	private Map<Integer, List<Svg>> getSvgs(Connection c, Optional<Integer> authUserId, Collection<Integer> mediaIds) throws SQLException {
+	    if (mediaIds == null || mediaIds.isEmpty()) {
+	        return Collections.emptyMap();
+	    }
+	    Map<Integer, List<Svg>> res = new HashMap<>();
+	    String inClause = Joiner.on(",").join(mediaIds);
 	    String sqlStr = """
 	            WITH req AS (
-				  SELECT ? auth_user_id, ? media_id
-				)
-				SELECT 
-				    p.id problem_id, 
-				    p.name problem_name,
-				    g.grade problem_grade, 
-				    g.weight problem_grade_weight, 
-				    clr.hex_code problem_grade_color, 
-				    ty.subtype problem_subtype, 
-				    p.nr, 
-				    ps.nr pitch, 
-				    g_sect.grade problem_section_grade, 
-				    clr_sect.hex_code problem_section_grade_color,
-				    svg.id, 
-				    svg.path, 
-				    svg.has_anchor, 
-				    svg.texts, 
-				    svg.anchors, 
-				    svg.trad_belay_stations, 
-				    CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
-				    MAX(CASE WHEN tk.user_id = req.auth_user_id OR fa.user_id IS NOT NULL THEN 1 ELSE 0 END) is_ticked, 
-				    CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, 
-				    IFNULL(danger.danger, 0) is_dangerous
-				FROM req
-				JOIN svg ON svg.media_id = req.media_id
-				JOIN problem p ON svg.problem_id = p.id
-				JOIN grade g ON p.consensus_grade_id = g.id
-				JOIN grade_color clr ON g.grade_color_id = clr.id
-				JOIN type ty ON p.type_id = ty.id
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				LEFT JOIN fa ON p.id = fa.problem_id AND fa.user_id = req.auth_user_id
-				LEFT JOIN problem_section ps ON ps.problem_id = p.id AND ps.nr = svg.pitch
-				LEFT JOIN grade g_sect ON ps.grade_id = g_sect.id
-				LEFT JOIN grade_color clr_sect ON g_sect.grade_color_id = clr_sect.id
-				LEFT JOIN tick tk ON p.id = tk.problem_id
-				LEFT JOIN todo t2 ON p.id = t2.problem_id AND t2.user_id = req.auth_user_id
-				LEFT JOIN (
-				    SELECT problem_id, danger 
-				    FROM guestbook 
-				    WHERE (danger = 1 OR resolved = 1) 
-				    AND id IN (SELECT MAX(id) FROM guestbook WHERE (danger = 1 OR resolved = 1) GROUP BY problem_id)
-				) danger ON p.id = danger.problem_id
-				LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = a.region_id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY 
-				    p.id, p.name, g.grade, g.weight, clr.hex_code, ty.subtype, p.nr, ps.id, ps.nr, 
-				    g_sect.grade, clr_sect.hex_code, svg.id, svg.path, svg.has_anchor, 
-				    svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger
-				ORDER BY p.nr
-	            """;
+	              SELECT ? auth_user_id
+	            )
+	            SELECT 
+	                svg.media_id,
+	                p.id problem_id, 
+	                p.name problem_name,
+	                g.grade problem_grade, 
+	                g.weight problem_grade_weight, 
+	                clr.hex_code problem_grade_color, 
+	                ty.subtype problem_subtype, 
+	                p.nr, 
+	                ps.nr pitch, 
+	                g_sect.grade problem_section_grade, 
+	                clr_sect.hex_code problem_section_grade_color,
+	                svg.id, 
+	                svg.path, 
+	                svg.has_anchor, 
+	                svg.texts, 
+	                svg.anchors, 
+	                svg.trad_belay_stations, 
+	                CASE WHEN p.type_id IN (1,2) THEN 1 ELSE 0 END prim,
+	                MAX(CASE WHEN tk.user_id = req.auth_user_id OR fa.user_id IS NOT NULL THEN 1 ELSE 0 END) is_ticked, 
+	                CASE WHEN t2.id IS NOT NULL THEN 1 ELSE 0 END is_todo, 
+	                IFNULL(danger.danger, 0) is_dangerous
+	            FROM req
+	            JOIN svg ON svg.media_id IN (%s)
+	            JOIN problem p ON svg.problem_id = p.id
+	            JOIN grade g ON p.consensus_grade_id = g.id
+	            JOIN grade_color clr ON g.grade_color_id = clr.id
+	            JOIN type ty ON p.type_id = ty.id
+	            JOIN sector s ON p.sector_id = s.id
+	            JOIN area a ON s.area_id = a.id
+	            LEFT JOIN fa ON p.id = fa.problem_id AND fa.user_id = req.auth_user_id
+	            LEFT JOIN problem_section ps ON ps.problem_id = p.id AND ps.nr = svg.pitch
+	            LEFT JOIN grade g_sect ON ps.grade_id = g_sect.id
+	            LEFT JOIN grade_color clr_sect ON g_sect.grade_color_id = clr_sect.id
+	            LEFT JOIN tick tk ON p.id = tk.problem_id
+	            LEFT JOIN todo t2 ON p.id = t2.problem_id AND t2.user_id = req.auth_user_id
+	            LEFT JOIN (
+	                SELECT problem_id, danger 
+	                FROM guestbook 
+	                WHERE (danger = 1 OR resolved = 1) 
+	                AND id IN (SELECT MAX(id) FROM guestbook WHERE (danger = 1 OR resolved = 1) GROUP BY problem_id)
+	            ) danger ON p.id = danger.problem_id
+	            LEFT JOIN user_region ur ON ur.user_id = req.auth_user_id AND ur.region_id = a.region_id
+	            WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	            GROUP BY 
+	                svg.media_id, p.id, p.name, g.grade, g.weight, clr.hex_code, ty.subtype, p.nr, ps.id, ps.nr, 
+	                g_sect.grade, clr_sect.hex_code, svg.id, svg.path, svg.has_anchor, 
+	                svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger
+	            ORDER BY svg.media_id, p.nr
+	            """.formatted(inClause);
+
 	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 	        ps.setInt(1, authUserId.orElse(0));
-	        ps.setInt(2, idMedia);
 	        try (ResultSet rst = ps.executeQuery()) {
 	            while (rst.next()) {
-	                if (res == null) res = new ArrayList<>();
+	                int mediaId = rst.getInt("media_id");
 	                int pitch = rst.getInt("pitch");
-	                res.add(new Svg(
-	                    false, 
-	                    rst.getInt("id"),
-	                    rst.getInt("problem_id"), 
-	                    rst.getString("problem_name"), 
-	                    (pitch == 0) ? rst.getString("problem_grade") : rst.getString("problem_section_grade"), 
-	                    (pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color"), 
-	                    rst.getString("problem_subtype"), 
-	                    rst.getInt("nr"), 
-	                    pitch,
-	                    rst.getString("path"), 
-	                    rst.getBoolean("has_anchor"), 
-	                    rst.getString("texts"), 
-	                    rst.getString("anchors"), 
-	                    rst.getString("trad_belay_stations"), 
-	                    rst.getBoolean("prim"), 
-	                    rst.getBoolean("is_ticked"), 
-	                    rst.getBoolean("is_todo"), 
-	                    rst.getBoolean("is_dangerous")
-	                ));
+	                
+	                Svg svg = new Svg(
+	                        false, 
+	                        rst.getInt("id"),
+	                        rst.getInt("problem_id"), 
+	                        rst.getString("problem_name"), 
+	                        (pitch == 0) ? rst.getString("problem_grade") : rst.getString("problem_section_grade"), 
+	                        (pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color"), 
+	                        rst.getString("problem_subtype"), 
+	                        rst.getInt("nr"), 
+	                        pitch,
+	                        rst.getString("path"), 
+	                        rst.getBoolean("has_anchor"), 
+	                        rst.getString("texts"), 
+	                        rst.getString("anchors"), 
+	                        rst.getString("trad_belay_stations"), 
+	                        rst.getBoolean("prim"), 
+	                        rst.getBoolean("is_ticked"), 
+	                        rst.getBoolean("is_todo"), 
+	                        rst.getBoolean("is_dangerous")
+	                );
+	                res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(svg);
 	            }
 	        }
 	    }
@@ -6379,43 +6435,43 @@ public class Dao {
 	}
 
 	private void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
-	    String sql = """
-	        UPDATE problem p
-	        LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
-	        LEFT JOIN (
-	            SELECT ROUND(AVG(w)) as avg_weight
-	            FROM (
-	                SELECT gt.weight as w
-	                FROM tick t
-	                JOIN grade gt ON t.grade_id = gt.id
-	                WHERE t.problem_id = ? AND gt.grade != 'n/a'
-	                
-	                UNION ALL
-	                
-	                SELECT g.weight as w
-	                FROM problem p_inner
-	                JOIN grade g ON p_inner.grade_id = g.id
-	                WHERE p_inner.id = ? AND g.grade != 'n/a'
-	                AND NOT EXISTS (
-	                    SELECT 1 FROM tick t_check
-	                    JOIN fa f_check ON t_check.user_id = f_check.user_id
-	                    WHERE t_check.problem_id = p_inner.id 
-	                      AND f_check.problem_id = p_inner.id
-	                      AND t_check.grade_id = p_inner.grade_id
-	                )
-	            ) votes
-	        ) calc ON 1=1
-	        LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
-	                               AND g_final.weight = calc.avg_weight
-	        SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
-	        WHERE p.id = ?
-	        """;
-	    try (PreparedStatement ps = c.prepareStatement(sql)) {
-	        ps.setInt(1, problemId);
-	        ps.setInt(2, problemId);
-	        ps.setInt(3, problemId);
-	        ps.executeUpdate();
-	    }
+		String sql = """
+				UPDATE problem p
+				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+				LEFT JOIN (
+				    SELECT ROUND(AVG(w)) as avg_weight
+				    FROM (
+				        SELECT gt.weight as w
+				        FROM tick t
+				        JOIN grade gt ON t.grade_id = gt.id
+				        WHERE t.problem_id = ? AND gt.grade != 'n/a'
+
+				        UNION ALL
+
+				        SELECT g.weight as w
+				        FROM problem p_inner
+				        JOIN grade g ON p_inner.grade_id = g.id
+				        WHERE p_inner.id = ? AND g.grade != 'n/a'
+				        AND NOT EXISTS (
+				            SELECT 1 FROM tick t_check
+				            JOIN fa f_check ON t_check.user_id = f_check.user_id
+				            WHERE t_check.problem_id = p_inner.id 
+				              AND f_check.problem_id = p_inner.id
+				              AND t_check.grade_id = p_inner.grade_id
+				        )
+				    ) votes
+				) calc ON 1=1
+				LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
+				                       AND g_final.weight = calc.avg_weight
+				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
+				WHERE p.id = ?
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			ps.setInt(1, problemId);
+			ps.setInt(2, problemId);
+			ps.setInt(3, problemId);
+			ps.executeUpdate();
+		}
 	}
 
 	private void upsertExternalLinks(Connection c, List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
@@ -6553,22 +6609,22 @@ public class Dao {
 	}
 
 	private void writeRow(ExcelWorkbook wb, Map<String, ExcelSheet> sheets, ResultSet rst, String sheetName) throws SQLException {
-	    ExcelSheet sheet = sheets.computeIfAbsent(sheetName, wb::addSheet);
-	    sheet.incrementRow();
-	    sheet.writeString("AREA", rst.getString("area_name"));
-	    sheet.writeString("SECTOR", rst.getString("sector_name"));
-	    String subType = rst.getString("subtype");
-	    if (subType != null) {
-	        sheet.writeString("TYPE", subType);
-	        int pitches = rst.getInt("num_pitches");
-	        sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
-	    }
-	    sheet.writeString("NAME", rst.getString("name"));
-	    sheet.writeString("FIRST ASCENT", rst.getBoolean("fa") ? "Yes" : "No");
-	    sheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
-	    sheet.writeString("GRADE", rst.getString("grade"));
-	    sheet.writeDouble("STARS", rst.getDouble("stars"));
-	    sheet.writeString("DESCRIPTION", rst.getString("comment"));
-	    sheet.writeHyperlink("URL", rst.getString("url"));
+		ExcelSheet sheet = sheets.computeIfAbsent(sheetName, wb::addSheet);
+		sheet.incrementRow();
+		sheet.writeString("AREA", rst.getString("area_name"));
+		sheet.writeString("SECTOR", rst.getString("sector_name"));
+		String subType = rst.getString("subtype");
+		if (subType != null) {
+			sheet.writeString("TYPE", subType);
+			int pitches = rst.getInt("num_pitches");
+			sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
+		}
+		sheet.writeString("NAME", rst.getString("name"));
+		sheet.writeString("FIRST ASCENT", rst.getBoolean("fa") ? "Yes" : "No");
+		sheet.writeDate("DATE", rst.getObject("date", LocalDate.class));
+		sheet.writeString("GRADE", rst.getString("grade"));
+		sheet.writeDouble("STARS", rst.getDouble("stars"));
+		sheet.writeString("DESCRIPTION", rst.getString("comment"));
+		sheet.writeHyperlink("URL", rst.getString("url"));
 	}
 }
