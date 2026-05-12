@@ -4586,10 +4586,10 @@ public class Dao {
 				ps.setString(3, GlobalFunctions.stripString(p.getName()));
 				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
 				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
-				setNullablePositiveInteger(ps, 6, s.gradeConverter().getIdGradeFromGrade(p.getOriginalGrade()));
-				ps.setObject(7, dt);
-				ps.setInt(8, gradeId);
-				ps.setInt(9, gradeId);
+				ps.setInt(6, gradeId);
+				ps.setInt(7, gradeId);
+				ps.setObject(8, dt);
+				setNullablePositiveInteger(ps, 9, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
 				ps.setString(10, GlobalFunctions.stripString(p.getBroken()));
 				ps.setBoolean(11, isLockedAdmin);
 				ps.setBoolean(12, p.isLockedSuperadmin());
