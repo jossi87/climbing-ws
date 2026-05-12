@@ -509,7 +509,7 @@ public class Dao {
 		final Set<Integer> repeatIds = new HashSet<>();
 		final Set<Integer> mediaIds = new HashSet<>();
 		final Set<Integer> gbIds = new HashSet<>();
-		boolean disableDateLimit = offset > 0 ||lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+		boolean showAllTime = offset > 0 ||lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
 		String sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
@@ -568,7 +568,7 @@ public class Dao {
 			int ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
 			ps.setInt(ix++, setup.idRegion());
-			ps.setBoolean(ix++, !disableDateLimit);
+			ps.setBoolean(ix++, showAllTime);
 			ps.setBoolean(ix++, !fa);
 			ps.setBoolean(ix++, !comments);
 			ps.setBoolean(ix++, !ticks);
