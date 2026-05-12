@@ -2536,7 +2536,7 @@ public class Dao {
 				    FROM region_type rt
 				    JOIN req ON rt.region_id = req.region_id
 				)
-				SELECT v.grade, v.color, SUM(v.is_fa) fa, SUM(v.is_tick) tick
+				SELECT COALESCE(v.grade,'No personal grade') grade, COALESCE(v.color,'#CCCCCC') color, SUM(v.is_fa) fa, SUM(v.is_tick) tick
 				FROM (SELECT g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick
 					  FROM req
 				      JOIN fa f ON f.user_id=req.auth_user_id
@@ -2552,8 +2552,8 @@ public class Dao {
 				      JOIN tick t ON t.user_id=req.auth_user_id
 				      JOIN problem p ON t.problem_id=p.id
 				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON t.grade_id=g.id
-				      JOIN grade_color clr ON g.grade_color_id=clr.id
+				      LEFT JOIN grade g ON t.grade_id=g.id
+				      LEFT JOIN grade_color clr ON g.grade_color_id=clr.id
 				        AND NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
 				) v
 				GROUP BY v.grade, v.color, v.weight
