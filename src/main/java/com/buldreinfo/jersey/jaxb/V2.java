@@ -1249,7 +1249,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update profile (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)", responses = {
+	@Operation(summary = "Update profile identity (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1257,9 +1257,9 @@ public class V2 {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
-	@Path("/profile")
+	@Path("/profile/identity")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	public Response postProfile(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+	public Response postProfileIdentity(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		ProfileIdentity profile = new Gson().fromJson(multiPart.getField("json").getValue(), ProfileIdentity.class);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.setProfile(c, authUserId, profile, multiPart);
