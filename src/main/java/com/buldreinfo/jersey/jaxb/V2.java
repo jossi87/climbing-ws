@@ -117,8 +117,8 @@ public class V2 {
 	@Path("/media")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
 		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.deleteMedia(c, authUserId, id);
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.deleteMedia(c, setup, authUserId, id);
 			return Response.ok().build();
 		});
 	}
@@ -156,7 +156,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAdministrators(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			List<Administrator> administrators = dao.getAdministrators(c, setup.idRegion());
+			List<Administrator> administrators = dao.getAdministrators(c, setup);
 			return Response.ok().entity(administrators).build();
 		});
 	}
@@ -498,7 +498,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getPermissions(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<PermissionUser> res = dao.getPermissions(c, authUserId, setup.idRegion());
+			List<PermissionUser> res = dao.getPermissions(c, setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1173,7 +1173,7 @@ public class V2 {
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
 		Preconditions.checkArgument(u.userId() > 0, "Invalid userId");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.upsertPermissionUser(c, setup.idRegion(), authUserId, u);
+			dao.upsertPermissionUser(c, setup, authUserId, u);
 			return Response.ok().build();
 		});
 	}
@@ -1465,7 +1465,7 @@ public class V2 {
 			) {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.rotateMedia(c, setup.idRegion(), authUserId, idMedia, degrees);
+			dao.rotateMedia(c, setup, authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}
