@@ -5756,6 +5756,7 @@ public class Dao {
 	}
 
 	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, String> res = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
 			ps.setInt(1, sectorId);
@@ -5767,6 +5768,7 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getFaAidNamesOnSector(sectorId={}) - res.size()={}, duration={}", sectorId, res.size(), stopwatch);
 		return res;
 	}
 
@@ -6117,50 +6119,84 @@ public class Dao {
 		}
 		String sqlStr = """
 				WITH req AS (
-				  SELECT ? auth_user_id, ? sector_id
+				    SELECT ? auth_user_id, ? sector_id
+				),
+				filtered_problems AS (
+				    SELECT 
+				        p.*,
+				        ur.admin_read, 
+				        ur.superadmin_read
+				    FROM problem p
+				    CROSS JOIN req
+				    JOIN sector s ON s.id = p.sector_id
+				    JOIN area a ON s.area_id = a.id
+				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				    WHERE p.sector_id = req.sector_id 
+				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				),
+				fa_agg AS (
+				    SELECT 
+				        f.problem_id,
+				        GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
+				        MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
+				    FROM fa f
+				    JOIN user u ON f.user_id = u.id
+				    WHERE f.problem_id IN (SELECT id FROM filtered_problems)
+				    GROUP BY f.problem_id
+				),
+				tick_agg AS (
+				    SELECT 
+				        t.problem_id,
+				        COUNT(t.id) AS total_ticks,
+				        ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars,
+				        MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
+				    FROM tick t
+				    WHERE t.problem_id IN (SELECT id FROM filtered_problems)
+				    GROUP BY t.problem_id
+				),
+				media_agg AS (
+				    SELECT 
+				        mp.problem_id,
+				        COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images,
+				        COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
+				    FROM media_problem mp
+				    JOIN media m ON mp.media_id = m.id
+				    WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL
+				    AND mp.problem_id IN (SELECT id FROM filtered_problems)
+				    GROUP BY mp.problem_id
 				)
 				SELECT 
 				    p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
-				    GROUP_CONCAT(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa,
-				    ty.id type_id, ty.type, ty.subtype,
-				    g.weight problem_grade_weight, g.grade problem_grade,
-				    COUNT(DISTINCT t.id) total_ticks,
-				    ROUND(ROUND(AVG(NULLIF(t.stars,-1))*2)/2,1) stars,
-				    MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked,
-				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
-				    danger.danger,
+				    fa.fa_names AS fa,
+				    ty.id AS type_id, ty.type, ty.subtype,
+				    g.weight AS problem_grade_weight, g.grade AS problem_grade,
+				    COALESCE(t.total_ticks, 0) AS total_ticks,
+				    COALESCE(t.avg_stars, 0) AS stars,
+				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
+				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
+				    gb.danger,
 				    p.length_meter,
-				    co.id coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
-				    COUNT(DISTINCT ps.id) num_pitches,
-				    COUNT(DISTINCT CASE WHEN m.is_movie=0 THEN m.id END) num_images,
-				    COUNT(DISTINCT CASE WHEN m.is_movie=1 THEN m.id END) num_movies,
-				    CASE WHEN MAX(svg.problem_id) IS NOT NULL THEN 1 ELSE 0 END has_topo
-				FROM req
-				JOIN sector s ON s.id = req.sector_id
-				JOIN area a ON s.area_id = a.id
-				JOIN problem p ON s.id = p.sector_id
+				    co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
+				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches,
+				    COALESCE(m.num_images, 0) AS num_images,
+				    COALESCE(m.num_movies, 0) AS num_movies,
+				    CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
+				FROM filtered_problems p
 				JOIN grade g ON p.consensus_grade_id = g.id
 				JOIN type ty ON p.type_id = ty.id
 				LEFT JOIN coordinates co ON p.coordinates_id = co.id
-				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-				LEFT JOIN media_problem mp ON p.id = mp.problem_id AND mp.trivia = 0
-				LEFT JOIN media m ON mp.media_id = m.id AND m.deleted_user_id IS NULL
-				LEFT JOIN fa f ON p.id = f.problem_id
-				LEFT JOIN user u ON f.user_id = u.id
-				LEFT JOIN tick t ON p.id = t.problem_id
-				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.auth_user_id
-				LEFT JOIN (
-				    SELECT problem_id, danger FROM guestbook 
-				    WHERE (danger=1 OR resolved=1) 
-				    AND id IN (SELECT MAX(id) FROM guestbook WHERE (danger=1 OR resolved=1) GROUP BY problem_id)
-				) danger ON p.id = danger.problem_id
-				LEFT JOIN problem_section ps ON p.id = ps.problem_id
-				LEFT JOIN svg ON p.id = svg.problem_id
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-				GROUP BY 
-				    p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
-				    ty.id, ty.type, ty.subtype, g.weight, g.grade, todo.id, danger.danger, p.length_meter,
-				    co.id, co.latitude, co.longitude, co.elevation, co.elevation_source
+				LEFT JOIN fa_agg fa ON p.id = fa.problem_id
+				LEFT JOIN tick_agg t ON p.id = t.problem_id
+				LEFT JOIN media_agg m ON p.id = m.problem_id
+				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
+				LEFT JOIN LATERAL (
+				    SELECT danger 
+				    FROM guestbook 
+				    WHERE problem_id = p.id 
+				    AND (danger = 1 OR resolved = 1)
+				    ORDER BY id DESC
+				    LIMIT 1
+				) gb ON TRUE
 				ORDER BY p.nr
 				         """;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
