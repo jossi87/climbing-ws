@@ -3047,23 +3047,23 @@ public class Dao {
 				),
 				ranked_area_media AS (
 				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.id DESC) rn
+				          ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.is_movie, m.id DESC) rn
 				   FROM media_area ma
-				   JOIN media m ON ma.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				   JOIN media m ON ma.media_id=m.id AND m.deleted_user_id IS NULL
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				),
 				ranked_sector_media AS (
 				   SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.id DESC) rn
+				          ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_movie, m.id DESC) rn
 				   FROM media_sector ms
-				   JOIN media m ON ms.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				   JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				),
 				ranked_problem_media AS (
 				   SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.id DESC) rn
+				          ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.is_movie, m.id DESC) rn
 				   FROM media_problem mp
-				   JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				   JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				   WHERE mp.trivia=0
 				)
