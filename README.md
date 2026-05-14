@@ -13,7 +13,7 @@ Used by [https://github.com/jossi87/climbing-web](https://github.com/jossi87/cli
 
 ### 1. Database Setup (MySQL)
 
-Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/main/20260511.climbing-no-data.sql) and initialize the development environment:
+Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/main/20260514.climbing-no-data.sql) and initialize the development environment:
 > ```sh
 > CREATE DATABASE IF NOT EXISTS climbing;
 > USE climbing;

@@ -4501,18 +4501,17 @@ public class Dao {
 				}
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO area (android_id, region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setLong(1, System.currentTimeMillis());
-				ps.setInt(2, s.idRegion());
-				ps.setString(3, GlobalFunctions.stripString(a.getName()));
-				ps.setString(4, GlobalFunctions.stripString(a.getComment()));
-				setNullablePositiveInteger(ps, 5, a.getCoordinates() == null? 0 : a.getCoordinates().getId());
-				ps.setBoolean(6, isLockedAdmin);
-				ps.setBoolean(7, a.isLockedSuperadmin());
-				ps.setBoolean(8, a.isForDevelopers());
-				ps.setString(9, GlobalFunctions.stripString(a.getAccessInfo()));
-				ps.setString(10, GlobalFunctions.stripString(a.getAccessClosed()));
-				ps.setBoolean(11, a.isNoDogsAllowed());
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO area (region_id, name, description, coordinates_id, locked_admin, locked_superadmin, for_developers, access_info, access_closed, no_dogs_allowed, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setInt(1, s.idRegion());
+				ps.setString(2, GlobalFunctions.stripString(a.getName()));
+				ps.setString(3, GlobalFunctions.stripString(a.getComment()));
+				setNullablePositiveInteger(ps, 4, a.getCoordinates() == null? 0 : a.getCoordinates().getId());
+				ps.setBoolean(5, isLockedAdmin);
+				ps.setBoolean(6, a.isLockedSuperadmin());
+				ps.setBoolean(7, a.isForDevelopers());
+				ps.setString(8, GlobalFunctions.stripString(a.getAccessInfo()));
+				ps.setString(9, GlobalFunctions.stripString(a.getAccessClosed()));
+				ps.setBoolean(10, a.isNoDogsAllowed());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4611,26 +4610,25 @@ public class Dao {
 			idProblem = p.getId();
 			updateProblemConsensusGrade(c, idProblem);
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (android_id, sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setLong(1, System.currentTimeMillis());
-				ps.setInt(2, p.getSectorId());
-				ps.setString(3, GlobalFunctions.stripString(p.getName()));
-				ps.setString(4, GlobalFunctions.stripString(p.getRock()));
-				ps.setString(5, GlobalFunctions.stripString(p.getComment()));
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setInt(1, p.getSectorId());
+				ps.setString(2, GlobalFunctions.stripString(p.getName()));
+				ps.setString(3, GlobalFunctions.stripString(p.getRock()));
+				ps.setString(4, GlobalFunctions.stripString(p.getComment()));
+				ps.setInt(5, gradeId);
 				ps.setInt(6, gradeId);
-				ps.setInt(7, gradeId);
-				ps.setObject(8, dt);
-				setNullablePositiveInteger(ps, 9, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
-				ps.setString(10, GlobalFunctions.stripString(p.getBroken()));
-				ps.setBoolean(11, isLockedAdmin);
-				ps.setBoolean(12, p.isLockedSuperadmin());
-				ps.setInt(13, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
-				ps.setInt(14, p.getT().id());
-				ps.setString(15, GlobalFunctions.stripString(p.getTrivia()));
-				ps.setString(16, GlobalFunctions.stripString(p.getStartingAltitude()));
-				ps.setString(17, GlobalFunctions.stripString(p.getAspect()));
-				setNullablePositiveInteger(ps, 18, p.getLengthMeter());
-				ps.setString(19, GlobalFunctions.stripString(p.getDescent()));
+				ps.setObject(7, dt);
+				setNullablePositiveInteger(ps, 8, p.getCoordinates() == null? 0 : p.getCoordinates().getId());
+				ps.setString(9, GlobalFunctions.stripString(p.getBroken()));
+				ps.setBoolean(10, isLockedAdmin);
+				ps.setBoolean(11, p.isLockedSuperadmin());
+				ps.setInt(12, p.getNr() == 0 ? getSector(c, authUserId, orderByGrade, s, p.getSectorId(), false).getProblems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.getNr());
+				ps.setInt(13, p.getT().id());
+				ps.setString(14, GlobalFunctions.stripString(p.getTrivia()));
+				ps.setString(15, GlobalFunctions.stripString(p.getStartingAltitude()));
+				ps.setString(16, GlobalFunctions.stripString(p.getAspect()));
+				setNullablePositiveInteger(ps, 17, p.getLengthMeter());
+				ps.setString(18, GlobalFunctions.stripString(p.getDescent()));
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -4869,19 +4867,18 @@ public class Dao {
 			}
 		} else {
 			ensureAdminWriteArea(c, authUserId, s.getAreaId());
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector (android_id, area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setLong(1, System.currentTimeMillis());
-				ps.setInt(2, s.getAreaId());
-				ps.setString(3, s.getName());
-				ps.setString(4, GlobalFunctions.stripString(s.getComment()));
-				ps.setString(5, GlobalFunctions.stripString(s.getAccessInfo()));
-				ps.setString(6, GlobalFunctions.stripString(s.getAccessClosed()));
-				setNullablePositiveInteger(ps, 7, s.getParking() == null? 0 : s.getParking().getId());
-				ps.setBoolean(8, isLockedAdmin);
-				ps.setBoolean(9, s.isLockedSuperadmin());
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setInt(1, s.getAreaId());
+				ps.setString(2, s.getName());
+				ps.setString(3, GlobalFunctions.stripString(s.getComment()));
+				ps.setString(4, GlobalFunctions.stripString(s.getAccessInfo()));
+				ps.setString(5, GlobalFunctions.stripString(s.getAccessClosed()));
+				setNullablePositiveInteger(ps, 6, s.getParking() == null? 0 : s.getParking().getId());
+				ps.setBoolean(7, isLockedAdmin);
+				ps.setBoolean(8, s.isLockedSuperadmin());
 				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.getOutline());
-				setNullablePositiveInteger(ps, 10, calculatedWallDirection != null? calculatedWallDirection.id() : 0);
-				setNullablePositiveInteger(ps, 11, s.getWallDirectionManual() != null? s.getWallDirectionManual().id() : 0);
+				setNullablePositiveInteger(ps, 9, calculatedWallDirection != null? calculatedWallDirection.id() : 0);
+				setNullablePositiveInteger(ps, 10, s.getWallDirectionManual() != null? s.getWallDirectionManual().id() : 0);
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
