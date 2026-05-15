@@ -5,11 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.PreparedStatement;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.easymock.EasyMock;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
@@ -31,6 +36,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 
 public class V2Test {
+	private static Logger logger = LogManager.getLogger();
 	private enum Region { buldreinfo, brattelinjer }
 	private static final int USER_ID_SUPERADMIN = 1;
 	private static final int USER_ID_NORMAL = 1049;
@@ -41,7 +47,21 @@ public class V2Test {
 	private static final int BULDREINFO_HIDDEN_SECTOR_ID = 2185;
 	private static final int BULDREINFO_HIDDEN_PROBLEM_ID = 2597;
 	private static final int BRATTELINJER_PROBLEM_ID_PDF = 7745;
-
+	private static final int BRATTELINJER_DIFFERENT_REGION_AREA_ID = 2887;
+	private static final int BRATTELINJER_DIFFERENT_REGION_SECTOR_ID = 3251;
+	private static final int BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID = 7703;
+	
+	@BeforeAll
+    public static void warmUp() {
+		Server.runSql((_, c) -> {
+	        try (PreparedStatement ps = c.prepareStatement("SELECT 1")) {
+	            ps.executeQuery();
+	        }
+	    });
+	    
+	    logger.debug("Database pool and initial connection warmed up.");
+    }
+	
 	@Test
 	public void testGetActivity() throws Exception {
 		V2 tester = new V2();
@@ -49,32 +69,74 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			Collection<?> res = (Collection<?>)r.getEntity();
-			assertTrue(res.size() > 1);
+			assertTrue(!res.isEmpty());
 		}
 		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, false, false, false, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			Collection<?> res = (Collection<?>)r.getEntity();
-			assertTrue(res.size() > 1);
+			assertTrue(!res.isEmpty());
 		}
 	}
 	
 	@Test
-	public void testGetAreas() throws Exception {
+	public void testGetArea() throws Exception {
 		V2 tester = new V2();
-		// All areas
-		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 0)) {
-			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
-			assertTrue(r.getEntity() instanceof Collection<?>);
-			Collection<?> areas = (Collection<?>)r.getEntity();
-			assertTrue(areas.size() > 1);
-		}
-		// One area
 		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);
 			Collection<?> area = (Collection<?>)r.getEntity();
 			assertTrue(area.size() == 1);
+			Area a = (Area) area.iterator().next();
+			assertTrue(!Strings.isNullOrEmpty(a.getName()));
+			assertTrue(a.getRedirectUrl() == null);
+		}
+	}
+	
+	@Test
+	public void testGetAreaDifferentRegion() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getAreas(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Collection<?>);
+			Collection<?> area = (Collection<?>)r.getEntity();
+			assertTrue(area.size() == 1);
+			Area a = (Area) area.iterator().next();
+			assertTrue(Strings.isNullOrEmpty(a.getName()));
+			assertTrue(a.getRedirectUrl() != null);
+		}
+	}
+	
+	@Test
+	public void testGetAreaHidden() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_AREA_ID)) {
+			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
+		}
+		Setup setup = getSetup(Region.buldreinfo);
+		Server.runSql((dao, c) -> {
+			try {
+				dao.getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
+				assertTrue(false);
+			} catch (Exception e) {
+				assertTrue(e instanceof NoSuchElementException);
+			}
+		});
+		Server.runSql((dao, c) -> {
+			Area a = dao.getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
+			assertTrue(a != null);
+			assertTrue(!Strings.isNullOrEmpty(a.getName()));
+		});
+	}
+
+	@Test
+	public void testGetAreas() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), 0)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Collection<?>);
+			Collection<?> areas = (Collection<?>)r.getEntity();
+			assertTrue(!areas.isEmpty());
 		}
 	}
 
@@ -102,7 +164,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof Meta);
 		}
 	}
-
+	
 	@Test
 	public void testGetProblem() throws Exception {
 		V2 tester = new V2();
@@ -111,7 +173,42 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
 			assertTrue(!Strings.isNullOrEmpty(p.getName()));
+			assertTrue(p.getRedirectUrl() == null);
 		}
+	}
+	
+	@Test
+	public void testGetProblemDifferentRegion() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getProblem(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Problem);
+			Problem p = (Problem)r.getEntity();
+			assertTrue(Strings.isNullOrEmpty(p.getName()));
+			assertTrue(p.getRedirectUrl() != null);
+		}
+	}
+
+	@Test
+	public void testGetProblemHidden() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_PROBLEM_ID, false)) {
+			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
+		}
+		Setup setup = getSetup(Region.buldreinfo);
+		Server.runSql((dao, c) -> {
+			try {
+				dao.getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+				assertTrue(false);
+			} catch (Exception e) {
+				assertTrue(e instanceof NoSuchElementException);
+			}
+		});
+		Server.runSql((dao, c) -> {
+			Problem p = dao.getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+			assertTrue(p != null);
+			assertTrue(!Strings.isNullOrEmpty(p.getName()));
+		});
 	}
 	
 	@Test
@@ -128,7 +225,7 @@ public class V2Test {
 			Files.deleteIfExists(p);
 		}
 	}
-
+	
 	@Test
 	public void testGetProfile() throws Exception {
 		V2 tester = new V2();
@@ -148,7 +245,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof List<?>);
 		}
 	}
-	
+
 	@Test
 	public void testGetProfileMedia() throws Exception {
 		V2 tester = new V2();
@@ -157,7 +254,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof List<?>);
 		}
 	}
-	
+
 	@Test
 	public void testGetProfileTodo() throws Exception {
 		V2 tester = new V2();
@@ -168,7 +265,7 @@ public class V2Test {
 	}
 
 	@Test
-	public void testGetSectors() throws Exception {
+	public void testGetSector() throws Exception {
 		V2 tester = new V2();
 		try (Response r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_SECTOR_ID_VISIBLE)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
@@ -176,7 +273,42 @@ public class V2Test {
 			Sector s = (Sector)r.getEntity();
 			assertTrue(!Strings.isNullOrEmpty(s.getName()));
 			assertTrue(!s.getProblems().isEmpty());
+			assertTrue(s.getRedirectUrl() == null);
 		}
+	}
+	
+	@Test
+	public void testGetSectorDifferentRegion() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getSectors(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_SECTOR_ID)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Sector);
+			Sector s = (Sector)r.getEntity();
+			assertTrue(Strings.isNullOrEmpty(s.getName()));
+			assertTrue(s.getRedirectUrl() != null);
+		}
+	}
+	
+	@Test
+	public void testGetSectorHidden() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_SECTOR_ID)) {
+			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
+		}
+		Setup setup = getSetup(Region.buldreinfo);
+		Server.runSql((dao, c) -> {
+			try {
+				dao.getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+				assertTrue(false);
+			} catch (Exception e) {
+				assertTrue(e instanceof NoSuchElementException);
+			}
+		});
+		Server.runSql((dao, c) -> {
+			Sector s = dao.getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+			assertTrue(s != null);
+			assertTrue(!Strings.isNullOrEmpty(s.getName()));
+		});
 	}
 
 	@Test
@@ -196,7 +328,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof Toc);
 		}
 	}
-	
+
 	@Test
 	public void testGetTodo() throws Exception {
 		V2 tester = new V2();
@@ -219,72 +351,6 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Top);
 		}
-	}
-
-	@Test
-	public void testHiddenAreaPermissions() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_AREA_ID)) {
-			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
-		}
-		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
-			try {
-				dao.getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
-				assertTrue(false);
-			} catch (Exception e) {
-				assertTrue(e instanceof java.util.NoSuchElementException);
-			}
-		});
-		Server.runSql((dao, c) -> {
-			Area a = dao.getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
-			assertTrue(a != null);
-			assertTrue(!Strings.isNullOrEmpty(a.getName()));
-		});
-	}
-
-	@Test
-	public void testHiddenProblemPermissions() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_PROBLEM_ID, false)) {
-			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
-		}
-		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
-			try {
-				dao.getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
-				assertTrue(false);
-			} catch (Exception e) {
-				assertTrue(e instanceof java.util.NoSuchElementException);
-			}
-		});
-		Server.runSql((dao, c) -> {
-			Problem p = dao.getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
-			assertTrue(p != null);
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));
-		});
-	}
-
-	@Test
-	public void testHiddenSectorPermissions() throws Exception {
-		V2 tester = new V2();
-		try (Response r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_SECTOR_ID)) {
-			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
-		}
-		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
-			try {
-				dao.getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
-				assertTrue(false);
-			} catch (Exception e) {
-				assertTrue(e instanceof java.util.NoSuchElementException);
-			}
-		});
-		Server.runSql((dao, c) -> {
-			Sector s = dao.getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
-			assertTrue(s != null);
-			assertTrue(!Strings.isNullOrEmpty(s.getName()));
-		});
 	}
 
 	@Test

@@ -134,6 +134,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
@@ -1014,13 +1015,15 @@ public class Dao {
 					}
 					Area.AreaSector as = a.addSector(id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, wallDirectionCalculated, wallDirectionManual, mediaIdentity);
 					sectorLookup.put(id, as);
-					for (SectorProblem sp : getSectorProblems(c, s, authUserId, as.getId())) {
-						as.getProblems().add(sp);
-					}
 				}
 			}
 		}
 		if (!sectorLookup.isEmpty()) {
+			// Add problems
+			var sectorProblems = getSectorProblems(c, s, authUserId, reqId, 0);
+			for (int sectorId : sectorProblems.keySet()) {
+				sectorLookup.get(sectorId).getProblems().addAll(sectorProblems.get(sectorId));
+			}
 			// Fill sector outlines
 			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
 			for (int idSector : idSectorOutline.keySet()) {
@@ -1759,27 +1762,22 @@ public class Dao {
 
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		String sql = """
-				WITH req AS (
-				    SELECT ? AS mediaId, ? AS authUserId
-				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM req
-				JOIN media m ON m.id = req.mediaId
+				FROM media m
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				JOIN user c ON m.photographer_user_id = c.id
 				LEFT JOIN media_user mu ON m.id = mu.media_id
 				LEFT JOIN user u ON mu.user_id = u.id
+				WHERE m.id = ?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				""";
 		Media res = null;
-		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
 			ps.setInt(1, id);
-			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				if (rst.next()) {
 					MediaIdentity identity = new MediaIdentity(
@@ -1792,7 +1790,7 @@ public class Dao {
 							rst.getString("description"), null
 							);
 					res = new Media(
-							identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+							identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), 
 							0, false, rst.getInt("width"), rst.getInt("height"), 
 							rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, 
 									metadata, rst.getString("embed_url"), false, 0, 0, 0, null
@@ -2030,7 +2028,7 @@ public class Dao {
 
 					SectorProblem neighbourPrev = null;
 					SectorProblem neighbourNext = null;
-					List<SectorProblem> problems = getSectorProblems(c, s, authUserId, sectorId);
+					List<SectorProblem> problems = Lists.newArrayList(getSectorProblems(c, s, authUserId, 0, sectorId).get(sectorId));
 					if (problems.size() > 1) {
 						for (int i = 0; i < problems.size(); i++) {
 							SectorProblem prob = problems.get(i);
@@ -2676,7 +2674,7 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		String sqlStr = """
 				WITH req AS (
-				    SELECT ? AS photographerId, ? AS authUserId
+				    SELECT ? photographer_user_id, ? auth_user_id
 				)
 				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
 				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
@@ -2685,13 +2683,13 @@ public class Dao {
 				       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       CONCAT(MAX(r.url),'/area/',MAX(a.id)) url
 				FROM req
-				JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+				JOIN media m ON m.photographer_user_id = req.photographer_user_id AND m.deleted_user_id IS NULL
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				JOIN user c ON m.photographer_user_id = c.id
 				JOIN media_area ma ON m.id = ma.media_id
 				JOIN area a ON ma.area_id = a.id
 				JOIN region r ON a.region_id = r.id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 				LEFT JOIN media_user mu ON m.id = mu.media_id
 				LEFT JOIN user u ON mu.user_id = u.id
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
@@ -2745,7 +2743,7 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		String sqlStr = """
 				WITH req AS (
-				    SELECT ? AS photographerId, ? AS authUserId
+				    SELECT ? photographer_user_id, ? auth_user_id
 				)
 				SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
 				       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
@@ -2753,14 +2751,14 @@ public class Dao {
 				       0 pitch, 0 t, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url
 				FROM req
-				JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+				JOIN media m ON m.photographer_user_id = req.photographer_user_id AND m.deleted_user_id IS NULL
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				JOIN user c ON m.photographer_user_id = c.id
 				JOIN media_sector ms ON m.id = ms.media_id
 				JOIN sector s ON ms.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
 				JOIN region r ON a.region_id = r.id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 				LEFT JOIN media_user mu ON m.id = mu.media_id
 				LEFT JOIN user u ON mu.user_id = u.id
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
@@ -2813,7 +2811,7 @@ public class Dao {
 		if (captured) {
 			sqlStr = """
 					WITH req AS (
-					    SELECT ? AS photographerId, ? AS authUserId
+					    SELECT ? photographer_user_id, ? auth_user_id
 					)
 					SELECT GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged,
 					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
@@ -2822,7 +2820,7 @@ public class Dao {
 					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
 					FROM req
-					JOIN media m ON m.photographer_user_id = req.photographerId AND m.deleted_user_id IS NULL
+					JOIN media m ON m.photographer_user_id = req.photographer_user_id AND m.deleted_user_id IS NULL
 					LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 					JOIN user c ON m.photographer_user_id = c.id
 					JOIN media_problem mp ON m.id = mp.media_id
@@ -2830,7 +2828,7 @@ public class Dao {
 					JOIN sector s ON p.sector_id = s.id
 					JOIN area a ON s.area_id = a.id
 					JOIN region r ON a.region_id = r.id
-					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 					LEFT JOIN media_user mu ON m.id = mu.media_id
 					LEFT JOIN user u ON mu.user_id = u.id
 					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
@@ -2840,7 +2838,7 @@ public class Dao {
 		} else {
 			sqlStr = """
 					WITH req AS (
-					    SELECT ? AS taggedUserId, ? AS authUserId
+					    SELECT ? tagged_user_id, ? auth_user_id
 					)
 					SELECT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) tagged,
 					       m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
@@ -2850,7 +2848,7 @@ public class Dao {
 					       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url
 					FROM req
-					JOIN user u ON u.id = req.taggedUserId
+					JOIN user u ON u.id = req.tagged_user_id
 					JOIN media_user mu ON u.id = mu.user_id
 					JOIN media m ON mu.media_id = m.id AND m.deleted_user_id IS NULL
 					LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
@@ -2860,7 +2858,7 @@ public class Dao {
 					JOIN sector s ON p.sector_id = s.id
 					JOIN area a ON s.area_id = a.id
 					JOIN region r ON a.region_id = r.id
-					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.authUserId
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 					GROUP BY u.firstname, u.lastname, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, mp.pitch, c.firstname, c.lastname
 					ORDER BY m.id DESC
@@ -2912,7 +2910,7 @@ public class Dao {
 		Map<Integer, ProfileTodoSector> sectorLookup = new HashMap<>();
 		String sql = """
 				WITH req AS (
-				    SELECT ? AS userId, ? AS authUserId, ? AS regionId
+				    SELECT ? user_id, ? auth_user_id, ? region_id
 				)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
@@ -2927,9 +2925,9 @@ public class Dao {
 				        FROM todo t_other
 				        JOIN user u_other ON t_other.user_id = u_other.id
 				        CROSS JOIN req
-				        WHERE t_other.problem_id = p.id AND t_other.user_id != req.userId) AS partners_raw
+				        WHERE t_other.problem_id = p.id AND t_other.user_id != req.user_id) AS partners_raw
 				FROM req
-				JOIN todo t ON t.user_id = req.userId
+				JOIN todo t ON t.user_id = req.user_id
 				JOIN problem p ON t.problem_id = p.id
 				JOIN sector s ON p.sector_id = s.id
 				JOIN area a ON s.area_id = a.id
@@ -2940,9 +2938,9 @@ public class Dao {
 				LEFT JOIN coordinates pc ON p.coordinates_id = pc.id
 				LEFT JOIN sector_outline so ON s.id = so.sector_id AND so.sorting = 1
 				LEFT JOIN coordinates oc ON so.coordinates_id = oc.id
-				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.authUserId
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.regionId)
-				  AND (a.region_id = req.regionId OR ur.user_id IS NOT NULL)
+				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				  AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				GROUP BY p.id, t.id
 				ORDER BY a.name, s.name, p.nr
@@ -3338,7 +3336,7 @@ public class Dao {
 			}
 		}
 		s.orderSectors();
-		for (SectorProblem sp : getSectorProblems(c, setup, authUserId, reqId)) {
+		for (SectorProblem sp : getSectorProblems(c, setup, authUserId, 0, reqId).get(reqId)) {
 			s.addProblem(sp);
 		}
 		if (!s.getProblems().isEmpty() && orderByGrade) {
@@ -3434,12 +3432,16 @@ public class Dao {
 		final int take = 200;
 		int skip = (page - 1) * take;
 		String sqlStr = """
+				WITH req AS (
+					SELECT ? region_id, ? auth_user_id
+				)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       p.id problem_id, g.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       DATE_FORMAT(t.date,'%Y.%m.%d') ts, TRIM(CONCAT(u.firstname, ' ', IFNULL(u.lastname,''))) name,
 				       COUNT(*) OVER() as total_count
-				FROM region r
+				FROM req
+				JOIN region r ON 1=1
 				JOIN region_type rt ON r.id=rt.region_id
 				JOIN area a ON r.id=a.region_id
 				JOIN sector s ON a.id=s.area_id
@@ -3447,9 +3449,9 @@ public class Dao {
 				JOIN tick t ON p.id=t.problem_id
 				LEFT JOIN grade g ON t.grade_id=g.id
 				JOIN user u ON t.user_id=u.id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (r.id=? OR ur.user_id IS NOT NULL)
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
@@ -3462,9 +3464,8 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setInt(4, take);
-			ps.setInt(5, skip);
+			ps.setInt(3, take);
+			ps.setInt(4, skip);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					if (totalCount == 0) {
@@ -5752,21 +5753,35 @@ public class Dao {
 		return res;
 	}
 
-	private Map<Integer, String> getFaAidNamesOnSector(Connection c, int sectorId) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, String> res = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT p.id, group_concat(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa FROM problem p, fa_aid_user a, user u WHERE p.sector_id=? AND p.id=a.problem_id AND a.user_id=u.id GROUP BY p.id")) {
-			ps.setInt(1, sectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idProblem = rst.getInt("id");
-					String fa = rst.getString("fa");
-					res.put(idProblem, fa);
-				}
-			}
-		}
-		logger.debug("getFaAidNamesOnSector(sectorId={}) - res.size()={}, duration={}", sectorId, res.size(), stopwatch);
-		return res;
+	private Map<Integer, String> getFaAidNamesOnSectors(Connection c, int optAreaId, int optSectorId) throws SQLException {
+	    Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0));
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    Map<Integer, String> res = new HashMap<>();
+	    String sql = """
+	            WITH req AS (
+	                SELECT ? area_id, ? sector_id
+	            )
+	            SELECT p.id,
+	                   GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) 
+	                   ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa
+	            FROM req
+	            JOIN sector s ON (req.area_id > 0 AND s.area_id = req.area_id) OR (req.sector_id > 0 AND s.id = req.sector_id)
+	            JOIN problem p ON s.id = p.sector_id
+	            JOIN fa_aid_user a ON p.id = a.problem_id
+	            JOIN user u ON a.user_id = u.id
+	            GROUP BY p.id
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sql)) {
+	        ps.setInt(1, optAreaId);
+	        ps.setInt(2, optSectorId);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                res.put(rst.getInt("id"), rst.getString("fa"));
+	            }
+	        }
+	    }
+	    logger.debug("getFaAidNamesOnSectors(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
+	    return res;
 	}
 
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
@@ -5795,25 +5810,23 @@ public class Dao {
 	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 		List<Media> initialList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
-		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (SELECT ? id, ? authUserId)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, a.name location, ma.trivia, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM req
-				JOIN media m ON m.deleted_user_id IS NULL
-				JOIN media_area ma ON m.id=ma.media_id AND ma.area_id=req.id
+				FROM media m
+				JOIN media_area ma ON m.id=ma.media_id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN area a ON ma.area_id=a.id
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
+				WHERE m.deleted_user_id IS NULL
+				  AND ma.area_id=?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, a.name, m.width, m.height, m.is_movie, m.embed_url, ma.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, id);
-			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					boolean trivia = rst.getBoolean("trivia");
@@ -5824,7 +5837,7 @@ public class Dao {
 					ids.add(idMedia);
 					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
-					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, 0, trivia, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
+					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), 0, trivia, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, null));
 				}
 			}
 		}
@@ -5838,7 +5851,7 @@ public class Dao {
 	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		List<Media> initialList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
-		int currentAuthUserId = authUserId.orElse(0);
+		int currentAuthUserId = authUserId.orElse(0); // TODO REMOVE
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
@@ -5880,15 +5893,12 @@ public class Dao {
 		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
 		List<Media> pMediaList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
-		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (SELECT ? problemId, ? authUserId)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(p.name,' (',a.name,'/',s.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, mp.pitch, mp.trivia, ROUND(mp.milliseconds/1000) t,
 				       TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM req
-				JOIN problem p ON p.id=req.problemId
+				FROM problem p
 				JOIN sector s ON p.sector_id=s.id
 				JOIN area a ON s.area_id=a.id
 				JOIN media_problem mp ON p.id=mp.problem_id
@@ -5897,11 +5907,11 @@ public class Dao {
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
+				WHERE p.id=?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, problemId);
-			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
@@ -5917,7 +5927,7 @@ public class Dao {
 					}
 					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
-					pMediaList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, rst.getInt("pitch"), rst.getBoolean("trivia"), rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, t, null, problemId, null, metadata, embedUrl, false, 0, sectorId, 0, null));
+					pMediaList.add(new Media(identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), rst.getInt("pitch"), rst.getBoolean("trivia"), rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, t, null, problemId, null, metadata, embedUrl, false, 0, sectorId, 0, null));
 				}
 			}
 		}
@@ -5941,13 +5951,11 @@ public class Dao {
 		List<Integer> ids = new ArrayList<>();
 		int currentAuthUserId = authUserId.orElse(0);
 		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (SELECT ? idSector, ? authUserId)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
 				       ms.trivia, CONCAT(s.name,' (',a.name,')') location, m.description, m.width, m.height, m.is_movie, m.embed_url,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, TRIM(CONCAT(c.firstname, ' ', COALESCE(c.lastname,''))) capturer,
 				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') tagged
-				FROM req
-				JOIN sector s ON s.id=req.idSector
+				FROM sector s
 				JOIN area a ON a.id=s.area_id
 				JOIN media_sector ms ON s.id=ms.sector_id
 				JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
@@ -5955,11 +5963,11 @@ public class Dao {
 				JOIN user c ON m.photographer_user_id=c.id
 				LEFT JOIN media_user mu ON m.id=mu.media_id
 				LEFT JOIN user u ON mu.user_id=u.id
+				WHERE s.id=?
 				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, ms.sorting, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""")) {
 			ps.setInt(1, idSector);
-			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					boolean trivia = rst.getBoolean("trivia");
@@ -6107,77 +6115,71 @@ public class Dao {
 		return res;
 	}
 
-	private List<SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int sectorId) throws SQLException {
+	private Multimap<Integer, SectorProblem> getSectorProblems(Connection c, Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) throws SQLException {
+		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || optAreaId > 0 && optSectorId == 0);
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<SectorProblem> res = new ArrayList<>();
+		Multimap<Integer, SectorProblem> res = LinkedListMultimap.create();
 		Map<Integer, String> problemIdFirstAidAscentLookup = null;
 		if (!setup.isBouldering()) {
-			problemIdFirstAidAscentLookup = getFaAidNamesOnSector(c, sectorId);
+			problemIdFirstAidAscentLookup = getFaAidNamesOnSectors(c, optAreaId, optSectorId);
 		}
 		String sqlStr = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? sector_id
+				    SELECT ? auth_user_id, ? area_id, ? sector_id
 				),
 				filtered_problems AS (
-				    SELECT 
-				        p.*,
-				        ur.admin_read, 
-				        ur.superadmin_read
+				    SELECT p.*, ur.admin_read, ur.superadmin_read
 				    FROM problem p
 				    CROSS JOIN req
 				    JOIN sector s ON s.id = p.sector_id
 				    JOIN area a ON s.area_id = a.id
 				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-				    WHERE p.sector_id = req.sector_id 
+				    WHERE ((req.area_id > 0 AND a.id = req.area_id) OR (req.sector_id > 0 AND p.sector_id = req.sector_id))
 				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				),
 				fa_agg AS (
-				    SELECT 
-				        f.problem_id,
-				        GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
-				        MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
+				    SELECT f.problem_id,
+				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
+				           MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
 				    FROM fa f
 				    JOIN user u ON f.user_id = u.id
 				    WHERE f.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY f.problem_id
 				),
 				tick_agg AS (
-				    SELECT 
-				        t.problem_id,
-				        COUNT(t.id) AS total_ticks,
-				        ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars,
-				        MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
+				    SELECT t.problem_id,
+				           COUNT(t.id) AS total_ticks,
+				           ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars,
+				           MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
 				    FROM tick t
 				    WHERE t.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY t.problem_id
 				),
 				media_agg AS (
-				    SELECT 
-				        mp.problem_id,
-				        COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images,
-				        COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
+				    SELECT mp.problem_id,
+				           COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images,
+				           COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
 				    FROM media_problem mp
 				    JOIN media m ON mp.media_id = m.id
 				    WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL
 				    AND mp.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY mp.problem_id
 				)
-				SELECT 
-				    p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
-				    fa.fa_names AS fa,
-				    ty.id AS type_id, ty.type, ty.subtype,
-				    g.weight AS problem_grade_weight, g.grade AS problem_grade,
-				    COALESCE(t.total_ticks, 0) AS total_ticks,
-				    COALESCE(t.avg_stars, 0) AS stars,
-				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
-				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
-				    gb.danger,
-				    p.length_meter,
-				    co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
-				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches,
-				    COALESCE(m.num_images, 0) AS num_images,
-				    COALESCE(m.num_movies, 0) AS num_movies,
-				    CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
+				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
+				       fa.fa_names AS fa,
+				       ty.id AS type_id, ty.type, ty.subtype,
+				       g.weight AS problem_grade_weight, g.grade AS problem_grade,
+				       COALESCE(t.total_ticks, 0) AS total_ticks,
+				       COALESCE(t.avg_stars, 0) AS stars,
+				       GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
+				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
+				       gb.danger,
+				       p.length_meter,
+				       co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
+				       (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches,
+				       COALESCE(m.num_images, 0) AS num_images,
+				       COALESCE(m.num_movies, 0) AS num_movies,
+				       CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
 				FROM filtered_problems p
 				JOIN grade g ON p.consensus_grade_id = g.id
 				JOIN type ty ON p.type_id = ty.id
@@ -6198,9 +6200,11 @@ public class Dao {
 				         """;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, sectorId);
+			ps.setInt(2, optAreaId);
+			ps.setInt(3, optSectorId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					int sectorId = rst.getInt("sector_id");
 					int id = rst.getInt("id");
 					String fa = rst.getString("fa");
 					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
@@ -6211,17 +6215,18 @@ public class Dao {
 					Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
 					String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-					res.add(new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
+					var p = new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
 							rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
 							rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), fa, faDateStr, rst.getInt("length_meter"),
 							rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
 							coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
 							new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
-							));
+							);
+					res.put(sectorId, p);
 				}
 			}
 		}
-		logger.debug("getSectorProblems(sectorId={}) - res.size()={}, duration={}", sectorId, res.size(), stopwatch);
+		logger.debug("getSectorProblems(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
 		return res;
 	}
 
@@ -6372,7 +6377,7 @@ public class Dao {
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
 		String sqlStr = """
 				WITH req AS (
-				  SELECT ? AS auth_user_id, ? AS area_id
+				  SELECT ? auth_user_id, ? area_id
 				),
 				target_systems AS (
 				  SELECT DISTINCT tgs.grade_system_id 
