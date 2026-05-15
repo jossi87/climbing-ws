@@ -2290,7 +2290,7 @@ public class Dao {
 				       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id id_tick, 0 id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
-				       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name,
+				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name,
 				       CASE WHEN (t.id IS NOT NULL) THEN t.comment ELSE p.description END comment,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%Y-%m-%d') date,
 				       DATE_FORMAT(CASE WHEN t.date IS NULL AND f.user_id IS NOT NULL THEN p.fa_date ELSE t.date END,'%d/%m-%y') date_hr,
@@ -2313,7 +2313,7 @@ public class Dao {
 				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
+				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -2339,6 +2339,7 @@ public class Dao {
 						subType = "Multi-pitch " + subType;
 					}
 					int idProblem = rst.getInt("id_problem");
+					int nr = rst.getInt("nr");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					String name = rst.getString("name");
@@ -2350,7 +2351,7 @@ public class Dao {
 					int gradeWeight = rst.getInt("grade_weight");
 					String grade = rst.getString("grade");
 					boolean noPersonalGrade = rst.getBoolean("no_personal_grade");
-					ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
+					ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, nr, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade);
 					res.add(tick);
 					idProblemTickMap.put(idProblem, tick);
 				}
@@ -2362,7 +2363,7 @@ public class Dao {
 				       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 				       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
 				       t.id id_tick, tr.id id_tick_repeat, ty.subtype, COUNT(DISTINCT ps.id) num_pitches,
-				       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
+				       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment,
 				       DATE_FORMAT(tr.date,'%Y-%m-%d') date, DATE_FORMAT(tr.date,'%d/%m-%y') date_hr, t.stars, 0 fa, g.weight grade_weight, g.grade
 				FROM problem p
 				JOIN type ty ON p.type_id=ty.id
@@ -2376,7 +2377,7 @@ public class Dao {
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
+				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, reqId);
@@ -2401,6 +2402,7 @@ public class Dao {
 						subType = "Multi-pitch " + subType;
 					}
 					int idProblem = rst.getInt("id_problem");
+					int nr = rst.getInt("nr");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
 					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					String name = rst.getString("name");
@@ -2412,7 +2414,7 @@ public class Dao {
 					int gradeWeight = rst.getInt("grade_weight");
 					String grade = rst.getString("grade");
 					boolean noPersonalGrade = grade == null;
-					res.add(new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade));
+					res.add(new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, id, idTickRepeat, subType, numPitches, idProblem, nr, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, stars, fa, grade, gradeWeight, noPersonalGrade));
 				}
 			}
 		}
@@ -2422,7 +2424,7 @@ public class Dao {
 					SELECT r.name region_name,
 					       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
 					       s.id sector_id, s.name sector_name, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, COUNT(DISTINCT ps.id) num_pitches,
-					       p.id id_problem, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description,
+					       p.id id_problem, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description description,
 					       DATE_FORMAT(aid.aid_date,'%Y-%m-%d') date, DATE_FORMAT(aid.aid_date,'%d/%m-%y') date_hr
 					FROM problem p
 					JOIN sector s ON p.sector_id=s.id
@@ -2434,7 +2436,7 @@ public class Dao {
 					LEFT JOIN problem_section ps ON p.id=ps.problem_id
 					LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
+					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
 					""")) {
 				ps.setInt(1, reqId);
 				ps.setInt(2, authUserId.orElse(0));
@@ -2452,6 +2454,7 @@ public class Dao {
 						boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 						int numPitches = rst.getInt("num_pitches");
 						int idProblem = rst.getInt("id_problem");
+						int nr = rst.getInt("nr");
 						boolean lockedAdmin = rst.getBoolean("locked_admin");
 						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 						String name = rst.getString("name");
@@ -2482,7 +2485,7 @@ public class Dao {
 							}
 						}
 						else {
-							ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, grade, gradeWeight, noPersonalGrade);
+							ProfileAscent tick = new ProfileAscent(regionName, areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, 0, 0, "Aid", numPitches, idProblem, nr, lockedAdmin, lockedSuperadmin, name, comment, date, dateHr, 0, true, grade, gradeWeight, noPersonalGrade);
 							idProblemTickMap.put(idProblem, tick);
 						}
 					}

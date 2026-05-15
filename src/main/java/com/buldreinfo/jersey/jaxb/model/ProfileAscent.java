@@ -16,6 +16,7 @@ public class ProfileAscent {
 	private final String subType;
 	private final int numPitches;
 	private final int idProblem;
+	private final int nr;
 	private final boolean lockedAdmin;
 	private final boolean lockedSuperadmin;
 	private final String name;
@@ -32,7 +33,7 @@ public class ProfileAscent {
 	public ProfileAscent(String regionName, int areaId, String areaName, boolean areaLockedAdmin, boolean areaLockedSuperadmin,
 			int sectorId, String sectorName, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin,
 			int id, int idTickRepeat, String subType, int numPitches,
-			int idProblem, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
+			int idProblem, int nr, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String date,
 			String dateHr, double stars, boolean fa, String grade, int gradeWeight, boolean noPersonalGrade) {
 		this.regionName = regionName;
 		this.areaId = areaId;
@@ -48,6 +49,7 @@ public class ProfileAscent {
 		this.subType = subType;
 		this.numPitches = numPitches;
 		this.idProblem = idProblem;
+		this.nr = nr;
 		this.lockedAdmin = lockedAdmin;
 		this.lockedSuperadmin = lockedSuperadmin;
 		this.name = name;
@@ -109,6 +111,10 @@ public class ProfileAscent {
 		return name;
 	}
 
+	public int getNr() {
+		return nr;
+	}
+	
 	public int getNum() {
 		return num;
 	}
@@ -116,7 +122,7 @@ public class ProfileAscent {
 	public int getNumPitches() {
 		return numPitches;
 	}
-	
+
 	public String getRegionName() {
 		return regionName;
 	}
@@ -144,7 +150,7 @@ public class ProfileAscent {
 	public boolean isAreaLockedSuperadmin() {
 		return areaLockedSuperadmin;
 	}
-
+	
 	public boolean isFa() {
 		return fa;
 	}
