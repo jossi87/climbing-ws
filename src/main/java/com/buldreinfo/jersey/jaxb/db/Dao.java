@@ -1328,7 +1328,7 @@ public class Dao {
 	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageFirstAscent> res = new ArrayList<>();
 		String sqlStr = """
-				         WITH x AS (
+				WITH x AS (
 				    SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
 				    FROM problem p1
 				    JOIN sector s1 ON p1.sector_id = s1.id
@@ -3076,10 +3076,9 @@ public class Dao {
 				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				   WHERE mp.trivia=0
 				)
-				(SELECT 'AREA' result_type, a.id, a.name main_title, r.name sub_title, 
-				        a.locked_admin, a.locked_superadmin,
+				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        a.hits, NULL external_url, NULL grade, NULL rock
+				        a.hits, NULL external_url
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3092,9 +3091,9 @@ public class Dao {
 
 				UNION ALL
 
-				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name, r_ext.name, 
-				        0, 0, 0, 0, 0, 0, NULL,
-				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id), NULL, NULL
+				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
+				        0 media_id, 0 media_version_stamp, 0 media_focus_x, 0 media_focus_y, NULL media_primary_color_hex,
+				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
 				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
@@ -3108,10 +3107,9 @@ public class Dao {
 
 				UNION ALL
 
-				(SELECT 'SECTOR' result_type, s.id, s.name, a.name, 
-				        s.locked_admin, s.locked_superadmin,
+				(SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        s.hits, NULL, NULL, NULL
+				        s.hits, NULL external_url
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3125,10 +3123,9 @@ public class Dao {
 
 				UNION ALL
 
-				(SELECT 'PROBLEM' result_type, p.id, p.name, CONCAT(a.name, ' / ', s.name), 
-				        p.locked_admin, p.locked_superadmin,
+				(SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        p.hits, NULL, g.grade, p.rock
+				        p.hits, NULL external_url
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3144,10 +3141,9 @@ public class Dao {
 
 				UNION ALL
 
-				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), NULL, 
-				        0, 0,
-				        m.id, UNIX_TIMESTAMP(m.updated_at), mma.focus_x, mma.focus_y, mma.primary_color_hex,
-				        0, NULL, NULL, NULL
+				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
+				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				        0 hits, NULL external_url
 				 FROM req
 				 JOIN user u ON REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
 				 LEFT JOIN media m ON u.media_id=m.id
@@ -3162,10 +3158,11 @@ public class Dao {
 				while (rst.next()) {
 					String type = rst.getString("result_type");
 					int id = rst.getInt("id");
-					String title = rst.getString("main_title");
+					String title = rst.getString("title");
 					String subTitle = rst.getString("sub_title");
+					String breadcrumb = rst.getString("breadcrumb");
 					long hits = rst.getLong("hits");
-					String pageViews = (hits > 0) ? HitsFormatter.formatHits(hits) : null;
+					String pageViews = HitsFormatter.formatHits(hits);
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
@@ -3175,30 +3172,25 @@ public class Dao {
 						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					switch (type) {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
-						areas.add(new Search(title, subTitle, "/area/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews));
 
 					}
 					case "EXTERNAL" -> {
-						externalAreas.add(new Search(title, subTitle, null, rst.getString("external_url"), null, false, false, hits, pageViews));
+						externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews));
 					}
 					case "SECTOR" -> {
-						sectors.add(new Search(title, subTitle, "/sector/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews));
 					}
 					case "PROBLEM" -> {
-						String grade = rst.getString("grade");
-						String rock = rst.getString("rock");
-						String fullTitle = title + " [" + grade + "]";
-						String fullSub = subTitle + (rock == null ? "" : " (rock: " + rock + ")");
-						problems.add(new Search(fullTitle, fullSub, "/problem/" + id, null, mediaIdentity, lockedAdmin, lockedSuperadmin, hits, pageViews));
+						problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews));
 					}
 					case "USER" -> {
-						users.add(new Search(title, null, "/user/" + id, null, mediaIdentity, false, false, 0, null));
+						users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, null));
 					}
+					default -> throw new IllegalArgumentException("Invalid type: " + type);
 					}
 				}
 			}
