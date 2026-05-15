@@ -1889,12 +1889,14 @@ public class Dao {
 			}
 		}
 		List<Integer> todoIdProblems = new ArrayList<>();
-		ProfileTodo todo = getProfileTodo(c, authUserId, s, authUserId.orElse(0));
-		if (todo != null) {
-			for (ProfileTodoArea ta : todo.areas()) {
-				for (ProfileTodoSector ts : ta.sectors()) {
-					for (ProfileTodoProblem tp : ts.problems()) {
-						todoIdProblems.add(tp.id());
+		if (authUserId.isPresent()) {
+			ProfileTodo todo = getProfileTodo(c, authUserId, s, authUserId.orElseThrow());
+			if (todo != null) {
+				for (ProfileTodoArea ta : todo.areas()) {
+					for (ProfileTodoSector ts : ta.sectors()) {
+						for (ProfileTodoProblem tp : ts.problems()) {
+							todoIdProblems.add(tp.id());
+						}
 					}
 				}
 			}
@@ -2575,16 +2577,25 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				       (SELECT CASE WHEN u.email_visible_to_all=1 THEN GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') ELSE NULL END
-				        FROM user_email e 
-				        WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') emails,
-					   (SELECT MAX(l.when)
-				        FROM user_login l 
-				        WHERE l.user_id=u.id) last_login
+				       m.id media_id,  UNIX_TIMESTAMP(m.updated_at) media_version_stamp,  mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				       e.emails, l.last_login
 				FROM user u
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				LEFT JOIN LATERAL (
+				    SELECT GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') emails
+				    FROM user_email
+				    WHERE user_id=u.id
+				      AND email NOT LIKE '%@missing-email.com'
+				      AND u.email_visible_to_all=1
+				) e ON TRUE
+				LEFT JOIN LATERAL (
+				    SELECT `when` last_login
+				    FROM user_login
+				    WHERE user_id=u.id
+				    ORDER BY `when` DESC
+				    LIMIT 1
+				) l ON TRUE
 				WHERE u.id=?
 				""")) {
 			ps.setInt(1, userId);
@@ -5691,6 +5702,7 @@ public class Dao {
 	}
 
 	private List<ExternalLink> getExternalLinksArea(Connection c, int areaId, boolean inherited) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -5708,10 +5720,12 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getExternalLinksArea(sectorId={}, areaId={}) - res.size()={}, duration={}", areaId, inherited, res.size(), stopwatch);
 		return res;
 	}
 
 	private List<ExternalLink> getExternalLinksProblem(Connection c, int problemId, boolean inherited) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -5729,10 +5743,12 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getExternalLinksProblem(sectorId={}, problemId={}) - res.size()={}, duration={}", problemId, inherited, res.size(), stopwatch);
 		return res;
 	}
 
 	private List<ExternalLink> getExternalLinksSector(Connection c, int sectorId, boolean inherited) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<ExternalLink> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT e.id, e.url, e.title
@@ -5750,38 +5766,39 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getExternalLinksSector(sectorId={}, inherited={}) - res.size()={}, duration={}", sectorId, inherited, res.size(), stopwatch);
 		return res;
 	}
 
 	private Map<Integer, String> getFaAidNamesOnSectors(Connection c, int optAreaId, int optSectorId) throws SQLException {
-	    Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0));
-	    Stopwatch stopwatch = Stopwatch.createStarted();
-	    Map<Integer, String> res = new HashMap<>();
-	    String sql = """
-	            WITH req AS (
-	                SELECT ? area_id, ? sector_id
-	            )
-	            SELECT p.id,
-	                   GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) 
-	                   ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa
-	            FROM req
-	            JOIN sector s ON (req.area_id > 0 AND s.area_id = req.area_id) OR (req.sector_id > 0 AND s.id = req.sector_id)
-	            JOIN problem p ON s.id = p.sector_id
-	            JOIN fa_aid_user a ON p.id = a.problem_id
-	            JOIN user u ON a.user_id = u.id
-	            GROUP BY p.id
-	            """;
-	    try (PreparedStatement ps = c.prepareStatement(sql)) {
-	        ps.setInt(1, optAreaId);
-	        ps.setInt(2, optSectorId);
-	        try (ResultSet rst = ps.executeQuery()) {
-	            while (rst.next()) {
-	                res.put(rst.getInt("id"), rst.getString("fa"));
-	            }
-	        }
-	    }
-	    logger.debug("getFaAidNamesOnSectors(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
-	    return res;
+		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0));
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, String> res = new HashMap<>();
+		String sql = """
+				WITH req AS (
+				    SELECT ? area_id, ? sector_id
+				)
+				SELECT p.id,
+				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) 
+				       ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa
+				FROM req
+				JOIN sector s ON (req.area_id > 0 AND s.area_id = req.area_id) OR (req.sector_id > 0 AND s.id = req.sector_id)
+				JOIN problem p ON s.id = p.sector_id
+				JOIN fa_aid_user a ON p.id = a.problem_id
+				JOIN user u ON a.user_id = u.id
+				GROUP BY p.id
+				""";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			ps.setInt(1, optAreaId);
+			ps.setInt(2, optSectorId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res.put(rst.getInt("id"), rst.getString("fa"));
+				}
+			}
+		}
+		logger.debug("getFaAidNamesOnSectors(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
+		return res;
 	}
 
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
@@ -5848,10 +5865,10 @@ public class Dao {
 		return initialList.stream().map(m -> m.withMediaSvgs(svgMap.get(m.identity().id()))).toList();
 	}
 
-	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
+	private List<Media> getMediaGuestbook(Connection c, Optional<Integer> authUserId, int guestbookId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Media> initialList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
-		int currentAuthUserId = authUserId.orElse(0); // TODO REMOVE
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       CONCAT(MAX(p.name),' (',MAX(a.name),'/',MAX(s.name),')') location, m.width, m.height, m.is_movie, m.embed_url,
@@ -5871,14 +5888,14 @@ public class Dao {
 				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.date_created, m.date_taken, c.firstname, c.lastname
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""")) {
-			ps.setInt(1, id);
+			ps.setInt(1, guestbookId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idMedia = rst.getInt("id");
 					ids.add(idMedia);
 					MediaIdentity identity = new MediaIdentity(idMedia, rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 					MediaMetadata metadata = MediaMetadata.from(rst.getString("date_created"), rst.getString("date_taken"), rst.getString("capturer"), rst.getString("tagged"), rst.getString("description"), rst.getString("location"));
-					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == currentAuthUserId, 0, false, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), false, 0, 0, 0, null));
+					initialList.add(new Media(identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), 0, false, rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie") ? 2 : 1, null, null, 0, null, metadata, rst.getString("embed_url"), false, 0, 0, 0, null));
 				}
 			}
 		}
@@ -5886,10 +5903,13 @@ public class Dao {
 			return initialList;
 		}
 		Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
-		return initialList.stream().map(m -> m.withMediaSvgs(svgMap.get(m.identity().id()))).toList();
+		var res = initialList.stream().map(m -> m.withMediaSvgs(svgMap.get(m.identity().id()))).toList();
+		logger.debug("getMediaGuestbook(guestbookId={}) - res.size={}, duration={}", guestbookId, res.size(), stopwatch);
+		return res;
 	}
 
 	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
 		List<Media> pMediaList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
@@ -5936,17 +5956,21 @@ public class Dao {
 			Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
 			for (Media m : pMediaList) {
 				List<Svg> svgs = svgsMap.get(m.identity().id());
-				if (media == null) media = new ArrayList<>();
+				if (media == null) {
+					media = new ArrayList<>();
+				}
 				media.add(m.withMediaSvgs(svgMap.get(m.identity().id())).withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0)));
 			}
 		}
 		if (media != null && media.isEmpty()) {
 			media = null;
 		}
+		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), stopwatch);
 		return media;
 	}
 
 	private List<Media> getMediaSector(Connection c, Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Media> initialList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
 		int currentAuthUserId = authUserId.orElse(0);
@@ -5980,31 +6004,33 @@ public class Dao {
 				}
 			}
 		}
-		if (initialList.isEmpty()) return initialList;
-		Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
-		Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
 		List<Media> allMedia = new ArrayList<>();
-		Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
-		for (Media m : initialList) {
-			List<Svg> svgs = svgsMap.get(m.identity().id());
-			Media fullMedia = m.withMediaSvgs(svgMap.get(m.identity().id()))
-					.withSvgs(svgs, (svgs == null || svgs.isEmpty() ? enableMoveToIdArea : 0));
-			// Update logic based on svgs
-			fullMedia = new Media(fullMedia.identity(), fullMedia.uploadedByMe(), fullMedia.pitch(), fullMedia.trivia(), fullMedia.width(), fullMedia.height(), fullMedia.idType(), fullMedia.t(), fullMedia.mediaSvgs(), fullMedia.svgProblemId(), fullMedia.svgs(), fullMedia.mediaMetadata(), fullMedia.embedUrl(), fullMedia.inherited(), fullMedia.enableMoveToIdArea(), fullMedia.enableMoveToIdSector(), (svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty() ? enableMoveToIdProblem : 0), null);
-			if (optionalIdProblem != 0 && svgs != null && svgs.stream().anyMatch(svg -> svg.problemId() == optionalIdProblem)) {
-				mediaWithRequestedTopoLine.add(fullMedia);
+		if (!initialList.isEmpty()) {
+			Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, ids);
+			Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
+			Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
+			for (Media m : initialList) {
+				List<Svg> svgs = svgsMap.get(m.identity().id());
+				Media fullMedia = m.withMediaSvgs(svgMap.get(m.identity().id()))
+						.withSvgs(svgs, (svgs == null || svgs.isEmpty() ? enableMoveToIdArea : 0));
+				// Update logic based on svgs
+				fullMedia = new Media(fullMedia.identity(), fullMedia.uploadedByMe(), fullMedia.pitch(), fullMedia.trivia(), fullMedia.width(), fullMedia.height(), fullMedia.idType(), fullMedia.t(), fullMedia.mediaSvgs(), fullMedia.svgProblemId(), fullMedia.svgs(), fullMedia.mediaMetadata(), fullMedia.embedUrl(), fullMedia.inherited(), fullMedia.enableMoveToIdArea(), fullMedia.enableMoveToIdSector(), (svgs == null || svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty() ? enableMoveToIdProblem : 0), null);
+				if (optionalIdProblem != 0 && svgs != null && svgs.stream().anyMatch(svg -> svg.problemId() == optionalIdProblem)) {
+					mediaWithRequestedTopoLine.add(fullMedia);
+				}
+				allMedia.add(fullMedia);
 			}
-			allMedia.add(fullMedia);
+			// Figure out what to actually return
+			if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
+				// Only images without topo lines or images with topo lines for this problem
+				allMedia = allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
+			}
+			else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
+				// In bouldering we don't want to show all rocks with lines if this one does not have a line
+				allMedia = allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
+			}
 		}
-		// Figure out what to actually return
-		if (!showHiddenMedia && !mediaWithRequestedTopoLine.isEmpty()) {
-			// Only images without topo lines or images with topo lines for this problem
-			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty() || mediaWithRequestedTopoLine.contains(m)).collect(Collectors.toList());
-		}
-		else if (!showHiddenMedia && s.isBouldering() && optionalIdProblem != 0) {
-			// In bouldering we don't want to show all rocks with lines if this one does not have a line
-			return allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).collect(Collectors.toList());
-		}
+		logger.debug("getMediaSector(idSector={}, optionalIdProblem={}, inherited={}, enableMoveToIdArea={}, enableMoveIdSector={}, enableMoveIdProblem={}, showHiddenMedia={}) - allMedia.size()={}, duration={}", idSector, optionalIdProblem, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, showHiddenMedia, allMedia.size(), stopwatch);
 		return allMedia;
 	}
 
@@ -6012,6 +6038,7 @@ public class Dao {
 		if (mediaIds == null || mediaIds.isEmpty()) {
 			return Collections.emptyMap();
 		}
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, List<MediaSvgElement>> res = new HashMap<>();
 		String inClause = Joiner.on(",").join(mediaIds);
 		String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + inClause + ")";
@@ -6028,6 +6055,7 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getMediaSvgElements(mediaIds.size()={}) - res.size={}, duration={}", mediaIds.size(), res.size(), stopwatch);
 		return res;
 	}
 
@@ -6090,6 +6118,7 @@ public class Dao {
 	}
 
 	private Multimap<Integer, Coordinates> getSectorOutlines(Connection c, Collection<Integer> idSectors) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idSectors.size()).substring(1);
@@ -6111,7 +6140,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}", idSectors.size(), res.size());
+		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
 		return res;
 	}
 
@@ -6283,6 +6312,7 @@ public class Dao {
 		if (mediaIds == null || mediaIds.isEmpty()) {
 			return Collections.emptyMap();
 		}
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, List<Svg>> res = new HashMap<>();
 		String inClause = Joiner.on(",").join(mediaIds);
 		String sqlStr = """
@@ -6339,7 +6369,6 @@ public class Dao {
 				    svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger
 				ORDER BY svg.media_id, p.nr
 				""".formatted(inClause);
-
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			try (ResultSet rst = ps.executeQuery()) {
@@ -6371,6 +6400,7 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getSvgs(mediaIds.size={}) - res.size={}, duration={}", mediaIds.size(), res.size(), stopwatch);
 		return res;
 	}
 
