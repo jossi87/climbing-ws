@@ -3078,7 +3078,8 @@ public class Dao {
 				)
 				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        a.hits, NULL external_url
+				        a.hits, NULL external_url,
+				        a.locked_admin, a.locked_superadmin
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3086,14 +3087,15 @@ public class Dao {
 				 LEFT JOIN ranked_area_media rm ON a.id=rm.area_id AND rm.rn=1
 				 WHERE REGEXP_LIKE(a.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
+				 GROUP BY a.id, r.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
 
 				UNION ALL
 
 				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
 				        0 media_id, 0 media_version_stamp, 0 media_focus_x, 0 media_focus_y, NULL media_primary_color_hex,
-				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url
+				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
+				        a_ext.locked_admin, a_ext.locked_superadmin
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
 				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
@@ -3102,14 +3104,15 @@ public class Dao {
 				 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
 				 WHERE ur_check.region_id IS NULL
 				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
-				 GROUP BY a_ext.id, r_ext.name, r_ext.url
+				 GROUP BY a_ext.id, r_ext.name, r_ext.url, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
 
 				UNION ALL
 
 				(SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        s.hits, NULL external_url
+				        s.hits, NULL external_url,
+				        s.locked_admin, s.locked_superadmin
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3118,14 +3121,15 @@ public class Dao {
 				 LEFT JOIN ranked_sector_media rm ON s.id=rm.sector_id AND rm.rn=1
 				 WHERE REGEXP_LIKE(s.name, req.search_regex, 'i')
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
+				 GROUP BY s.id, a.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, s.hits, s.locked_admin, s.locked_superadmin
 				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
 
 				UNION ALL
 
 				(SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
 				        rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex,
-				        p.hits, NULL external_url
+				        p.hits, NULL external_url,
+				        p.locked_admin, p.locked_superadmin
 				 FROM req
 				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
 				 JOIN area a ON r.id=a.region_id
@@ -3136,14 +3140,15 @@ public class Dao {
 				 LEFT JOIN ranked_problem_media rm ON p.id=rm.problem_id AND rm.rn=1
 				 WHERE (REGEXP_LIKE(p.name, req.search_regex, 'i') OR REGEXP_LIKE(p.rock, req.search_regex, 'i'))
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, g.grade
+				 GROUP BY p.id, a.name, s.name, rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex, g.grade, p.hits, p.locked_admin, p.locked_superadmin
 				 ORDER BY p.hits DESC, p.name LIMIT 8)
 
 				UNION ALL
 
 				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
 				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				        0 hits, NULL external_url
+				        0 hits, NULL external_url,
+				        0 locked_admin, 0 locked_superadmin
 				 FROM req
 				 JOIN user u ON REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
 				 LEFT JOIN media m ON u.media_id=m.id
@@ -3163,6 +3168,8 @@ public class Dao {
 					String breadcrumb = rst.getString("breadcrumb");
 					long hits = rst.getLong("hits");
 					String pageViews = HitsFormatter.formatHits(hits);
+					boolean lockedAdmin = rst.getBoolean("locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
@@ -3175,20 +3182,20 @@ public class Dao {
 					switch (type) {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
-						areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews));
+						areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
 
 					}
 					case "EXTERNAL" -> {
-						externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews));
+						externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
 					}
 					case "SECTOR" -> {
-						sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews));
+						sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
 					}
 					case "PROBLEM" -> {
-						problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews));
+						problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
 					}
 					case "USER" -> {
-						users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, null));
+						users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
 					}
 					default -> throw new IllegalArgumentException("Invalid type: " + type);
 					}
