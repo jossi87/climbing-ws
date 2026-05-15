@@ -3236,7 +3236,7 @@ public class Dao {
 		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
 		res.addAll(users);
 		res.addAll(filteredExternal);
-		logger.debug("getSearch(search={}) - res.size()={}, duration={})", search, res.size(), stopwatch);
+		logger.debug("getSearch(search={}) - res.size()={}, duration={}", search, res.size(), stopwatch);
 		return res;
 	}
 
