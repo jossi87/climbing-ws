@@ -5174,7 +5174,7 @@ public class Dao {
 	public void updateMediaThumbnailSeconds(Connection c, Dao dao, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
-		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=? WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
+		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=?, updated_at=NOW() WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
 			ps.setInt(1, thumbnailSeconds);
 			ps.setInt(2, idMedia);
 			int rowsUpdated = ps.executeUpdate();
