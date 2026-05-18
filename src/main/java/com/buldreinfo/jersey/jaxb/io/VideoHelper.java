@@ -14,31 +14,34 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
+import com.google.common.base.Stopwatch;
 
 public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
 
-	public static void extractThumbnailToDb(String ffmpegPath, int idMedia, Path src) throws Exception {
-        Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
-        try {
-            logger.info("Extracting thumbnail for id={}", idMedia);
-            String[] cmd = {ffmpegPath, "-y", "-nostdin", "-sseof", "-10", "-i", src.toString(), 
-                            "-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
-            runCommand(cmd);
-            if (Files.exists(tempThumb) && Files.size(tempThumb) > 0) {
-                BufferedImage b = ImageIO.read(tempThumb.toFile());
-                if (b != null) {
-                    try {
-                        Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, idMedia, b));
-                    } finally {
-                        b.flush();
-                    }
-                }
-            }
-        } finally {
-            Files.deleteIfExists(tempThumb);
-        }
-    }
+	public static void extractThumbnail(String ffmpegPath, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
+		try {
+			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
+			String[] cmd = {ffmpegPath, "-y", "-nostdin", seekFlag, String.valueOf(thumbnailSeconds), "-i", src.toString(), 
+							"-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
+			runCommand(cmd);
+			if (Files.exists(tempThumb) && Files.size(tempThumb) > 0) {
+				BufferedImage b = ImageIO.read(tempThumb.toFile());
+				if (b != null) {
+					try {
+						Server.runSql((dao, c) -> ImageHelper.saveImage(dao, c, idMedia, b));
+					} finally {
+						b.flush();
+					}
+				}
+			}
+		} finally {
+			Files.deleteIfExists(tempThumb);
+		}
+		logger.info("extractThumbnail(ffmpegPath={}, idMedia={}, src={}, thumbnailSeconds={}) - duration={}", ffmpegPath, idMedia, src, thumbnailSeconds, stopwatch);
+	}
 
 	public static void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
         logger.info("Generating MP4: {} -> {}", src, dst);
@@ -57,7 +60,7 @@ public class VideoHelper {
         runCommand(cmd);
     }
 
-    public static void processVideo(int idMedia) throws Exception {
+    public static void processVideo(int idMedia, int thumbnailSeconds) throws Exception {
 		final String ffmpegPath = "ffmpeg";
 		StorageManager storage = StorageManager.getInstance();
 		String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
@@ -86,7 +89,7 @@ public class VideoHelper {
                 }
 			}
 			if (!storage.exists(originalJpgKey)) {
-                extractThumbnailToDb(ffmpegPath, idMedia, tempOriginal);
+                extractThumbnail(ffmpegPath, idMedia, tempOriginal, thumbnailSeconds);
             }
 		} finally {
 			Files.deleteIfExists(tempOriginal);

@@ -1430,7 +1430,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-
+	
 	@Operation(summary = "Update media info", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1466,6 +1466,27 @@ public class V2 {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.rotateMedia(c, setup, authUserId, idMedia, degrees);
+			return Response.ok().build();
+		});
+	}
+
+	@Operation(summary = "Update video thumbnail position", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PUT
+	@Path("/media/video/thumbnail")
+	public Response putMediaVideoThumbnail(
+			@Context HttpServletRequest request, 
+			@QueryParam("mediaId") int mediaId, 
+			@QueryParam("thumbnailSeconds") int thumbnailSeconds) {
+		Preconditions.checkArgument(mediaId > 0, "Invalid mediaId");
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.updateMediaThumbnailSeconds(c, setup, authUserId, mediaId, thumbnailSeconds);
 			return Response.ok().build();
 		});
 	}

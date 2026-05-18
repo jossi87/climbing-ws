@@ -4444,7 +4444,7 @@ public class Dao {
 
 	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
 		String name = UUID.randomUUID().toString();
-		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l);
+		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l, 0);
 		final int pitch = 0;
 		final int idProblem = 0;
 		final int idSector = 0;
@@ -5165,6 +5165,34 @@ public class Dao {
 		}
 	}
 
+	public void updateMediaThumbnailSeconds(Connection c, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
+		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=? WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
+			ps.setInt(1, thumbnailSeconds);
+			ps.setInt(2, idMedia);
+			int rowsUpdated = ps.executeUpdate();
+			if (rowsUpdated > 0) {
+				Server.runAsync(() -> {
+					try {
+						StorageManager storage = StorageManager.getInstance();
+						String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
+						Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
+						try {
+							storage.downloadFile(originalMp4Key, tempOriginal);
+							VideoHelper.extractThumbnail("ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
+						} finally {
+							Files.deleteIfExists(tempOriginal);
+						}
+					} catch (Exception e) {
+						logger.error("Failed to regenerate thumbnail for idMedia=" + idMedia, e);
+					}
+				});
+			}
+		}
+		logger.debug("updateMediaThumbnailSeconds(authUserId={}, idMedia={}, thumbnailSeconds={}) duration={}", authUserId, idMedia, thumbnailSeconds, stopwatch);
+	}
+
 	public void updateMediaInfo(Connection c, Optional<Integer> authUserId, MediaInfo m) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
@@ -5433,13 +5461,14 @@ public class Dao {
 		 * DB
 		 */
 		if (!alreadyExistsInDb) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, storageType.isMovie());
 				ps.setString(2, storageType.getExtension());
 				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
 				ps.setInt(4, authUserId.orElseThrow());
 				ps.setString(5, GlobalFunctions.stripString(m.description()));
 				ps.setString(6, m.embedVideoUrl());
+				ps.setInt(7, m.thumbnailSeconds());
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
@@ -5513,7 +5542,7 @@ public class Dao {
 					final int id = idMedia;
 					Server.runAsync(() -> {
 						try {
-							VideoHelper.processVideo(id);
+							VideoHelper.processVideo(id, m.thumbnailSeconds());
 						} catch (Exception e) {
 							logger.error("Failed to run async video processing for id=" + id, e);
 						}

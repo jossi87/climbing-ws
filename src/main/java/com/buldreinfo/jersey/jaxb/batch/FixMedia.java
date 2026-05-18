@@ -175,7 +175,8 @@ public class FixMedia {
 				VideoHelper.generateMp4(LOCAL_FFMPEG_PATH, originalMp4, mp4);
 			}
 			if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
-				VideoHelper.extractThumbnailToDb(LOCAL_FFMPEG_PATH, id, originalMp4);
+				int thumbnailSeconds = -10;
+				VideoHelper.extractThumbnail(LOCAL_FFMPEG_PATH, id, originalMp4, thumbnailSeconds);
 			}
 		}
 		else {
