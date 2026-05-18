@@ -5180,6 +5180,7 @@ public class Dao {
 			int rowsUpdated = ps.executeUpdate();
 			if (rowsUpdated > 0) {
 				StorageManager storage = StorageManager.getInstance();
+				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
 				String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
 				Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
 				try {
@@ -5209,7 +5210,7 @@ public class Dao {
 					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
 					areaId = rst.getInt("area_id");
 					sectorId = rst.getInt("sector_id");
-					problemId = rst.getInt("mp.problem_id");
+					problemId = rst.getInt("problem_id");
 				}
 			}
 		}
