@@ -1486,7 +1486,7 @@ public class V2 {
 			@QueryParam("thumbnailSeconds") int thumbnailSeconds) {
 		Preconditions.checkArgument(mediaId > 0, "Invalid mediaId");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.updateMediaThumbnailSeconds(c, setup, authUserId, mediaId, thumbnailSeconds);
+			dao.updateMediaThumbnailSeconds(c, dao, setup, authUserId, mediaId, thumbnailSeconds);
 			return Response.ok().build();
 		});
 	}

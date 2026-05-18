@@ -176,7 +176,7 @@ public class FixMedia {
 			}
 			if (!Files.exists(originalJpg) || Files.size(originalJpg) == 0) {
 				int thumbnailSeconds = -10;
-				VideoHelper.extractThumbnail(LOCAL_FFMPEG_PATH, id, originalMp4, thumbnailSeconds);
+				Server.runSql((dao, c) -> VideoHelper.extractThumbnail(c, dao, LOCAL_FFMPEG_PATH, id, originalMp4, thumbnailSeconds));
 			}
 		}
 		else {

@@ -4365,6 +4365,12 @@ public class Dao {
 
 	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
 		Preconditions.checkArgument(mediaId > 0, "Media id required");
+		
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
+			ps.setInt(1, mediaId);
+			ps.execute();
+		}
+		
 		boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
 
 		int focusX = 0;
@@ -5165,7 +5171,7 @@ public class Dao {
 		}
 	}
 
-	public void updateMediaThumbnailSeconds(Connection c, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws SQLException {
+	public void updateMediaThumbnailSeconds(Connection c, Dao dao, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
 		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=? WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
@@ -5173,21 +5179,15 @@ public class Dao {
 			ps.setInt(2, idMedia);
 			int rowsUpdated = ps.executeUpdate();
 			if (rowsUpdated > 0) {
-				Server.runAsync(() -> {
-					try {
-						StorageManager storage = StorageManager.getInstance();
-						String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
-						Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
-						try {
-							storage.downloadFile(originalMp4Key, tempOriginal);
-							VideoHelper.extractThumbnail("ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
-						} finally {
-							Files.deleteIfExists(tempOriginal);
-						}
-					} catch (Exception e) {
-						logger.error("Failed to regenerate thumbnail for idMedia=" + idMedia, e);
-					}
-				});
+				StorageManager storage = StorageManager.getInstance();
+				String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
+				Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
+				try {
+					storage.downloadFile(originalMp4Key, tempOriginal);
+					VideoHelper.extractThumbnail(c, dao, "ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
+				} finally {
+					Files.deleteIfExists(tempOriginal);
+				}
 			}
 		}
 		logger.debug("updateMediaThumbnailSeconds(authUserId={}, idMedia={}, thumbnailSeconds={}) duration={}", authUserId, idMedia, thumbnailSeconds, stopwatch);
@@ -5542,7 +5542,7 @@ public class Dao {
 					final int id = idMedia;
 					Server.runAsync(() -> {
 						try {
-							VideoHelper.processVideo(id, m.thumbnailSeconds());
+							Server.runSql((dao, conn) -> VideoHelper.processVideo(conn, dao, id, m.thumbnailSeconds()));
 						} catch (Exception e) {
 							logger.error("Failed to run async video processing for id=" + id, e);
 						}
