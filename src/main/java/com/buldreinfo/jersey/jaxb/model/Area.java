@@ -26,6 +26,7 @@ public class Area {
 		private Slope descent;
 		private final MediaIdentity randomMedia;
 		private final List<SectorProblem> problems = new ArrayList<>();
+		private int progress = 0;
 		private List<GradeCount> gradeCounts;
 
 		public AreaSector(int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment, String accessInfo, String accessClosed, int sunFromHour, int sunToHour, Coordinates parking, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual, MediaIdentity randomMedia) {
@@ -45,7 +46,7 @@ public class Area {
 			this.wallDirectionManual = wallDirectionManual;
 			this.randomMedia = randomMedia;
 		}
-
+		
 		public String getAccessClosed() {
 			return accessClosed;
 		}
@@ -53,7 +54,7 @@ public class Area {
 		public String getAccessInfo() {
 			return accessInfo;
 		}
-		
+
 		public Slope getApproach() {
 			return approach;
 		}
@@ -65,27 +66,27 @@ public class Area {
 		public String getComment() {
 			return comment;
 		}
-
+		
 		public Slope getDescent() {
 			return descent;
 		}
-
+		
 		public List<GradeCount> getGradeCounts() {
 			return gradeCounts;
 		}
-		
+
 		public int getId() {
 			return id;
 		}
-		
+
 		public String getName() {
 			return name;
 		}
-
+		
 		public int getNumProblems() {
 			return numProblems;
 		}
-
+		
 		public List<Coordinates> getOutline() {
 			return outline;
 		}
@@ -98,14 +99,18 @@ public class Area {
 			return problems;
 		}
 
+		public int getProgress() {
+			return progress;
+		}
+
 		public MediaIdentity getRandomMedia() {
 			return randomMedia;
 		}
-		
+
 		public int getSorting() {
 			return sorting;
 		}
-
+		
 		public int getSunFromHour() {
 			return sunFromHour;
 		}
@@ -125,11 +130,11 @@ public class Area {
 		public boolean isLockedAdmin() {
 			return lockedAdmin;
 		}
-		
+
 		public boolean isLockedSuperadmin() {
 			return lockedSuperadmin;
 		}
-
+		
 		public void setApproach(Slope approach) {
 			this.approach = approach;
 		}
@@ -141,9 +146,13 @@ public class Area {
 		public void setGradeCounts(List<GradeCount> gradeCounts) {
 			this.gradeCounts = gradeCounts;
 		}
-		
+
 		public void setOutline(List<Coordinates> outline) {
 			this.outline = outline;
+		}
+		
+		public void setProgress(int progress) {
+			this.progress = progress;
 		}
 	}
 	public record GradeCount(String grade, String color, int num) {}

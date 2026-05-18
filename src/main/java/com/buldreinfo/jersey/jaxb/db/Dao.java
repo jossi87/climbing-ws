@@ -1024,6 +1024,24 @@ public class Dao {
 			for (int sectorId : sectorProblems.keySet()) {
 				sectorLookup.get(sectorId).getProblems().addAll(sectorProblems.get(sectorId));
 			}
+			// Set progress
+			if (authUserId.isPresent()) {
+				sectorLookup.values().forEach(sector -> {
+					long totalProblems = sector.getProblems().stream()
+							.filter(p -> p.broken() == null)
+							.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.fa() != null)
+							.count();
+					if (totalProblems != 0) {
+						long completedProblems = sector.getProblems().stream()
+								.filter(p -> p.broken() == null)
+								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.fa() != null)
+								.filter(SectorProblem::ticked)
+								.count();
+						int percentage = totalProblems > 0 ? (int) Math.round((double) completedProblems / totalProblems * 100) : 0;
+						sector.setProgress(percentage);
+					}
+				});
+			}
 			// Fill sector outlines
 			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
 			for (int idSector : idSectorOutline.keySet()) {
@@ -4365,12 +4383,12 @@ public class Dao {
 
 	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
 		Preconditions.checkArgument(mediaId > 0, "Media id required");
-		
+
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
 			ps.setInt(1, mediaId);
 			ps.execute();
 		}
-		
+
 		boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
 
 		int focusX = 0;
