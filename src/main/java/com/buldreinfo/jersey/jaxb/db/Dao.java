@@ -85,6 +85,7 @@ import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.Problem.Neighbour;
 import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
@@ -2045,27 +2046,7 @@ public class Dao {
 					String startingAltitude = rst.getString("starting_altitude");
 					String aspect = rst.getString("aspect");
 					String descent = rst.getString("descent");
-
-					SectorProblem neighbourPrev = null;
-					SectorProblem neighbourNext = null;
-					List<SectorProblem> problems = Lists.newArrayList(getSectorProblems(c, s, authUserId, 0, sectorId).get(sectorId));
-					if (problems.size() > 1) {
-						for (int i = 0; i < problems.size(); i++) {
-							SectorProblem prob = problems.get(i);
-							if (prob.id() == id) {
-								neighbourPrev = problems.get((i == 0? problems.size()-1 : i-1));
-								neighbourNext = problems.get((i == problems.size()-1? 0 : i+1));
-								if (neighbourPrev.id() == neighbourNext.id()) {
-									if (nr < neighbourPrev.nr()) {
-										neighbourPrev = null;
-									}
-									else {
-										neighbourNext = null;
-									}
-								}
-							}
-						}
-					}
+					var neighbours = getProblemNeighbours(c, authUserId, sectorId, id, rock);
 					var externalLinks = getExternalLinksProblem(c, reqId, false);
 					externalLinks.addAll(getExternalLinksSector(c, sectorId, true));
 					externalLinks.addAll(getExternalLinksArea(c, areaId, true));
@@ -2073,7 +2054,7 @@ public class Dao {
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
 							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
-							neighbourPrev, neighbourNext,
+							neighbours,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
 							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
@@ -2086,7 +2067,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -5189,29 +5170,6 @@ public class Dao {
 		}
 	}
 
-	public void updateMediaThumbnailSeconds(Connection c, Dao dao, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
-		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=?, updated_at=NOW() WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
-			ps.setInt(1, thumbnailSeconds);
-			ps.setInt(2, idMedia);
-			int rowsUpdated = ps.executeUpdate();
-			if (rowsUpdated > 0) {
-				StorageManager storage = StorageManager.getInstance();
-				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
-				String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
-				Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
-				try {
-					storage.downloadFile(originalMp4Key, tempOriginal);
-					VideoHelper.extractThumbnail(c, dao, "ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
-				} finally {
-					Files.deleteIfExists(tempOriginal);
-				}
-			}
-		}
-		logger.debug("updateMediaThumbnailSeconds(authUserId={}, idMedia={}, thumbnailSeconds={}) duration={}", authUserId, idMedia, thumbnailSeconds, stopwatch);
-	}
-
 	public void updateMediaInfo(Connection c, Optional<Integer> authUserId, MediaInfo m) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
@@ -5263,6 +5221,29 @@ public class Dao {
 				ps.execute();
 			}
 		}
+	}
+
+	public void updateMediaThumbnailSeconds(Connection c, Dao dao, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
+		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=?, updated_at=NOW() WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
+			ps.setInt(1, thumbnailSeconds);
+			ps.setInt(2, idMedia);
+			int rowsUpdated = ps.executeUpdate();
+			if (rowsUpdated > 0) {
+				StorageManager storage = StorageManager.getInstance();
+				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
+				String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
+				Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
+				try {
+					storage.downloadFile(originalMp4Key, tempOriginal);
+					VideoHelper.extractThumbnail(c, dao, "ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
+				} finally {
+					Files.deleteIfExists(tempOriginal);
+				}
+			}
+		}
+		logger.debug("updateMediaThumbnailSeconds(authUserId={}, idMedia={}, thumbnailSeconds={}) duration={}", authUserId, idMedia, thumbnailSeconds, stopwatch);
 	}
 
 	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
@@ -5802,7 +5783,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getExternalLinksProblem(sectorId={}, problemId={}) - res.size()={}, duration={}", problemId, inherited, res.size(), stopwatch);
+		logger.debug("getExternalLinksProblem(problemId={}, inherited={}) - res.size()={}, duration={}", problemId, inherited, res.size(), stopwatch);
 		return res;
 	}
 
@@ -6139,6 +6120,113 @@ public class Dao {
 			}
 		}
 		logger.debug("getProblemCoordinates(idProblems.size()={}) - res.size()={}", idProblems.size(), res.size());
+		return res;
+	}
+
+	private List<Neighbour> getProblemNeighbours(Connection c, Optional<Integer> authUserId, int sectorId, int problemId, String rock) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<Neighbour> res = new ArrayList<>();
+		if (rock == null) {
+			String sql = """
+					WITH req AS (
+					    SELECT ? user_id, ? sector_id, ? problem_id
+					)
+					SELECT n_id, n_nr, n_name, n_grade, n_tick, n_todo         
+					FROM (
+					    SELECT 
+					        p.id,
+					        LAG(p.id) OVER (ORDER BY p.nr) AS prev_id,
+					        LAG(p.nr) OVER (ORDER BY p.nr) AS prev_nr,
+					        LAG(p.name) OVER (ORDER BY p.nr) AS prev_name,
+					        LAG(g.grade) OVER (ORDER BY p.nr) AS prev_grade,
+					        LAG(CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS prev_tick,
+					        LAG(CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS prev_todo,
+					        LEAD(p.id) OVER (ORDER BY p.nr) AS next_id,
+					        LEAD(p.nr) OVER (ORDER BY p.nr) AS next_nr,
+					        LEAD(p.name) OVER (ORDER BY p.nr) AS next_name,
+					        LEAD(g.grade) OVER (ORDER BY p.nr) AS next_grade,
+					        LEAD(CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS next_tick,
+					        LEAD(CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS next_todo,
+					        FIRST_VALUE(p.id) OVER (ORDER BY p.nr) AS first_id,
+					        FIRST_VALUE(p.nr) OVER (ORDER BY p.nr) AS first_nr,
+					        FIRST_VALUE(p.name) OVER (ORDER BY p.nr) AS first_name,
+					        FIRST_VALUE(g.grade) OVER (ORDER BY p.nr) AS first_grade,
+					        FIRST_VALUE(CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS first_tick,
+					        FIRST_VALUE(CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr) AS first_todo,
+					        LAST_VALUE(p.id) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_id,
+					        LAST_VALUE(p.nr) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_nr,
+					        LAST_VALUE(p.name) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_name,
+					        LAST_VALUE(g.grade) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_grade,
+					        LAST_VALUE(CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_tick,
+					        LAST_VALUE(CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END) OVER (ORDER BY p.nr ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_todo
+					    FROM req
+					    JOIN sector s ON req.sector_id = s.id
+					    JOIN problem p ON s.id = p.sector_id
+					    JOIN area a ON s.area_id = a.id
+					    LEFT JOIN grade g ON p.consensus_grade_id = g.id
+					    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.user_id
+					    LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.user_id
+					    LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = req.user_id
+					    LEFT JOIN tick ON p.id = tick.problem_id AND tick.user_id = req.user_id
+					    WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					) sub         
+					JOIN req ON 1=1
+					CROSS JOIN LATERAL (
+					    SELECT COALESCE(prev_id, last_id) AS n_id, COALESCE(prev_nr, last_nr) AS n_nr, COALESCE(prev_name, last_name) AS n_name, COALESCE(prev_grade, last_grade) AS n_grade, COALESCE(prev_tick, last_tick) AS n_tick, COALESCE(prev_todo, last_todo) AS n_todo
+					    UNION ALL
+					    SELECT COALESCE(next_id, first_id), COALESCE(next_nr, first_nr), COALESCE(next_name, first_name), COALESCE(next_grade, first_grade), COALESCE(next_tick, first_tick), COALESCE(next_todo, first_todo)
+					) AS n         
+					WHERE sub.id = req.problem_id AND n_id != req.problem_id
+					""";
+
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setInt(1, authUserId.orElse(0));
+				ps.setInt(2, sectorId);
+				ps.setInt(3, problemId);
+
+				try (ResultSet rst = ps.executeQuery()) {
+					Set<Integer> seenIds = new HashSet<>();
+					while (rst.next()) {
+						int neighborId = rst.getInt("n_id");
+						if (neighborId > 0 && seenIds.add(neighborId)) {
+							res.add(new Neighbour(neighborId, rst.getInt("n_nr"), rst.getString("n_name"), rst.getString("n_grade"), rst.getBoolean("n_tick"), rst.getBoolean("n_todo")
+									));
+						}
+					}
+				}
+			}
+		}
+		else {
+			try (PreparedStatement ps = c.prepareStatement("""
+					WITH req AS (
+						SELECT ? user_id, ? sector_id, ? problem_id, ? rock
+					)
+					SELECT p.id, p.name, p.nr, g.grade, CASE WHEN f.user_id IS NOT NULL OR tick.id IS NOT NULL THEN 1 ELSE 0 END tick, CASE WHEN todo.user_id IS NOT NULL THEN 1 ELSE 0 END todo
+					FROM req
+					JOIN sector s ON req.sector_id = s.id
+					JOIN problem p ON s.id = p.sector_id
+					JOIN area a ON s.area_id = a.id
+					LEFT JOIN grade g ON p.consensus_grade_id = g.id
+					LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.user_id
+					LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.user_id
+					LEFT JOIN fa f ON p.id = f.problem_id AND f.user_id = req.user_id
+					LEFT JOIN tick ON p.id = tick.problem_id AND tick.user_id = req.user_id
+					WHERE p.rock = req.rock AND p.id != req.problem_id
+					  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					ORDER BY p.nr
+								""")) {
+				ps.setInt(1, authUserId.orElse(0));
+				ps.setInt(2, sectorId);
+				ps.setInt(3, problemId);
+				ps.setString(4, rock);
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						res.add(new Neighbour(rst.getInt("id"), rst.getInt("nr"), rst.getString("name"), rst.getString("grade"), rst.getBoolean("tick"), rst.getBoolean("todo")));
+					}
+				}
+			}
+		}
+		logger.debug("getProblemNeighbours(sectorId={}, problemId={}) - res.size={}, duration={}", sectorId, problemId, res.size(), stopwatch);
 		return res;
 	}
 

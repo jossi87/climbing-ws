@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Problem {
+	public record Neighbour(int id, int nr, String name, String grade, boolean ticked, boolean todo) {}
 	private final String redirectUrl;
 	private final int areaId;
 	private final boolean areaLockedAdmin;
@@ -28,8 +29,7 @@ public class Problem {
 	private final CompassDirection sectorWallDirectionManual;
 	private final Slope sectorApproach;
 	private final Slope sectorDescent;
-	private final SectorProblem neighbourPrev;
-	private final SectorProblem neighbourNext;
+	private final List<Neighbour> neighbours;
 	private final int id;
 	private final String broken;
 	private final boolean trash;
@@ -69,7 +69,7 @@ public class Problem {
 	public Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, boolean areaLockedSuperadmin, String areaName, String areaAccessInfo, String areaAccessClosed, boolean areaNoDogsAllowed, int areaSunFromHour, int areaSunToHour,
 			int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName, String sectorAccessInfo, String sectorAccessClosed,
 			int sectorSunFromHour, int sectorSunToHour,
-			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, SectorProblem neighbourPrev, SectorProblem neighbourNext, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, int lengthMeter, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
+			Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual, Slope sectorApproach, Slope sectorDescent, List<Neighbour> neighbours, int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa, int lengthMeter, Coordinates coordinates, List<Media> media, int numTics, double stars, boolean ticked, List<NewMedia> newMedia, Type t, boolean todo, List<ExternalLink> externalLinks, String pageViews,
 			String trivia, List<Media> triviaMedia, String startingAltitude, String aspect, String descent) {
 		this.redirectUrl = redirectUrl;
 		this.areaId = areaId;
@@ -95,8 +95,7 @@ public class Problem {
 		this.sectorWallDirectionManual = sectorWallDirectionManual;
 		this.sectorApproach = sectorApproach;
 		this.sectorDescent = sectorDescent;
-		this.neighbourPrev = neighbourPrev;
-		this.neighbourNext = neighbourNext;
+		this.neighbours = neighbours;
 		this.id = id;
 		this.broken = broken;
 		this.trash = trash;
@@ -249,12 +248,8 @@ public class Problem {
 		return name;
 	}
 	
-	public SectorProblem getNeighbourNext() {
-		return neighbourNext;
-	}
-
-	public SectorProblem getNeighbourPrev() {
-		return neighbourPrev;
+	public List<Neighbour> getNeighbours() {
+		return neighbours;
 	}
 	
 	public List<NewMedia> getNewMedia() {
