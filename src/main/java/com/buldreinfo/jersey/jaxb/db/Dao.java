@@ -3448,6 +3448,7 @@ public class Dao {
 	}
 
 	public Ticks getTicks(Connection c, Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int take = 200;
 		int skip = (page - 1) * take;
 		String sqlStr = """
@@ -3481,8 +3482,8 @@ public class Dao {
 		List<PublicAscent> ticks = new ArrayList<>();
 		int totalCount = 0;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElse(0));
 			ps.setInt(3, take);
 			ps.setInt(4, skip);
 			try (ResultSet rst = ps.executeQuery()) {
@@ -3518,6 +3519,7 @@ public class Dao {
 			}
 		}
 		int numPages = (int) Math.ceil((double) totalCount / take);
+		logger.debug("getTicks(page={}) - totalCount={}, duration={}", page, totalCount, stopwatch);
 		return new Ticks(ticks, page, numPages);
 	}
 
