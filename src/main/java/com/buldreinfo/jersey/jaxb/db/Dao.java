@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -5938,7 +5939,14 @@ public class Dao {
 
 	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Media> media = getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
+		CompletableFuture<List<Media>> sectorMediaFuture = CompletableFuture.supplyAsync(() -> {
+			try {
+				return getMediaSector(c, s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia);
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
+			}
+		});
+
 		List<Media> pMediaList = new ArrayList<>();
 		List<Integer> ids = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -5984,13 +5992,21 @@ public class Dao {
 			Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, ids);
 			for (Media m : pMediaList) {
 				List<Svg> svgs = svgsMap.get(m.identity().id());
-				if (media == null) {
-					media = new ArrayList<>();
-				}
-				media.add(m.withMediaSvgs(svgMap.get(m.identity().id())).withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0)));
+				m.withMediaSvgs(svgMap.get(m.identity().id())).withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0));
 			}
 		}
-		if (media != null && media.isEmpty()) {
+		List<Media> media = null;
+		try {
+			media = sectorMediaFuture.get();
+		} catch (Exception e) {
+			throw new SQLException("Failed to aggregate parallel sector media items", e);
+		}
+
+		if (media == null) {
+			media = new ArrayList<>();
+		}
+		media.addAll(pMediaList);
+		if (media.isEmpty()) {
 			media = null;
 		}
 		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), stopwatch);
@@ -6068,9 +6084,13 @@ public class Dao {
 		}
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, List<MediaSvgElement>> res = new HashMap<>();
-		String inClause = Joiner.on(",").join(mediaIds);
-		String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + inClause + ")";
+		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
+		String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + markers + ")";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			int idx = 1;
+			for (Integer mId : mediaIds) {
+				ps.setInt(idx++, mId);
+			}
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
@@ -6078,7 +6098,7 @@ public class Dao {
 					String path = rst.getString("path");
 					MediaSvgElement element = (path != null) 
 							? MediaSvgElement.fromPath(id, path) 
-									: MediaSvgElement.fromRappel(id, rst.getInt("rappel_x"), rst.getInt("rappel_y"), rst.getBoolean("rappel_bolted"));
+							: MediaSvgElement.fromRappel(id, rst.getInt("rappel_x"), rst.getInt("rappel_y"), rst.getBoolean("rappel_bolted"));
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(element);
 				}
 			}
@@ -6450,7 +6470,8 @@ public class Dao {
 		}
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, List<Svg>> res = new HashMap<>();
-		String inClause = Joiner.on(",").join(mediaIds);
+		
+		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id
@@ -6504,9 +6525,14 @@ public class Dao {
 				    g_sect.grade, clr_sect.hex_code, svg.id, svg.path, svg.has_anchor, 
 				    svg.texts, svg.anchors, svg.trad_belay_stations, t2.id, danger.danger
 				ORDER BY svg.media_id, p.nr
-				""".formatted(inClause);
+				""".formatted(markers);
+				
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
+			int idx = 2;
+			for (Integer mId : mediaIds) {
+				ps.setInt(idx++, mId);
+			}
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
@@ -6518,19 +6544,19 @@ public class Dao {
 							rst.getInt("problem_id"), 
 							rst.getString("problem_name"), 
 							(pitch == 0) ? rst.getString("problem_grade") : rst.getString("problem_section_grade"), 
-									(pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color"), 
-											rst.getString("problem_subtype"), 
-											rst.getInt("nr"), 
-											pitch,
-											rst.getString("path"), 
-											rst.getBoolean("has_anchor"), 
-											rst.getString("texts"), 
-											rst.getString("anchors"), 
-											rst.getString("trad_belay_stations"), 
-											rst.getBoolean("prim"), 
-											rst.getBoolean("is_ticked"), 
-											rst.getBoolean("is_todo"), 
-											rst.getBoolean("is_dangerous")
+							(pitch == 0) ? rst.getString("problem_grade_color") : rst.getString("problem_section_grade_color"), 
+							rst.getString("problem_subtype"), 
+							rst.getInt("nr"), 
+							pitch,
+							rst.getString("path"), 
+							rst.getBoolean("has_anchor"), 
+							rst.getString("texts"), 
+							rst.getString("anchors"), 
+							rst.getString("trad_belay_stations"), 
+							rst.getBoolean("prim"), 
+							rst.getBoolean("is_ticked"), 
+							rst.getBoolean("is_todo"), 
+							rst.getBoolean("is_dangerous")
 							);
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(svg);
 				}
