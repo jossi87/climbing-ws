@@ -8,7 +8,6 @@ import java.util.Optional;
 
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.model.Area;
-import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
@@ -22,7 +21,6 @@ public class WritePdf {
 					.orElseThrow();
 			var authUserId = Optional.of(1);
 			final boolean shouldUpdateHits = false;
-			var meta = Meta.from(dao, c, setup, authUserId);
 			Problem problem = dao.getProblem(c, authUserId, setup, 7745, false, shouldUpdateHits);
 			Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
 			Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
@@ -30,7 +28,7 @@ public class WritePdf {
 			Path pProblem = Path.of("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 			try (var fos = new FileOutputStream(pProblem.toFile());
 					PdfGenerator generator = new PdfGenerator(fos)) {
-				generator.writeProblem(meta, area, sector, problem);
+				generator.writeProblem(setup, area, sector, problem);
 			}
 			// Area
 			area = dao.getArea(c, setup, authUserId, 2754, shouldUpdateHits);
@@ -42,7 +40,7 @@ public class WritePdf {
 			}
 			try (var fos = new FileOutputStream(pArea.toFile());
 					PdfGenerator generator = new PdfGenerator(fos)) {
-				generator.writeArea(meta, area, gradeDistribution, sectors);
+				generator.writeArea(setup, area, gradeDistribution, sectors);
 			}
 		});
 	}

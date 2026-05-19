@@ -194,7 +194,6 @@ public class V2 {
 	public Response getAreasPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Area area = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
 			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, area.getId(), 0);
 			final List<Sector> sectors = new ArrayList<>();
@@ -207,7 +206,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) {
 					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeArea(meta, area, gradeDistribution, sectors);
+						generator.writeArea(setup, area, gradeDistribution, sectors);
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);
@@ -535,7 +534,6 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Problem problem = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
 			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
 			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
@@ -543,7 +541,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) {
 					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeProblem(meta, area, sector, problem);
+						generator.writeProblem(setup, area, sector, problem);
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);
@@ -693,7 +691,6 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Meta meta = Meta.from(dao, c, setup, authUserId);
 			final Sector sector = dao.getSector(c, authUserId, false, setup, id, shouldUpdateHits);
 			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, 0, id);
 			final Area area = dao.getArea(c, setup, authUserId, sector.getAreaId(), shouldUpdateHits);
@@ -701,7 +698,7 @@ public class V2 {
 				@Override
 				public void write(OutputStream output) {
 					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeArea(meta, area, gradeDistribution, List.of(sector));
+						generator.writeArea(setup, area, gradeDistribution, List.of(sector));
 					} catch (Exception e) {
 						logger.error(e.getMessage(), e);
 						throw new RuntimeException(e.getMessage(), e);

@@ -6,8 +6,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +41,7 @@ import org.openpdf.text.pdf.PdfTemplate;
 import org.openpdf.text.pdf.PdfWriter;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
@@ -52,7 +55,6 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
-import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
@@ -174,6 +176,7 @@ public class PdfGenerator implements AutoCloseable {
 	private final StorageManager storage;
 	private final Document document;
 	private final PdfWriter writer;
+	private final Map<String, byte[]> preRenderedPitchAssets = new HashMap<>();
 	private final Set<Integer> mediaIdProcessed = new HashSet<>();
 
 	private final PageHeaderFooter pageEvent;
@@ -202,7 +205,7 @@ public class PdfGenerator implements AutoCloseable {
 		document.close();
 	}
 
-	public void writeArea(Meta meta, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws Exception {
+	public void writeArea(Setup setup, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws Exception {
 		mediaIdProcessed.clear();
 		pageEvent.setHeaderText(area.getName());
 		document.add(new Paragraph(area.getName(), FONT_H1));
@@ -216,7 +219,7 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String areaUrl = meta.url() + "/area/" + area.getId();
+		String areaUrl = setup.url() + "/area/" + area.getId();
 		info.addCell(createKeyCell("URL"));
 		Anchor anchor = new Anchor(areaUrl, FONT_LINK);
 		anchor.setReference(areaUrl);
@@ -263,10 +266,10 @@ public class PdfGenerator implements AutoCloseable {
 			writeMediaGrid(area.getMedia(), 0, 3, 600);
 		}
 
-		writeSectors(meta, sectors);
+		writeSectors(setup, sectors);
 	}
 
-	public void writeProblem(Meta meta, Area area, Sector sector, Problem problem) throws Exception {
+	public void writeProblem(Setup setup, Area area, Sector sector, Problem problem) throws Exception {
 		mediaIdProcessed.clear();
 
 		String headerTitle = String.format("%s / %s / #%d %s [%s]", area.getName(), sector.getName(), problem.getNr(), problem.getName(), problem.getGrade());
@@ -283,7 +286,7 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String problemUrl = meta.url() + "/problem/" + problem.getId();
+		String problemUrl = setup.url() + "/problem/" + problem.getId();
 		info.addCell(createKeyCell("URL"));
 		Anchor anchor = new Anchor(problemUrl, FONT_LINK);
 		anchor.setReference(problemUrl);
@@ -365,6 +368,39 @@ public class PdfGenerator implements AutoCloseable {
 
 		if (problem.getSections() != null && !problem.getSections().isEmpty()) {
 			PdfOutline rootOutline = writer.getRootOutline();
+			List<CompletableFuture<Void>> preFlightFutures = new ArrayList<>();
+			for (ProblemSection section : problem.getSections()) {
+				for (Media m : problem.getMedia()) {
+					if (m.svgs() == null) continue;
+					List<Svg> pitchSvgs = m.svgs().stream()
+							.filter(s -> s.problemId() == problem.getId() && s.pitch() == section.nr())
+							.collect(Collectors.toList());
+					
+					if (!pitchSvgs.isEmpty()) {
+						String cacheKey = section.nr() + "_" + m.identity().id();
+						preFlightFutures.add(CompletableFuture.supplyAsync(() -> {
+							PdfMediaScaler.MediaRegion reg = null;
+							try {
+								reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
+							} catch (Exception e) {
+								logger.warn(e.getMessage(), e);
+							}
+							return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
+						}).thenAccept(bytes -> {
+							if (bytes != null) {
+								synchronized(preRenderedPitchAssets) {
+									preRenderedPitchAssets.put(cacheKey, bytes);
+								}
+							}
+						}));
+					}
+				}
+			}
+			try {
+				CompletableFuture.allOf(preFlightFutures.toArray(new CompletableFuture[0])).get();
+			} catch (Exception e) {
+				logger.error("Error during multi-pitch parallel execution pre-flight", e);
+			}
 
 			for (ProblemSection section : problem.getSections()) {
 				PdfPTable pitchWrapper = new PdfPTable(1);
@@ -399,6 +435,7 @@ public class PdfGenerator implements AutoCloseable {
 				pitchWrapper.addCell(pitchCell);
 				document.add(pitchWrapper);
 			}
+			preRenderedPitchAssets.clear();
 		}
 		writeTicksAndComments(problem);
 	}
@@ -498,28 +535,14 @@ public class PdfGenerator implements AutoCloseable {
 	        columnTables.add(colTable);
 	    }
 
-	    List<CompletableFuture<byte[]>> futures = new ArrayList<>();
-	    for (Media m : problem.getMedia()) {
-	        if (m.svgs() == null) continue;
-	        List<Svg> pitchSvgs = m.svgs().stream().filter(s -> s.problemId() == problem.getId() && s.pitch() == section.nr()).collect(Collectors.toList());
-	        if (!pitchSvgs.isEmpty()) {
-	            futures.add(CompletableFuture.supplyAsync(() -> {
-	                PdfMediaScaler.MediaRegion reg = null;
-	                try {
-	                    reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
-	                } catch (Exception e) {
-	                    logger.warn(e.getMessage(), e);
-	                }
-	                return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
-	            }));
-	        }
-	    }
-
 	    int[] colCounts = new int[cols];
 	    int imageIndex = 0;
 
-	    for (CompletableFuture<byte[]> f : futures) {
-	        byte[] data = f.get();
+	    for (Media m : problem.getMedia()) {
+	        if (m.svgs() == null) continue;
+	        String cacheKey = section.nr() + "_" + m.identity().id();
+	        byte[] data = preRenderedPitchAssets.get(cacheKey);
+	        
 	        if (data != null) {
 	            int targetCol = imageIndex % cols;
 	            addImageCell(columnTables.get(targetCol), data, "");
@@ -886,9 +909,9 @@ public class PdfGenerator implements AutoCloseable {
 	    document.add(mainTable);
 	}
 
-	private void writeSectors(Meta meta, List<Sector> sectors) throws Exception {
+	private void writeSectors(Setup setup, List<Sector> sectors) throws Exception {
 		for (Sector s : sectors) {
-			final boolean showType = meta.isClimbing();
+			final boolean showType = s.getProblems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
 			document.newPage();
 			document.add(new Paragraph(s.getName(), FONT_H2));
 			if (!Strings.isNullOrEmpty(s.getAccessInfo())) {
@@ -931,7 +954,7 @@ public class PdfGenerator implements AutoCloseable {
 				}
 
 				addTableCell(table, FONT_REG, String.valueOf(p.nr()), null, p.ticked());
-				String url = meta.url() + "/problem/" + p.id();
+				String url = setup.url() + "/problem/" + p.id();
 				addTableCell(table, FONT_REG_LINK, p.name(), url, p.ticked());
 				addTableCell(table, FONT_REG, p.grade(), null, p.ticked());
 				if (showType) {

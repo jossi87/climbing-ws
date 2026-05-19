@@ -6144,6 +6144,7 @@ public class Dao {
 
 	private Multimap<Integer, Coordinates> getRegionOutlines(Connection c, Collection<Integer> idRegions) throws SQLException {
 		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
 		String in = ",?".repeat(idRegions.size()).substring(1);
 		String sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM region_outline ro, coordinates c WHERE ro.region_id IN (" + in + ") AND ro.coordinates_id=c.id ORDER BY ro.sorting";
@@ -6164,7 +6165,7 @@ public class Dao {
 				}
 			}
 		}
-		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}", idRegions.size(), res.size());
+		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}, duration={}", idRegions.size(), res.size(), stopwatch);
 		return res;
 	}
 
