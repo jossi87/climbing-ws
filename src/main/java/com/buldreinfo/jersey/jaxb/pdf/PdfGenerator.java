@@ -38,6 +38,8 @@ import org.openpdf.text.pdf.PdfPageEventHelper;
 import org.openpdf.text.pdf.PdfTemplate;
 import org.openpdf.text.pdf.PdfWriter;
 
+import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.IconType;
@@ -169,6 +171,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private final static int IMAGE_STAR_SIZE = 7;
 	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
+	private final StorageManager storage;
 	private final Document document;
 	private final PdfWriter writer;
 	private final Set<Integer> mediaIdProcessed = new HashSet<>();
@@ -178,6 +181,7 @@ public class PdfGenerator implements AutoCloseable {
 	private BaseFont watermarkFont;
 
 	public PdfGenerator(OutputStream output) {
+		this.storage = StorageManager.getInstance();
 		this.document = new Document(PageSize.A4, 30, 30, 30, 30);
 		this.writer = PdfWriter.getInstance(document, output);
 
@@ -482,81 +486,98 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private PdfPTable createPitchGrid(Problem problem, ProblemSection section) throws Exception {
-		int cols = 3;
-		PdfPTable mainTable = new PdfPTable(cols);
-		mainTable.setWidthPercentage(100);
-		mainTable.setSpacingBefore(5f);
+	    int cols = 3;
+	    PdfPTable mainTable = new PdfPTable(cols);
+	    mainTable.setWidthPercentage(100);
+	    mainTable.setSpacingBefore(5f);
 
-		List<PdfPTable> columnTables = new ArrayList<>();
-		for (int i = 0; i < cols; i++) {
-			PdfPTable colTable = new PdfPTable(1);
-			colTable.setWidthPercentage(100);
-			columnTables.add(colTable);
-		}
+	    List<PdfPTable> columnTables = new ArrayList<>();
+	    for (int i = 0; i < cols; i++) {
+	        PdfPTable colTable = new PdfPTable(1);
+	        colTable.setWidthPercentage(100);
+	        columnTables.add(colTable);
+	    }
 
-		List<CompletableFuture<byte[]>> futures = new ArrayList<>();
-		for (Media m : problem.getMedia()) {
-			if (m.svgs() == null) continue;
-			List<Svg> pitchSvgs = m.svgs().stream().filter(s -> s.problemId() == problem.getId() && s.pitch() == section.nr()).collect(Collectors.toList());
-			if (!pitchSvgs.isEmpty()) {
-				futures.add(CompletableFuture.supplyAsync(() -> {
-					PdfMediaScaler.MediaRegion reg = null;
-					try {
-						reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
-					} catch (Exception e) {
-						logger.warn(e.getMessage(), e);
-					}
-					return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
-				}));
-			}
-		}
+	    List<CompletableFuture<byte[]>> futures = new ArrayList<>();
+	    for (Media m : problem.getMedia()) {
+	        if (m.svgs() == null) continue;
+	        List<Svg> pitchSvgs = m.svgs().stream().filter(s -> s.problemId() == problem.getId() && s.pitch() == section.nr()).collect(Collectors.toList());
+	        if (!pitchSvgs.isEmpty()) {
+	            futures.add(CompletableFuture.supplyAsync(() -> {
+	                PdfMediaScaler.MediaRegion reg = null;
+	                try {
+	                    reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
+	                } catch (Exception e) {
+	                    logger.warn(e.getMessage(), e);
+	                }
+	                return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
+	            }));
+	        }
+	    }
 
-		int[] colCounts = new int[cols];
-		int imageIndex = 0;
+	    int[] colCounts = new int[cols];
+	    int imageIndex = 0;
 
-		for (CompletableFuture<byte[]> f : futures) {
-			byte[] data = f.get();
-			if (data != null) {
-				int targetCol = imageIndex % cols;
-				addImageCell(columnTables.get(targetCol), data, "");
-				colCounts[targetCol]++;
-				imageIndex++;
-			}
-		}
+	    for (CompletableFuture<byte[]> f : futures) {
+	        byte[] data = f.get();
+	        if (data != null) {
+	            int targetCol = imageIndex % cols;
+	            addImageCell(columnTables.get(targetCol), data, "");
+	            colCounts[targetCol]++;
+	            imageIndex++;
+	        }
+	    }
 
-		if (section.media() != null) {
-			List<CompletableFuture<byte[]>> sectionFutures = new ArrayList<>();
-			List<Media> toProcess = new ArrayList<>();
-			for (Media m : section.media()) {
-				if (!mediaIdProcessed.contains(m.identity().id())) {
-					toProcess.add(m);
-					sectionFutures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), null, null, 600, 0, 0)));
-					mediaIdProcessed.add(m.identity().id());
-				}
-			}
-			for (int i = 0; i < sectionFutures.size(); i++) {
-				byte[] data = sectionFutures.get(i).get();
-				if (data != null) {
-					int targetCol = imageIndex % cols;
-					addImageCell(columnTables.get(targetCol), data, toProcess.get(i).mediaMetadata().description());
-					colCounts[targetCol]++;
-					imageIndex++;
-				}
-			}
-		}
+	    if (section.media() != null) {
+	        List<CompletableFuture<byte[]>> sectionFutures = new ArrayList<>();
+	        List<Media> toProcess = new ArrayList<>();
+	        for (Media m : section.media()) {
+	            if (!mediaIdProcessed.contains(m.identity().id())) {
+	                toProcess.add(m);
+	                
+	                boolean hasOverlays = (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty()) || (m.svgs() != null && !m.svgs().isEmpty());
+	                
+	                if (hasOverlays) {
+	                    sectionFutures.add(CompletableFuture.supplyAsync(() -> 
+	                        safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), null, 600, 0, 0)
+	                    ));
+	                } else {
+	                    sectionFutures.add(CompletableFuture.supplyAsync(() -> {
+	                        try {
+	                            String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
+	                            return storage.downloadBytes(s3Key);
+	                        } catch (Exception e) {
+	                            logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
+	                            return null;
+	                        }
+	                    }));
+	                }
+	                mediaIdProcessed.add(m.identity().id());
+	            }
+	        }
+	        for (int i = 0; i < sectionFutures.size(); i++) {
+	            byte[] data = sectionFutures.get(i).get();
+	            if (data != null) {
+	                int targetCol = imageIndex % cols;
+	                addImageCell(columnTables.get(targetCol), data, toProcess.get(i).mediaMetadata().description());
+	                colCounts[targetCol]++;
+	                imageIndex++;
+	            }
+	        }
+	    }
 
-		for (int i = 0; i < cols; i++) {
-			PdfPTable colTable = columnTables.get(i);
-			if (colCounts[i] == 0) addDummyCell(colTable);
+	    for (int i = 0; i < cols; i++) {
+	        PdfPTable colTable = columnTables.get(i);
+	        if (colCounts[i] == 0) addDummyCell(colTable);
 
-			PdfPCell colWrapper = new PdfPCell();
-			colWrapper.setBorder(Rectangle.NO_BORDER);
-			colWrapper.setPadding(0);
-			colWrapper.addElement(colTable);
-			mainTable.addCell(colWrapper);
-		}
+	        PdfPCell colWrapper = new PdfPCell();
+	        colWrapper.setBorder(Rectangle.NO_BORDER);
+	        colWrapper.setPadding(0);
+	        colWrapper.addElement(colTable);
+	        mainTable.addCell(colWrapper);
+	    }
 
-		return mainTable;
+	    return mainTable;
 	}
 
 	private PdfPCell createValueCell(String text) {
@@ -579,7 +600,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private byte[] safeGenerateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetWidth, int highlightProbId, int highlightPitch) {
 		try {
-			return TopoGenerator.generateTopo(mediaId, width, height, mediaSvgs, svgs, region, targetWidth, highlightProbId, highlightPitch);
+			return TopoGenerator.generateTopo(storage, mediaId, width, height, mediaSvgs, svgs, region, targetWidth, highlightProbId, highlightPitch);
 		} catch (Exception e) {
 			logger.error("Failed to generate topo for media " + mediaId, e);
 			return null;
@@ -783,65 +804,86 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void writeMediaGrid(List<Media> media, int probId, int cols, int targetWidth) throws Exception {
-		if (media == null || media.isEmpty()) {
-			return;
-		}
+	    if (media == null || media.isEmpty()) {
+	        return;
+	    }
 
-		PdfPTable mainTable = new PdfPTable(cols);
-		mainTable.setWidthPercentage(100);
+	    PdfPTable mainTable = new PdfPTable(cols);
+	    mainTable.setWidthPercentage(100);
 
-		List<PdfPTable> columnTables = new ArrayList<>();
-		for (int i = 0; i < cols; i++) {
-			PdfPTable colTable = new PdfPTable(1);
-			colTable.setWidthPercentage(100);
-			columnTables.add(colTable);
-		}
+	    List<PdfPTable> columnTables = new ArrayList<>();
+	    for (int i = 0; i < cols; i++) {
+	        PdfPTable colTable = new PdfPTable(1);
+	        colTable.setWidthPercentage(100);
+	        columnTables.add(colTable);
+	    }
 
-		List<CompletableFuture<byte[]>> futures = new ArrayList<>();
-		List<Media> toProcess = new ArrayList<>();
-		for (Media m : media) {
-			if (mediaIdProcessed.contains(m.identity().id())) continue;
-			toProcess.add(m);
-			List<Svg> svgs = m.svgs() != null ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) : null;
-			futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)));
-			mediaIdProcessed.add(m.identity().id());
-		}
+	    List<CompletableFuture<byte[]>> futures = new ArrayList<>();
+	    List<Media> toProcess = new ArrayList<>();
+	    
+	    for (Media m : media) {
+	        if (mediaIdProcessed.contains(m.identity().id())) continue;
+	        toProcess.add(m);
+	        
+	        List<Svg> svgs = m.svgs() != null 
+	            ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) 
+	            : null;
+	            
+	        boolean hasOverlays = (svgs != null && !svgs.isEmpty()) || (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty());
 
-		int[] colCounts = new int[cols];
-		int imageIndex = 0;
+	        if (hasOverlays) {
+	            futures.add(CompletableFuture.supplyAsync(() -> 
+	                safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)
+	            ));
+	        } else {
+	            futures.add(CompletableFuture.supplyAsync(() -> {
+	                try {
+	                    String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
+	                    return storage.downloadBytes(s3Key);
+	                } catch (Exception e) {
+	                    logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
+	                    return null;
+	                }
+	            }));
+	        }
+	        mediaIdProcessed.add(m.identity().id());
+	    }
 
-		for (int i = 0; i < futures.size(); i++) {
-			byte[] data = futures.get(i).get();
-			if (data != null) {
-				Media m = toProcess.get(i);
-				long uniqueProblems = (m.svgs() == null || probId != 0) ? 0 : m.svgs().stream().map(Svg::problemId).distinct().count();
-				if (uniqueProblems > 5) {
-					Image img = Image.getInstance(data);
-					PdfPCell cell = new PdfPCell(img, true);
-					cell.setBorder(Rectangle.NO_BORDER);
-					cell.setColspan(cols);
-					mainTable.addCell(cell);
-				} else {
-					int targetCol = imageIndex % cols;
-					addImageCell(columnTables.get(targetCol), data, m.mediaMetadata().description());
-					colCounts[targetCol]++;
-					imageIndex++;
-				}
-			}
-		}
+	    int[] colCounts = new int[cols];
+	    int imageIndex = 0;
 
-		for (int i = 0; i < cols; i++) {
-			PdfPTable colTable = columnTables.get(i);
-			if (colCounts[i] == 0) addDummyCell(colTable);
+	    for (int i = 0; i < futures.size(); i++) {
+	        byte[] data = futures.get(i).get();
+	        if (data != null) {
+	            Media m = toProcess.get(i);
+	            long uniqueProblems = (m.svgs() == null || probId != 0) ? 0 : m.svgs().stream().map(Svg::problemId).distinct().count();
+	            if (uniqueProblems > 5) {
+	                Image img = Image.getInstance(data);
+	                PdfPCell cell = new PdfPCell(img, true);
+	                cell.setBorder(Rectangle.NO_BORDER);
+	                cell.setColspan(cols);
+	                mainTable.addCell(cell);
+	            } else {
+	                int targetCol = imageIndex % cols;
+	                addImageCell(columnTables.get(targetCol), data, m.mediaMetadata().description());
+	                colCounts[targetCol]++;
+	                imageIndex++;
+	            }
+	        }
+	    }
 
-			PdfPCell colWrapper = new PdfPCell();
-			colWrapper.setBorder(Rectangle.NO_BORDER);
-			colWrapper.setPadding(0);
-			colWrapper.addElement(colTable);
-			mainTable.addCell(colWrapper);
-		}
+	    for (int i = 0; i < cols; i++) {
+	        PdfPTable colTable = columnTables.get(i);
+	        if (colCounts[i] == 0) addDummyCell(colTable);
 
-		document.add(mainTable);
+	        PdfPCell colWrapper = new PdfPCell();
+	        colWrapper.setBorder(Rectangle.NO_BORDER);
+	        colWrapper.setPadding(0);
+	        colWrapper.addElement(colTable);
+	        mainTable.addCell(colWrapper);
+	    }
+
+	    document.add(mainTable);
 	}
 
 	private void writeSectors(Meta meta, List<Sector> sectors) throws Exception {

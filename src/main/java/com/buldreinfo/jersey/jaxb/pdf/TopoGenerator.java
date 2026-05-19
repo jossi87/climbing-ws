@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +21,8 @@ import org.apache.batik.transcoder.TranscoderException;
 import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
 import org.apache.batik.transcoder.image.JPEGTranscoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -28,20 +31,32 @@ import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.Svg;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
 public class TopoGenerator {
+	private static final Logger logger = LogManager.getLogger();
 	private final static String xmlns = "http://www.w3.org/2000/svg";
 	private final static String xlinkns = "http://www.w3.org/1999/xlink";
 	private final static Pattern COORD_PATTERN = Pattern.compile("(-?\\d+\\.?\\d*)\\s*,?\\s*(-?\\d+\\.?\\d*)");
 
-	protected static byte[] generateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId, int highlightPitch) throws IOException, TranscoderException, TransformerException {
+	protected static byte[] generateTopo(StorageManager storage, int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId, int highlightPitch) throws IOException, TranscoderException, TransformerException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		int finalWidth = region != null ? region.width() : width;
 		float scale = Math.max(1.0f, (float)targetRes / finalWidth);
 		int exportWidth = (int)(finalWidth * scale);
 		int exportHeight = (int)((region != null ? region.height() : height) * scale);
-		try (Reader reader = new StringReader(generateDocument(mediaId, width, height, mediaSvgs, svgs, region, highlightProbId, highlightPitch))) {
+		
+		String s3Key = (region != null) 
+				? S3KeyGenerator.getWebJpgRegion(mediaId, region.x(), region.y(), region.width(), region.height())
+				: S3KeyGenerator.getWebJpg(mediaId);
+		
+		byte[] rawImageBytes = storage.downloadBytes(s3Key);
+		String base64Image = Base64.getEncoder().encodeToString(rawImageBytes);
+		String dataUri = "data:image/jpeg;base64," + base64Image;
+
+		try (Reader reader = new StringReader(generateDocument(width, height, mediaSvgs, svgs, region, highlightProbId, highlightPitch, dataUri))) {
 			TranscoderInput ti = new TranscoderInput(reader);
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				TranscoderOutput to = new TranscoderOutput(baos);
@@ -49,14 +64,15 @@ public class TopoGenerator {
 				t.addTranscodingHint(JPEGTranscoder.KEY_QUALITY, 0.85f);
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_WIDTH, (float)exportWidth);
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, (float)exportHeight);
-				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, true);
+				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, false);
 				t.transcode(ti, to);
+				logger.debug("generateTopo(mediaId={}, width={}, height={}, mediaSvgs.size()={}, svgs.size()={}, region={}, targetRes={}, highlightProbId={}, highlightPitch={}) - duration={}", mediaId, width, height, mediaSvgs == null ? 0 : mediaSvgs.size(), svgs == null ? 0 : svgs.size(), region, targetRes, highlightProbId, highlightPitch, stopwatch);
 				return baos.toByteArray();
 			}
 		}
 	}
 
-	private static String generateDocument(int mediaId, int origWidth, int origHeight, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int highlightProbId, int highlightPitch) throws TransformerException {
+	private static String generateDocument(int origWidth, int origHeight, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int highlightProbId, int highlightPitch, String dataUri) throws TransformerException {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		Document doc = impl.createDocument(xmlns, "svg", null);
 		Element svgRoot = doc.getDocumentElement();
@@ -65,18 +81,14 @@ public class TopoGenerator {
 		svgRoot.setAttributeNS(null, "viewBox", "0 0 " + viewW + " " + viewH);
 
 		Element image = doc.createElementNS(xmlns, "image");
-		String url = (region != null) 
-				? StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpgRegion(mediaId, region.x(), region.y(), region.width(), region.height()))
-						: StorageManager.getDirectStorageUrl(S3KeyGenerator.getWebJpg(mediaId));
-		image.setAttributeNS(xlinkns, "xlink:href", url);
-		image.setAttributeNS(null, "href", url);
+		image.setAttributeNS(xlinkns, "xlink:href", dataUri);
+		image.setAttributeNS(null, "href", dataUri);
 		image.setAttributeNS(null, "width", "100%");
 		image.setAttributeNS(null, "height", "100%");
 		svgRoot.appendChild(image);
 
 		final double scale = Math.max(viewW / 1920.0, viewH / 1440.0);
 
-		// 1. Media SVGs (Descents)
 		if (mediaSvgs != null) {
 			for (MediaSvgElement mSvg : mediaSvgs) {
 				if (mSvg.path() != null) {
@@ -85,13 +97,12 @@ public class TopoGenerator {
 			}
 		}
 
-		// 2. Routes
 		if (svgs != null) {
 			List<Element> textElements = Lists.newArrayList();
 			for (Svg svg : svgs.stream()
 					.sorted((a, b) -> ComparisonChain.start()
-							.compareFalseFirst(a.problemId() == highlightProbId, b.problemId() == highlightProbId) // Draw highlighted route last
-							.compareFalseFirst(a.pitch() == highlightPitch, b.pitch() == highlightPitch) // Draw highlighted pitch last
+							.compareFalseFirst(a.problemId() == highlightProbId, b.problemId() == highlightProbId)
+							.compareFalseFirst(a.pitch() == highlightPitch, b.pitch() == highlightPitch)
 							.compare(a.nr(), b.nr())
 							.compare(a.pitch(), b.pitch())
 							.result())
@@ -114,7 +125,6 @@ public class TopoGenerator {
 					}
 				}
 
-				// Highlight logic: must match problem AND pitch (if pitch specified)
 				boolean isTargetProblem = (highlightProbId <= 0) || (svg.problemId() == highlightProbId);
 				boolean isTargetPitch = (highlightPitch <= 0) || (svg.pitch() == highlightPitch);
 				boolean isHighlight = isTargetProblem && isTargetPitch;
@@ -143,13 +153,11 @@ public class TopoGenerator {
 	private static void addReactHaloPath(Document doc, double scale, Element parent, String d, String color, boolean isHighlight, String dash) {
 		double opacity = isHighlight ? 1.0 : 0.5;
 
-		// Layer 1: Solid wide white glow
 		Element pHalo = doc.createElementNS(xmlns, "path");
 		pHalo.setAttributeNS(null, "d", d);
 		pHalo.setAttributeNS(null, "style", "fill:none; stroke:white; stroke-opacity:" + (0.4 * opacity) + "; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (8 * scale));
 		parent.appendChild(pHalo);
 
-		// Layer 2: Black dashed line
 		Element pBorder = doc.createElementNS(xmlns, "path");
 		pBorder.setAttributeNS(null, "d", d);
 		String borderStyle = "fill:none; stroke:black; stroke-opacity:" + opacity + "; stroke-linecap:round; stroke-linejoin:round; stroke-width:" + (5 * scale);
@@ -157,10 +165,9 @@ public class TopoGenerator {
 		pBorder.setAttributeNS(null, "style", borderStyle);
 		parent.appendChild(pBorder);
 
-		// Layer 3: Colored core
 		Element pCore = doc.createElementNS(xmlns, "path");
 		pCore.setAttributeNS(null, "d", d);
-		double coreWidth = 2.5 * scale * (isHighlight ? 1.4 : 0.9); // Highlighted is much thicker
+		double coreWidth = 2.5 * scale * (isHighlight ? 1.4 : 0.9);
 		String coreStyle = "fill:none; stroke-linecap:round; stroke-linejoin:round; stroke:" + color + "; stroke-opacity:" + opacity + "; stroke-width:" + coreWidth;
 		if (dash != null) coreStyle += "; stroke-dasharray:" + dash;
 		pCore.setAttributeNS(null, "style", coreStyle);
