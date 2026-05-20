@@ -1206,7 +1206,7 @@ public class Dao {
 				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
 				),
 				x AS (
-				  SELECT g.label_major g_base, r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, COUNT(p.id) num
+				  SELECT g.label_major g_base, r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, COUNT(DISTINCT p.id) num
 				  FROM req
 				  JOIN region r ON 1=1
 				  JOIN region_type rt ON r.id = rt.region_id
