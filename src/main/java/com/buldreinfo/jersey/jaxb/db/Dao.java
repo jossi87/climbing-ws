@@ -78,7 +78,6 @@ import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
-import com.buldreinfo.jersey.jaxb.model.Media.VideoChapter;
 import com.buldreinfo.jersey.jaxb.model.MediaIdentity;
 import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.MediaMetadata;
@@ -127,6 +126,7 @@ import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
+import com.buldreinfo.jersey.jaxb.model.VideoChapter;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.cloud.vision.v1.NormalizedVertex;
@@ -6113,6 +6113,35 @@ public class Dao {
 	    return allMedia;
 	}
 
+	private Map<Integer, List<MediaSvgElement>> getMediaSvgElements(Connection c, Collection<Integer> mediaIds) throws SQLException {
+		if (mediaIds == null || mediaIds.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, List<MediaSvgElement>> res = new HashMap<>();
+		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
+		String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + markers + ")";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			int idx = 1;
+			for (Integer mId : mediaIds) {
+				ps.setInt(idx++, mId);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int mediaId = rst.getInt("media_id");
+					int id = rst.getInt("id");
+					String path = rst.getString("path");
+					MediaSvgElement element = (path != null) 
+							? MediaSvgElement.fromPath(id, path) 
+									: MediaSvgElement.fromRappel(id, rst.getInt("rappel_x"), rst.getInt("rappel_y"), rst.getBoolean("rappel_bolted"));
+					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(element);
+				}
+			}
+		}
+		logger.debug("getMediaSvgElements(mediaIds.size()={}) - res.size={}, duration={}", mediaIds.size(), res.size(), stopwatch);
+		return res;
+	}
+
 	private Map<Integer, List<VideoChapter>> getMediaVideoChapters(Connection c, Optional<Integer> authUserId, Collection<Integer> mediaIds) throws SQLException {
 		if (mediaIds == null || mediaIds.isEmpty()) {
 			return Collections.emptyMap();
@@ -6147,35 +6176,6 @@ public class Dao {
 			}
 		}
 		logger.debug("getMediaVideoChapters(mediaIds.size()={}) - res.size={}, duration={}", mediaIds.size(), res.size(), stopwatch);
-		return res;
-	}
-
-	private Map<Integer, List<MediaSvgElement>> getMediaSvgElements(Connection c, Collection<Integer> mediaIds) throws SQLException {
-		if (mediaIds == null || mediaIds.isEmpty()) {
-			return Collections.emptyMap();
-		}
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, List<MediaSvgElement>> res = new HashMap<>();
-		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
-		String sql = "SELECT ms.media_id, ms.id, ms.path, ms.rappel_x, ms.rappel_y, ms.rappel_bolted FROM media_svg ms WHERE ms.media_id IN (" + markers + ")";
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
-			int idx = 1;
-			for (Integer mId : mediaIds) {
-				ps.setInt(idx++, mId);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int mediaId = rst.getInt("media_id");
-					int id = rst.getInt("id");
-					String path = rst.getString("path");
-					MediaSvgElement element = (path != null) 
-							? MediaSvgElement.fromPath(id, path) 
-									: MediaSvgElement.fromRappel(id, rst.getInt("rappel_x"), rst.getInt("rappel_y"), rst.getBoolean("rappel_bolted"));
-					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(element);
-				}
-			}
-		}
-		logger.debug("getMediaSvgElements(mediaIds.size()={}) - res.size={}, duration={}", mediaIds.size(), res.size(), stopwatch);
 		return res;
 	}
 

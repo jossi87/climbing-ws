@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.model.Area;
+import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Profile;
@@ -36,8 +37,8 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 
 public class V2Test {
-	private static Logger logger = LogManager.getLogger();
 	private enum Region { buldreinfo, brattelinjer }
+	private static Logger logger = LogManager.getLogger();
 	private static final int USER_ID_SUPERADMIN = 1;
 	private static final int USER_ID_NORMAL = 1049;
 	private static final int BULDREINFO_AREA_ID_VISIBLE = 7;
@@ -46,6 +47,7 @@ public class V2Test {
 	private static final int BULDREINFO_HIDDEN_AREA_ID = 3267;
 	private static final int BULDREINFO_HIDDEN_SECTOR_ID = 2185;
 	private static final int BULDREINFO_HIDDEN_PROBLEM_ID = 2597;
+	private static final int BULDREINFO_MEDIA_ID_WITH_CHAPTERS = 19422;
 	private static final int BRATTELINJER_PROBLEM_ID_PDF = 7745;
 	private static final int BRATTELINJER_DIFFERENT_REGION_AREA_ID = 2887;
 	private static final int BRATTELINJER_DIFFERENT_REGION_SECTOR_ID = 3251;
@@ -153,6 +155,17 @@ public class V2Test {
 		V2 tester = new V2();
 		try (Response r = tester.getFrontpage(getRequest(Region.brattelinjer))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+		}
+	}
+	
+	@Test
+	public void testGetMedia() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getMedia(getRequest(Region.buldreinfo), BULDREINFO_MEDIA_ID_WITH_CHAPTERS)) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof Media);
+			Media m = (Media)r.getEntity();
+			assertTrue(!m.chapters().isEmpty());
 		}
 	}
 
