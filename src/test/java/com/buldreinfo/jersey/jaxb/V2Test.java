@@ -165,7 +165,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Media);
 			Media m = (Media)r.getEntity();
-			assertTrue(!m.chapters().isEmpty());
+			assertTrue(!m.problems().isEmpty());
 		}
 	}
 

@@ -37,7 +37,6 @@ import com.buldreinfo.jersey.jaxb.model.Frontpage;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Media;
-import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -147,7 +146,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get administrators", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Administrator.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
@@ -281,16 +280,16 @@ public class V2 {
 	@Path("/frontpage")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpage(@Context HttpServletRequest request) {
-	    return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
-	    	var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageStats(c, authUserId, setup));
-	    	var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRandomMedia(c, setup));
-	        var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
-	        var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestAscents(c, authUserId, setup));
-	        var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestMedia(c, authUserId, setup));
-	        var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageLastComments(c, authUserId, setup));
-	        Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
-	        return Response.ok().entity(res).build();
-	    });
+		return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
+			var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageStats(c, authUserId, setup));
+			var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRandomMedia(c, setup));
+			var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
+			var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestAscents(c, authUserId, setup));
+			var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestMedia(c, authUserId, setup));
+			var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageLastComments(c, authUserId, setup));
+			Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
+			return Response.ok().entity(res).build();
+		});
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {
@@ -591,10 +590,10 @@ public class V2 {
 				dao1.ensureUserExists(c1, reqUserId);
 			}
 			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, setup, reqUserId));
-	    	var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
-	        var gradeDistribution = Server.submitDaoTask((dao, c) -> dao.getProfileGradeDistribution(c, setup, reqUserId));
-	        Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get());
-	        return Response.ok().entity(res).build();
+			var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
+			var gradeDistribution = Server.submitDaoTask((dao, c) -> dao.getProfileGradeDistribution(c, setup, reqUserId));
+			Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get());
+			return Response.ok().entity(res).build();
 		});
 	}
 
@@ -615,31 +614,31 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get profile media by id", responses = {
-	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
-	        @ApiResponse(responseCode = "404", description = "User not found"),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
+			@ApiResponse(responseCode = "404", description = "User not found"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("/profile/media")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfileMedia(@Context HttpServletRequest request,
-	        @Parameter(description = "User id", required = true) @QueryParam("id") int id,
-	        @Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
-	        ) {
-	    return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-	        dao.ensureUserExists(c, id);
-	        List<Media> res = new ArrayList<>(dao.getProfileMediaProblem(c, authUserId, id, captured));
-	        if (captured) {
-	            res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
-	            res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
-	            res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
-	        }
-	        return Response.ok().entity(res).build();
-	    });
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
+			dao.ensureUserExists(c, id);
+			List<Media> res = new ArrayList<>(dao.getProfileMediaProblem(c, authUserId, id, captured));
+			if (captured) {
+				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
+				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
+				res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
+			}
+			return Response.ok().entity(res).build();
+		});
 	}
 
 	@Operation(summary = "Get profile todo", responses = {
@@ -906,7 +905,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Search for problem", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1446,8 +1445,8 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
-	@Operation(summary = "Update media info", responses = {
+
+	@Operation(summary = "Update media", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1456,13 +1455,10 @@ public class V2 {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
-	@Path("/media/info")
-	public Response putMediaInfo(@Context HttpServletRequest request, MediaInfo m) {
-		Preconditions.checkArgument(m.mediaId() > 0, "Invalid mediaId");
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.updateMediaInfo(c, authUserId, m);
-			return Response.ok().build();
-		});
+	@Path("/media")
+	public Response putMediaInfo(@Context HttpServletRequest request, Media m) {
+		Preconditions.checkArgument(m.identity().id() > 0, "Invalid mediaId");
+		throw new UnsupportedOperationException("Not implemented yet"); // TODO
 	}
 
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {

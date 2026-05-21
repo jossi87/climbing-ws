@@ -79,7 +79,7 @@ import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.MediaIdentity;
-import com.buldreinfo.jersey.jaxb.model.MediaInfo;
+import com.buldreinfo.jersey.jaxb.model.MediaProblem;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
 import com.buldreinfo.jersey.jaxb.model.NewMedia;
@@ -126,7 +126,6 @@ import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.UserRegion;
-import com.buldreinfo.jersey.jaxb.model.VideoChapter;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.cloud.vision.v1.NormalizedVertex;
@@ -2805,7 +2804,7 @@ public class Dao {
 	    List<Integer> allIds = initialList.stream().map(m -> m.identity().id()).toList();
 	    List<Integer> movieIds = initialList.stream().filter(Media::isMovie).map(m -> m.identity().id()).toList();
 	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
-	    Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	    Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 	    List<Media> res = initialList.stream()
 	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of()))
 	                       .withVideoChapters(chapterMap.getOrDefault(m.identity().id(), List.of())))
@@ -2875,7 +2874,7 @@ public class Dao {
 	    List<Integer> allIds = initialList.stream().map(m -> m.identity().id()).toList();
 	    List<Integer> movieIds = initialList.stream().filter(Media::isMovie).map(m -> m.identity().id()).toList();
 	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
-	    Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	    Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 	    List<Media> res = initialList.stream()
 	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of()))
 	                       .withVideoChapters(chapterMap.getOrDefault(m.identity().id(), List.of())))
@@ -2979,7 +2978,7 @@ public class Dao {
 	    List<Integer> allIds = initialList.stream().map(m -> m.identity().id()).toList();
 	    List<Integer> movieIds = initialList.stream().filter(Media::isMovie).map(m -> m.identity().id()).toList();
 	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
-	    Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	    Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 	    List<Media> res = initialList.stream()
 	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of()))
 	                       .withVideoChapters(chapterMap.getOrDefault(m.identity().id(), List.of())))
@@ -5243,59 +5242,6 @@ public class Dao {
 		}
 	}
 
-	public void updateMediaInfo(Connection c, Optional<Integer> authUserId, MediaInfo m) throws SQLException {
-		boolean ok = false;
-		int areaId = 0;
-		int sectorId = 0;
-		int problemId = 0;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id FROM ((((((area a INNER JOIN sector s ON a.id=s.area_id) INNER JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)) LEFT JOIN media_area ma ON (a.id=ma.area_id AND ma.media_id=?) LEFT JOIN media_sector ms ON (s.id=ms.sector_id AND ms.media_id=?)) LEFT JOIN problem p ON s.id=p.sector_id) LEFT JOIN media_problem mp ON (p.id=mp.problem_id AND mp.media_id=?) LEFT JOIN guestbook g ON (p.id=g.problem_id)) LEFT JOIN media_guestbook mg ON (g.id=mg.guestbook_id AND mg.media_id=?)) WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mg.media_id IS NOT NULL GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id")) {
-			ps.setInt(1, authUserId.orElseThrow());
-			ps.setInt(2, m.mediaId());
-			ps.setInt(3, m.mediaId());
-			ps.setInt(4, m.mediaId());
-			ps.setInt(5, m.mediaId());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-					areaId = rst.getInt("area_id");
-					sectorId = rst.getInt("sector_id");
-					problemId = rst.getInt("problem_id");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET description=? WHERE id=?")) {
-			ps.setString(1, Strings.emptyToNull(m.description()));
-			ps.setInt(2, m.mediaId());
-			ps.execute();
-		}
-		if (areaId > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media_area SET trivia=? WHERE media_id=? AND area_id=?")) {
-				ps.setBoolean(1, m.trivia());
-				ps.setInt(2, m.mediaId());
-				ps.setInt(3, areaId);
-				ps.execute();
-			}
-		}
-		else if (sectorId > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media_sector SET trivia=? WHERE media_id=? AND sector_id=?")) {
-				ps.setBoolean(1, m.trivia());
-				ps.setInt(2, m.mediaId());
-				ps.setInt(3, sectorId);
-				ps.execute();
-			}
-		}
-		else if (problemId > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media_problem SET pitch=?, trivia=? WHERE media_id=? AND problem_id=?")) {
-				ps.setInt(1, m.pitch());
-				ps.setBoolean(2, m.trivia());
-				ps.setInt(3, m.mediaId());
-				ps.setInt(4, problemId);
-				ps.execute();
-			}
-		}
-	}
-
 	public void updateMediaThumbnailSeconds(Connection c, Dao dao, Setup setup, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		ensureAdminOrMediaUpdatedByMe(c, setup, authUserId, idMedia);
@@ -5981,7 +5927,7 @@ public class Dao {
 	    List<Integer> movieIds = initialList.stream().filter(Media::isMovie).map(m -> m.identity().id()).toList();
 
 	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
-	    Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	    Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 
 	    return initialList.stream()
 	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of()))
@@ -6042,7 +5988,7 @@ public class Dao {
 	    List<Integer> movieIds = initialList.stream().filter(Media::isMovie).map(m -> m.identity().id()).toList();
 
 	    Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
-	    Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	    Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 
 	    List<Media> res = initialList.stream()
 	            .map(m -> m.withMediaSvgs(svgMap.getOrDefault(m.identity().id(), List.of()))
@@ -6123,7 +6069,7 @@ public class Dao {
 
 	        Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
 	        Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, allIds);
-	        Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	        Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 
 	        for (int i = 0; i < pMediaList.size(); i++) {
 	            Media m = pMediaList.get(i);
@@ -6205,7 +6151,7 @@ public class Dao {
 
 	        Map<Integer, List<MediaSvgElement>> svgMap = getMediaSvgElements(c, allIds);
 	        Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, allIds);
-	        Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
+	        Map<Integer, List<MediaProblem>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 	        
 	        Set<Media> mediaWithRequestedTopoLine = new HashSet<>();
 	        for (Media m : initialList) {
@@ -6214,7 +6160,7 @@ public class Dao {
 	                    .withVideoChapters(chapterMap.getOrDefault(m.identity().id(), List.of()))
 	                    .withSvgs(svgs, (svgs.isEmpty() ? enableMoveToIdArea : 0));
 	            
-	            fullMedia = new Media(fullMedia.identity(), fullMedia.uploadedByMe(), fullMedia.pitch(), fullMedia.trivia(), fullMedia.width(), fullMedia.height(), fullMedia.isMovie(), fullMedia.dateCreated(), fullMedia.dateTaken(), fullMedia.photographer(), fullMedia.tagged(), fullMedia.description(), fullMedia.location(), fullMedia.mediaSvgs(), fullMedia.svgProblemId(), fullMedia.svgs(), fullMedia.embedUrl(), fullMedia.thumbnailSeconds(), fullMedia.inherited(), fullMedia.enableMoveToIdArea(), fullMedia.enableMoveToIdSector(), (svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty() ? enableMoveToIdProblem : 0), null, fullMedia.chapters());
+	            fullMedia = new Media(fullMedia.identity(), fullMedia.uploadedByMe(), fullMedia.pitch(), fullMedia.trivia(), fullMedia.width(), fullMedia.height(), fullMedia.isMovie(), fullMedia.dateCreated(), fullMedia.dateTaken(), fullMedia.photographer(), fullMedia.tagged(), fullMedia.description(), fullMedia.location(), fullMedia.mediaSvgs(), fullMedia.svgProblemId(), fullMedia.svgs(), fullMedia.embedUrl(), fullMedia.thumbnailSeconds(), fullMedia.inherited(), fullMedia.enableMoveToIdArea(), fullMedia.enableMoveToIdSector(), (svgs.stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty() ? enableMoveToIdProblem : 0), null, fullMedia.problems());
 	            if (optionalIdProblem != 0 && svgs.stream().anyMatch(svg -> svg.problemId() == optionalIdProblem)) {
 	                mediaWithRequestedTopoLine.add(fullMedia);
 	            }
@@ -6260,12 +6206,12 @@ public class Dao {
 		return res;
 	}
 
-	private Map<Integer, List<VideoChapter>> getMediaVideoChapters(Connection c, Optional<Integer> authUserId, Collection<Integer> mediaIds) throws SQLException {
+	private Map<Integer, List<MediaProblem>> getMediaVideoChapters(Connection c, Optional<Integer> authUserId, Collection<Integer> mediaIds) throws SQLException {
 		if (mediaIds == null || mediaIds.isEmpty()) {
 			return Collections.emptyMap();
 		}
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, List<VideoChapter>> res = new HashMap<>();
+		Map<Integer, List<MediaProblem>> res = new HashMap<>();
 		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sql = """
 				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.pitch problem_pitch, mp.milliseconds, a.name area_name, s.name sector_name
@@ -6288,7 +6234,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
-					VideoChapter chapter = new VideoChapter(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getInt("problem_pitch"), rst.getLong("milliseconds"),
+					MediaProblem chapter = new MediaProblem(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getInt("problem_pitch"), rst.getLong("milliseconds"),
 							rst.getString("area_name"), rst.getString("sector_name"));
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(chapter);
 				}

@@ -8,14 +8,14 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int pitch, boo
 		String embedUrl, int thumbnailSeconds,
 		boolean inherited,
 		int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem,
-		String url, List<VideoChapter> chapters) {
+		String url, List<MediaProblem> problems) {
 	public Media withMediaSvgs(List<MediaSvgElement> mediaSvgs) {
-        return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, chapters);
+        return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, problems);
     }
 	public Media withSvgs(List<Svg> svgs, int enableMoveToIdArea) {
-		return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, chapters);
+		return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, problems);
 	}
-	public Media withVideoChapters(List<VideoChapter> chapters) {
-		return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, chapters);
+	public Media withVideoChapters(List<MediaProblem> problems) {
+		return new Media(identity, uploadedByMe, pitch, trivia, width, height, isMovie, dateCreated, dateTaken, photographer, tagged, description, location, mediaSvgs, svgProblemId, svgs, embedUrl, thumbnailSeconds, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, url, problems);
 	}
 }
