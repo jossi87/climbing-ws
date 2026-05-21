@@ -6263,7 +6263,7 @@ public class Dao {
 		Map<Integer, List<VideoChapter>> res = new HashMap<>();
 		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sql = """
-				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, a.name area_name, s.name sector_name, mp.milliseconds
+				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.milliseconds, a.name area_name, s.name sector_name
 				FROM media_problem mp
 				JOIN problem p ON mp.problem_id=p.id
 				JOIN sector s ON p.sector_id=s.id
