@@ -582,7 +582,7 @@ public class PdfGenerator implements AutoCloseable {
 	            byte[] data = sectionFutures.get(i).get();
 	            if (data != null) {
 	                int targetCol = imageIndex % cols;
-	                addImageCell(columnTables.get(targetCol), data, toProcess.get(i).mediaMetadata().description());
+	                addImageCell(columnTables.get(targetCol), data, toProcess.get(i).description());
 	                colCounts[targetCol]++;
 	                imageIndex++;
 	            }
@@ -888,7 +888,7 @@ public class PdfGenerator implements AutoCloseable {
 	                mainTable.addCell(cell);
 	            } else {
 	                int targetCol = imageIndex % cols;
-	                addImageCell(columnTables.get(targetCol), data, m.mediaMetadata().description());
+	                addImageCell(columnTables.get(targetCol), data, m.description());
 	                colCounts[targetCol]++;
 	                imageIndex++;
 	            }
