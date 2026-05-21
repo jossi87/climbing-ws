@@ -6263,7 +6263,7 @@ public class Dao {
 		Map<Integer, List<VideoChapter>> res = new HashMap<>();
 		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sql = """
-				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.milliseconds
+				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, a.name area_name, s.name sector_name, mp.milliseconds
 				FROM media_problem mp
 				JOIN problem p ON mp.problem_id=p.id
 				JOIN sector s ON p.sector_id=s.id
@@ -6283,7 +6283,8 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
-					VideoChapter chapter = new VideoChapter(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getLong("milliseconds"));
+					VideoChapter chapter = new VideoChapter(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getLong("milliseconds"),
+							rst.getString("area_name"), rst.getString("sector_name"));
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(chapter);
 				}
 			}
