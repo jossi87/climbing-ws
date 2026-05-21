@@ -2298,7 +2298,7 @@ public class Dao {
 	            WITH req AS (
 	                SELECT ? AS auth_user_id, ? AS region_id, ? AS search_regex
 	            )
-	            SELECT p.id, a.name AS area_name, s.name AS sector_name, p.name AS problem_name, g.grade
+	            SELECT p.id, a.name AS area_name, s.name AS sector_name, p.name AS problem_name, g.grade, COUNT(DISTINCT ps.id) AS num_pitches
 	            FROM req
 	            CROSS JOIN area a
 	            INNER JOIN region r ON a.region_id = r.id
@@ -2307,6 +2307,7 @@ public class Dao {
 	            JOIN problem p ON (s.id = p.sector_id AND rt.type_id = p.type_id)
 	            JOIN grade g ON p.consensus_grade_id = g.id
 	            LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+                LEFT JOIN problem_section ps ON p.id=ps.problem_id
 	            WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
 	              AND REGEXP_LIKE(p.name, req.search_regex, 'i')
 	              AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
@@ -2323,7 +2324,11 @@ public class Dao {
 	            ps.setString(3, searchRegexPattern);
 	        try (ResultSet rst = ps.executeQuery()) {
 	            while (rst.next()) {
-	                res.add(new ProblemSearchResult(rst.getInt("id"), rst.getString("area_name"), rst.getString("sector_name"), rst.getString("problem_name"), rst.getString("grade")));
+	            	int numPitches = rst.getInt("num_pitches");
+	            	if (numPitches == 0) {
+	            		numPitches = 1;
+	            	}
+	                res.add(new ProblemSearchResult(rst.getInt("id"), rst.getString("area_name"), rst.getString("sector_name"), rst.getString("problem_name"), rst.getString("grade"), numPitches));
 	            }
 	        }
 	    }
@@ -6263,7 +6268,7 @@ public class Dao {
 		Map<Integer, List<VideoChapter>> res = new HashMap<>();
 		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sql = """
-				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.milliseconds, a.name area_name, s.name sector_name
+				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.pitch problem_pitch, mp.milliseconds, a.name area_name, s.name sector_name
 				FROM media_problem mp
 				JOIN problem p ON mp.problem_id=p.id
 				JOIN sector s ON p.sector_id=s.id
@@ -6283,7 +6288,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
-					VideoChapter chapter = new VideoChapter(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getLong("milliseconds"),
+					VideoChapter chapter = new VideoChapter(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getInt("problem_pitch"), rst.getLong("milliseconds"),
 							rst.getString("area_name"), rst.getString("sector_name"));
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(chapter);
 				}
