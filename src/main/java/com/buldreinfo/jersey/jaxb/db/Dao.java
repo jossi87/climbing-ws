@@ -6002,10 +6002,10 @@ public class Dao {
 	                if (embedUrl != null) {
 	                    if (seconds > 0) {
 	                        if (embedUrl.contains("youtu")) {
-	                        	embedUrl += "?start=" + seconds;
+	                            embedUrl += "?start=" + seconds;
 	                        }
 	                        else {
-	                        	embedUrl += "#t=" + seconds + "s";
+	                            embedUrl += "#t=" + seconds + "s";
 	                        }
 	                    }
 	                }
@@ -6023,11 +6023,13 @@ public class Dao {
 	        Map<Integer, List<Svg>> svgsMap = getSvgs(c, authUserId, allIds);
 	        Map<Integer, List<VideoChapter>> chapterMap = getMediaVideoChapters(c, authUserId, movieIds);
 
-	        for (Media m : pMediaList) {
+	        for (int i = 0; i < pMediaList.size(); i++) {
+	            Media m = pMediaList.get(i);
 	            List<Svg> svgs = svgsMap.get(m.identity().id());
-	            m.withMediaSvgs(svgMap.get(m.identity().id()))
-	             .withVideoChapters(chapterMap.get(m.identity().id()))
-	             .withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0));
+	            Media updatedMedia = m.withMediaSvgs(svgMap.get(m.identity().id()))
+	                                  .withVideoChapters(chapterMap.get(m.identity().id()))
+	                                  .withSvgs(svgs, (svgs == null || svgs.isEmpty() ? areaId : 0));
+	            pMediaList.set(i, updatedMedia);
 	        }
 	    }
 	    List<Media> media = null;
