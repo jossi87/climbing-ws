@@ -6201,15 +6201,17 @@ public class Dao {
 		Map<Integer, List<MediaProblem>> res = new HashMap<>();
 		String markers = mediaIds.stream().map(_ -> "?").collect(Collectors.joining(","));
 		String sql = """
-				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.pitch problem_pitch, mp.milliseconds, a.name area_name, s.name sector_name
+				SELECT mp.media_id, p.id problem_id, p.name problem_name, g.grade problem_grade, mp.pitch problem_pitch, COUNT(DISTINCT ps.id) problem_num_pitches, mp.milliseconds, a.name area_name, s.name sector_name
 				FROM media_problem mp
 				JOIN problem p ON mp.problem_id=p.id
 				JOIN sector s ON p.sector_id=s.id
 				JOIN area a ON s.area_id=a.id
+                LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				JOIN grade g ON p.consensus_grade_id=g.id
 				WHERE mp.media_id IN (%s)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				GROUP BY mp.media_id, p.id, p.name, g.grade, mp.pitch, mp.milliseconds, a.name, s.name
 				ORDER BY mp.milliseconds
 				""".formatted(markers);
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -6221,7 +6223,8 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int mediaId = rst.getInt("media_id");
-					MediaProblem chapter = new MediaProblem(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"), rst.getInt("problem_pitch"), rst.getLong("milliseconds"),
+					MediaProblem chapter = new MediaProblem(rst.getInt("problem_id"), rst.getString("problem_name"), rst.getString("problem_grade"),
+							rst.getInt("problem_pitch"), rst.getInt("problem_num_pitches"), rst.getLong("milliseconds"),
 							rst.getString("area_name"), rst.getString("sector_name"));
 					res.computeIfAbsent(mediaId, _ -> new ArrayList<>()).add(chapter);
 				}
