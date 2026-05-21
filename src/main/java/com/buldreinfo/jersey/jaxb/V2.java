@@ -41,6 +41,7 @@ import com.buldreinfo.jersey.jaxb.model.MediaInfo;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
+import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
 import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
@@ -555,6 +556,24 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Search for user", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ProblemSearchResult.class)))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/problems/search")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getProblemsSearch(@Context HttpServletRequest request,
+			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
+			) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			List<ProblemSearchResult> res = dao.getProblemsSearch(c, authUserId, setup, value);
+			return Response.ok().entity(res).build();
+		});
+	}
+
 	@Operation(summary = "Get profile by id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Profile.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
@@ -596,7 +615,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-
+	
 	@Operation(summary = "Get profile media by id", responses = {
 	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
 	        @ApiResponse(responseCode = "404", description = "User not found"),
@@ -622,7 +641,7 @@ public class V2 {
 	        return Response.ok().entity(res).build();
 	    });
 	}
-	
+
 	@Operation(summary = "Get profile todo", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ProfileTodo.class))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
@@ -887,8 +906,8 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-
-	@Operation(summary = "Search for user", responses = {
+	
+	@Operation(summary = "Search for problem", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = User.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)

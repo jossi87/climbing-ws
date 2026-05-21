@@ -87,6 +87,7 @@ import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Neighbour;
 import com.buldreinfo.jersey.jaxb.model.ProblemComment;
+import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileGradeDistribution;
@@ -2286,6 +2287,49 @@ public class Dao {
 		return p;
 	}
 
+	public List<ProblemSearchResult> getProblemsSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
+	    Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
+	    if (search == null || search.strip().isEmpty()) {
+	        return List.of();
+	    }
+	    String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
+		String searchRegexPattern = "(^|\\W)" + quotedSearch;
+	    String sql = """
+	            WITH req AS (
+	                SELECT ? AS auth_user_id, ? AS region_id, ? AS search_regex
+	            )
+	            SELECT p.id, a.name AS area_name, s.name AS sector_name, p.name AS problem_name, g.grade
+	            FROM req
+	            CROSS JOIN area a
+	            INNER JOIN region r ON a.region_id = r.id
+	            JOIN region_type rt ON r.id = rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+	            JOIN sector s ON a.id = s.area_id
+	            JOIN problem p ON (s.id = p.sector_id AND rt.type_id = p.type_id)
+	            JOIN grade g ON p.consensus_grade_id = g.id
+	            LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+	            WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
+	              AND REGEXP_LIKE(p.name, req.search_regex, 'i')
+	              AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
+	              AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
+	              AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+	            GROUP BY p.id, a.name, s.name, p.name, g.grade
+	            ORDER BY p.name, s.name, a.name
+	            LIMIT 50
+	            """;
+	        List<ProblemSearchResult> res = new ArrayList<>();
+	        try (PreparedStatement ps = c.prepareStatement(sql)) {
+	            ps.setInt(1, authUserId.orElseThrow());
+	            ps.setInt(2, setup.idRegion());
+	            ps.setString(3, searchRegexPattern);
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                res.add(new ProblemSearchResult(rst.getInt("id"), rst.getString("area_name"), rst.getString("sector_name"), rst.getString("problem_name"), rst.getString("grade")));
+	            }
+	        }
+	    }
+	    return res;
+	}
+
 	public List<ProfileAscent> getProfileAscents(Connection c, Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
 		List<ProfileAscent> res = new ArrayList<>();
 		Map<Integer, ProfileAscent> idProblemTickMap = new HashMap<>();
@@ -4003,7 +4047,7 @@ public class Dao {
 		}
 		return res;
 	}
-
+	
 	public List<UserRegion> getUserRegion(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<UserRegion> res = new ArrayList<>();
