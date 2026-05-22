@@ -1844,10 +1844,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -2876,10 +2876,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -2998,10 +2998,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -3133,10 +3133,10 @@ public class Dao {
 	                               'texts', s3.texts,
 	                               'anchors', s3.anchors,
 	                               'tradBelayStations', s3.trad_belay_stations,
-	                               'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                               'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                               'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                               'isDangerous', COALESCE((
+	                               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                               'dangerous', COALESCE((
 	                                   SELECT gb3.danger 
 	                                   FROM guestbook gb3 
 	                                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -3235,10 +3235,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -6340,10 +6340,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -6477,10 +6477,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -6609,10 +6609,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
@@ -6762,10 +6762,10 @@ public class Dao {
 	                           'texts', s3.texts,
 	                           'anchors', s3.anchors,
 	                           'tradBelayStations', s3.trad_belay_stations,
-	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
-	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
-	                           'isDangerous', COALESCE((
+	                           'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'dangerous', COALESCE((
 	                               SELECT gb3.danger 
 	                               FROM guestbook gb3 
 	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
