@@ -5560,17 +5560,102 @@ public class Dao {
 		}
 	}
 
-	public void updateMedia(Connection c, Optional<Integer> authUserId, Media m) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, m.identity().id());
-		//		int originalThumbnailSeconds = getMedia(c, authUserId, m.identity().id()).thumbnailSeconds();
-		//		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET description=? WHERE id=?")) {
-		//			ps.setString(1, Strings.emptyToNull(m.description()));
-		//			ps.setInt(2, m.mediaId());
-		//			ps.execute();
-		//		}
-		logger.debug("updateMedia(m={}) duration={}", authUserId, m, stopwatch);
-		throw new RuntimeException("Not implemented yet"); // TODO
+	public void updateMedia(Connection c, Optional<Integer> authUserId, Media m) throws Exception {
+		Preconditions.checkArgument(m.identity() != null && m.identity().id() != 0, "Media id required.");
+		Preconditions.checkArgument(m.photographer() != null && m.photographer().id() != 0, "A valid photographer must be specified to update media context.");
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    final int mediaId = m.identity().id();
+	    ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, mediaId);
+	    Media originalMedia = getMedia(c, authUserId, m.identity().id());	    
+	    try (PreparedStatement ps = c.prepareStatement("UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?")) {
+	        ps.setString(1, Strings.emptyToNull(m.description()));
+	        ps.setInt(2, m.photographer().id());
+	        ps.setInt(3, m.thumbnailSeconds());
+	        ps.setInt(4, mediaId);
+	        ps.execute();
+	    }
+	    if (originalMedia.isMovie() && originalMedia.thumbnailSeconds() != m.thumbnailSeconds()) {
+			StorageManager storage = StorageManager.getInstance();
+			String originalMp4Key = S3KeyGenerator.getOriginalMp4(mediaId);
+			Path tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
+			try {
+				storage.downloadFile(originalMp4Key, tempOriginal);
+				VideoHelper.extractThumbnail(c, this, "ffmpeg", mediaId, tempOriginal, m.thumbnailSeconds());
+				S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
+			} finally {
+				Files.deleteIfExists(tempOriginal);
+			}
+		}
+	    // media_area
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=?")) {
+	        ps.setInt(1, mediaId);
+	        ps.execute();
+	    }
+	    if (m.areas() != null && !m.areas().isEmpty()) {
+	        String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
+	            for (Media.MediaArea area : m.areas()) {
+	                ps.setInt(1, mediaId);
+	                ps.setInt(2, area.areaId());
+	                ps.setBoolean(3, area.trivia());
+	                ps.addBatch();
+	            }
+	            ps.executeBatch();
+	        }
+	    }
+	    // media_sector
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) {
+	        ps.setInt(1, mediaId);
+	        ps.execute();
+	    }
+	    if (m.sectors() != null && !m.sectors().isEmpty()) {
+	        String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
+	            for (Media.MediaSector sector : m.sectors()) {
+	                ps.setInt(1, mediaId);
+	                ps.setInt(2, sector.sectorId());
+	                ps.setBoolean(3, sector.trivia());
+	                ps.addBatch();
+	            }
+	            ps.executeBatch();
+	        }
+	    }
+	    // media_problem
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) {
+	        ps.setInt(1, mediaId);
+	        ps.execute();
+	    }
+	    if (m.problems() != null && !m.problems().isEmpty()) {
+	        String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
+	            for (Media.MediaProblem problem : m.problems()) {
+	                ps.setInt(1, mediaId);
+	                ps.setInt(2, problem.problemId());
+	                ps.setInt(3, problem.problemPitch());
+	                ps.setBoolean(4, problem.trivia());
+	                ps.setLong(5, problem.milliseconds());
+	                ps.addBatch();
+	            }
+	            ps.executeBatch();
+	        }
+	    }
+	    // media_user
+	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) {
+	        ps.setInt(1, mediaId);
+	        ps.execute();
+	    }
+	    if (m.tagged() != null && !m.tagged().isEmpty()) {
+	        String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
+	            for (User u : m.tagged()) {
+	                ps.setInt(1, mediaId);
+	                ps.setInt(2, u.id());
+	                ps.addBatch();
+	            }
+	            ps.executeBatch();
+	        }
+	    }
+	    logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
 	}
 
 	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
@@ -5971,10 +6056,10 @@ public class Dao {
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
-	private boolean ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
+	private void ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		Media m = getMedia(c, authUserId, idMedia);
 		if (m.uploadedByMe()) {
-			return true;
+			return;
 		}
 		try (PreparedStatement ps = c.prepareStatement("""
 				WITH req AS (
@@ -6004,11 +6089,13 @@ public class Dao {
 					int sectorId = rst.getInt("sector_id");
 					int problemId = rst.getInt("problem_id");
 					int guestbookId = rst.getInt("guestbook_id");
-					return (adminWrite || superAdminWrite) && (areaId > 0 || sectorId > 0 || problemId > 0 || guestbookId > 0);
+					if ((adminWrite || superAdminWrite) && (areaId > 0 || sectorId > 0 || problemId > 0 || guestbookId > 0)) {
+						return;
+					}
 				}
 			}
 		}
-		return false;
+		throw new IllegalArgumentException("Insufficient permissions");
 	}
 
 	private void ensureSuperadminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
@@ -7327,29 +7414,6 @@ public class Dao {
 			}
 		}
 		setSectorProblemOrder(c, lst);
-	}
-
-	private void updateMediaThumbnailSeconds(Connection c, Dao dao, Optional<Integer> authUserId, int idMedia, int thumbnailSeconds) throws Exception {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
-		try (PreparedStatement ps = c.prepareStatement("UPDATE media SET thumbnail_seconds=?, updated_at=NOW() WHERE id=? AND is_movie=1 AND embed_url IS NULL")) {
-			ps.setInt(1, thumbnailSeconds);
-			ps.setInt(2, idMedia);
-			int rowsUpdated = ps.executeUpdate();
-			if (rowsUpdated > 0) {
-				StorageManager storage = StorageManager.getInstance();
-				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
-				String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
-				Path tempOriginal = Files.createTempFile("original-re-thumb-" + idMedia, ".mp4");
-				try {
-					storage.downloadFile(originalMp4Key, tempOriginal);
-					VideoHelper.extractThumbnail(c, dao, "ffmpeg", idMedia, tempOriginal, thumbnailSeconds);
-				} finally {
-					Files.deleteIfExists(tempOriginal);
-				}
-			}
-		}
-		logger.debug("updateMediaThumbnailSeconds(authUserId={}, idMedia={}, thumbnailSeconds={}) duration={}", authUserId, idMedia, thumbnailSeconds, stopwatch);
 	}
 
 	private void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
