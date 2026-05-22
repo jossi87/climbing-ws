@@ -5539,6 +5539,16 @@ public class Dao {
 	public void updateMedia(Connection c, Optional<Integer> authUserId, Media m) throws Exception {
 		Preconditions.checkArgument(m.identity() != null && m.identity().id() != 0, "Media id required.");
 		Preconditions.checkArgument(m.photographer() != null && m.photographer().id() != 0, "A valid photographer must be specified to update media context.");
+		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
+		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
+		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+		boolean hasGuestbook = m.guestbookId() > 0;
+		Preconditions.checkArgument(
+				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook) ||
+				(!hasAreas && hasSectors && !hasProblems && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && hasProblems && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && !hasProblems && hasGuestbook)
+				, "Multiple types on id=" + m.identity().id());
 	    Stopwatch stopwatch = Stopwatch.createStarted();
 	    final int mediaId = m.identity().id();
 	    ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, mediaId);
