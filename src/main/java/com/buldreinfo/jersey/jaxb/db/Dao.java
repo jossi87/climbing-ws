@@ -1830,6 +1830,45 @@ public class Dao {
 	                       WHERE media_id = m.id
 	                   ) svgs_json,
 	                   (
+	                       SELECT JSON_ARRAYAGG(JSON_OBJECT(
+	                           'id', s3.id,
+	                           'problemId', p3.id,
+	                           'problemName', p3.name,
+	                           'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
+	                           'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
+	                           'problemSubtype', ty3.subtype,
+	                           'nr', p3.nr,
+	                           'pitch', COALESCE(ps3.nr, 0),
+	                           'path', s3.path,
+	                           'hasAnchor', s3.has_anchor,
+	                           'texts', s3.texts,
+	                           'anchors', s3.anchors,
+	                           'tradBelayStations', s3.trad_belay_stations,
+	                           'prim', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+	                           'isTicked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = ? LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = ? LIMIT 1) IS NOT NULL THEN true ELSE false END,
+	                           'isTodo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = ?) IS NOT NULL THEN true ELSE false END,
+	                           'isDangerous', COALESCE((
+	                               SELECT gb3.danger 
+	                               FROM guestbook gb3 
+	                               WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+	                               ORDER BY gb3.id DESC LIMIT 1
+	                           ), 0) = 1
+	                       ))
+	                       FROM svg s3
+	                       JOIN problem p3 ON s3.problem_id = p3.id
+	                       JOIN grade g3 ON p3.consensus_grade_id = g3.id
+	                       JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
+	                       JOIN type ty3 ON p3.type_id = ty3.id
+	                       JOIN sector sec3 ON p3.sector_id = sec3.id
+	                       JOIN area a5 ON sec3.area_id = a5.id
+	                       LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
+	                       LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
+	                       LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
+	                       LEFT JOIN user_region ur3 ON ur3.user_id = ? AND ur3.region_id = a5.region_id
+	                       WHERE s3.media_id = m.id
+	                         AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+	                   ) svgs_table_json,
+	                   (
 	                       SELECT mg.guestbook_id 
 	                       FROM media_guestbook mg 
 	                       WHERE mg.media_id = m.id 
@@ -1842,8 +1881,17 @@ public class Dao {
 	            """;
 	    try (PreparedStatement ps = c.prepareStatement(sql)) {
 	        int currentAuthUserId = authUserId.orElse(0);
-	        ps.setInt(1, currentAuthUserId);
-	        ps.setInt(2, id);
+	        int idx = 1;
+	        ps.setInt(idx++, currentAuthUserId); // problems_json ur.user_id
+	        
+	        // svgs_table_json inner binds
+	        ps.setInt(idx++, currentAuthUserId); // tick match check
+	        ps.setInt(idx++, currentAuthUserId); // first-ascent match check
+	        ps.setInt(idx++, currentAuthUserId); // todo check
+	        ps.setInt(idx++, currentAuthUserId); // region permission check
+	        
+	        ps.setInt(idx++, id);                // WHERE m.id = ?
+	        
 	        try (ResultSet rst = ps.executeQuery()) {
 	            if (rst.next()) {
 	                return Media.fromResultSet(rst, currentAuthUserId, gson);

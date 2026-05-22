@@ -114,12 +114,15 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		
 		List<MediaSvgElement> svgElements = parseSvgElements(rst.getString("svgs_json"), localGson);
 		
+		String svgsTableJson = rst.getString("svgs_table_json");
+		List<Svg> svgsList = Strings.isNullOrEmpty(svgsTableJson) ? List.of() : localGson.fromJson(svgsTableJson, new TypeToken<List<Svg>>(){}.getType());
+		
 		return new Media(
 				identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
 				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), 
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),
-				svgElements, 0, List.of(), rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
+				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
 				false, 0, 0, 0, null, 
 				areas, sectors, problems, rst.getInt("guestbook_id")
 		);
