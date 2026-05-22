@@ -5553,14 +5553,20 @@ public class Dao {
 	    final int mediaId = m.identity().id();
 	    ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, mediaId);
 	    Media originalMedia = getMedia(c, authUserId, m.identity().id());	    
-	    try (PreparedStatement ps = c.prepareStatement("UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?")) {
+	    
+	    boolean thumbnailChanged = originalMedia.thumbnailSeconds() != m.thumbnailSeconds();
+	    String baseUpdateSql = thumbnailChanged 
+	    		? "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?"
+	    		: "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=? WHERE id=?";
+
+	    try (PreparedStatement ps = c.prepareStatement(baseUpdateSql)) {
 	        ps.setString(1, Strings.emptyToNull(m.description()));
 	        ps.setInt(2, m.photographer().id());
 	        ps.setInt(3, m.thumbnailSeconds());
 	        ps.setInt(4, mediaId);
 	        ps.execute();
 	    }
-	    if (originalMedia.isMovie() && originalMedia.thumbnailSeconds() != m.thumbnailSeconds()) {
+	    if (originalMedia.isMovie() && thumbnailChanged) {
 			StorageManager storage = StorageManager.getInstance();
 			String originalMp4Key = S3KeyGenerator.getOriginalMp4(mediaId);
 			Path tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
@@ -5585,64 +5591,64 @@ public class Dao {
 	                ps.setInt(2, area.areaId());
 	                ps.setBoolean(3, area.trivia());
 	                ps.addBatch();
-	            }
-	            ps.executeBatch();
-	        }
-	    }
-	    // media_sector
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) {
-	        ps.setInt(1, mediaId);
-	        ps.execute();
-	    }
-	    if (m.sectors() != null && !m.sectors().isEmpty()) {
-	        String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
-	            for (Media.MediaSector sector : m.sectors()) {
-	                ps.setInt(1, mediaId);
-	                ps.setInt(2, sector.sectorId());
-	                ps.setBoolean(3, sector.trivia());
-	                ps.addBatch();
-	            }
-	            ps.executeBatch();
-	        }
-	    }
-	    // media_problem
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) {
-	        ps.setInt(1, mediaId);
-	        ps.execute();
-	    }
-	    if (m.problems() != null && !m.problems().isEmpty()) {
-	        String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
-	            for (Media.MediaProblem problem : m.problems()) {
-	                ps.setInt(1, mediaId);
-	                ps.setInt(2, problem.problemId());
-	                ps.setInt(3, problem.problemPitch());
-	                ps.setBoolean(4, problem.trivia());
-	                ps.setLong(5, problem.milliseconds());
-	                ps.addBatch();
-	            }
-	            ps.executeBatch();
-	        }
-	    }
-	    // media_user
-	    try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) {
-	        ps.setInt(1, mediaId);
-	        ps.execute();
-	    }
-	    if (m.tagged() != null && !m.tagged().isEmpty()) {
-	        String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
-	            for (User u : m.tagged()) {
-	                ps.setInt(1, mediaId);
-	                ps.setInt(2, u.id());
-	                ps.addBatch();
-	            }
-	            ps.executeBatch();
-	        }
-	    }
-	    logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
-	}
+				}
+				ps.executeBatch();
+			}
+		}
+		// media_sector
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) {
+			ps.setInt(1, mediaId);
+			ps.execute();
+		}
+		if (m.sectors() != null && !m.sectors().isEmpty()) {
+			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
+				for (Media.MediaSector sector : m.sectors()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, sector.sectorId());
+					ps.setBoolean(3, sector.trivia());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		// media_problem
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) {
+			ps.setInt(1, mediaId);
+			ps.execute();
+		}
+		if (m.problems() != null && !m.problems().isEmpty()) {
+			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
+				for (Media.MediaProblem problem : m.problems()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, problem.problemId());
+					ps.setInt(3, problem.problemPitch());
+					ps.setBoolean(4, problem.trivia());
+					ps.setLong(5, problem.milliseconds());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		// media_user
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) {
+			ps.setInt(1, mediaId);
+			ps.execute();
+		}
+		if (m.tagged() != null && !m.tagged().isEmpty()) {
+			String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
+				for (User u : m.tagged()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, u.id());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
+}
 
 	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
