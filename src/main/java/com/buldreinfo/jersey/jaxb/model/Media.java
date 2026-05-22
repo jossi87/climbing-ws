@@ -22,7 +22,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs,
 		String embedUrl, int thumbnailSeconds,
 		boolean inherited,
-		int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem,
+		int enableMoveToIdSector, int enableMoveToIdProblem,
 		String url,
 		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, int guestbookId) {
 	
@@ -123,7 +123,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
-				false, 0, 0, 0, null, 
+				false, 0, 0, null, 
 				areas, sectors, problems, rst.getInt("guestbook_id")
 		);
 	}

@@ -923,7 +923,7 @@ public class Dao {
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false, 0, 0, 0);
+					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false, 0, 0);
 					Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
 							.orElse(List.of())
 							.stream()
@@ -2923,7 +2923,7 @@ public class Dao {
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-	                        m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
+	                        m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
 	                        rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                ));
 	            }
@@ -3057,7 +3057,7 @@ public class Dao {
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-	                        m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
+	                        m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
 	                        rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                ));
 	            }
@@ -3300,7 +3300,7 @@ public class Dao {
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-	                        m.inherited(), m.enableMoveToIdArea(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
+	                        m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
 	                        rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                ));
 	            }
@@ -4589,7 +4589,7 @@ public class Dao {
 		}
 	}
 
-	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdArea, int toIdSector, int toIdProblem) throws SQLException {
+	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdSector, int toIdProblem) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
 		int sectorId = 0;
@@ -4610,31 +4610,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 
-		if (toIdArea > 0) {
-			if (problemId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, problemId);
-					ps.execute();
-				}
-			}
-			else if (sectorId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=? AND sector_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, sectorId);
-					ps.execute();
-				}
-			}
-			else {
-				throw new IllegalArgumentException("Invalid location on media with id=" + id);
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id) VALUES (?, ?)")) {
-				ps.setInt(1, id);
-				ps.setInt(2, toIdArea);
-				ps.execute();
-			}
-		}
-		else if (toIdSector > 0) {
+		if (toIdSector > 0) {
 			if (problemId > 0) {
 				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
 					ps.setInt(1, id);
@@ -6301,7 +6277,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
+	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
 	    List<Media> res = new ArrayList<>();
 	    int currentAuthUserId = authUserId.orElse(0);
 	    String sql = """
@@ -6427,7 +6403,7 @@ public class Dao {
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-	                        inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem,
+	                        inherited, enableMoveToIdSector, enableMoveToIdProblem,
 	                        m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                ));
 	            }
@@ -6693,12 +6669,11 @@ public class Dao {
 	                    }
 	                }
 	                Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
-	                int finalMoveIdArea = (m.svgs() == null || m.svgs().isEmpty()) ? areaId : 0;
 	                m = new Media(
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
-	                        m.inherited(), finalMoveIdArea, sectorId, m.enableMoveToIdProblem(),
+	                        m.inherited(), sectorId, m.enableMoveToIdProblem(),
 	                        m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                );
 	                pMediaList.add(m);
@@ -6846,14 +6821,13 @@ public class Dao {
 
 	                Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 	                
-	                int finalMoveIdArea = (m.svgs() == null || m.svgs().isEmpty()) ? enableMoveToIdArea : 0;
 	                int finalMoveIdProblem = (m.svgs() != null && m.svgs().stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()) ? enableMoveToIdProblem : 0;
 
 	                initialList.add(new Media(
 	                        m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
 	                        m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 	                        m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-	                        inherited, finalMoveIdArea, enableMoveToIdSector, finalMoveIdProblem,
+	                        inherited, enableMoveToIdSector, finalMoveIdProblem,
 	                        m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
 	                ));
 	            }

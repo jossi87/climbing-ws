@@ -1406,19 +1406,17 @@ public class V2 {
 	public Response putMediaLocation(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(description = "To area id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
 			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
 			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
 			) {
-		Preconditions.checkArgument((left && toIdArea == 0 && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdArea > 0 && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdArea == 0 && toIdSector > 0 && toIdProblem == 0) ||
-				(!left && toIdArea == 0 && toIdSector == 0 && toIdProblem > 0),
+		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector > 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem > 0),
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(id > 0);
-			dao.moveMedia(c, authUserId, id, left, toIdArea, toIdSector, toIdProblem);
+			dao.moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}
