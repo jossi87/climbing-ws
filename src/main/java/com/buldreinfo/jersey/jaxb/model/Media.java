@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import com.google.common.base.Strings;
@@ -25,7 +26,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		int enableMoveToIdSector, int enableMoveToIdProblem,
 		String url,
 		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, int guestbookId) {
-	
+
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
 	public record MediaSector(int sectorId, String areaName, String sectorName, boolean trivia) {}
 	public record MediaProblem(int problemId, String problemName, String problemGrade, int problemPitch, int problemNumPitches, long milliseconds, String areaName, String sectorName, boolean trivia) {}
@@ -92,31 +93,52 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		MediaIdentity identity = new MediaIdentity(
 				rst.getInt("id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), 
 				rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
-		);
-		
+				);
+
 		User photographer = null;
 		int photographerId = rst.getInt("photographer_id");
 		if (!rst.wasNull()) {
 			photographer = User.from(photographerId, rst.getString("photographer_name"));
 		}
-		
+
 		String taggedJson = rst.getString("tagged_json");
 		List<User> taggedUsers = Strings.isNullOrEmpty(taggedJson) ? List.of() : localGson.fromJson(taggedJson, new TypeToken<List<User>>(){}.getType());
-		
+		if (!taggedUsers.isEmpty()) {
+			taggedUsers = taggedUsers.stream()
+					.sorted(Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())))
+					.toList();
+		}
+
 		String areasJson = rst.getString("areas_json");
 		List<MediaArea> areas = Strings.isNullOrEmpty(areasJson) ? List.of() : localGson.fromJson(areasJson, new TypeToken<List<MediaArea>>(){}.getType());
-		
+		if (!areas.isEmpty()) {
+			areas = areas.stream()
+					.sorted(Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())))
+					.toList();
+		}
+
 		String sectorsJson = rst.getString("sectors_json");
 		List<MediaSector> sectors = Strings.isNullOrEmpty(sectorsJson) ? List.of() : localGson.fromJson(sectorsJson, new TypeToken<List<MediaSector>>(){}.getType());
-		
+		if (!sectors.isEmpty()) {
+			sectors = sectors.stream()
+					.sorted(Comparator.comparing(MediaSector::sectorName, Comparator.nullsLast(Comparator.naturalOrder())))
+					.toList();
+		}
+
 		String problemsJson = rst.getString("problems_json");
 		List<MediaProblem> problems = Strings.isNullOrEmpty(problemsJson) ? List.of() : localGson.fromJson(problemsJson, new TypeToken<List<MediaProblem>>(){}.getType());
-		
+		if (!problems.isEmpty()) {
+			problems = problems.stream()
+					.sorted(Comparator.comparingLong(MediaProblem::milliseconds)
+							.thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())))
+					.toList();
+		}
+
 		List<MediaSvgElement> svgElements = parseSvgElements(rst.getString("svgs_json"), localGson);
-		
+
 		String svgsTableJson = rst.getString("svgs_table_json");
 		List<Svg> svgsList = Strings.isNullOrEmpty(svgsTableJson) ? List.of() : localGson.fromJson(svgsTableJson, new TypeToken<List<Svg>>(){}.getType());
-		
+
 		return new Media(
 				identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
 				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), 
@@ -125,7 +147,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
 				false, 0, 0, null, 
 				areas, sectors, problems, rst.getInt("guestbook_id")
-		);
+				);
 	}
 
 	private static List<MediaSvgElement> parseSvgElements(String svgsJson, Gson gson) {
@@ -140,7 +162,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				} else {
 					int rappelX = obj.has("rappelX") && !obj.get("rappelX").isJsonNull() ? obj.get("rappelX").getAsInt() : 0;
 					int rappelY = obj.has("rappelY") && !obj.get("rappelY").isJsonNull() ? obj.get("rappelY").getAsInt() : 0;
-					
+
 					boolean bolted = false;
 					if (obj.has("rappelBolted") && !obj.get("rappelBolted").isJsonNull()) {
 						JsonElement rbEl = obj.get("rappelBolted");
