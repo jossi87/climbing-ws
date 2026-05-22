@@ -1402,8 +1402,8 @@ public class V2 {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
-	@Path("/media")
-	public Response putMedia(@Context HttpServletRequest request,
+	@Path("/media/location")
+	public Response putMediaLocation(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
 			@Parameter(description = "To area id (will move media to area if toIdArea>0, toIdSector=0 and toIdProblem=0)", required = true) @QueryParam("toIdArea") int toIdArea,
