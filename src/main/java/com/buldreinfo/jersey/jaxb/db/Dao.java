@@ -5815,9 +5815,10 @@ public class Dao {
 		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
 	}
 
-	public void upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public int upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		if (co.id() > 0) {
+		int idGuestbook = co.id();
+		if (idGuestbook > 0) {
 			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false, false).getComments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
 			ProblemComment comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
@@ -5826,6 +5827,7 @@ public class Dao {
 					try (PreparedStatement ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
 						ps.setInt(1, co.id());
 						ps.execute();
+						idGuestbook = 0;
 					}
 				}
 				else {
@@ -5858,7 +5860,8 @@ public class Dao {
 			else {
 				throw new IllegalArgumentException("Comment not editable by " + authUserId.orElseThrow() + ". Other users can only mark as dangerous - comment=" + comment);
 			}
-		} else {
+		}
+		else {
 			Objects.requireNonNull(GlobalFunctions.stripString(co.comment()));
 			int parentId = 0;
 			try (PreparedStatement ps = c.prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
@@ -5880,7 +5883,7 @@ public class Dao {
 				ps.executeUpdate();
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
-						int idGuestbook = rst.getInt(1);
+						idGuestbook = rst.getInt(1);
 						if (co.newMedia() != null) {
 							// New media
 							for (NewMedia m : co.newMedia()) {
@@ -5896,6 +5899,7 @@ public class Dao {
 			}
 		}
 		fillActivity(c, co.idProblem());
+		return idGuestbook;
 	}
 
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {

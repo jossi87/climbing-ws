@@ -1154,8 +1154,8 @@ public class V2 {
 	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.upsertComment(c, authUserId, setup, co, multiPart);
-			return Response.ok().build();
+			int idGuestbook = dao.upsertComment(c, authUserId, setup, co, multiPart);
+			return Response.ok(idGuestbook).build();
 		});
 	}
 
