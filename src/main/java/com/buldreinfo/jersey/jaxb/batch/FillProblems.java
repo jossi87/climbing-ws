@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -162,20 +161,20 @@ public class FillProblems {
 		return res;
 	}
 
-	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws IOException, SQLException, InterruptedException {
+	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws SQLException, InterruptedException {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
 		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
-		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, null, t, false, null, null, d.getTrivia(), null, null, null, null);
+		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, t, false, null, null, d.getTrivia(), null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
 			}
 		}
-		dao.setProblem(c, AUTH_USER_ID, setup, p, null);
+		dao.setProblem(c, AUTH_USER_ID, setup, p);
 	}
 
-	private int upsertArea(Dao dao, Connection c, Data d) throws IOException, SQLException, InterruptedException {
+	private int upsertArea(Dao dao, Connection c, Data d) throws SQLException, InterruptedException {
 		if (areaCache.containsKey(d.getArea())) {
 			return areaCache.get(d.getArea());
 		}
@@ -185,13 +184,13 @@ public class FillProblems {
 				return a.getId();
 			}
 		}
-		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null);
-		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a, null);
+		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null);
+		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a);
 		areaCache.put(d.getArea(), r.idArea());
 		return r.idArea();
 	}
 
-	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws IOException, SQLException, InterruptedException {
+	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws SQLException, InterruptedException {
 		Map<String, Integer> areaSectors = sectorCache.computeIfAbsent(idArea, _ -> new HashMap<>());
 		if (areaSectors.containsKey(d.getSector())) {
 			return areaSectors.get(d.getSector());
@@ -203,8 +202,8 @@ public class FillProblems {
 				return s.getId();
 			}
 		}
-		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null);
-		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s, null);
+		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null);
+		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s);
 		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();
 	}

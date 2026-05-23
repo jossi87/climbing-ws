@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,7 +39,8 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.Server;
@@ -86,7 +86,6 @@ import com.buldreinfo.jersey.jaxb.model.Media.MediaSector;
 import com.buldreinfo.jersey.jaxb.model.MediaIdentity;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElement;
 import com.buldreinfo.jersey.jaxb.model.MediaSvgElementType;
-import com.buldreinfo.jersey.jaxb.model.NewMedia;
 import com.buldreinfo.jersey.jaxb.model.PermissionUser;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Problem.Neighbour;
@@ -154,6 +153,7 @@ public class Dao {
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 	private static final long MAX_IMAGE_UPLOAD_BYTES = 25L * 1024L * 1024L;
 	private static final long MAX_VIDEO_UPLOAD_BYTES = 1024L * 1024L * 1024L;
+	private static final int USER_ID_UNKNOWN = 1049;
 	private static Logger logger = LogManager.getLogger();
 	private final Gson gson = new Gson();
 
@@ -162,29 +162,35 @@ public class Dao {
 
 	public int addMedia(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkArgument(m.photographer() != null && !Strings.isNullOrEmpty(m.photographer().name()), "Photographer is required");
+
 		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
 		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
 		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
 		boolean hasGuestbook = m.guestbookId() > 0;
+		boolean hasUserAvatar = m.userAvatarId() > 0;
+
 		Preconditions.checkArgument(
-				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook) ||
-				(!hasAreas && hasSectors && !hasProblems && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && hasProblems && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && !hasProblems && hasGuestbook),
-				"Media must belong to exactly one entity type (Area, Sector, Problem, or Guestbook)."
-		);
+				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
+				|| (!hasAreas && hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
+				|| (!hasAreas && !hasSectors && hasProblems && !hasGuestbook && !hasUserAvatar)
+				|| (!hasAreas && !hasSectors && !hasProblems && hasGuestbook && !hasUserAvatar)
+				|| (!hasAreas && !hasSectors && !hasProblems && !hasGuestbook && hasUserAvatar && m.userAvatarId() == authUserId.orElseThrow()));
+
 		final boolean isEmbed = !Strings.isNullOrEmpty(m.embedUrl());
 		StorageType storageType;
 		if (isEmbed) {
 			storageType = StorageType.MP4;
 		}
 		else {
-			Preconditions.checkNotNull(filePart, "File part is required for physical asset uploads.");
+			Preconditions.checkNotNull(filePart, "File part is required");
 			String fileName = filePart.getContentDisposition().getFileName();
-			storageType = StorageType.fromFilename(fileName)
-					.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for filename: " + fileName));
+			storageType = StorageType.fromFilename(fileName).orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for filename: " + fileName));
 		}
+
+		if (hasUserAvatar) {
+			Preconditions.checkArgument(!storageType.isMovie());
+		}
+
 		int idMedia = -1;
 		boolean alreadyExistsInDb = false;
 		if (isEmbed) {
@@ -198,8 +204,10 @@ public class Dao {
 				}
 			}
 		}
+
 		if (!alreadyExistsInDb) {
-			int photographerId = m.photographer().id() > 0 ? m.photographer().id() : getExistingOrInsertUser(c, m.photographer().name());
+			String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
+			int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
 			String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
 			try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
 				ps.setBoolean(1, storageType.isMovie());
@@ -217,7 +225,8 @@ public class Dao {
 				}
 			}
 		}
-		Preconditions.checkArgument(idMedia > 0, "Failed to insert or locate media record.");
+
+		Preconditions.checkArgument(idMedia > 0);
 		if (hasProblems) {
 			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
 			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
@@ -261,6 +270,15 @@ public class Dao {
 				ps.execute();
 			}
 		}
+		else if (hasUserAvatar) {
+			String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
+			try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, m.userAvatarId());
+				ps.execute();
+			}
+		}
+
 		if (!alreadyExistsInDb) {
 			if (m.tagged() != null && !m.tagged().isEmpty()) {
 				String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
@@ -304,23 +322,13 @@ public class Dao {
 				}
 			}
 		}
+
 		if (hasProblems) {
 			for (Media.MediaProblem problem : m.problems()) {
 				fillActivity(c, problem.problemId());
 			}
 		}
 		return idMedia;
-	}
-
-	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
-		for (NewMedia m : p.getNewMedia()) {
-			final int idSector = 0;
-			final int idArea = 0;
-			final int idGuestbook = 0;
-			final int idUserAvatar = 0;
-			addNewMedia(c, authUserId, p.getId(), m.pitch(), m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
-		}
-		fillActivity(c, p.getId());
 	}
 
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
@@ -1087,7 +1095,7 @@ public class Dao {
 					List<Media> triviaMedia = partitioned.get(true);
 					List<Media> media = partitioned.get(false);
 					var externalLinks = getExternalLinks(c, reqId, 0, 0);
-					a = new Area(null, regionName, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, null, externalLinks, pageViews);
+					a = new Area(null, regionName, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, media, triviaMedia, externalLinks, pageViews);
 				}
 			}
 		}
@@ -1096,7 +1104,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, reqId, 0, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null);
+					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -1270,7 +1278,7 @@ public class Dao {
 					int numSectors = rst.getInt("num_sectors");
 					int numProblems = rst.getInt("num_problems");
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					res.add(new Area(null, regionName, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, null, pageViews));
+					res.add(new Area(null, regionName, id, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, numSectors, numProblems, null, null, null, pageViews));
 				}
 			}
 		}
@@ -1302,14 +1310,16 @@ public class Dao {
 		final Optional<Integer> finalUserId = authUserId;
 		if (!hasAvatar && profile.picture() != null) {
 			try {
-				saveUserAvatar(c, finalUserId, () -> {
-					try {
-						return URI.create(profile.picture()).toURL().openStream();
-					} catch (java.io.IOException e) {
-						logger.error(e.getMessage(), e);
-						throw new java.io.UncheckedIOException(e);
-					}
-				});
+				try (InputStream is = URI.create(profile.picture()).toURL().openStream()) {
+					StreamDataBodyPart filePart = new StreamDataBodyPart("file", is, "avatar.jpg");
+					FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
+							.fileName("avatar.jpg")
+							.build();
+					filePart.setFormDataContentDisposition(disposition);
+					User photographer = User.from(USER_ID_UNKNOWN, null);
+					Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
+					addMedia(c, finalUserId, m, filePart);
+				}
 			} catch (Exception e) {
 				logger.warn(e.getMessage(), e);
 			}
@@ -2287,7 +2297,7 @@ public class Dao {
 							neighbours,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
-							media, numTicks, stars, ticked, null, t, todoIdProblems.contains(id), externalLinks, pageViews,
+							media, numTicks, stars, ticked, t, todoIdProblems.contains(id), externalLinks, pageViews,
 							trivia, triviaMedia, startingAltitude, aspect, descent);
 				}
 			}
@@ -2297,7 +2307,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0, false, null, null, false, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0, false, null, false, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -3078,7 +3088,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3212,7 +3222,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3455,7 +3465,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3865,7 +3875,7 @@ public class Dao {
 					List<Media> triviaMedia = partitioned.get(true);
 					List<Media> media = partitioned.get(false);
 					var externalLinks = getExternalLinks(c, 0, reqId, 0);
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, null, externalLinks, pageViews);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, externalLinks, pageViews);
 				}
 			}
 		}
@@ -3874,7 +3884,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null);
+					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 				// Not found on other domains either
@@ -4967,18 +4977,7 @@ public class Dao {
 		}
 	}
 
-	public void saveUserAvatar(Connection c, Optional<Integer> authUserId, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
-		String name = UUID.randomUUID().toString();
-		var m = new NewMedia(name, null, null, 0, false, null, null, null, 0l, 0);
-		final int pitch = 0;
-		final int idProblem = 0;
-		final int idSector = 0;
-		final int idArea = 0;
-		final int idGuestbook = 0;
-		addNewMedia(c, authUserId, idProblem, pitch, false, idSector, idArea, idGuestbook, authUserId.get().intValue(), m, inputStreamSupplier);
-	}
-
-	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
 		ensureAdminWriteRegion(c, s, authUserId);
@@ -5071,17 +5070,6 @@ public class Dao {
 		if (idArea == -1) {
 			throw new SQLException("idArea == -1");
 		}
-		// New media
-		if (a.getNewMedia() != null) {
-			for (NewMedia m : a.getNewMedia()) {
-				final int idProblem = 0;
-				final int pitch = 0;
-				final int idSector = 0;
-				final int idGuestbook = 0;
-				final int idUserAvatar = 0;
-				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
-			}
-		}
 		upsertExternalLinks(c, a.getExternalLinks(), idArea, 0, 0);
 		if (a.isTrash()) {
 			return Redirect.fromRoot();
@@ -5106,7 +5094,7 @@ public class Dao {
 		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
 	}
 
-	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
 		final boolean orderByGrade = s.isBouldering();
 		final LocalDate dt = Strings.isNullOrEmpty(p.getFaDate())? null : LocalDate.parse(p.getFaDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		int idProblem = -1;
@@ -5195,16 +5183,6 @@ public class Dao {
 			int res = ps.executeUpdate();
 			if (res == 0) {
 				throw new SQLException("Insufficient credentials");
-			}
-		}
-		// New media
-		if (p.getNewMedia() != null) {
-			for (NewMedia m : p.getNewMedia()) {
-				final int idSector = 0;
-				final int idArea = 0;
-				final int idGuestbook = 0;
-				final int idUserAvatar = 0;
-				addNewMedia(c, authUserId, idProblem, m.pitch(), m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 			}
 		}
 		// FA
@@ -5315,7 +5293,7 @@ public class Dao {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public void setProfile(Connection c, Optional<Integer> authUserId, ProfileIdentity profile, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public void setProfile(Connection c, Optional<Integer> authUserId, ProfileIdentity profile) throws SQLException {
 		Preconditions.checkArgument(authUserId.orElse(0) == profile.id(), "Wrong input");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
@@ -5332,13 +5310,9 @@ public class Dao {
 			ps.setInt(5, authUserId.orElseThrow());
 			ps.execute();
 		}
-		var avatar = multiPart.getField("avatar");
-		if (avatar != null) {
-			saveUserAvatar(c, authUserId, () -> avatar.getValueAs(InputStream.class));
-		}
 	}
 
-	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public Redirect setSector(Connection c, Optional<Integer> authUserId, Setup setup, Sector s) throws SQLException, InterruptedException {
 		int idSector = -1;
 		final boolean isLockedAdmin = s.isLockedSuperadmin()? false : s.isLockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -5524,17 +5498,6 @@ public class Dao {
 					ps.addBatch();
 				}
 				ps.executeBatch();
-			}
-		}
-		// New media
-		if (s.getNewMedia() != null) {
-			for (NewMedia m : s.getNewMedia()) {
-				final int pitch = 0;
-				final int idProblem = 0;
-				final int idArea = 0;
-				final int idGuestbook = 0;
-				final int idUserAvatar = 0;
-				addNewMedia(c, authUserId, idProblem, pitch, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
 			}
 		}
 		upsertExternalLinks(c, s.getExternalLinks(), 0, idSector, 0);
@@ -5815,7 +5778,7 @@ public class Dao {
 		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
 	}
 
-	public int upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
+	public int upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		int idGuestbook = co.id();
 		if (idGuestbook > 0) {
@@ -5837,16 +5800,6 @@ public class Dao {
 						ps.setBoolean(3, co.resolved());
 						ps.setInt(4, co.id());
 						ps.execute();
-						if (co.newMedia() != null) {
-							// New media
-							for (NewMedia m : co.newMedia()) {
-								final int idProblem = 0;
-								final int idSector = 0;
-								final int idArea = 0;
-								final int idUserAvatar = 0;
-								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, co.id(), idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
-							}
-						}
 					}
 				}
 			}
@@ -5884,16 +5837,6 @@ public class Dao {
 				try (ResultSet rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
 						idGuestbook = rst.getInt(1);
-						if (co.newMedia() != null) {
-							// New media
-							for (NewMedia m : co.newMedia()) {
-								final int idProblem = 0;
-								final int idSector = 0;
-								final int idArea = 0;
-								final int idUserAvatar = 0;
-								addNewMedia(c, authUserId, idProblem, 0, m.trivia(), idSector, idArea, idGuestbook, idUserAvatar, m, () -> multiPart.getField(m.name()).getValueAs(InputStream.class));
-							}
-						}
 					}
 				}
 			}
@@ -6000,141 +5943,6 @@ public class Dao {
 				ps.execute();
 			}
 		}
-	}
-
-	private int addNewMedia(Connection c, Optional<Integer> authUserId, int idProblem, int pitch, boolean trivia, int idSector, int idArea, int idGuestbook, int idUserAvatar, NewMedia m, Supplier<InputStream> inputStreamSupplier) throws SQLException, IOException, InterruptedException {
-		logger.debug("addNewMedia(authUserId={}, idProblem={}, pitch={}, trivia={}, idSector={}, idArea={}, idGuestbook={}, idUserAvatar={}, m={}) initialized", authUserId, idProblem, pitch, trivia, idSector, idArea, idGuestbook, idUserAvatar, m);
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		final boolean isEmbed = !Strings.isNullOrEmpty(m.embedVideoUrl());
-		final StorageType storageType = isEmbed ? StorageType.MP4 : StorageType.fromFilename(m.name()).orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for " + m.name()));
-		Preconditions.checkArgument((idProblem > 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
-				|| (idProblem == 0 && idSector > 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea > 0 && idGuestbook == 0 && idUserAvatar == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook > 0 && idUserAvatar == 0)
-				|| (idProblem == 0 && idSector == 0 && idArea == 0 && idGuestbook == 0 && idUserAvatar > 0 && !storageType.isMovie()));
-		int idMedia = -1;
-		boolean alreadyExistsInDb = false;
-		if (isEmbed) {
-			// Embed video url
-			Objects.requireNonNull(m.embedThumbnailUrl(), "embedThumbnailUrl required");
-			Objects.requireNonNull(m.embedVideoUrl(), "embedVideoUrl required");
-			// First check if video already exists in system, don't duplicate videos!
-			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
-				ps.setString(1, m.embedVideoUrl());
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						alreadyExistsInDb = true;
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-		}
-
-		/**
-		 * DB
-		 */
-		if (!alreadyExistsInDb) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, storageType.isMovie());
-				ps.setString(2, storageType.getExtension());
-				ps.setInt(3, getExistingOrInsertUser(c, m.photographer()));
-				ps.setInt(4, authUserId.orElseThrow());
-				ps.setString(5, GlobalFunctions.stripString(m.description()));
-				ps.setString(6, m.embedVideoUrl());
-				ps.setInt(7, m.thumbnailSeconds());
-				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-		}
-		Preconditions.checkArgument(idMedia > 0);
-		if (idProblem > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idProblem);
-				setNullablePositiveInteger(ps, 3, pitch);
-				ps.setBoolean(4, trivia);
-				ps.setLong(5, m.embedMilliseconds());
-				ps.execute();
-			}
-		}
-		else if (idSector > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idSector);
-				ps.setBoolean(3, trivia);
-				ps.execute();
-			}
-		}
-		else if (idArea > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idArea);
-				ps.setBoolean(3, trivia);
-				ps.execute();
-			}
-		}
-		else if (idGuestbook > 0) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idGuestbook);
-				ps.execute();
-			}
-		}
-		else if (idUserAvatar > 0) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE user SET media_id=? WHERE id=?")) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, idUserAvatar);
-				ps.execute();
-			}
-		}
-		else {
-			throw new RuntimeException("Server error");
-		}
-		if (!alreadyExistsInDb) {
-			if (m.inPhoto() != null && !m.inPhoto().isEmpty()) {
-				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_user (media_id, user_id) VALUES (?, ?)")) {
-					for (User u : m.inPhoto()) {
-						ps.setInt(1, idMedia);
-						ps.setInt(2, getExistingOrInsertUser(c, u.name()));
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			if (storageType.isMovie() && !isEmbed) {
-				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
-				try {
-					try (InputStream is = inputStreamSupplier.get()) {
-						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
-					}
-					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, StorageType.MP4); // Save with mime type mp4, the input might have been mov
-					final int id = idMedia;
-					Server.runAsync(() -> {
-						try {
-							Server.runSql((dao, conn) -> VideoHelper.processVideo(conn, dao, id, m.thumbnailSeconds()));
-						} catch (Exception e) {
-							logger.error("Failed to run async video processing for id=" + id, e);
-						}
-					});
-				} finally {
-					Files.deleteIfExists(tempFile);
-				}
-			}
-			else if (isEmbed) {
-				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedVideoUrl());
-			}
-			else {
-				try (InputStream is = inputStreamSupplier.get()) {
-					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
-					ImageHelper.saveImage(this, c, idMedia, bytes);
-				}
-			}
-		}
-		return idMedia;
 	}
 
 	private int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
@@ -6333,7 +6141,7 @@ public class Dao {
 
 	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {
 		if (Strings.isNullOrEmpty(name)) {
-			return 1049; // Unknown
+			return USER_ID_UNKNOWN; // Unknown
 		}
 		try (PreparedStatement ps = c.prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")) {
 			ps.setString(1, name);
@@ -6589,7 +6397,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, enableMoveToIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -6859,7 +6667,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
 							m.inherited(), sectorId, m.enableMoveToIdProblem(),
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							);
 					pMediaList.add(m);
 				}
@@ -7013,7 +6821,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, finalMoveIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}

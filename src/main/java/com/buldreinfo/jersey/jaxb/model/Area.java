@@ -178,11 +178,10 @@ public class Area {
 	private final List<AreaSectorOrder> sectorOrder;
 	private final List<Media> media;
 	private final List<Media> triviaMedia;
-	private final List<NewMedia> newMedia;
 	private final List<ExternalLink> externalLinks;
 	private final String pageViews;
 
-	public Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<NewMedia> newMedia, List<ExternalLink> externalLinks, String pageViews) {
+	public Area(String redirectUrl, String regionName, int id, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin, boolean forDevelopers, String accessInfo, String accessClosed, boolean noDogsAllowed, int sunFromHour, int sunToHour, String name, String comment, Coordinates coordinates, int numSectors, int numProblems, List<Media> media, List<Media> triviaMedia, List<ExternalLink> externalLinks, String pageViews) {
 		this.redirectUrl = redirectUrl;
 		this.regionName = regionName;
 		this.id = id;
@@ -204,7 +203,6 @@ public class Area {
 		this.sectorOrder = numSectors == -1? new ArrayList<>() : null;
 		this.media = media;
 		this.triviaMedia = triviaMedia;
-		this.newMedia = newMedia;
 		this.externalLinks = externalLinks;
 		this.pageViews = pageViews;
 	}
@@ -246,10 +244,6 @@ public class Area {
 
 	public String getName() {
 		return name;
-	}
-
-	public List<NewMedia> getNewMedia() {
-		return newMedia;
 	}
 
 	public int getNumProblems() {

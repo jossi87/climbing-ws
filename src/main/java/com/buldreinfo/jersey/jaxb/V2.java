@@ -2,7 +2,6 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -81,7 +80,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -1118,7 +1116,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update area (area must be provided as json on field \"json\" in multiPart)", responses = {
+	@Operation(summary = "Update area", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1128,18 +1126,16 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/areas")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postAreas(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Area a = new Gson().fromJson(multiPart.getField("json").getValue(), Area.class);
+	public Response postAreas(@Context HttpServletRequest request, Area a) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Objects.requireNonNull(Strings.emptyToNull(a.getName()));
-			Redirect res = dao.setArea(c, setup, authUserId, a, multiPart);
+			Redirect res = dao.setArea(c, setup, authUserId, a);
 			return Response.ok().entity(res).build();
 		});
 	}
 
-	@Operation(summary = "Update comment (comment must be provided as json on field \"json\" in multiPart)", responses = {
+	@Operation(summary = "Update comment", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1149,12 +1145,10 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/comments")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postComments(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Comment co = new Gson().fromJson(multiPart.getField("json").getValue(), Comment.class);
+	public Response postComments(@Context HttpServletRequest request, Comment co) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			int idGuestbook = dao.upsertComment(c, authUserId, setup, co, multiPart);
+			int idGuestbook = dao.upsertComment(c, authUserId, setup, co);
 			return Response.ok(idGuestbook).build();
 		});
 	}
@@ -1169,7 +1163,6 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		FormDataBodyPart jsonPart = multiPart.getField("json");
@@ -1219,7 +1212,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
+	@Operation(summary = "Update problem", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1229,38 +1222,13 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/problems")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postProblems(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
+	public Response postProblems(@Context HttpServletRequest request, Problem p) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.getSectorId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(p.getName()));
-			Redirect res = dao.setProblem(c, authUserId, setup, p, multiPart);
-			return Response.ok().entity(res).build();
-		});
-	}
-
-	@Operation(summary = "Add media on problem (problem must be provided as json on field \"json\" in multiPart)", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Problem.class))}),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@POST
-	@Path("/problems/media")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response postProblemsMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Problem p = new Gson().fromJson(multiPart.getField("json").getValue(), Problem.class);
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			Preconditions.checkArgument(p.getId() > 0);
-			Preconditions.checkArgument(!p.getNewMedia().isEmpty());
-			dao.addProblemMedia(c, authUserId, p, multiPart);
-			Problem res = dao.getProblem(c, authUserId, setup, p.getId(), false, shouldUpdateHits);
+			Redirect res = dao.setProblem(c, authUserId, setup, p);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1290,7 +1258,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update profile identity (profile must be provided as json on field \"json\" in multiPart, \"avatar\" is optional)", responses = {
+	@Operation(summary = "Update profile identity", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1299,11 +1267,9 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/profile/identity")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	public Response postProfileIdentity(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		ProfileIdentity profile = new Gson().fromJson(multiPart.getField("json").getValue(), ProfileIdentity.class);
+	public Response postProfileIdentity(@Context HttpServletRequest request, ProfileIdentity profile) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.setProfile(c, authUserId, profile, multiPart);
+			dao.setProfile(c, authUserId, profile);
 			return Response.ok().build();
 		});
 	}
@@ -1343,7 +1309,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update sector (sector must be provided as json on field \"json\" in multiPart)", responses = {
+	@Operation(summary = "Update sector", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1353,14 +1319,12 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/sectors")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postSectors(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-		Sector s = new Gson().fromJson(multiPart.getField("json").getValue(), Sector.class);
+	public Response postSectors(@Context HttpServletRequest request, Sector s) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Preconditions.checkArgument(s.getAreaId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(s.getName()));
-			Redirect res = dao.setSector(c, authUserId, setup, s, multiPart);
+			Redirect res = dao.setSector(c, authUserId, setup, s);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1437,29 +1401,6 @@ public class V2 {
 		});
 	}
 	
-	@Operation(summary = "Set media as avatar", responses = {
-			@ApiResponse(responseCode = "200"),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@PUT
-	@Path("/media/avatar")
-	public Response putMediaAvatar(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			String originalKey = S3KeyGenerator.getOriginalJpg(id);
-			try (var is = StorageManager.getInstance().getInputStream(originalKey)) {
-				dao.saveUserAvatar(c, authUserId, () -> is);
-			} catch (IOException e) {
-				throw new RuntimeException("Failed to read original media for avatar update", e);
-			}
-			return Response.ok().build();
-		});
-	}
-
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
