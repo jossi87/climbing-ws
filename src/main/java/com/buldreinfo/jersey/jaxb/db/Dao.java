@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr.Rotation;
 
@@ -157,6 +158,158 @@ public class Dao {
 	private final Gson gson = new Gson();
 
 	public Dao() {
+	}
+
+	public int addMedia(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart) throws Exception {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		Preconditions.checkArgument(m.photographer() != null && !Strings.isNullOrEmpty(m.photographer().name()), "Photographer is required");
+		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
+		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
+		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+		boolean hasGuestbook = m.guestbookId() > 0;
+		Preconditions.checkArgument(
+				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook) ||
+				(!hasAreas && hasSectors && !hasProblems && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && hasProblems && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && !hasProblems && hasGuestbook),
+				"Media must belong to exactly one entity type (Area, Sector, Problem, or Guestbook)."
+		);
+		final boolean isEmbed = !Strings.isNullOrEmpty(m.embedUrl());
+		StorageType storageType;
+		if (isEmbed) {
+			storageType = StorageType.MP4;
+		}
+		else {
+			Preconditions.checkNotNull(filePart, "File part is required for physical asset uploads.");
+			String fileName = filePart.getContentDisposition().getFileName();
+			storageType = StorageType.fromFilename(fileName)
+					.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for filename: " + fileName));
+		}
+		int idMedia = -1;
+		boolean alreadyExistsInDb = false;
+		if (isEmbed) {
+			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
+				ps.setString(1, m.embedUrl());
+				try (ResultSet rst = ps.executeQuery()) {
+					if (rst.next()) {
+						alreadyExistsInDb = true;
+						idMedia = rst.getInt(1);
+					}
+				}
+			}
+		}
+		if (!alreadyExistsInDb) {
+			int photographerId = m.photographer().id() > 0 ? m.photographer().id() : getExistingOrInsertUser(c, m.photographer().name());
+			String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
+				ps.setBoolean(1, storageType.isMovie());
+				ps.setString(2, storageType.getExtension());
+				ps.setInt(3, photographerId);
+				ps.setInt(4, authUserId.get());
+				ps.setString(5, GlobalFunctions.stripString(m.description()));
+				ps.setString(6, m.embedUrl());
+				ps.setInt(7, m.thumbnailSeconds());
+				ps.executeUpdate();
+				try (ResultSet rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						idMedia = rst.getInt(1);
+					}
+				}
+			}
+		}
+		Preconditions.checkArgument(idMedia > 0, "Failed to insert or locate media record.");
+		if (hasProblems) {
+			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
+				for (Media.MediaProblem problem : m.problems()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, problem.problemId());
+					ps.setInt(3, problem.problemPitch());
+					ps.setBoolean(4, problem.trivia());
+					ps.setLong(5, problem.milliseconds());
+					ps.execute();
+				}
+			}
+		}
+		else if (hasSectors) {
+			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
+				for (Media.MediaSector sector : m.sectors()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, sector.sectorId());
+					ps.setBoolean(3, sector.trivia());
+					ps.execute();
+				}
+			}
+		}
+		else if (hasAreas) {
+			String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
+				for (Media.MediaArea area : m.areas()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, area.areaId());
+					ps.setBoolean(3, area.trivia());
+					ps.execute();
+				}
+			}
+		}
+		else if (hasGuestbook) {
+			String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, m.guestbookId());
+				ps.execute();
+			}
+		}
+		if (!alreadyExistsInDb) {
+			if (m.tagged() != null && !m.tagged().isEmpty()) {
+				String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
+					for (User u : m.tagged()) {
+						int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
+						ps.setInt(1, idMedia);
+						ps.setInt(2, userId);
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (storageType.isMovie() && !isEmbed) {
+				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
+				try {
+					try (InputStream is = filePart.getValueAs(InputStream.class)) {
+						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
+					}
+					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, StorageType.MP4);
+					final int finalId = idMedia;
+					final int thumbSeconds = m.thumbnailSeconds();
+					Server.runAsync(() -> {
+						try {
+							Server.runSql((dao, conn) -> VideoHelper.processVideo(conn, dao, finalId, thumbSeconds));
+						} catch (Exception e) {
+							logger.error("Failed async video processing for id=" + finalId, e);
+						}
+					});
+				} finally {
+					Files.deleteIfExists(tempFile);
+				}
+			}
+			else if (isEmbed) {
+				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedUrl());
+			}
+			else {
+				try (InputStream is = filePart.getValueAs(InputStream.class)) {
+					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
+					ImageHelper.saveImage(this, c, idMedia, bytes);
+				}
+			}
+		}
+		if (hasProblems) {
+			for (Media.MediaProblem problem : m.problems()) {
+				fillActivity(c, problem.problemId());
+			}
+		}
+		return idMedia;
 	}
 
 	public void addProblemMedia(Connection c, Optional<Integer> authUserId, Problem p, FormDataMultiPart multiPart) throws SQLException, IOException, InterruptedException {
@@ -5509,7 +5662,7 @@ public class Dao {
 			}
 		}
 	}
-
+	
 	public void trashRecover(Connection c, Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
 		ensureSuperadminWriteRegion(c, setup, authUserId);
 		String sqlStr = null;

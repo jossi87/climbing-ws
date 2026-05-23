@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
@@ -1158,6 +1159,31 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Add single media item", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/media")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+		FormDataBodyPart jsonPart = multiPart.getField("json");
+		Preconditions.checkArgument(jsonPart != null, "Missing 'json' parameter in multipart payload");
+		Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(m != null, "Invalid media payload metadata");
+			FormDataBodyPart filePart = multiPart.getField("file");
+			int newMediaId = dao.addMedia(c, authUserId, m, filePart);
+			Media res = dao.getMedia(c, authUserId, newMediaId);
+			return Response.ok().entity(res).build();
+		});
+	}
+
 	@Operation(summary = "Update Media SVG", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1393,34 +1419,6 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Update media location", responses = {
-			@ApiResponse(responseCode = "200"),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@PUT
-	@Path("/media/location")
-	public Response putMediaLocation(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
-			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
-			) {
-		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector > 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem > 0),
-				"Invalid arguments");
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(id > 0);
-			dao.moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
-			return Response.ok().build();
-		});
-	}
-
 	@Operation(summary = "Update media", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1438,7 +1436,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-
+	
 	@Operation(summary = "Set media as avatar", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1479,6 +1477,34 @@ public class V2 {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.rotateMedia(c, authUserId, idMedia, degrees);
+			return Response.ok().build();
+		});
+	}
+
+	@Operation(summary = "Update media location", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PUT
+	@Path("/media/location")
+	public Response putMediaLocation(@Context HttpServletRequest request,
+			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
+			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
+			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
+			) {
+		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem == 0) ||
+				(!left && toIdSector > 0 && toIdProblem == 0) ||
+				(!left && toIdSector == 0 && toIdProblem > 0),
+				"Invalid arguments");
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(id > 0);
+			dao.moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}
