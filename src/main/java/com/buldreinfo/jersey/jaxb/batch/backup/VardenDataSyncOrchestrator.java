@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.batch.FixMedia;
+
 public class VardenDataSyncOrchestrator {
     private static final Logger logger = LogManager.getLogger();
     private static final String SSH_HOST = "172.232.129.122";
@@ -29,6 +31,7 @@ public class VardenDataSyncOrchestrator {
     	if (!Files.exists(Path.of(SSH_KEY_PATH))) {
     	    throw new RuntimeException(SSH_KEY_PATH.toString() + " not found");
     	}
+    	FixMedia.main(null);
         logger.debug("DataSftpDownloadTask started");
         new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, DB_BASE_PATH, INFRA_PATH, REMOTE_BACKUP_DIR).run();
         logger.debug("S3BucketDownloadBatch started");
