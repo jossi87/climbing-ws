@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class FixMedia {
 		new FixMedia();
 	}
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
-	private final List<String> warnings = new ArrayList<>();
+	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
 	private FixMedia() {
 		List<MediaTask> tasks = new ArrayList<>();
@@ -187,12 +188,19 @@ public class FixMedia {
 					String[] commands = {
 							LOCAL_YT_DLP_PATH, 
 							"--ffmpeg-location", LOCAL_FFMPEG_PATH, 
+							"--js-runtimes", "node",
 							embedUrl, 
 							"-S", "ext:mp4:m4a", 
 							"--merge-output-format", "mp4", 
 							"-o", originalMp4.toString()
 					};
-					new ProcessBuilder().inheritIO().command(commands).start().waitFor();
+					Path logFile = Paths.get(System.getProperty("java.io.tmpdir"), "yt-dlp-id-" + id + ".log");
+					new ProcessBuilder()
+						.command(commands)
+						.redirectErrorStream(true)
+						.redirectOutput(logFile.toFile())
+						.start()
+						.waitFor();
 				}
 				if (!Files.exists(originalMp4)) {
 					warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
@@ -201,7 +209,7 @@ public class FixMedia {
 			if (!Files.exists(originalJpg)) {
 				Server.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
 			}
-			if (!Files.exists(originalJpg)) {
+			if (!Files.exists(originalJpg) && !PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE.contains(id)) {
 				warnings.add("Failed to download embedded video thumbnail with id=" + id + " to originalJpg=" + originalJpg);
 			}
 		}
