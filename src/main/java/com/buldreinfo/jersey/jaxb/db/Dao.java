@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -161,7 +162,7 @@ public class Dao {
 	public Dao() {
 	}
 
-	public int addMedia(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart) throws Exception {
+	public int addMedia(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 
 		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
@@ -296,7 +297,7 @@ public class Dao {
 			if (storageType.isMovie() && !isEmbed) {
 				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
 				try {
-					try (InputStream is = filePart.getValueAs(InputStream.class)) {
+					try (InputStream is = inputStreamSupplier.get()) {
 						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
 					}
 					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, StorageType.MP4);
@@ -317,7 +318,7 @@ public class Dao {
 				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedUrl());
 			}
 			else {
-				try (InputStream is = filePart.getValueAs(InputStream.class)) {
+				try (InputStream is = inputStreamSupplier.get()) {
 					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
 					ImageHelper.saveImage(this, c, idMedia, bytes);
 				}
@@ -331,7 +332,7 @@ public class Dao {
 		}
 		return idMedia;
 	}
-
+	
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
 		List<Integer> idProblems = new ArrayList<>();
@@ -1315,17 +1316,15 @@ public class Dao {
 				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
 					avatarBytes = readBytesWithLimit(remoteStream, MAX_IMAGE_UPLOAD_BYTES);
 				}
-				try (InputStream is = new ByteArrayInputStream(avatarBytes)) {
-					StreamDataBodyPart filePart = new StreamDataBodyPart("file", is, "avatar.jpg");
-					FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
-							.fileName("avatar.jpg")
-							.build();
-					filePart.setFormDataContentDisposition(disposition);
-					
-					User photographer = User.from(USER_ID_UNKNOWN, null);
-					Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
-					addMedia(c, finalUserId, m, filePart);
-				}
+				StreamDataBodyPart filePart = new StreamDataBodyPart("file", new ByteArrayInputStream(avatarBytes), "avatar.jpg");
+				FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
+						.fileName("avatar.jpg")
+						.build();
+				filePart.setFormDataContentDisposition(disposition);
+				
+				User photographer = User.from(USER_ID_UNKNOWN, null);
+				Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
+				addMedia(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
 			}

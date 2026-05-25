@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,6 +81,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -1163,15 +1165,19 @@ public class V2 {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMedia(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
 		FormDataBodyPart jsonPart = multiPart.getField("json");
-		Preconditions.checkArgument(jsonPart != null, "Missing 'json' parameter in multipart payload");
+		Preconditions.checkArgument(jsonPart != null);
+		
 		Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(m != null, "Invalid media payload metadata");
+			Preconditions.checkArgument(m != null);
+			
 			FormDataBodyPart filePart = multiPart.getField("file");
-			int newMediaId = dao.addMedia(c, authUserId, m, filePart);
+			int newMediaId = dao.addMedia(c, authUserId, m, filePart, () -> filePart.getValueAs(InputStream.class));
+			
 			Media res = dao.getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
