@@ -1,5 +1,6 @@
 package com.buldreinfo.jersey.jaxb.db;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -1310,18 +1311,23 @@ public class Dao {
 		final Optional<Integer> finalUserId = authUserId;
 		if (!hasAvatar && profile.picture() != null) {
 			try {
-				try (InputStream is = URI.create(profile.picture()).toURL().openStream()) {
+				byte[] avatarBytes;
+				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
+					avatarBytes = readBytesWithLimit(remoteStream, MAX_IMAGE_UPLOAD_BYTES);
+				}
+				try (InputStream is = new ByteArrayInputStream(avatarBytes)) {
 					StreamDataBodyPart filePart = new StreamDataBodyPart("file", is, "avatar.jpg");
 					FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
 							.fileName("avatar.jpg")
 							.build();
 					filePart.setFormDataContentDisposition(disposition);
+					
 					User photographer = User.from(USER_ID_UNKNOWN, null);
 					Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
 					addMedia(c, finalUserId, m, filePart);
 				}
 			} catch (Exception e) {
-				logger.warn(e.getMessage(), e);
+				logger.error("Failed to cleanly download and apply login avatar profile image", e);
 			}
 		}
 		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
