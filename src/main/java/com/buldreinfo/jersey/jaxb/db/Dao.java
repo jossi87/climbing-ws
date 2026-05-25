@@ -4092,57 +4092,92 @@ public class Dao {
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
 				),
-				p_stars AS (
-				    SELECT 
-				        p_sub.id AS pid,
-				        COUNT(DISTINCT t_sub.id) AS num_ticks,
-				        ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
+				filtered_problems AS (
+				    SELECT p.id AS pid, p.sector_id, p.consensus_grade_id, p.type_id, p.coordinates_id,
+				           p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, 
+				           p.length_meter, p.starting_altitude, p.fa_date,
+				           r.id AS region_id, r.name AS region_name, r.url AS region_url,
+				           a.id AS area_id, a.name AS area_name, a.coordinates_id AS area_coordinates_id,
+				           a.locked_admin AS area_locked_admin, a.locked_superadmin AS area_locked_superadmin,
+				           a.sun_from_hour AS area_sun_from_hour, a.sun_to_hour AS area_sun_to_hour,
+				           s.id AS sector_id_val, s.name AS sector_name, s.sorting AS sector_sorting,
+				           s.sun_from_hour AS sector_sun_from_hour, s.sun_to_hour AS sector_sun_to_hour,
+				           s.parking_coordinates_id AS sector_parking_coordinates_id,
+				           s.compass_direction_id_calculated AS sector_compass_direction_id_calculated,
+				           s.compass_direction_id_manual AS sector_compass_direction_id_manual,
+				           s.locked_admin AS sector_locked_admin, s.locked_superadmin AS sector_locked_superadmin
 				    FROM req
-				    JOIN problem p_sub ON 1=1
-				    LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				    GROUP BY p_sub.id
+				    JOIN area a ON 1=1
+				    JOIN region r ON a.region_id = r.id
+				    JOIN region_type rt ON r.id = rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				    JOIN sector s ON a.id = s.area_id
+				    JOIN problem p ON s.id = p.sector_id AND rt.type_id = p.type_id
+				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				    WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
+				      AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
+				      AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
+				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				),
+				tick_agg AS (
+				    SELECT t.problem_id,
+				           COUNT(t.id) AS num_ticks,
+				           ROUND(ROUND(AVG(NULLIF(t.stars, -1)) * 2) / 2, 1) AS stars,
+				           MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
+				    FROM tick t
+				    WHERE t.problem_id IN (SELECT pid FROM filtered_problems)
+				    GROUP BY t.problem_id
+				),
+				fa_agg AS (
+				    SELECT f.problem_id,
+				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS ffa_names,
+				           MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
+				    FROM fa f
+				    JOIN user u ON f.user_id = u.id
+				    WHERE f.problem_id IN (SELECT pid FROM filtered_problems)
+				    GROUP BY f.problem_id
+				),
+				fa_aid_agg AS (
+				    SELECT a.problem_id,
+				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names,
+				           YEAR(a.aid_date) AS fa_aid_date
+				    FROM fa_aid a
+				    JOIN fa_aid_user au ON a.problem_id = au.problem_id
+				    JOIN user u ON au.user_id = u.id
+				    WHERE a.problem_id IN (SELECT pid FROM filtered_problems)
+				    GROUP BY a.problem_id, a.aid_date
 				)
 				SELECT 
-				    r.id region_id, r.name region_name, a.id area_id, CONCAT(r.url,'/area/',a.id) area_url, a.name area_name, 
-				    ac.id area_coordinates_id, ac.latitude area_latitude, ac.longitude area_longitude, ac.elevation area_elevation, ac.elevation_source area_elevation_source, 
-				    a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
-				    s.id sector_id, CONCAT(r.url,'/sector/',s.id) sector_url, s.name sector_name, s.sorting sector_sorting, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
-				    sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
-				    s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
-				    s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin,
-				    p.id, CONCAT(r.url,'/problem/',p.id) url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.length_meter, REGEXP_SUBSTR(p.starting_altitude,'[0-9]+') starting_altitude,
-				    c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+				    p.region_id, p.region_name, p.area_id, CONCAT(p.region_url, '/area/', p.area_id) AS area_url, p.area_name, 
+				    ac.id AS area_coordinates_id, ac.latitude AS area_latitude, ac.longitude AS area_longitude, ac.elevation AS area_elevation, ac.elevation_source AS area_elevation_source, 
+				    p.area_locked_admin, p.area_locked_superadmin, p.area_sun_from_hour, p.area_sun_to_hour,
+				    p.sector_id_val AS sector_id, CONCAT(p.region_url, '/sector/', p.sector_id_val) AS sector_url, p.sector_name, p.sector_sorting, p.sector_sun_from_hour, p.sector_sun_to_hour, 
+				    sc.id AS sector_parking_coordinates_id, sc.latitude AS sector_parking_latitude, sc.longitude AS sector_parking_longitude, sc.elevation AS sector_parking_elevation, sc.elevation_source AS sector_parking_elevation_source, 
+				    p.sector_compass_direction_id_calculated, p.sector_compass_direction_id_manual, 
+				    p.sector_locked_admin, p.sector_locked_superadmin,
+				    p.pid AS id, CONCAT(p.region_url, '/problem/', p.pid) AS url, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.description, p.length_meter, REGEXP_SUBSTR(p.starting_altitude, '[0-9]+') AS starting_altitude,
+				    c.id AS coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
 				    gf.grade,
-				    GROUP_CONCAT(DISTINCT CONCAT(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') fa, 
-				    YEAR(p.fa_date) fa_year,
-				    ps_data.num_ticks, ps_data.stars, 
-				    MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked,
-				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END todo,
-				    ty.id type_id, ty.type, ty.subtype, COUNT(DISTINCT ps.id) num_pitches 
-				FROM req
-				JOIN area a ON 1=1
-				JOIN region r ON a.region_id = r.id
-				JOIN region_type rt ON r.id = rt.region_id AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
-				JOIN sector s ON a.id = s.area_id
-				JOIN problem p ON s.id = p.sector_id AND rt.type_id = p.type_id
-				JOIN p_stars ps_data ON p.id = ps_data.pid
+				    fa_aid.fa_aid_names AS fa_user,
+				    COALESCE(fa_aid.fa_aid_date, 0) AS fa_year,
+				    fa.ffa_names AS ffa_user,
+				    COALESCE(YEAR(p.fa_date), 0) AS ffa_year,
+				    COALESCE(t.num_ticks, 0) AS num_ticks, 
+				    COALESCE(t.stars, 0) AS stars, 
+				    GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
+				    CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
+				    ty.id AS type_id, ty.type, ty.subtype, 
+				    (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.pid) AS num_pitches 
+				FROM filtered_problems p
 				JOIN type ty ON p.type_id = ty.id
 				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
-				LEFT JOIN coordinates ac ON a.coordinates_id = ac.id
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+				LEFT JOIN coordinates ac ON p.area_coordinates_id = ac.id
+				LEFT JOIN coordinates sc ON p.sector_parking_coordinates_id = sc.id
 				LEFT JOIN coordinates c ON p.coordinates_id = c.id
-				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-				LEFT JOIN fa f ON p.id = f.problem_id
-				LEFT JOIN user u ON f.user_id = u.id
-				LEFT JOIN tick t ON p.id = t.problem_id
-				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = req.auth_user_id
-				LEFT JOIN problem_section ps ON p.id = ps.problem_id 
-				WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL) 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1 
-				GROUP BY p.id, r.id, a.id, s.id, gf.grade, todo.id, ty.id, ps_data.num_ticks, ps_data.stars
-				ORDER BY r.name, a.name, s.sorting, s.name, p.nr
+				LEFT JOIN tick_agg t ON p.pid = t.problem_id
+				LEFT JOIN fa_agg fa ON p.pid = fa.problem_id
+				LEFT JOIN fa_aid_agg fa_aid ON p.pid = fa_aid.problem_id
+				LEFT JOIN todo ON p.pid = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
+				ORDER BY p.region_name, p.area_name, p.sector_sorting, p.sector_name, p.nr
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -4203,18 +4238,20 @@ public class Dao {
 					String description = rst.getString("description");
 					int lengthMeter = rst.getInt("length_meter");
 					int startingAltitude = rst.getInt("starting_altitude");
-					int faYear = rst.getInt("fa_year");
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					String grade = rst.getString("grade");
-					String fa = rst.getString("fa");
+					String faUser = rst.getString("fa_user");
+					int faYear = rst.getInt("fa_year");
+					String ffaUser = rst.getString("ffa_user");
+					int ffaYear = rst.getInt("ffa_year");
 					int numTicks = rst.getInt("num_ticks");
 					double stars = rst.getDouble("stars");
 					boolean ticked = rst.getBoolean("ticked");
 					boolean todo = rst.getBoolean("todo");
 					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
 					int numPitches = rst.getInt("num_pitches");
-					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, fa, faYear, numTicks, stars, ticked, todo, t, numPitches);
+					TocProblem p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
 					s.problems().add(p);
 					numProblems++;
 				}
@@ -7044,11 +7081,13 @@ public class Dao {
 				),
 				fa_aid_agg AS (
 				    SELECT a.problem_id,
-				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names
-				    FROM fa_aid_user a
-				    JOIN user u ON a.user_id = u.id
+				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names,
+                           YEAR(a.aid_date) fa_aid_date
+				    FROM fa_aid a
+                    JOIN fa_aid_user au ON a.problem_id=au.problem_id
+				    JOIN user u ON au.user_id = u.id
 				    WHERE a.problem_id IN (SELECT id FROM filtered_problems)
-				    GROUP BY a.problem_id
+				    GROUP BY a.problem_id, a.aid_date
 				),
 				tick_agg AS (
 				    SELECT t.problem_id,
@@ -7070,10 +7109,8 @@ public class Dao {
 				    GROUP BY mp.problem_id
 				)
 				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description,
-				       fa_aid.fa_aid_names AS fa_user,
-				       CASE WHEN fa_aid.fa_aid_names IS NOT NULL THEN COALESCE(YEAR(p.fa_date), 0) ELSE 0 END AS fa_year,
-				       fa.fa_names AS ffa_user,
-				       CASE WHEN fa_aid.fa_aid_names IS NULL THEN COALESCE(YEAR(p.fa_date), 0) ELSE 0 END AS ffa_year,
+				       fa_aid.fa_aid_names fa_user, fa_aid.fa_aid_date fa_year,
+				       fa.fa_names ffa_user, YEAR(p.fa_date) ffa_year,
 				       ty.id AS type_id, ty.type, ty.subtype,
 				       g.weight AS problem_grade_weight, g.grade AS problem_grade,
 				       COALESCE(t.total_ticks, 0) AS total_ticks,

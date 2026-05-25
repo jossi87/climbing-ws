@@ -816,7 +816,16 @@ public class V2 {
 									if (!setup.isBouldering()) {
 										sheet.writeInt("PITCHES", p.numPitches() > 0? p.numPitches() : 1);
 									}
-									sheet.writeString("FA", p.fa());
+									if (setup.isBouldering()) {
+										sheet.writeString("FA_USER", p.ffaUser());
+										sheet.writeInt("FA_YEAR", p.ffaYear());
+									}
+									else {
+										sheet.writeString("FA_USER", p.faUser());
+										sheet.writeInt("FA_YEAR", p.faYear());
+										sheet.writeString("FFA_USER", p.ffaUser());
+										sheet.writeInt("FFA_YEAR", p.ffaYear());
+									}
 									sheet.writeDouble("STARS", p.stars());
 									sheet.writeString("DESCRIPTION", p.description());
 								}
