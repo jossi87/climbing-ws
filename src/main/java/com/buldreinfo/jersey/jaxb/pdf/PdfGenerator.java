@@ -960,7 +960,30 @@ public class PdfGenerator implements AutoCloseable {
 				if (showType) {
 					addTableCell(table, FONT_REG, p.t().subType(), null, p.ticked());
 				}
-				addTableCell(table, FONT_REG, p.fa(), null, p.ticked());
+				List<String> parts = new ArrayList<>();
+
+				if (p.faUser() != null && !p.faUser().isEmpty()) {
+				    String faPart = p.faUser();
+				    if (p.faYear() > 0) {
+				        faPart += " (" + p.faYear() + ")";
+				    }
+				    parts.add(faPart);
+				}
+
+				if (p.ffaUser() != null && !p.ffaUser().isEmpty()) {
+				    String ffaPart = p.ffaUser();
+				    if (p.ffaYear() > 0) {
+				        ffaPart += " (" + p.ffaYear() + ")";
+				    }
+				    
+				    if (!parts.isEmpty()) {
+				        parts.add("FFA: " + ffaPart);
+				    } else {
+				        parts.add(ffaPart);
+				    }
+				}
+				String fa = String.join(", ", parts);
+				addTableCell(table, FONT_REG, fa, null, p.ticked());
 
 				Phrase note = new Phrase();
 				if (p.numTicks() > 0) {

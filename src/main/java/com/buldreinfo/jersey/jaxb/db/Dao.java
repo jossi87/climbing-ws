@@ -1197,12 +1197,12 @@ public class Dao {
 				sectorLookup.values().forEach(sector -> {
 					long totalProblems = sector.getProblems().stream()
 							.filter(p -> p.broken() == null)
-							.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.fa() != null)
+							.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
 							.count();
 					if (totalProblems != 0) {
 						long completedProblems = sector.getProblems().stream()
 								.filter(p -> p.broken() == null)
-								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.fa() != null)
+								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
 								.filter(SectorProblem::ticked)
 								.count();
 						int percentage = totalProblems > 0 ? (int) Math.round((double) completedProblems / totalProblems * 100) : 0;
@@ -6221,37 +6221,6 @@ public class Dao {
 		return res;
 	}
 
-	private Map<Integer, String> getFaAidNamesOnSectors(Connection c, int optAreaId, int optSectorId) throws SQLException {
-		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0));
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Map<Integer, String> res = new HashMap<>();
-		String sql = """
-				WITH req AS (
-				    SELECT ? area_id, ? sector_id
-				)
-				SELECT p.id,
-				       GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) 
-				       ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa
-				FROM req
-				JOIN sector s ON (req.area_id > 0 AND s.area_id = req.area_id) OR (req.sector_id > 0 AND s.id = req.sector_id)
-				JOIN problem p ON s.id = p.sector_id
-				JOIN fa_aid_user a ON p.id = a.problem_id
-				JOIN user u ON a.user_id = u.id
-				GROUP BY p.id
-				""";
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
-			ps.setInt(1, optAreaId);
-			ps.setInt(2, optSectorId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.put(rst.getInt("id"), rst.getString("fa"));
-				}
-			}
-		}
-		logger.debug("getFaAidNamesOnSectors(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
-		return res;
-	}
-
 	private List<Grade> getGrades(Connection c, int gradeSystemId) throws SQLException {
 		List<Grade> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -7049,13 +7018,10 @@ public class Dao {
 		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || optAreaId > 0 && optSectorId == 0);
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Multimap<Integer, SectorProblem> res = LinkedListMultimap.create();
-		Map<Integer, String> problemIdFirstAidAscentLookup = null;
-		if (!setup.isBouldering()) {
-			problemIdFirstAidAscentLookup = getFaAidNamesOnSectors(c, optAreaId, optSectorId);
-		}
+		
 		String sqlStr = """
 				WITH req AS (
-				    SELECT ? auth_user_id, ? area_id, ? sector_id
+				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
 				),
 				filtered_problems AS (
 				    SELECT p.*, ur.admin_read, ur.superadmin_read
@@ -7076,6 +7042,14 @@ public class Dao {
 				    WHERE f.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY f.problem_id
 				),
+				fa_aid_agg AS (
+				    SELECT a.problem_id,
+				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names
+				    FROM fa_aid_user a
+				    JOIN user u ON a.user_id = u.id
+				    WHERE a.problem_id IN (SELECT id FROM filtered_problems)
+				    GROUP BY a.problem_id
+				),
 				tick_agg AS (
 				    SELECT t.problem_id,
 				           COUNT(t.id) AS total_ticks,
@@ -7095,8 +7069,11 @@ public class Dao {
 				    AND mp.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY mp.problem_id
 				)
-				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.fa_date,
-				       fa.fa_names AS fa,
+				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description,
+				       fa_aid.fa_aid_names AS fa_user,
+				       CASE WHEN fa_aid.fa_aid_names IS NOT NULL THEN COALESCE(YEAR(p.fa_date), 0) ELSE 0 END AS fa_year,
+				       fa.fa_names AS ffa_user,
+				       CASE WHEN fa_aid.fa_aid_names IS NULL THEN COALESCE(YEAR(p.fa_date), 0) ELSE 0 END AS ffa_year,
 				       ty.id AS type_id, ty.type, ty.subtype,
 				       g.weight AS problem_grade_weight, g.grade AS problem_grade,
 				       COALESCE(t.total_ticks, 0) AS total_ticks,
@@ -7115,6 +7092,7 @@ public class Dao {
 				JOIN type ty ON p.type_id = ty.id
 				LEFT JOIN coordinates co ON p.coordinates_id = co.id
 				LEFT JOIN fa_agg fa ON p.id = fa.problem_id
+				LEFT JOIN fa_aid_agg fa_aid ON p.id = fa_aid.problem_id
 				LEFT JOIN tick_agg t ON p.id = t.problem_id
 				LEFT JOIN media_agg m ON p.id = m.problem_id
 				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
@@ -7127,28 +7105,22 @@ public class Dao {
 				    LIMIT 1
 				) gb ON TRUE
 				ORDER BY p.nr
-				         """;
+				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, optAreaId);
 			ps.setInt(3, optSectorId);
+			ps.setInt(4, setup.isBouldering() ? 0 : 1);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int sectorId = rst.getInt("sector_id");
-					int id = rst.getInt("id");
-					String fa = rst.getString("fa");
-					if (problemIdFirstAidAscentLookup != null && problemIdFirstAidAscentLookup.containsKey(id)) {
-						String faAid = "FA: " + problemIdFirstAidAscentLookup.get(id);
-						fa = (fa == null) ? faAid : faAid + ". FFA: " + fa;
-					}
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-					String faDateStr = faDate == null ? null : DateTimeFormatter.ISO_LOCAL_DATE.format(faDate);
-					var p = new SectorProblem(id, rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
+					var p = new SectorProblem(rst.getInt("id"), rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
 							rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
-							rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), fa, faDateStr, rst.getInt("length_meter"),
-							rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
+							rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), 
+							rst.getString("fa_user"), rst.getInt("fa_year"), rst.getString("ffa_user"), rst.getInt("ffa_year"), 
+							rst.getInt("length_meter"), rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
 							coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
 							new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
 							);
