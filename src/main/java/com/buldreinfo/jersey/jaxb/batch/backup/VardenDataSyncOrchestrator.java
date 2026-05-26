@@ -2,38 +2,34 @@ package com.buldreinfo.jersey.jaxb.batch.backup;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.buldreinfo.jersey.jaxb.batch.FixMedia;
 
 public class VardenDataSyncOrchestrator {
     private static final Logger logger = LogManager.getLogger();
     private static final String SSH_HOST = "172.232.129.122";
     private static final String SSH_USER = "root";
     private static final String SSH_KEY_PATH = System.getProperty("user.home") + "/.ssh/id_rsa";
-    private static final Path DB_BASE_PATH = Path.of("G:/My Drive/web/climbing-web/database");
-    private static final Path INFRA_PATH = Path.of("G:/My Drive/web/varden-infra");
-    private static final String REMOTE_BACKUP_DIR = "/opt/varden-infra/backups";
+    private static final Path LOCAL_DB_BASE_PATH = Path.of("G:/My Drive/web/climbing-web/database");
+    private static final Path LOCAL_INFRA_PATH = Path.of("G:/My Drive/web/varden-infra");
     private static final Path LOCAL_MEDIA_ROOT = Path.of("G:/My Drive/web/climbing-web/s3_bucket_climbing_web");
+    private static final Path LOCAL_FFMPEG_PATH = Path.of("G:/My Drive/web/climbing-web/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe");
+    private static final Path LOCAL_YT_DLP_PATH = Path.of("G:/My Drive/web/climbing-web/sw/yt-dlp/yt-dlp.exe");
+    private static final String REMOTE_BACKUP_DIR = "/opt/varden-infra/backups";
+    private static final List<Integer> privateEmbeddedVideosToIgnore = List.of(36370, 36374, 36379, 36380, 36381, 36383, 36388);
 
     public static void main(String[] args) {
-    	if (!Files.exists(DB_BASE_PATH)) {
-    	    throw new RuntimeException(DB_BASE_PATH.toString() + " not found");
+    	for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
+        	if (!Files.exists(p)) {
+        	    throw new RuntimeException(p.toString() + " not found");
+        	}
     	}
-    	if (!Files.exists(INFRA_PATH)) {
-    	    throw new RuntimeException(INFRA_PATH.toString() + " not found");
-    	}
-    	if (!Files.exists(LOCAL_MEDIA_ROOT)) {
-    	    throw new RuntimeException(LOCAL_MEDIA_ROOT.toString() + " not found");
-    	}
-    	if (!Files.exists(Path.of(SSH_KEY_PATH))) {
-    	    throw new RuntimeException(SSH_KEY_PATH.toString() + " not found");
-    	}
-    	FixMedia.main(null);
+    	logger.debug("Starting FixMedia background embedding sync task.");
+    	new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
         logger.debug("DataSftpDownloadTask started");
-        new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, DB_BASE_PATH, INFRA_PATH, REMOTE_BACKUP_DIR).run();
+        new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, REMOTE_BACKUP_DIR).run();
         logger.debug("S3BucketDownloadBatch started");
         new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT).run();
         logger.debug("S3BucketUploadBatch started");
@@ -42,6 +38,9 @@ public class VardenDataSyncOrchestrator {
         if (runS3BucketDeleteResized) {
             logger.debug("S3BucketDeleteResized started");
             new S3BucketDeleteResized().run();
+        }
+        else {
+        	logger.debug("S3BucketDeleteResized skipped");
         }
         logger.info("VardenDataSyncOrchestrator finished successfully.");
     }

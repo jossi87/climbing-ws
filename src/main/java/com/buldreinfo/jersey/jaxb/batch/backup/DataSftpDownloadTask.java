@@ -23,7 +23,7 @@ public class DataSftpDownloadTask {
     private final Path infraPath;
     private final String remoteBackupDir;
 
-    public DataSftpDownloadTask(String sshHost, String sshUser, String sshKeyPath, Path dbBasePath, Path infraPath, String remoteBackupDir) {
+    protected DataSftpDownloadTask(String sshHost, String sshUser, String sshKeyPath, Path dbBasePath, Path infraPath, String remoteBackupDir) {
         this.sshHost = sshHost;
         this.sshUser = sshUser;
         this.sshKeyPath = sshKeyPath;
@@ -32,7 +32,7 @@ public class DataSftpDownloadTask {
         this.remoteBackupDir = remoteBackupDir;
     }
 
-    public void run() {
+    protected void run() {
         String currentYear = String.valueOf(LocalDate.now().getYear());
         Path localYearDbPath = dbBasePath.resolve(currentYear);
 

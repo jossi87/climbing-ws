@@ -61,7 +61,7 @@ public class S3BucketDownloadBatch {
 					}
 					return; 
 				}
-				logger.info("Size mismatch detected (S3: {} vs Local: {}) for: {}", s3Size, localSize, key);
+				logger.info("Size mismatch detected (S3: {} vs Local: {}) for: {} - Most likely a thumbnail-change from website", s3Size, localSize, key);
 			}
 			else {
 				Files.createDirectories(localPath.getParent());
