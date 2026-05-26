@@ -6,7 +6,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -148,6 +150,20 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				false, 0, 0, null, 
 				areas, sectors, problems, rst.getInt("guestbook_id"), 0
 				);
+	}
+	
+	public void ensureCorrectMediaAssociations(Optional<Integer> authUserId) {
+		boolean hasAreas = areas() != null && !areas().isEmpty();
+	    boolean hasSectors = sectors() != null && !sectors().isEmpty();
+	    boolean hasProblems = problems() != null && !problems().isEmpty();
+	    boolean hasGuestbook = guestbookId() > 0;
+	    boolean hasUserAvatar = userAvatarId() > 0;
+	    Preconditions.checkArgument(
+	        (hasAreas && !hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
+	        || (!hasAreas && hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
+	        || (!hasAreas && !hasSectors && hasProblems && !hasGuestbook && !hasUserAvatar)
+	        || (!hasAreas && !hasSectors && !hasProblems && hasGuestbook && !hasUserAvatar)
+	        || (!hasAreas && !hasSectors && !hasProblems && !hasGuestbook && hasUserAvatar && userAvatarId() == authUserId.orElseThrow()));
 	}
 
 	private static List<MediaSvgElement> parseSvgElements(String svgsJson, Gson gson) {

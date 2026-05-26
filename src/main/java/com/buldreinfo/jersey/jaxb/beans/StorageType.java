@@ -18,6 +18,15 @@ public enum StorageType {
 		return fromExtension(ext);
 	}
 
+	public static Optional<StorageType> fromMimeType(String mimeType) {
+		if (mimeType == null || mimeType.isBlank()) {
+			return Optional.empty();
+		}
+		return Arrays.stream(values())
+				.filter(t -> t.mimeType.equalsIgnoreCase(mimeType))
+				.findFirst();
+	}
+
 	private static Optional<StorageType> fromExtension(String ext) {
 		if (ext == null || ext.isBlank()) {
 			return Optional.empty();

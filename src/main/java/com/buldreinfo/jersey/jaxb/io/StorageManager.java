@@ -20,6 +20,7 @@ import javax.imageio.stream.ImageOutputStream;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
+import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -37,11 +38,15 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 public final class StorageManager {
 	private static final StorageManager INSTANCE = new StorageManager();
 	public static final String BUCKET_NAME = "climbing-web";
 	private static final String PROXY_PATH = "/media-proxy/";
+	public static final long MAX_IMAGE_UPLOAD_BYTES = 25L * 1024L * 1024L; // 25MB limit
+	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; // 800MB limit
 
 	public static String getDirectStorageUrl(String objectKey) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
@@ -60,8 +65,9 @@ public final class StorageManager {
 		}
 		return url.toString();
 	}
-
+	
 	private final S3Client s3Client;
+	private final S3Presigner s3Presigner;
 
 	private StorageManager() {
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
@@ -70,17 +76,24 @@ public final class StorageManager {
 				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_SECRET_KEY)
 				);
 
+		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
+		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
+		Region region = Region.of("se-sto-1");
 		this.s3Client = S3Client.builder()
-				.credentialsProvider(StaticCredentialsProvider.create(credentials))
-				.endpointOverride(URI.create("https://se-sto-1.linodeobjects.com"))
-				.region(Region.of("se-sto-1"))
+				.credentialsProvider(credentialsProvider)
+				.endpointOverride(endpointUri)
+				.region(region)
 				.httpClientBuilder(ApacheHttpClient.builder()
 						.maxConnections(100)
 						.connectionMaxIdleTime(Duration.ofSeconds(30))
 						)
 				.build();
+		this.s3Presigner = S3Presigner.builder()
+				.credentialsProvider(credentialsProvider)
+				.endpointOverride(endpointUri)
+				.region(region)
+				.build();
 	}
-
 	public byte[] downloadBytes(String objectKey) throws IOException {
 		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
 			return response.readAllBytes();
@@ -112,6 +125,23 @@ public final class StorageManager {
 		}
 	}
 
+	public String generatePresignedPutUrl(String objectKey, String contentType, long contentLength) {
+		PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+				.bucket(BUCKET_NAME)
+				.key(objectKey)
+				.contentType(contentType)
+				.contentLength(contentLength)
+				.acl(ObjectCannedACL.PUBLIC_READ)
+				.build();
+
+		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+				.signatureDuration(Duration.ofMinutes(15))
+				.putObjectRequest(putObjectRequest)
+				.build();
+
+		return s3Presigner.presignPutObject(presignRequest).url().toString();
+	}
+
 	public InputStream getInputStream(String objectKey) {
 		return s3Client.getObject(createGetRequest(objectKey));
 	}
@@ -137,6 +167,24 @@ public final class StorageManager {
 					.delete(Delete.builder().objects(toDelete).build())
 					.build());
 		}
+	}
+
+	public byte[] readBoundedStream(InputStream is) throws IOException {
+	    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+	        byte[] buffer = new byte[16 * 1024];
+	        long total = 0;
+	        int read;
+	        while ((read = is.read(buffer)) != -1) {
+	            total += read;
+	            Preconditions.checkArgument(
+	                total <= MAX_IMAGE_UPLOAD_BYTES, 
+	                "File too large (max %s bytes)", 
+	                MAX_IMAGE_UPLOAD_BYTES
+	            );
+	            os.write(buffer, 0, read);
+	        }
+	        return os.toByteArray();
+	    }
 	}
 
 	public void uploadBytes(String objectKey, byte[] data, StorageType type) {

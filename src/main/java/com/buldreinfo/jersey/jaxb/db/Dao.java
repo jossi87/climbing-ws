@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +30,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -42,10 +40,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.glassfish.jersey.media.multipart.file.StreamDataBodyPart;
 import org.imgscalr.Scalr.Rotation;
 
-import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
@@ -147,190 +143,44 @@ import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import jakarta.ws.rs.core.MediaType;
+
 public class Dao {
 	private static final String ACTIVITY_TYPE_FA = "FA";
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
-	private static final long MAX_IMAGE_UPLOAD_BYTES = 25L * 1024L * 1024L;
-	private static final long MAX_VIDEO_UPLOAD_BYTES = 1024L * 1024L * 1024L;
 	private static final int USER_ID_UNKNOWN = 1049;
 	private static Logger logger = LogManager.getLogger();
 	private final Gson gson = new Gson();
 
 	public Dao() {
 	}
-
-	public int addMedia(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-
-		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
-		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
-		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
-		boolean hasGuestbook = m.guestbookId() > 0;
-		boolean hasUserAvatar = m.userAvatarId() > 0;
-
-		Preconditions.checkArgument(
-				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
-				|| (!hasAreas && hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
-				|| (!hasAreas && !hasSectors && hasProblems && !hasGuestbook && !hasUserAvatar)
-				|| (!hasAreas && !hasSectors && !hasProblems && hasGuestbook && !hasUserAvatar)
-				|| (!hasAreas && !hasSectors && !hasProblems && !hasGuestbook && hasUserAvatar && m.userAvatarId() == authUserId.orElseThrow()));
-
-		final boolean isEmbed = !Strings.isNullOrEmpty(m.embedUrl());
-		StorageType storageType;
-		if (isEmbed) {
-			storageType = StorageType.MP4;
-		}
-		else {
-			Preconditions.checkNotNull(filePart, "File part is required");
-			String fileName = filePart.getContentDisposition().getFileName();
-			storageType = StorageType.fromFilename(fileName).orElseThrow(() -> new IllegalArgumentException("Unsupported file extension for filename: " + fileName));
-		}
-
-		if (hasUserAvatar) {
-			Preconditions.checkArgument(!storageType.isMovie());
-		}
-
-		int idMedia = -1;
-		boolean alreadyExistsInDb = false;
-		if (isEmbed) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT id FROM media WHERE embed_url=?")) {
-				ps.setString(1, m.embedUrl());
-				try (ResultSet rst = ps.executeQuery()) {
-					if (rst.next()) {
-						alreadyExistsInDb = true;
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-		}
-
-		if (!alreadyExistsInDb) {
-			String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
-			int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
-			String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, embed_url, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, storageType.isMovie());
-				ps.setString(2, storageType.getExtension());
-				ps.setInt(3, photographerId);
-				ps.setInt(4, authUserId.get());
-				ps.setString(5, GlobalFunctions.stripString(m.description()));
-				ps.setString(6, m.embedUrl());
-				ps.setInt(7, m.thumbnailSeconds());
-				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idMedia = rst.getInt(1);
-					}
-				}
-			}
-		}
-
-		Preconditions.checkArgument(idMedia > 0);
-		if (hasProblems) {
-			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
-				for (Media.MediaProblem problem : m.problems()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, problem.problemId());
-					ps.setInt(3, problem.problemPitch());
-					ps.setBoolean(4, problem.trivia());
-					ps.setLong(5, problem.milliseconds());
-					ps.execute();
-				}
-			}
-		}
-		else if (hasSectors) {
-			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
-				for (Media.MediaSector sector : m.sectors()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, sector.sectorId());
-					ps.setBoolean(3, sector.trivia());
-					ps.execute();
-				}
-			}
-		}
-		else if (hasAreas) {
-			String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
-				for (Media.MediaArea area : m.areas()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, area.areaId());
-					ps.setBoolean(3, area.trivia());
-					ps.execute();
-				}
-			}
-		}
-		else if (hasGuestbook) {
-			String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, m.guestbookId());
-				ps.execute();
-			}
-		}
-		else if (hasUserAvatar) {
-			String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
-			try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, m.userAvatarId());
-				ps.execute();
-			}
-		}
-
-		if (!alreadyExistsInDb) {
-			if (m.tagged() != null && !m.tagged().isEmpty()) {
-				String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
-					for (User u : m.tagged()) {
-						int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
-						ps.setInt(1, idMedia);
-						ps.setInt(2, userId);
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			if (storageType.isMovie() && !isEmbed) {
-				Path tempFile = Files.createTempFile("Temp_" + UUID.randomUUID().toString() + "_" + System.currentTimeMillis(), ".tmp");
-				try {
-					try (InputStream is = inputStreamSupplier.get()) {
-						copyWithLimit(is, tempFile, MAX_VIDEO_UPLOAD_BYTES);
-					}
-					StorageManager.getInstance().uploadFile(S3KeyGenerator.getOriginalMp4(idMedia), tempFile, StorageType.MP4);
-					final int finalId = idMedia;
-					final int thumbSeconds = m.thumbnailSeconds();
-					Server.runAsync(() -> {
-						try {
-							Server.runSql((dao, conn) -> VideoHelper.processVideo(conn, dao, finalId, thumbSeconds));
-						} catch (Exception e) {
-							logger.error("Failed async video processing for id=" + finalId, e);
-						}
-					});
-				} finally {
-					Files.deleteIfExists(tempFile);
-				}
-			}
-			else if (isEmbed) {
-				ImageHelper.saveImageFromEmbedVideo(this, c, idMedia, m.embedUrl());
-			}
-			else {
-				try (InputStream is = inputStreamSupplier.get()) {
-					byte[] bytes = readBytesWithLimit(is, MAX_IMAGE_UPLOAD_BYTES);
-					ImageHelper.saveImage(this, c, idMedia, bytes);
-				}
-			}
-		}
-
-		if (hasProblems) {
-			for (Media.MediaProblem problem : m.problems()) {
-				fillActivity(c, problem.problemId());
-			}
-		}
-		return idMedia;
+	
+	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
+	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+	    m.ensureCorrectMediaAssociations(authUserId);
+	    Preconditions.checkNotNull(filePart, "File part is required");
+	    String fileName = filePart.getContentDisposition().getFileName();
+	    StorageType storageType = StorageType.fromFilename(fileName)
+	        .orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
+	    Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
+	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+	    associateMediaToEntities(c, idMedia, m);
+	    try (InputStream is = inputStreamSupplier.get()) {
+	        byte[] bytes = StorageManager.getInstance().readBoundedStream(is);
+	        ImageHelper.saveImage(this, c, idMedia, bytes);
+	    }
+	    return idMedia;
+	}
+	
+	public int addMediaVideoPlaceholder(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
+	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+	    m.ensureCorrectMediaAssociations(authUserId);
+	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+	    associateMediaToEntities(c, idMedia, m);
+	    return idMedia;
 	}
 	
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
@@ -370,7 +220,7 @@ public class Dao {
 		}
 		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
-
+	
 	public void ensureCoordinatesInDbWithElevationAndId(Connection c, List<Coordinates> coordinates) throws SQLException, InterruptedException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
@@ -414,7 +264,7 @@ public class Dao {
 			}
 		}
 	}
-
+	
 	public void ensureUserExists(Connection c, int userId) throws SQLException {
 		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
 		boolean exists = false;
@@ -1314,9 +1164,10 @@ public class Dao {
 			try {
 				byte[] avatarBytes;
 				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
-					avatarBytes = readBytesWithLimit(remoteStream, MAX_IMAGE_UPLOAD_BYTES);
+					avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
 				}
-				StreamDataBodyPart filePart = new StreamDataBodyPart("file", new ByteArrayInputStream(avatarBytes), "avatar.jpg");
+				
+				FormDataBodyPart filePart = new FormDataBodyPart("file", new ByteArrayInputStream(avatarBytes), MediaType.APPLICATION_OCTET_STREAM_TYPE);
 				FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
 						.fileName("avatar.jpg")
 						.build();
@@ -1324,7 +1175,7 @@ public class Dao {
 				
 				User photographer = User.from(USER_ID_UNKNOWN, null);
 				Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
-				addMedia(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
+				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
 			}
@@ -5667,7 +5518,7 @@ public class Dao {
 			}
 		}
 	}
-	
+
 	public void trashRecover(Connection c, Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
 		ensureSuperadminWriteRegion(c, setup, authUserId);
 		String sqlStr = null;
@@ -5886,7 +5737,7 @@ public class Dao {
 		fillActivity(c, co.idProblem());
 		return idGuestbook;
 	}
-
+	
 	public void upsertMediaSvg(Connection c, Optional<Integer> authUserId, Setup setup, Media m) throws SQLException {
 		ensureAdminWriteRegion(c, setup, authUserId);
 		// Clear existing
@@ -6011,17 +5862,80 @@ public class Dao {
 		return id;
 	}
 
-	private void copyWithLimit(InputStream is, Path targetPath, long maxBytes) throws IOException {
-		try (OutputStream os = Files.newOutputStream(targetPath)) {
-			byte[] buffer = new byte[16 * 1024];
-			long total = 0;
-			int read;
-			while ((read = is.read(buffer)) != -1) {
-				total += read;
-				Preconditions.checkArgument(total <= maxBytes, "File too large (max %s bytes)", maxBytes);
-				os.write(buffer, 0, read);
-			}
-		}
+	private void associateMediaToEntities(Connection c, int idMedia, Media m) throws Exception {
+	    boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
+	    boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
+	    boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+	    boolean hasGuestbook = m.guestbookId() > 0;
+	    boolean hasUserAvatar = m.userAvatarId() > 0;
+
+	    if (hasProblems) {
+	        String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
+	            for (Media.MediaProblem problem : m.problems()) {
+	                ps.setInt(1, idMedia);
+	                ps.setInt(2, problem.problemId());
+	                ps.setInt(3, problem.problemPitch());
+	                ps.setBoolean(4, problem.trivia());
+	                ps.setLong(5, problem.milliseconds());
+	                ps.execute();
+	            }
+	        }
+	        for (Media.MediaProblem problem : m.problems()) {
+	            fillActivity(c, problem.problemId());
+	        }
+	    }
+	    else if (hasSectors) {
+	        String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
+	            for (Media.MediaSector sector : m.sectors()) {
+	                ps.setInt(1, idMedia);
+	                ps.setInt(2, sector.sectorId());
+	                ps.setBoolean(3, sector.trivia());
+	                ps.execute();
+	            }
+	        }
+	    }
+	    else if (hasAreas) {
+	        String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
+	            for (Media.MediaArea area : m.areas()) {
+	                ps.setInt(1, idMedia);
+	                ps.setInt(2, area.areaId());
+	                ps.setBoolean(3, area.trivia());
+	                ps.execute();
+	            }
+	        }
+	    }
+	    else if (hasGuestbook) {
+	        String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
+	            ps.setInt(1, idMedia);
+	            ps.setInt(2, m.guestbookId());
+	            ps.execute();
+	        }
+	    }
+	    else if (hasUserAvatar) {
+	        String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
+	        try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
+	            ps.setInt(1, idMedia);
+	            ps.setInt(2, m.userAvatarId());
+	            ps.execute();
+	        }
+	    }
+
+	    if (m.tagged() != null && !m.tagged().isEmpty()) {
+	        String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+	        try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
+	            for (User u : m.tagged()) {
+	                int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
+	                ps.setInt(1, idMedia);
+	                ps.setInt(2, userId);
+	                ps.addBatch();
+	            }
+	            ps.executeBatch();
+	        }
+	    }
 	}
 
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
@@ -7218,6 +7132,28 @@ public class Dao {
 		return res;
 	}
 
+	private int insertMediaMetadata(Connection c, int uploaderId, Media m, StorageType storageType) throws Exception {
+	    String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
+	    int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
+	    
+	    String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?)";
+	    try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
+	        ps.setBoolean(1, storageType.isMovie());
+	        ps.setString(2, storageType.getExtension());
+	        ps.setInt(3, photographerId);
+	        ps.setInt(4, uploaderId);
+	        ps.setString(5, GlobalFunctions.stripString(m.description()));
+	        ps.setInt(6, m.thumbnailSeconds());
+	        ps.executeUpdate();
+	        try (ResultSet rst = ps.getGeneratedKeys()) {
+	            if (rst != null && rst.next()) {
+	                return rst.getInt(1);
+	            }
+	        }
+	    }
+	    throw new IllegalStateException("Failed to insert media metadata");
+	}
+
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, Area.AreaSector> sectorLookup) throws SQLException {
 		String sqlStr = """
 				WITH req AS (
@@ -7277,20 +7213,6 @@ public class Dao {
 					}
 				}
 			}
-		}
-	}
-
-	private byte[] readBytesWithLimit(InputStream is, long maxBytes) throws IOException {
-		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-			byte[] buffer = new byte[16 * 1024];
-			long total = 0;
-			int read;
-			while ((read = is.read(buffer)) != -1) {
-				total += read;
-				Preconditions.checkArgument(total <= maxBytes, "File too large (max %s bytes)", maxBytes);
-				os.write(buffer, 0, read);
-			}
-			return os.toByteArray();
 		}
 	}
 
