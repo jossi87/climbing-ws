@@ -57,7 +57,7 @@ public class FixMedia {
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/climbing-web/s3_bucket_climbing_web";
 	private final static String LOCAL_FFMPEG_PATH = "G:/My Drive/web/climbing-web/sw/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe";
 	private final static String LOCAL_YT_DLP_PATH = "G:/My Drive/web/climbing-web/sw/yt-dlp/yt-dlp.exe";
-	private final static List<Integer> PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE = List.of(36365,36368,36370,36374,36379,36380,36381,36383,36388,38412,39003);
+	private final static List<Integer> PRIVATE_EMBEDDED_VIDEOS_TO_IGNORE = List.of(36370,36374,36379,36380,36381,36383,36388);
 	public static void main(String[] args) {
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_BUCKET_ROOT)), LOCAL_BUCKET_ROOT + " does not exist");
 		Preconditions.checkArgument(Files.exists(Path.of(LOCAL_FFMPEG_PATH)), LOCAL_FFMPEG_PATH + " does not exist");
@@ -108,6 +108,7 @@ public class FixMedia {
 			logger.error("Executor interrupted", e);
 			Thread.currentThread().interrupt();
 		}
+		Collections.sort(warnings);
 		for (String w : warnings) {
 			logger.warn(w);
 		}
@@ -194,16 +195,15 @@ public class FixMedia {
 							"--merge-output-format", "mp4", 
 							"-o", originalMp4.toString()
 					};
-					Path logFile = Paths.get(System.getProperty("java.io.tmpdir"), "yt-dlp-id-" + id + ".log");
-					new ProcessBuilder()
+					int exitCode = new ProcessBuilder()
 						.command(commands)
 						.redirectErrorStream(true)
-						.redirectOutput(logFile.toFile())
+						.redirectOutput(ProcessBuilder.Redirect.INHERIT)
 						.start()
 						.waitFor();
-				}
-				if (!Files.exists(originalMp4)) {
-					warnings.add("Failed to download embedded video with id=" + id + " to originalMp4=" + originalMp4 + " from " + embedUrl);
+					if (exitCode != 0 || !Files.exists(originalMp4)) {
+						warnings.add("Failed to download embedded video with id=" + id + " (exit code: " + exitCode + ") to originalMp4=" + originalMp4 + " from " + embedUrl);
+					}
 				}
 			}
 			if (!Files.exists(originalJpg)) {
