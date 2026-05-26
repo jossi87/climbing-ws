@@ -45,7 +45,7 @@ public final class StorageManager {
 	private static final StorageManager INSTANCE = new StorageManager();
 	public static final String BUCKET_NAME = "climbing-web";
 	private static final String PROXY_PATH = "/media-proxy/";
-	public static final long MAX_IMAGE_UPLOAD_BYTES = 25L * 1024L * 1024L; // 25MB limit
+	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L; // 100MB limit
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; // 800MB limit
 
 	public static String getDirectStorageUrl(String objectKey) {

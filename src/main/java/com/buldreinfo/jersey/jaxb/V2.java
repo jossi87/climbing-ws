@@ -1167,6 +1167,14 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Add single image media item", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/image")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -1201,15 +1209,26 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Signal direct video upload completion and trigger async background processing", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/video/{id}/complete")
-	public Response postMediaVideoComplete(@PathParam("id") int mediaId) {
-	    return Server.buildResponse(() -> {
+	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) {
+	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+	        Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+	        Media media = dao.getMedia(c, authUserId, mediaId);
+	        Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
+	        Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
 	        Server.runAsync(() -> {
 	            try {
-	                Server.runSql((dao, conn) -> {
-	                    Media media = dao.getMedia(conn, Optional.empty(), mediaId);
-	                    VideoHelper.processVideo(conn, dao, mediaId, media.thumbnailSeconds());
+	                Server.runSql((backgroundDao, backgroundConn) -> {
+	                    VideoHelper.processVideo(backgroundConn, backgroundDao, mediaId, media.thumbnailSeconds());
 	                });
 	            } catch (Exception e) {
 	                logger.error("Failed async video processing for id=" + mediaId, e);
@@ -1219,6 +1238,14 @@ public class V2 {
 	    });
 	}
 
+	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = VideoInitResponse.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/media/video/initiate")
 	@Consumes(MediaType.APPLICATION_JSON)

@@ -19,6 +19,7 @@ import com.google.common.base.Stopwatch;
 
 public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
+	public static final String FFMPEG_DEFAULT = "ffmpeg";
 
 	public static void extractThumbnail(Connection c, Dao dao, String ffmpegPath, int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
@@ -62,16 +63,26 @@ public class VideoHelper {
 	}
 
 	public static void processVideo(Connection c, Dao dao, int idMedia, int thumbnailSeconds) throws Exception {
-		final String ffmpegPath = "ffmpeg";
+		processVideo(c, dao, FFMPEG_DEFAULT, idMedia, thumbnailSeconds);
+	}
+
+	private static void processVideo(Connection c, Dao dao, String ffmpegPath, int idMedia, int thumbnailSeconds) throws Exception {
 		StorageManager storage = StorageManager.getInstance();
-		String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
-		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
+		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
+		boolean needsWebm = !storage.exists(webmKey);
+		boolean needsMp4 = !storage.exists(mp4Key);
+		boolean needsThumb = !storage.exists(originalJpgKey);
+		if (!needsWebm && !needsMp4 && !needsThumb) {
+			logger.info("Video id={} is already fully processed. Skipping entirely.", idMedia);
+			return;
+		}
+		String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
 		Path tempOriginal = Files.createTempFile("original-" + idMedia, "." + StorageType.MP4.getExtension());
 		try {
 			storage.downloadFile(originalMp4Key, tempOriginal);
-			if (!storage.exists(webmKey)) {
+			if (needsWebm) {
 				Path tempWebm = Files.createTempFile("webm-" + idMedia, "." + StorageType.WEBM.getExtension());
 				try {
 					generateWebm(ffmpegPath, tempOriginal, tempWebm);
@@ -80,7 +91,7 @@ public class VideoHelper {
 					Files.deleteIfExists(tempWebm);
 				}
 			}
-			if (!storage.exists(mp4Key)) {
+			if (needsMp4) {
 				Path tempMp4 = Files.createTempFile("mp4-" + idMedia, "." + StorageType.MP4.getExtension());
 				try {
 					generateMp4(ffmpegPath, tempOriginal, tempMp4);
@@ -89,7 +100,7 @@ public class VideoHelper {
 					Files.deleteIfExists(tempMp4);
 				}
 			}
-			if (!storage.exists(originalJpgKey)) {
+			if (needsThumb) {
 				extractThumbnail(c, dao, ffmpegPath, idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {

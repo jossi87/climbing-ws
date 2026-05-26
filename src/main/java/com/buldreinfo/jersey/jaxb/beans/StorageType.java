@@ -44,6 +44,7 @@ public enum StorageType {
 		this.mimeType = mimeType;
 		this.extension = extension;
 	}
+	
 	public String getExtension() {
 		return extension;
 	}
