@@ -2133,7 +2133,7 @@ public class Dao {
 							.orElse(List.of())
 							.stream()
 							.collect(Collectors.partitioningBy(
-									x -> x.problems().stream().anyMatch(MediaProblem::trivia)
+									x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)
 									));
 
 					List<Media> triviaMedia = partitioned.get(true);
