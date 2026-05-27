@@ -49,11 +49,11 @@ public class Activity {
 		this.problemSubtype = problemSubtype;
 		this.grade = grade;
 	}
-	public void addMedia(MediaIdentity identity, boolean isMovie, String embedUrl) {
+	public void addMedia(MediaIdentity identity, boolean isMovie, boolean is360, String embedUrl) {
 		if (this.media == null) {
 			this.media = new ArrayList<>();
 		}
-		this.media.add(new ActivityMedia(identity, isMovie, embedUrl));
+		this.media.add(new ActivityMedia(identity, isMovie, is360, embedUrl));
 	}
 	public void addUser(int userId, String name, MediaIdentity identity) {
 		if (this.users == null) {

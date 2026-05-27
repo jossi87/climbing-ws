@@ -16,7 +16,7 @@ public record Frontpage(FrontpageStats stats,
 	public record FrontpageRecentAscent(String timeAgo, int areaId, String areaName,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String problemSubtype, String grade,
 			User u, boolean repeat) {}
-	public record FrontpageNewestMedia(MediaIdentity identity, boolean isMovie,
+	public record FrontpageNewestMedia(MediaIdentity identity, boolean isMovie, boolean is360,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName, String grade) {}
 	public record FrontpageLastComment(String timeAgo, int areaId, String areaName,
 			int problemId, boolean problemLockedAdmin, boolean problemLockedSuperadmin, String problemName,

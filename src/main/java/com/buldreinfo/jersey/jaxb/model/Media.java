@@ -20,7 +20,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
-public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie,
+public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie, boolean is360,
 		String dateCreated, String dateTaken, User photographer, List<User> tagged, String description,
 		List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs,
 		String embedUrl, int thumbnailSeconds,
@@ -143,7 +143,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 
 		return new Media(
 				identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
-				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), 
+				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), rst.getBoolean("is_360"),
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 

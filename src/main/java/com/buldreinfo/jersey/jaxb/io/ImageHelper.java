@@ -39,7 +39,7 @@ public class ImageHelper {
 	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 	            .save();
-	        dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken());
+	        dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] rotatedBytes = baos.toByteArray();
@@ -61,7 +61,7 @@ public class ImageHelper {
 		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, width, height, null);
+		dao.setMediaMetadata(c, idMedia, width, height, null, false);
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	        ImageIO.write(bufferedImage, "jpg", baos);
 	        byte[] bytes = baos.toByteArray();
@@ -88,7 +88,7 @@ public class ImageHelper {
 			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 			.save();
-			dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken());
+			dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			try {
 	            var result = ImageClassifier.analyze(bytes);
 	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
@@ -109,7 +109,7 @@ public class ImageHelper {
 	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 	            .save();
-	        dao.setMediaMetadata(c, idMedia, width, height, null);
+	        dao.setMediaMetadata(c, idMedia, width, height, null, false);
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] bytes = baos.toByteArray();

@@ -1,6 +1,8 @@
 package com.buldreinfo.jersey.jaxb.io;
 
+import java.awt.Dimension;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -25,11 +27,11 @@ public class ExifReader {
 	private final Rotation rotation;
 	private final TiffOutputSet outputSet;
 	private final LocalDateTime dateTaken;
-
+	private final boolean is360;
+	
 	protected ExifReader(byte[] bytes) throws IOException {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
-			// Read exif orientation and remove from metadata. Save rotated image instead of keeping exif orientation in file.
 			this.rotation = getExifOrientation(imageMetadata);
 			TiffOutputSet outputSet = imageMetadata.getOutputSet();
 			outputSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
@@ -41,6 +43,32 @@ public class ExifReader {
 			this.outputSet = null;
 			this.dateTaken = null;
 		}
+		this.is360 = checkIs360(bytes);
+	}
+
+	private boolean checkIs360(byte[] bytes) {
+		try {
+			Dimension dimension = Imaging.getImageSize(bytes);
+			int width = dimension.width;
+			int height = dimension.height;
+
+			if (width == height * 2) {
+				return true;
+			}
+
+			String xmpXml = Imaging.getXmpXml(bytes);
+			if (xmpXml != null && xmpXml.contains("equirectangular")) {
+				return true;
+			}
+
+			String rawString = new String(bytes, 0, Math.min(bytes.length, 65536), StandardCharsets.ISO_8859_1);
+			if (rawString.contains("equirectangular")) {
+				return true;
+			}
+		} catch (Exception e) {
+			logger.warn("Failed to check if image is 360 panorama: " + e.getMessage(), e);
+		}
+		return false;
 	}
 
 	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
@@ -54,7 +82,6 @@ public class ExifReader {
 		try {
 			return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
 		} catch (DateTimeParseException e) {
-			// E.g. "Text '0000:00:00 00:00:00' could not be parsed: Invalid value for YearOfEra (valid values 1 - 999999999/1000000000): 0"
 			logger.warn(e.getMessage(), e);
 			return null;
 		}
@@ -142,5 +169,9 @@ public class ExifReader {
 
 	protected Rotation getRotation() {
 		return rotation;
+	}
+
+	protected boolean is360() {
+		return is360;
 	}
 }

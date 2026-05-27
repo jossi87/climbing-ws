@@ -696,16 +696,17 @@ public class Dao {
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex,
 					       g.message,
-					       mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
+					       mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url
 					FROM activity a
 					JOIN guestbook g ON a.guestbook_id=g.id
 					JOIN user u ON g.user_id=u.id
 					LEFT JOIN media ma ON u.media_id=ma.id
 					LEFT JOIN media_ml_analysis mama ON ma.id=mama.media_id
 					LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id
-					LEFT JOIN media m ON (mg.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0)
+					LEFT JOIN media m ON mg.media_id=m.id
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
+					  AND m.deleted_user_id IS NULL
 					""".formatted(Joiner.on(",").join(gbIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -720,7 +721,7 @@ public class Dao {
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
 								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-								a.addMedia(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), false, null);
+								a.addMedia(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getString("embed_url"));
 							}
 							int avatarMediaId = rst.getInt("avatar_media_id");
 							if (avatarMediaId > 0) {
@@ -784,7 +785,7 @@ public class Dao {
 				if (!problemIds.isEmpty()) {
 					try (PreparedStatement ps = c.prepareStatement("""
 							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, 
-							       mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.embed_url
+							       mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url
 							FROM media_problem mp
 							JOIN media m ON mp.media_id = m.id
 							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
@@ -798,7 +799,7 @@ public class Dao {
 										.toList();
 								for (var a : activities) {
 									var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
-									a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getString("embed_url"));
+									a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getString("embed_url"));
 								}
 							}
 						}
@@ -811,7 +812,7 @@ public class Dao {
 					SELECT a.id,
 						   u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-					       m.is_movie, m.embed_url,
+					       m.is_movie, m.is_360, m.embed_url,
 					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
 					FROM activity a
 					JOIN media m ON a.media_id=m.id
@@ -828,7 +829,7 @@ public class Dao {
 						Activity a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
-							a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getString("embed_url"));
+							a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getString("embed_url"));
 							if (a.getUsers() == null || a.getUsers().isEmpty()) {
 								// Don't append activity thumbnail if this is a new problem, only show FA users
 								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0, null), rst.getInt("user_id"), rst.getString("name"));
@@ -1174,7 +1175,7 @@ public class Dao {
 				filePart.setFormDataContentDisposition(disposition);
 				
 				User photographer = User.from(USER_ID_UNKNOWN, null);
-				Media m = new Media(null, false, 0, 0, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
+				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
 				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
@@ -1565,7 +1566,7 @@ public class Dao {
 				  LIMIT 12
 				)
 				SELECT 
-				    ml.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie,
+				    ml.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360,
 				    p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				    g.grade
 				FROM m_list ml
@@ -1589,7 +1590,7 @@ public class Dao {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
-					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), rst.getString("grade")));
+					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), rst.getString("grade")));
 				}
 			}
 		}
@@ -1805,7 +1806,7 @@ public class Dao {
 	public Media getMedia(Connection c, Optional<Integer> authUserId, int id) throws SQLException {
 		String sql = """
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       (
@@ -2836,7 +2837,7 @@ public class Dao {
 				    SELECT ? photographer_user_id, ? auth_user_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, 
+				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, 
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       CONCAT(MAX(r.url),'/area/',MAX(a.id)) url,
@@ -2930,7 +2931,7 @@ public class Dao {
 				JOIN region r ON a.region_id = r.id
 				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
 				ORDER BY m.id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -2940,7 +2941,7 @@ public class Dao {
 				while (rst.next()) {
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 					res.add(new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
@@ -2959,7 +2960,7 @@ public class Dao {
 		int currentAuthUserId = authUserId.orElse(0);
 		String sqlStr = """
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
+				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       CONCAT(MAX(r.url),'/sector/',MAX(s.id)) url,
 				       (
@@ -3053,7 +3054,7 @@ public class Dao {
 				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 				WHERE m.photographer_user_id = ? AND m.deleted_user_id IS NULL
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
 				ORDER BY m.id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -3074,7 +3075,7 @@ public class Dao {
 				while (rst.next()) {
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 					res.add(new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
@@ -3093,7 +3094,7 @@ public class Dao {
 		if (captured) {
 			sqlStr = """
 					SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-					       m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+					       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 					       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url,
@@ -3189,13 +3190,13 @@ public class Dao {
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					WHERE m.photographer_user_id = ? AND m.deleted_user_id IS NULL
 					  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
+					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 					ORDER BY m.id DESC
 					""";
 		} else {
 			sqlStr = """
 					SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-					       m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
+					       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created,
 					       DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 					       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 					       CONCAT(MAX(r.url),'/problem/',MAX(p.id)) url,
@@ -3292,7 +3293,7 @@ public class Dao {
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					WHERE mu.user_id = ?
 					  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
-					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
+					GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 					ORDER BY m.id DESC
 					""";
 		}
@@ -3317,7 +3318,7 @@ public class Dao {
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 
 					res.add(new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
@@ -4970,10 +4971,10 @@ public class Dao {
 		return Redirect.fromIdArea(idArea);
 	}
 
-	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken) throws SQLException {
+	public void setMediaMetadata(Connection c, int idMedia, int width, int height, LocalDateTime dateTaken, boolean is360) throws SQLException {
 		String sqlStr = dateTaken == null ?
-				"UPDATE media SET width=?, height=? WHERE id=?" :
-					"UPDATE media SET date_taken=?, width=?, height=? WHERE id=?";
+				"UPDATE media SET width=?, height=?, is_360=? WHERE id=?" :
+					"UPDATE media SET date_taken=?, width=?, height=?, is_360=? WHERE id=?";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 0;
 			if (dateTaken != null) {
@@ -4981,10 +4982,11 @@ public class Dao {
 			}
 			ps.setInt(++ix, width);
 			ps.setInt(++ix, height);
+			ps.setBoolean(++ix, is360);
 			ps.setInt(++ix, idMedia);
 			ps.executeUpdate();
 		}
-		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}) - success", idMedia, width, height, dateTaken);
+		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}, is360={}) - success", idMedia, width, height, dateTaken, is360);
 	}
 
 	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
@@ -6199,7 +6201,7 @@ public class Dao {
 		List<Media> res = new ArrayList<>();
 		int currentAuthUserId = authUserId.orElse(0);
 		String sql = """
-				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       (
@@ -6295,7 +6297,7 @@ public class Dao {
 				LEFT JOIN user p ON m.photographer_user_id=p.id
 				WHERE m.deleted_user_id IS NULL
 				  AND ma.area_id=?
-				GROUP BY a.name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, ma.sorting, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
+				GROUP BY a.name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, ma.sorting, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -6318,7 +6320,7 @@ public class Dao {
 					}
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 					res.add(new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, enableMoveToIdProblem,
@@ -6336,7 +6338,7 @@ public class Dao {
 		int currentAuthUserId = authUserId.orElse(0);
 		String sql = """
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				       m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+				       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -6429,7 +6431,7 @@ public class Dao {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id=ph.id
 				WHERE g.id=?
-				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mg.guestbook_id
+				GROUP BY m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mg.guestbook_id
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -6468,7 +6470,7 @@ public class Dao {
 		int currentAuthUserId = authUserId.orElse(0);
 		String sql = """
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, ROUND(mp.milliseconds/1000) seconds,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -6560,7 +6562,7 @@ public class Dao {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id=ph.id
 				WHERE p.id=?
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -6588,7 +6590,7 @@ public class Dao {
 					}
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 					m = new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
 							m.inherited(), sectorId, m.enableMoveToIdProblem(),
@@ -6621,7 +6623,7 @@ public class Dao {
 		int currentAuthUserId = authUserId.orElse(0);
 		String sql = """
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
-				       ms.trivia, m.description, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds,
+				       ms.trivia, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, 
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -6717,7 +6719,7 @@ public class Dao {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id=ph.id
 				WHERE s.id=?
-				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.embed_url, m.thumbnail_seconds, ms.sorting, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
+				GROUP BY m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, ms.sorting, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -6742,7 +6744,7 @@ public class Dao {
 					int finalMoveIdProblem = (m.svgs() != null && m.svgs().stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()) ? enableMoveToIdProblem : 0;
 
 					initialList.add(new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, finalMoveIdProblem,
