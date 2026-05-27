@@ -1623,7 +1623,7 @@ public class Dao {
 				          AND m_sub.deleted_user_id IS NULL
 				          AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
 				          AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
-				          AND m_sub.is_movie=0
+				          AND m_sub.is_movie=0 AND m_sub.is_360=0
 				          AND mp_sub.trivia=0
 				          AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
 				          AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
