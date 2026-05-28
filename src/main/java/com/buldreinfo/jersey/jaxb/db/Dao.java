@@ -1432,37 +1432,55 @@ public class Dao {
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageRecentAscent> res = new ArrayList<>();
 		String sqlStr = """
-				SELECT t.date AS activity_timestamp, t.id AS tick_id, a.id area_id, a.name area_name,
+				WITH req AS (
+				    SELECT ? AS auth_user_id, ? AS region_id
+				),
+				recent_activity AS (
+				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date,
+				           GREATEST(COALESCE(t.date, '1000-01-01'), COALESCE(tr.date, '1000-01-01')) AS activity_timestamp,
+				           IF(tr.date IS NOT NULL AND (t.date IS NULL OR tr.date > t.date), 1, 0) AS is_repeat
+				    FROM req, tick t
+				    LEFT JOIN (
+				        SELECT tick_id, MAX(date) AS date
+				        FROM tick_repeat
+				        GROUP BY tick_id
+				    ) tr ON t.id = tr.tick_id
+				    JOIN problem p ON t.problem_id = p.id
+				    JOIN sector s ON p.sector_id = s.id
+				    JOIN area a ON s.area_id = a.id
+				    WHERE a.region_id IN (
+				        SELECT r.id FROM region r 
+				        JOIN region_type rt ON r.id = rt.region_id 
+				        LEFT JOIN user_region ur2 ON (r.id = ur2.region_id AND ur2.user_id = req.auth_user_id)
+				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+				          AND (r.id = req.region_id OR ur2.user_id IS NOT NULL)
+				    )
+				    ORDER BY activity_timestamp DESC, t.id DESC
+				    LIMIT 8
+				)
+				SELECT ra.activity_timestamp, ra.is_repeat, ra.tick_id, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 				       g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-				FROM tick t
-				JOIN problem p ON t.problem_id=p.id
-				JOIN user u ON t.user_id=u.id
-				LEFT JOIN grade g ON t.grade_id=g.id
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				JOIN type ty ON p.type_id=ty.id 
-				JOIN sector s ON p.sector_id=s.id 
-				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
-				WHERE a.region_id IN (
-				    SELECT r.id FROM region r 
-				    JOIN region_type rt ON r.id=rt.region_id 
-				    LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
-				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				      AND (r.id=? OR ur2.user_id IS NOT NULL)
-				)
-				AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
-				ORDER BY t.date DESC, t.id DESC LIMIT 8
+				FROM recent_activity ra
+				JOIN req ON 1=1
+				JOIN problem p ON ra.problem_id = p.id
+				JOIN user u ON ra.user_id = u.id
+				LEFT JOIN grade g ON ra.grade_id = g.id
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				JOIN type ty ON p.type_id = ty.id 
+				JOIN sector s ON p.sector_id = s.id 
+				JOIN area a ON s.area_id = a.id 
+				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
+				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
+				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				ORDER BY ra.activity_timestamp DESC, ra.tick_id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			int ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
 			ps.setInt(ix++, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -1471,7 +1489,7 @@ public class Dao {
 					if (tickGrade == null) {
 						tickGrade = GradeConverter.NO_PERSONAL_GRADE;
 					}
-					boolean repeat = false; 
+					boolean repeat = rst.getInt("is_repeat") == 1; 
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
 					User user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
