@@ -1,3 +1,0 @@
-package com.buldreinfo.jersey.jaxb.model;
-
-public record TocProblem(int id, String url, String broken, boolean lockedAdmin, boolean lockedSuperadmin, int nr, String name, String description, int lengthMeter, int startingAltitude, Coordinates coordinates, String grade, String faUser, int faYear, String ffaUser, int ffaYear, int numTicks, double stars, boolean ticked, boolean todo, Type t, int numPitches) {}

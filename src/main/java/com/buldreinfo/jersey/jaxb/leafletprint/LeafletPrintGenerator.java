@@ -14,7 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.leafletprint.beans.Leaflet;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
-import com.buldreinfo.jersey.jaxb.model.SectorProblem;
+import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblem;
 import com.google.gson.Gson;
 
 /**

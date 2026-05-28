@@ -3,6 +3,8 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.model.Tick.TickRepeat;
+
 public class ProblemTick {
 	private List<TickRepeat> repeats;
 	private final int id;
@@ -68,9 +70,6 @@ public class ProblemTick {
 	}
 	@Override
 	public String toString() {
-		return "ProblemTick [repeats=" + repeats + ", id=" + id + ", idUser=" + idUser + ", mediaId=" + mediaIdentity
-				+ ", mediaIdentity=" + mediaIdentity + ", date=" + date + ", name=" + name + ", suggestedGrade="
-				+ suggestedGrade + ", noPersonalGrade=" + noPersonalGrade + ", comment=" + comment + ", stars=" + stars
-				+ ", writable=" + writable + "]";
+		return "ProblemTick [repeats=" + repeats + ", id=" + id + ", idUser=" + idUser + "]";
 	}
 }

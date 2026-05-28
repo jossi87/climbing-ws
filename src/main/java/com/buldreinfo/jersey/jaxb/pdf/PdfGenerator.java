@@ -60,9 +60,9 @@ import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Sector;
-import com.buldreinfo.jersey.jaxb.model.SectorProblem;
+import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblem;
 import com.buldreinfo.jersey.jaxb.model.Svg;
-import com.buldreinfo.jersey.jaxb.model.TickRepeat;
+import com.buldreinfo.jersey.jaxb.model.Tick.TickRepeat;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
@@ -207,8 +207,8 @@ public class PdfGenerator implements AutoCloseable {
 
 	public void writeArea(Setup setup, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws Exception {
 		mediaIdProcessed.clear();
-		pageEvent.setHeaderText(area.getName());
-		document.add(new Paragraph(area.getName(), FONT_H1));
+		pageEvent.setHeaderText(area.name());
+		document.add(new Paragraph(area.name(), FONT_H1));
 		writeMapArea(area, sectors);
 
 		PdfPTable info = new PdfPTable(new float[]{1.5f, 8.5f});
@@ -219,7 +219,7 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String areaUrl = setup.url() + "/area/" + area.getId();
+		String areaUrl = setup.url() + "/area/" + area.id();
 		info.addCell(createKeyCell("URL"));
 		Anchor anchor = new Anchor(areaUrl, FONT_LINK);
 		anchor.setReference(areaUrl);
@@ -230,22 +230,22 @@ public class PdfGenerator implements AutoCloseable {
 		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
 		info.addCell(urlCell);
 
-		if (!Strings.isNullOrEmpty(area.getAccessClosed()) || !Strings.isNullOrEmpty(area.getAccessInfo()) || !Strings.isNullOrEmpty(area.getComment())) {
+		if (!Strings.isNullOrEmpty(area.accessClosed()) || !Strings.isNullOrEmpty(area.accessInfo()) || !Strings.isNullOrEmpty(area.comment())) {
 			StringBuilder areaInfo = new StringBuilder();
-			if (!Strings.isNullOrEmpty(area.getAccessClosed())) {
-				areaInfo.append("Access closed: ").append(area.getAccessClosed());
+			if (!Strings.isNullOrEmpty(area.accessClosed())) {
+				areaInfo.append("Access closed: ").append(area.accessClosed());
 			}
-			if (!Strings.isNullOrEmpty(area.getAccessInfo())) {
+			if (!Strings.isNullOrEmpty(area.accessInfo())) {
 				if (areaInfo.length() > 0) {
 					areaInfo.append("\n");
 				}
-				areaInfo.append("Access info: ").append(area.getAccessInfo());
+				areaInfo.append("Access info: ").append(area.accessInfo());
 			}
-			if (!Strings.isNullOrEmpty(area.getComment())) {
+			if (!Strings.isNullOrEmpty(area.comment())) {
 				if (areaInfo.length() > 0) {
 					areaInfo.append("\n");
 				}
-				areaInfo.append(area.getComment());
+				areaInfo.append(area.comment());
 			}
 			info.addCell(createKeyCell("Description"));
 			info.addCell(createValueCell(areaInfo.toString()));
@@ -262,8 +262,8 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(img);
 		}
 
-		if (area.getMedia() != null && !area.getMedia().isEmpty()) {
-			writeMediaGrid(area.getMedia(), 0, 3, 600);
+		if (area.media() != null && !area.media().isEmpty()) {
+			writeMediaGrid(area.media(), 0, 3, 600);
 		}
 
 		writeSectors(setup, sectors);
@@ -272,7 +272,7 @@ public class PdfGenerator implements AutoCloseable {
 	public void writeProblem(Setup setup, Area area, Sector sector, Problem problem) throws Exception {
 		mediaIdProcessed.clear();
 
-		String headerTitle = String.format("%s / %s / #%d %s [%s]", area.getName(), sector.getName(), problem.getNr(), problem.getName(), problem.getGrade());
+		String headerTitle = String.format("%s / %s / #%d %s [%s]", area.name(), sector.name(), problem.nr(), problem.name(), problem.grade());
 		pageEvent.setHeaderText(headerTitle);
 
 		document.add(new Paragraph(headerTitle, FONT_H1));
@@ -286,7 +286,7 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(createKeyCell("Generated"));
 		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String problemUrl = setup.url() + "/problem/" + problem.getId();
+		String problemUrl = setup.url() + "/problem/" + problem.id();
 		info.addCell(createKeyCell("URL"));
 		Anchor anchor = new Anchor(problemUrl, FONT_LINK);
 		anchor.setReference(problemUrl);
@@ -298,16 +298,16 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(urlCell);
 
 		StringBuilder areaInfo = new StringBuilder();
-		if (!Strings.isNullOrEmpty(area.getAccessClosed())) {
-			areaInfo.append("Access closed: ").append(area.getAccessClosed());
+		if (!Strings.isNullOrEmpty(area.accessClosed())) {
+			areaInfo.append("Access closed: ").append(area.accessClosed());
 		}
-		if (!Strings.isNullOrEmpty(area.getAccessInfo())) {
+		if (!Strings.isNullOrEmpty(area.accessInfo())) {
 			if (areaInfo.length() > 0) areaInfo.append("\n");
-			areaInfo.append("Access info: ").append(area.getAccessInfo());
+			areaInfo.append("Access info: ").append(area.accessInfo());
 		}
-		if (!Strings.isNullOrEmpty(area.getComment())) {
+		if (!Strings.isNullOrEmpty(area.comment())) {
 			if (areaInfo.length() > 0) areaInfo.append("\n");
-			areaInfo.append(area.getComment());
+			areaInfo.append(area.comment());
 		}
 		if (!areaInfo.isEmpty()) {
 			info.addCell(createKeyCell("Area"));
@@ -315,65 +315,65 @@ public class PdfGenerator implements AutoCloseable {
 		}
 
 		StringBuilder sectorInfo = new StringBuilder();
-		if (!Strings.isNullOrEmpty(sector.getAccessClosed())) {
-			sectorInfo.append("Access closed: ").append(sector.getAccessClosed());
+		if (!Strings.isNullOrEmpty(sector.accessClosed())) {
+			sectorInfo.append("Access closed: ").append(sector.accessClosed());
 		}
-		if (!Strings.isNullOrEmpty(sector.getAccessInfo())) {
+		if (!Strings.isNullOrEmpty(sector.accessInfo())) {
 			if (sectorInfo.length() > 0) sectorInfo.append("\n");
-			sectorInfo.append("Access info: ").append(sector.getAccessInfo());
+			sectorInfo.append("Access info: ").append(sector.accessInfo());
 		}
-		if (!Strings.isNullOrEmpty(sector.getComment())) {
+		if (!Strings.isNullOrEmpty(sector.comment())) {
 			if (sectorInfo.length() > 0) sectorInfo.append("\n");
-			sectorInfo.append(sector.getComment());
+			sectorInfo.append(sector.comment());
 		}
 		if (!sectorInfo.isEmpty()) {
 			info.addCell(createKeyCell("Sector"));
 			info.addCell(createValueCell(sectorInfo.toString()));
 		}
 
-		if (problem.getFaAid() != null) {
-			String aide = problem.getFaAid().users().stream().map(User::name).collect(Collectors.joining(", "));
+		if (problem.faAid() != null) {
+			String aide = problem.faAid().users().stream().map(User::name).collect(Collectors.joining(", "));
 			info.addCell(createKeyCell("FA (Aid)"));
-			info.addCell(createValueCell(aide + " (" + problem.getFaAid().dateHr() + ")"));
+			info.addCell(createValueCell(aide + " (" + problem.faAid().dateHr() + ")"));
 		}
 
-		String fa = problem.getFa().stream().map(User::name).collect(Collectors.joining(", "));
+		String fa = problem.fa().stream().map(User::name).collect(Collectors.joining(", "));
 		if (!fa.isEmpty()) {
 			info.addCell(createKeyCell("First Ascent"));
-			info.addCell(createValueCell(fa + " (" + problem.getFaDateHr() + ")"));
+			info.addCell(createValueCell(fa + " (" + problem.faDateHr() + ")"));
 		}
 
-		if (!Strings.isNullOrEmpty(problem.getComment())) {
+		if (!Strings.isNullOrEmpty(problem.comment())) {
 			info.addCell(createKeyCell("Description"));
-			info.addCell(createValueCell(problem.getComment()));
+			info.addCell(createValueCell(problem.comment()));
 		}
-		if (problem.getLengthMeter() != 0) {
+		if (problem.lengthMeter() != 0) {
 			info.addCell(createKeyCell("Length"));
-			info.addCell(createValueCell(problem.getLengthMeter() + "m"));
+			info.addCell(createValueCell(problem.lengthMeter() + "m"));
 		}
 		document.add(info);
 
 		List<Media> combinedMedia = new ArrayList<>();
-		if (area.getMedia() != null) combinedMedia.addAll(area.getMedia());
-		if (sector.getMedia() != null) combinedMedia.addAll(sector.getMedia());
-		if (problem.getMedia() != null) {
-			for (Media m : problem.getMedia()) {
-				boolean isPitchMedia = m.svgs() != null && m.svgs().stream().anyMatch(s -> s.problemId() == problem.getId() && s.pitch() > 0);
+		if (area.media() != null) combinedMedia.addAll(area.media());
+		if (sector.media() != null) combinedMedia.addAll(sector.media());
+		if (problem.media() != null) {
+			for (Media m : problem.media()) {
+				boolean isPitchMedia = m.svgs() != null && m.svgs().stream().anyMatch(s -> s.problemId() == problem.id() && s.pitch() > 0);
 				if (!isPitchMedia) {
 					combinedMedia.add(m);
 				}
 			}
 		}
-		writeMediaGrid(combinedMedia, problem.getId(), 3, 600);
+		writeMediaGrid(combinedMedia, problem.id(), 3, 600);
 
-		if (problem.getSections() != null && !problem.getSections().isEmpty()) {
+		if (problem.sections() != null && !problem.sections().isEmpty()) {
 			PdfOutline rootOutline = writer.getRootOutline();
 			List<CompletableFuture<Void>> preFlightFutures = new ArrayList<>();
-			for (ProblemSection section : problem.getSections()) {
-				for (Media m : problem.getMedia()) {
+			for (ProblemSection section : problem.sections()) {
+				for (Media m : problem.media()) {
 					if (m.svgs() == null) continue;
 					List<Svg> pitchSvgs = m.svgs().stream()
-							.filter(s -> s.problemId() == problem.getId() && s.pitch() == section.nr())
+							.filter(s -> s.problemId() == problem.id() && s.pitch() == section.nr())
 							.collect(Collectors.toList());
 					
 					if (!pitchSvgs.isEmpty()) {
@@ -385,7 +385,7 @@ public class PdfGenerator implements AutoCloseable {
 							} catch (Exception e) {
 								logger.warn(e.getMessage(), e);
 							}
-							return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.getId(), section.nr());
+							return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.id(), section.nr());
 						}).thenAccept(bytes -> {
 							if (bytes != null) {
 								synchronized(preRenderedPitchAssets) {
@@ -402,7 +402,7 @@ public class PdfGenerator implements AutoCloseable {
 				logger.error("Error during multi-pitch parallel execution pre-flight", e);
 			}
 
-			for (ProblemSection section : problem.getSections()) {
+			for (ProblemSection section : problem.sections()) {
 				PdfPTable pitchWrapper = new PdfPTable(1);
 				pitchWrapper.setWidthPercentage(100);
 				pitchWrapper.setSpacingBefore(10f);
@@ -419,7 +419,7 @@ public class PdfGenerator implements AutoCloseable {
 
 				Paragraph p = new Paragraph(8);
 
-				String destName = "pitch_" + problem.getId() + "_" + section.nr();
+				String destName = "pitch_" + problem.id() + "_" + section.nr();
 				Chunk pitchTitle = new Chunk("Pitch " + section.nr() + " (" + section.grade() + "): ", FONT_BOLD);
 				pitchTitle.setLocalDestination(destName);
 				p.add(pitchTitle);
@@ -538,7 +538,7 @@ public class PdfGenerator implements AutoCloseable {
 	    int[] colCounts = new int[cols];
 	    int imageIndex = 0;
 
-	    for (Media m : problem.getMedia()) {
+	    for (Media m : problem.media()) {
 	        if (m.svgs() == null) continue;
 	        String cacheKey = section.nr() + "_" + m.identity().id();
 	        byte[] data = preRenderedPitchAssets.get(cacheKey);
@@ -636,25 +636,25 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (area.getCoordinates() != null && area.getCoordinates().getLatitude() > 0 && area.getCoordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.getCoordinates().getLatitude(), area.getCoordinates().getLongitude());
+			if (area.coordinates() != null && area.coordinates().getLatitude() > 0 && area.coordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.coordinates().getLatitude(), area.coordinates().getLongitude());
 			}
 			int defaultZoom = 14;
 
 			boolean useLegend = sectors.size()>1;
 			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
-				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
+				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
+					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 				}
-				if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.getApproach(), "lime"));
+				if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
+					slopes.add(new PrintSlope(sector.approach(), "lime"));
 				}
-				if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.getDescent(), "purple"));
+				if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
+					slopes.add(new PrintSlope(sector.descent(), "purple"));
 				}
-				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-					final String name = removeIllegalChars(sector.getName());
+				if (sector.outline() != null && !sector.outline().isEmpty()) {
+					final String name = removeIllegalChars(sector.name());
 					String label = null;
 					if (useLegend) {
 						label = String.valueOf(legends.size() + 1);
@@ -663,7 +663,7 @@ public class PdfGenerator implements AutoCloseable {
 					else {
 						label = name;
 					}
-					String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+					String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
@@ -693,33 +693,33 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude());
+			if (problem.coordinates() != null && problem.coordinates().getLatitude() > 0 && problem.coordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(problem.coordinates().getLatitude(), problem.coordinates().getLongitude());
 			}
-			else if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-				defaultCenter = new LatLng(sector.getParking().getLatitude(), sector.getParking().getLongitude());
+			else if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
+				defaultCenter = new LatLng(sector.parking().getLatitude(), sector.parking().getLongitude());
 			}
-			else if (area.getCoordinates() != null && area.getCoordinates().getLatitude() > 0 && area.getCoordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.getCoordinates().getLatitude(), area.getCoordinates().getLongitude());
+			else if (area.coordinates() != null && area.coordinates().getLatitude() > 0 && area.coordinates().getLongitude() > 0) {
+				defaultCenter = new LatLng(area.coordinates().getLatitude(), area.coordinates().getLongitude());
 			}
 			int defaultZoom = 15;
 
-			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-				markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
+			if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
+				markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 			}
-			if (problem.getCoordinates() != null && problem.getCoordinates().getLatitude() > 0 && problem.getCoordinates().getLongitude() > 0) {
-				String name = removeIllegalChars(problem.getName());
-				markers.add(new Marker(problem.getCoordinates().getLatitude(), problem.getCoordinates().getLongitude(), IconType.DEFAULT, name));
+			if (problem.coordinates() != null && problem.coordinates().getLatitude() > 0 && problem.coordinates().getLongitude() > 0) {
+				String name = removeIllegalChars(problem.name());
+				markers.add(new Marker(problem.coordinates().getLatitude(), problem.coordinates().getLongitude(), IconType.DEFAULT, name));
 			}
-			if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
-				slopes.add(new PrintSlope(sector.getApproach(), "lime"));
+			if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
+				slopes.add(new PrintSlope(sector.approach(), "lime"));
 			}
-			if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
-				slopes.add(new PrintSlope(sector.getDescent(), "purple"));
+			if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
+				slopes.add(new PrintSlope(sector.descent(), "purple"));
 			}
-			if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-				String label = removeIllegalChars(sector.getName());
-				String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+			if (sector.outline() != null && !sector.outline().isEmpty()) {
+				String label = removeIllegalChars(sector.name());
+				String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 				outlines.add(new Outline(label, polygonCoords));
 			}
 
@@ -764,15 +764,15 @@ public class PdfGenerator implements AutoCloseable {
 			List<PrintSlope> slopes = new ArrayList<>();
 			List<Marker> markers = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-				defaultCenter = new LatLng(sector.getParking().getLatitude(), sector.getParking().getLongitude());
+			if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
+				defaultCenter = new LatLng(sector.parking().getLatitude(), sector.parking().getLongitude());
 			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
 
 			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
-			for (SectorProblem p : sector.getProblems()) {
+			for (SectorProblem p : sector.problems()) {
 				if (p.coordinates() != null && p.coordinates().getLatitude() > 0 && p.coordinates().getLongitude() > 0) {
 					if (p.rock() != null) {
 						problemsWithCoordinatesGroupedByRock.put(p.rock(), p);
@@ -791,18 +791,18 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(p.coordinates().getLatitude(), p.coordinates().getLongitude(), IconType.DEFAULT, String.valueOf(p.nr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
-				if (sector.getParking() != null && sector.getParking().getLatitude() > 0 && sector.getParking().getLongitude() > 0) {
-					markers.add(new Marker(sector.getParking().getLatitude(), sector.getParking().getLongitude(), IconType.PARKING, null));
+				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
+					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 				}
-				if (sector.getApproach() != null && !sector.getApproach().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.getApproach(), "lime"));
+				if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
+					slopes.add(new PrintSlope(sector.approach(), "lime"));
 				}
-				if (sector.getDescent() != null && !sector.getDescent().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.getDescent(), "purple"));
+				if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
+					slopes.add(new PrintSlope(sector.descent(), "purple"));
 				}
-				if (sector.getOutline() != null && !sector.getOutline().isEmpty()) {
-					final String label = removeIllegalChars(sector.getName());
-					String polygonCoords = sector.getOutline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+				if (sector.outline() != null && !sector.outline().isEmpty()) {
+					final String label = removeIllegalChars(sector.name());
+					String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
@@ -911,14 +911,14 @@ public class PdfGenerator implements AutoCloseable {
 
 	private void writeSectors(Setup setup, List<Sector> sectors) throws Exception {
 		for (Sector s : sectors) {
-			final boolean showType = s.getProblems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
+			final boolean showType = s.problems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
 			document.newPage();
-			document.add(new Paragraph(s.getName(), FONT_H2));
-			if (!Strings.isNullOrEmpty(s.getAccessInfo())) {
-				document.add(new Phrase(s.getAccessInfo(), FONT_BOLD));
+			document.add(new Paragraph(s.name(), FONT_H2));
+			if (!Strings.isNullOrEmpty(s.accessInfo())) {
+				document.add(new Phrase(s.accessInfo(), FONT_BOLD));
 			}
-			if (!Strings.isNullOrEmpty(s.getComment())) {
-				document.add(new Phrase(s.getComment(), FONT_REG));
+			if (!Strings.isNullOrEmpty(s.comment())) {
+				document.add(new Phrase(s.comment(), FONT_REG));
 			}
 			writeMapSector(s);
 
@@ -936,7 +936,7 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "FA", null, false);
 			addTableCell(table, FONT_BOLD, "Note", null, false);
 
-			for (SectorProblem p : s.getProblems()) {
+			for (SectorProblem p : s.problems()) {
 				String description = Strings.emptyToNull(p.comment());
 				if (!Strings.isNullOrEmpty(p.rock())) {
 					if (description == null) {
@@ -1005,20 +1005,20 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(new Paragraph(" "));
 			document.add(table);
 
-			if (s.getMedia() != null && !s.getMedia().isEmpty()) {
-				writeMediaGrid(s.getMedia(), 0, 3, 600);
+			if (s.media() != null && !s.media().isEmpty()) {
+				writeMediaGrid(s.media(), 0, 3, 600);
 			}
 		}
 	}
 
 	private void writeTicksAndComments(Problem p) throws Exception {
-		if (p.getTicks() != null && !p.getTicks().isEmpty()) {
+		if (p.ticks() != null && !p.ticks().isEmpty()) {
 			document.add(new Paragraph("Ascents", FONT_H2));
 			PdfPTable table = new PdfPTable(new float[]{1.0f, 1.3f, 4.5f});
 			table.setWidthPercentage(100);
 			table.setSpacingBefore(5f);
 
-			for (ProblemTick t : p.getTicks()) {
+			for (ProblemTick t : p.ticks()) {
 				PdfPCell dateCell = new PdfPCell(new Phrase(t.getDate(), FONT_REG));
 				dateCell.setPadding(4f);
 				dateCell.setBorderColor(Color.LIGHT_GRAY);
@@ -1052,13 +1052,13 @@ public class PdfGenerator implements AutoCloseable {
 			document.add(table);
 		}
 
-		if (p.getComments() != null && !p.getComments().isEmpty()) {
+		if (p.comments() != null && !p.comments().isEmpty()) {
 			document.add(new Paragraph("Comments", FONT_H2));
 			PdfPTable cTable = new PdfPTable(new float[]{1.0f, 1.3f, 4.5f});
 			cTable.setWidthPercentage(100);
 			cTable.setSpacingBefore(5f);
 
-			for (ProblemComment c : p.getComments()) {
+			for (ProblemComment c : p.comments()) {
 				PdfPCell dateCell = new PdfPCell(new Phrase(c.getDate(), FONT_REG));
 				dateCell.setPadding(4f);
 				dateCell.setBorderColor(Color.LIGHT_GRAY);

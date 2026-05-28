@@ -165,7 +165,7 @@ public class FillProblems {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
 		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
-		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, t, false, null, null, d.getTrivia(), null, null, null, null);
+		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, null, null, null, t, null, false, null, null, null, d.getTrivia(), null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
@@ -179,12 +179,12 @@ public class FillProblems {
 			return areaCache.get(d.getArea());
 		}
 		for (Area a : dao.getAreaList(c, AUTH_USER_ID, REGION_ID)) {
-			if (a.getName().equals(d.getArea())) {
-				areaCache.put(d.getArea(), a.getId());
-				return a.getId();
+			if (a.name().equals(d.getArea())) {
+				areaCache.put(d.getArea(), a.id());
+				return a.id();
 			}
 		}
-		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null);
+		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null, null);
 		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a);
 		areaCache.put(d.getArea(), r.idArea());
 		return r.idArea();
@@ -196,13 +196,13 @@ public class FillProblems {
 			return areaSectors.get(d.getSector());
 		}
 		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
-		for (AreaSector s : a.getSectors()) {
-			if (s.getName().equals(d.getSector())) {
-				areaSectors.put(d.getSector(), s.getId());
-				return s.getId();
+		for (AreaSector s : a.sectors()) {
+			if (s.name().equals(d.getSector())) {
+				areaSectors.put(d.getSector(), s.id());
+				return s.id();
 			}
 		}
-		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null);
+		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s);
 		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();

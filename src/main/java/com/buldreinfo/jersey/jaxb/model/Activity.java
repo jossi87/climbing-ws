@@ -6,6 +6,7 @@ import java.util.Set;
 
 public class Activity {
 	record ActivityThumbnail(MediaIdentity identity, int userId, String name) {}
+	public record ActivityMedia (MediaIdentity identity, boolean movie, boolean is360, String embedUrl) {}
 	private final Set<Integer> activityIds;
 	private List<ActivityThumbnail> activityThumbnails;
 	private final String timeAgo;

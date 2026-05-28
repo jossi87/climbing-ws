@@ -90,8 +90,8 @@ public class V2Test {
 			Collection<?> area = (Collection<?>)r.getEntity();
 			assertTrue(area.size() == 1);
 			Area a = (Area) area.iterator().next();
-			assertTrue(!Strings.isNullOrEmpty(a.getName()));
-			assertTrue(a.getRedirectUrl() == null);
+			assertTrue(!Strings.isNullOrEmpty(a.name()));
+			assertTrue(a.redirectUrl() == null);
 		}
 	}
 	
@@ -104,8 +104,8 @@ public class V2Test {
 			Collection<?> area = (Collection<?>)r.getEntity();
 			assertTrue(area.size() == 1);
 			Area a = (Area) area.iterator().next();
-			assertTrue(Strings.isNullOrEmpty(a.getName()));
-			assertTrue(a.getRedirectUrl() != null);
+			assertTrue(Strings.isNullOrEmpty(a.name()));
+			assertTrue(a.redirectUrl() != null);
 		}
 	}
 	
@@ -127,7 +127,7 @@ public class V2Test {
 		Server.runSql((dao, c) -> {
 			Area a = dao.getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
 			assertTrue(a != null);
-			assertTrue(!Strings.isNullOrEmpty(a.getName()));
+			assertTrue(!Strings.isNullOrEmpty(a.name()));
 		});
 	}
 
@@ -185,8 +185,8 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));
-			assertTrue(p.getRedirectUrl() == null);
+			assertTrue(!Strings.isNullOrEmpty(p.name()));
+			assertTrue(p.redirectUrl() == null);
 		}
 	}
 	
@@ -197,8 +197,8 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
-			assertTrue(Strings.isNullOrEmpty(p.getName()));
-			assertTrue(p.getRedirectUrl() != null);
+			assertTrue(Strings.isNullOrEmpty(p.name()));
+			assertTrue(p.redirectUrl() != null);
 		}
 	}
 
@@ -220,7 +220,7 @@ public class V2Test {
 		Server.runSql((dao, c) -> {
 			Problem p = dao.getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 			assertTrue(p != null);
-			assertTrue(!Strings.isNullOrEmpty(p.getName()));
+			assertTrue(!Strings.isNullOrEmpty(p.name()));
 		});
 	}
 	
@@ -284,9 +284,9 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Sector);
 			Sector s = (Sector)r.getEntity();
-			assertTrue(!Strings.isNullOrEmpty(s.getName()));
-			assertTrue(!s.getProblems().isEmpty());
-			assertTrue(s.getRedirectUrl() == null);
+			assertTrue(!Strings.isNullOrEmpty(s.name()));
+			assertTrue(!s.problems().isEmpty());
+			assertTrue(s.redirectUrl() == null);
 		}
 	}
 	
@@ -297,8 +297,8 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Sector);
 			Sector s = (Sector)r.getEntity();
-			assertTrue(Strings.isNullOrEmpty(s.getName()));
-			assertTrue(s.getRedirectUrl() != null);
+			assertTrue(Strings.isNullOrEmpty(s.name()));
+			assertTrue(s.redirectUrl() != null);
 		}
 	}
 	
@@ -320,7 +320,7 @@ public class V2Test {
 		Server.runSql((dao, c) -> {
 			Sector s = dao.getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 			assertTrue(s != null);
-			assertTrue(!Strings.isNullOrEmpty(s.getName()));
+			assertTrue(!Strings.isNullOrEmpty(s.name()));
 		});
 	}
 

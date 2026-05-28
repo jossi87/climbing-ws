@@ -55,11 +55,11 @@ import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Toc;
-import com.buldreinfo.jersey.jaxb.model.TocArea;
-import com.buldreinfo.jersey.jaxb.model.TocPitch;
-import com.buldreinfo.jersey.jaxb.model.TocProblem;
-import com.buldreinfo.jersey.jaxb.model.TocRegion;
-import com.buldreinfo.jersey.jaxb.model.TocSector;
+import com.buldreinfo.jersey.jaxb.model.Toc.TocArea;
+import com.buldreinfo.jersey.jaxb.model.Toc.TocPitch;
+import com.buldreinfo.jersey.jaxb.model.Toc.TocProblem;
+import com.buldreinfo.jersey.jaxb.model.Toc.TocRegion;
+import com.buldreinfo.jersey.jaxb.model.Toc.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Trash;
@@ -199,11 +199,11 @@ public class V2 {
 			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final Area area = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, area.getId(), 0);
+			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, area.id(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
-			for (Area.AreaSector sector : area.getSectors()) {
-				Sector s = dao.getSector(c, authUserId, orderByGrade, setup, sector.getId(), shouldUpdateHits);
+			for (Area.AreaSector sector : area.sectors()) {
+				Sector s = dao.getSector(c, authUserId, orderByGrade, setup, sector.id(), shouldUpdateHits);
 				sectors.add(s);
 			}
 			StreamingOutput stream = new StreamingOutput() {
@@ -218,7 +218,7 @@ public class V2 {
 				}
 			};
 			return Response.ok(stream)
-					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.getName(), "pdf")))
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.name(), "pdf")))
 					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
@@ -539,8 +539,8 @@ public class V2 {
 	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final Problem problem = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
-			final Area area = dao.getArea(c, setup, authUserId, problem.getAreaId(), shouldUpdateHits);
-			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.getSectorId(), shouldUpdateHits);
+			final Area area = dao.getArea(c, setup, authUserId, problem.areaId(), shouldUpdateHits);
+			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -553,7 +553,7 @@ public class V2 {
 				}
 			};
 			return Response.ok(stream)
-					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(problem.getName(), "pdf")))
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(problem.name(), "pdf")))
 					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
@@ -715,7 +715,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final Sector sector = dao.getSector(c, authUserId, false, setup, id, shouldUpdateHits);
 			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, 0, id);
-			final Area area = dao.getArea(c, setup, authUserId, sector.getAreaId(), shouldUpdateHits);
+			final Area area = dao.getArea(c, setup, authUserId, sector.areaId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -728,7 +728,7 @@ public class V2 {
 				}
 			};
 			return Response.ok(stream)
-					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(sector.getName(), "pdf")))
+					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(sector.name(), "pdf")))
 					.header("Access-Control-Expose-Headers", "Content-Disposition")
 					.build();
 		});
@@ -1005,15 +1005,15 @@ public class V2 {
 			Area a = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
 			String description = null;
 			if (setup.isBouldering()) {
-				description = String.format("Bouldering in %s", a.getName());
+				description = String.format("Bouldering in %s", a.name());
 			}
 			else {
-				description = String.format("Climbing in %s", a.getName());
+				description = String.format("Climbing in %s", a.name());
 			}
-			Media m = a.getMedia() != null && !a.getMedia().isEmpty()? a.getMedia().getFirst() : null;
+			Media m = a.media() != null && !a.media().isEmpty()? a.media().getFirst() : null;
 			String html = getHtml(setup,
-					setup.url() + "/area/" + a.getId(),
-					a.getName(),
+					setup.url() + "/area/" + a.id(),
+					a.name(),
 					description,
 					(m == null? 0 : m.identity().id()),
 					(m == null? 0 : m.identity().versionStamp()),
@@ -1049,15 +1049,15 @@ public class V2 {
 		return Server.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			Problem p = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
-			String title = String.format("%s [%s] (%s / %s)", p.getName(), p.getGrade(), p.getAreaName(), p.getSectorName());
-			String description = p.getComment();
-			if (p.getFa() != null && !p.getFa().isEmpty()) {
-				String fa = p.getFa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
-				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.getFaDateHr())? " (" + p.getFaDate() + ")" : "");
+			String title = String.format("%s [%s] (%s / %s)", p.name(), p.grade(), p.areaName(), p.sectorName());
+			String description = p.comment();
+			if (p.fa() != null && !p.fa().isEmpty()) {
+				String fa = p.fa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
+				description = (!Strings.isNullOrEmpty(description)? description + " | " : "") + "First ascent by " + fa + (!Strings.isNullOrEmpty(p.faDateHr())? " (" + p.faDate() + ")" : "");
 			}
 			Media m = null;
-			if (p.getMedia() != null && !p.getMedia().isEmpty()) {
-				Optional<Media> optM = p.getMedia()
+			if (p.media() != null && !p.media().isEmpty()) {
+				Optional<Media> optM = p.media()
 						.stream()
 						.filter(x -> !x.inherited() && (mediaId == 0 || x.identity().id() == mediaId))
 						.findFirst();
@@ -1065,11 +1065,11 @@ public class V2 {
 					m = optM.get();
 				}
 				else {
-					m = p.getMedia().getFirst();
+					m = p.media().getFirst();
 				}
 			}
 			String html = getHtml(setup,
-					setup.url() + "/problem/" + p.getId(),
+					setup.url() + "/problem/" + p.id(),
 					title,
 					description,
 					(m == null? 0 : m.identity().id()),
@@ -1109,17 +1109,17 @@ public class V2 {
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
 			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
-			String title = String.format("%s (%s)", s.getName(), s.getAreaName());
+			String title = String.format("%s (%s)", s.name(), s.areaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.isBouldering()? "Bouldering" : "Climbing"),
-					s.getAreaName(),
-					s.getName(),
-					(s.getProblems() != null? s.getProblems().size() : 0),
+					s.areaName(),
+					s.name(),
+					(s.problems() != null? s.problems().size() : 0),
 					(setup.isBouldering()? "boulders" : "routes"),
-					(!Strings.isNullOrEmpty(s.getComment())? " | " + s.getComment() : ""));
-			Media m = s.getMedia() != null && !s.getMedia().isEmpty()? s.getMedia().getFirst() : null;
+					(!Strings.isNullOrEmpty(s.comment())? " | " + s.comment() : ""));
+			Media m = s.media() != null && !s.media().isEmpty()? s.media().getFirst() : null;
 			String html = getHtml(setup,
-					setup.url() + "/sector/" + s.getId(),
+					setup.url() + "/sector/" + s.id(),
 					title,
 					description,
 					(m == null? 0 : m.identity().id()),
@@ -1143,7 +1143,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postAreas(@Context HttpServletRequest request, Area a) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			Objects.requireNonNull(Strings.emptyToNull(a.getName()));
+			Objects.requireNonNull(Strings.emptyToNull(a.name()));
 			Redirect res = dao.setArea(c, setup, authUserId, a);
 			return Response.ok().entity(res).build();
 		});
@@ -1299,8 +1299,8 @@ public class V2 {
 	public Response postProblems(@Context HttpServletRequest request, Problem p) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
-			Preconditions.checkArgument(p.getSectorId() > 1);
-			Objects.requireNonNull(Strings.emptyToNull(p.getName()));
+			Preconditions.checkArgument(p.sectorId() > 1);
+			Objects.requireNonNull(Strings.emptyToNull(p.name()));
 			Redirect res = dao.setProblem(c, authUserId, setup, p);
 			return Response.ok().entity(res).build();
 		});
@@ -1395,8 +1395,8 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postSectors(@Context HttpServletRequest request, Sector s) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			Preconditions.checkArgument(s.getAreaId() > 1);
-			Objects.requireNonNull(Strings.emptyToNull(s.getName()));
+			Preconditions.checkArgument(s.areaId() > 1);
+			Objects.requireNonNull(Strings.emptyToNull(s.name()));
 			Redirect res = dao.setSector(c, authUserId, setup, s);
 			return Response.ok().entity(res).build();
 		});

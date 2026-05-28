@@ -22,4 +22,5 @@ public record Slope(List<Coordinates> coordinates, double calculatedDurationInMi
 		long elevationLoss = Math.round(loss);
 		return new Slope(coordinates, calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
 	}
+	public record SectorSlopesResult(Slope approach, Slope descent) {}
 }
