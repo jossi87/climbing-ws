@@ -7081,18 +7081,18 @@ public class Dao {
 	    Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 	    String placeholders = ",?".repeat(idSectors.size()).substring(1);
 	    String sqlStr = """
-	            SELECT 'approach' AS type, s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
+	            SELECT 'approach' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
 	                   st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
 	            FROM sector_approach s, coordinates c
 	            WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
 	            
 	            UNION ALL
 	            
-	            SELECT 'descent' AS type, s.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
+	            SELECT 'descent' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
 	                   st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
 	            FROM sector_descent s, coordinates c
 	            WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
-	            ORDER BY type, id_sector
+	            ORDER BY type, id_sector, sorting
 	            """.formatted(placeholders);
 	    Multimap<Integer, Coordinates> approachCoordinates = ArrayListMultimap.create();
 	    Multimap<Integer, Coordinates> descentCoordinates = ArrayListMultimap.create();
