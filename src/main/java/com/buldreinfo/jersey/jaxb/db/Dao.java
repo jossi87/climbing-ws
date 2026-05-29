@@ -5252,95 +5252,60 @@ public class Dao {
 		}
 		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
 		
-		if (s.outline() == null || s.outline().isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
-				ps.setInt(1, idSector);
-				ps.execute();
-			}
-		} else {
-			List<Integer> ids = s.outline().stream().map(Coordinates::getId).toList();
-			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-			String sqlStr = "DELETE FROM sector_outline WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, idSector);
-				for (int i = 0; i < ids.size(); i++) {
-					ps.setInt(i + 2, ids.get(i));
-				}
-				ps.execute();
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
+			ps.setInt(1, idSector);
+			ps.execute();
+		}
+		if (s.outline() != null && !s.outline().isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
 				int sorting = 0;
 				for (Coordinates coord : s.outline()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
 					ps.setInt(3, sorting);
-					ps.setInt(4, coord.getId());
 					ps.addBatch();
 				}
 				ps.executeBatch();
 			}
 		}
 		
-		if (s.approach() == null || s.approach().coordinates() == null || s.approach().coordinates().isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_approach WHERE sector_id=?")) {
-				ps.setInt(1, idSector);
-				ps.execute();
-			}
-		} else {
-			List<Integer> ids = s.approach().coordinates().stream().map(Coordinates::getId).toList();
-			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-			String sqlStr = "DELETE FROM sector_approach WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, idSector);
-				for (int i = 0; i < ids.size(); i++) {
-					ps.setInt(i + 2, ids.get(i));
-				}
-				ps.execute();
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_approach WHERE sector_id=?")) {
+			ps.setInt(1, idSector);
+			ps.execute();
+		}
+		if (s.approach() != null && s.approach().coordinates() != null && !s.approach().coordinates().isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_approach (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
 				int sorting = 0;
 				for (Coordinates coord : s.approach().coordinates()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
 					ps.setInt(3, sorting);
-					ps.setInt(4, coord.getId());
 					ps.addBatch();
 				}
 				ps.executeBatch();
 			}
 		}
 		
-		if (s.descent() == null || s.descent().coordinates() == null || s.descent().coordinates().isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_descent WHERE sector_id=?")) {
-				ps.setInt(1, idSector);
-				ps.execute();
-			}
-		} else {
-			List<Integer> ids = s.descent().coordinates().stream().map(Coordinates::getId).toList();
-			String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-			String sqlStr = "DELETE FROM sector_descent WHERE sector_id=? AND coordinates_id NOT IN (" + placeholders + ")";
-			try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, idSector);
-				for (int i = 0; i < ids.size(); i++) {
-					ps.setInt(i + 2, ids.get(i));
-				}
-				ps.execute();
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_descent (sector_id, coordinates_id, sorting) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE coordinates_id=?")) {
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_descent WHERE sector_id=?")) {
+			ps.setInt(1, idSector);
+			ps.execute();
+		}
+		if (s.descent() != null && s.descent().coordinates() != null && !s.descent().coordinates().isEmpty()) {
+			try (PreparedStatement ps = c.prepareStatement("INSERT INTO sector_descent (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
 				int sorting = 0;
 				for (Coordinates coord : s.descent().coordinates()) {
 					sorting++;
 					ps.setInt(1, idSector);
 					ps.setInt(2, coord.getId());
 					ps.setInt(3, sorting);
-					ps.setInt(4, coord.getId());
 					ps.addBatch();
 				}
 				ps.executeBatch();
 			}
 		}
+		
 		upsertExternalLinks(c, s.externalLinks(), 0, idSector, 0);
 		Redirect res = null;
 		if (s.trash()) {
