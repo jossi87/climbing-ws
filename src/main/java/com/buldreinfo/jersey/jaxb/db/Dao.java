@@ -3425,8 +3425,8 @@ public class Dao {
 				  SELECT ? user_id, ? region_id
 				)
 				SELECT r.id region_id, r.name region_name,
-				       a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_closed area_access_closed, a.access_info area_access_info, a.last_updated area_last_updated,
-				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_closed sector_access_closed, s.access_info sector_access_info, s.last_updated sector_last_updated
+				       a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_closed area_access_closed, a.access_info area_access_info,
+				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_closed sector_access_closed, s.access_info sector_access_info
 				FROM req
 				JOIN region r ON true
 				JOIN area a ON r.id=a.region_id
@@ -3439,7 +3439,7 @@ public class Dao {
 				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				  AND (a.access_info IS NOT NULL OR a.access_closed IS NOT NULL OR s.access_info IS NOT NULL OR s.access_closed IS NOT NULL)
 				GROUP BY r.id, r.name, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_closed, a.access_info, a.last_updated, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_closed, s.access_info, s.last_updated
-				ORDER BY r.name, COALESCE(s.last_updated, a.last_updated) DESC
+				ORDER BY r.name, a.name, s.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
@@ -3462,8 +3462,7 @@ public class Dao {
 						boolean lockedSuperadmin = rst.getBoolean("area_locked_superadmin");
 						String accessClosed = rst.getString("area_access_closed");
 						String accessInfo = rst.getString("area_access_info");
-						String lastUpdated = TimeAgo.getTimeAgo(rst.getObject("area_last_updated", LocalDate.class));
-						a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, lastUpdated, new ArrayList<>());
+						a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, new ArrayList<>());
 						r.areas().add(a);
 						areasLookup.put(areaId, a);
 					}
@@ -3474,8 +3473,7 @@ public class Dao {
 					boolean lockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 					String accessClosed = rst.getString("sector_access_closed");
 					String accessInfo = rst.getString("sector_access_info");
-					String lastUpdated = TimeAgo.getTimeAgo(rst.getObject("sector_last_updated", LocalDate.class));
-					var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, lastUpdated);
+					var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo);
 					a.sectors().add(s);
 				}
 			}
