@@ -3436,7 +3436,7 @@ public class Dao {
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
 				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				  AND (s.id IS NULL OR is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1)
 				  AND (a.access_info IS NOT NULL OR a.access_closed IS NOT NULL OR s.access_info IS NOT NULL OR s.access_closed IS NOT NULL)
 				GROUP BY r.id, r.name, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_closed, a.access_info, a.last_updated, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_closed, s.access_info, s.last_updated
 				ORDER BY r.name, a.name, s.name
