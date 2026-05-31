@@ -48,6 +48,7 @@ import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
 import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
 import com.buldreinfo.jersey.jaxb.model.ProfileTodo;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
+import com.buldreinfo.jersey.jaxb.model.RestrictionsRegion;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.SearchRequest;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -254,7 +255,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-
+	
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = Integer.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -660,6 +661,22 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.ensureUserExists(c, id);
 			ProfileTodo res = dao.getProfileTodo(c, authUserId, setup, id);
+			return Response.ok().entity(res).build();
+		});
+	}
+
+	@Operation(summary = "Get areas and sectors with restrictions", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RestrictionsRegion.class)))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GET
+	@Path("/restrictions")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getRestrictions(@Context HttpServletRequest request) {
+		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+			Collection<RestrictionsRegion> res = dao.getRestrictions(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}

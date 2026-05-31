@@ -149,7 +149,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}
-
+	
 	@Test
 	public void testGetFrontpage() throws Exception {
 		V2 tester = new V2();
@@ -157,7 +157,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}
-	
+
 	@Test
 	public void testGetMedia() throws Exception {
 		V2 tester = new V2();
@@ -168,7 +168,7 @@ public class V2Test {
 			assertTrue(!m.problems().isEmpty());
 		}
 	}
-
+	
 	@Test
 	public void testGetMeta() throws Exception {
 		V2 tester = new V2();
@@ -177,7 +177,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof Meta);
 		}
 	}
-	
+
 	@Test
 	public void testGetProblem() throws Exception {
 		V2 tester = new V2();
@@ -201,7 +201,7 @@ public class V2Test {
 			assertTrue(p.redirectUrl() != null);
 		}
 	}
-
+	
 	@Test
 	public void testGetProblemHidden() throws Exception {
 		V2 tester = new V2();
@@ -223,7 +223,7 @@ public class V2Test {
 			assertTrue(!Strings.isNullOrEmpty(p.name()));
 		});
 	}
-	
+
 	@Test
 	public void testGetProblemPdf() throws Exception {
 		V2 tester = new V2();
@@ -258,7 +258,7 @@ public class V2Test {
 			assertTrue(r.getEntity() instanceof List<?>);
 		}
 	}
-
+	
 	@Test
 	public void testGetProfileMedia() throws Exception {
 		V2 tester = new V2();
@@ -274,6 +274,14 @@ public class V2Test {
 		try (Response r = tester.getProfileTodo(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof ProfileTodo);
+		}
+	}
+
+	@Test
+	public void testGetRestrictions() throws Exception {
+		V2 tester = new V2();
+		try (Response r = tester.getRestrictions(getRequest(Region.brattelinjer))) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 		}
 	}
 

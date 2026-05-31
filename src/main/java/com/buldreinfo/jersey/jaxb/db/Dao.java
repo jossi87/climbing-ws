@@ -105,6 +105,9 @@ import com.buldreinfo.jersey.jaxb.model.ProfileTodo.ProfileTodoSector;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
 import com.buldreinfo.jersey.jaxb.model.Region;
+import com.buldreinfo.jersey.jaxb.model.RestrictionsRegion;
+import com.buldreinfo.jersey.jaxb.model.RestrictionsRegion.RestrictionsArea;
+import com.buldreinfo.jersey.jaxb.model.RestrictionsRegion.RestrictionsSector;
 import com.buldreinfo.jersey.jaxb.model.Search;
 import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Sector.SectorProblem;
@@ -161,32 +164,32 @@ public class Dao {
 
 	public Dao() {
 	}
-	
+
 	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
-	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-	    m.ensureCorrectMediaAssociations(authUserId);
-	    Preconditions.checkNotNull(filePart, "File part is required");
-	    String fileName = filePart.getContentDisposition().getFileName();
-	    StorageType storageType = StorageType.fromFilename(fileName)
-	        .orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
-	    Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
-	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-	    associateMediaToEntities(c, idMedia, m);
-	    try (InputStream is = inputStreamSupplier.get()) {
-	        byte[] bytes = StorageManager.getInstance().readBoundedStream(is);
-	        ImageHelper.saveImage(this, c, idMedia, bytes);
-	    }
-	    return idMedia;
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		m.ensureCorrectMediaAssociations(authUserId);
+		Preconditions.checkNotNull(filePart, "File part is required");
+		String fileName = filePart.getContentDisposition().getFileName();
+		StorageType storageType = StorageType.fromFilename(fileName)
+				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
+		Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
+		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+		associateMediaToEntities(c, idMedia, m);
+		try (InputStream is = inputStreamSupplier.get()) {
+			byte[] bytes = StorageManager.getInstance().readBoundedStream(is);
+			ImageHelper.saveImage(this, c, idMedia, bytes);
+		}
+		return idMedia;
 	}
-	
+
 	public int addMediaVideoPlaceholder(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
-	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-	    m.ensureCorrectMediaAssociations(authUserId);
-	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-	    associateMediaToEntities(c, idMedia, m);
-	    return idMedia;
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		m.ensureCorrectMediaAssociations(authUserId);
+		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+		associateMediaToEntities(c, idMedia, m);
+		return idMedia;
 	}
-	
+
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
 		List<Integer> idProblems = new ArrayList<>();
@@ -224,7 +227,7 @@ public class Dao {
 		}
 		logger.debug("Deleted existing AI analysis for idMedia={}", idMedia);
 	}
-	
+
 	public void ensureCoordinatesInDbWithElevationAndId(Connection c, List<Coordinates> coordinates) throws SQLException, InterruptedException {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			// First round coordinates to 10 digits (to match database type)
@@ -268,7 +271,7 @@ public class Dao {
 			}
 		}
 	}
-	
+
 	public void ensureUserExists(Connection c, int userId) throws SQLException {
 		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
 		boolean exists = false;
@@ -952,7 +955,7 @@ public class Dao {
 					List<Media> triviaMedia = partitioned.get(true);
 					List<Media> media = partitioned.get(false);
 					var externalLinks = getExternalLinks(c, reqId, 0, 0);
-					
+
 					a = new Area(null, regionName, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, new ArrayList<>(), new ArrayList<>(), media, triviaMedia, externalLinks, pageViews);
 				}
 			}
@@ -971,57 +974,57 @@ public class Dao {
 		}
 		Map<Integer, AreaSector> sectorLookup = getAreaSectors(c, setup, authUserId, a.id(), a.name());
 		if (!sectorLookup.isEmpty()) {
-	        var sectorProblems = getSectorProblems(c, setup, authUserId, reqId, 0);
-	        for (int sectorId : sectorProblems.keySet()) {
-	            var sector = sectorLookup.get(sectorId);
-	            if (sector != null) {
-	                sector.problems().addAll(sectorProblems.get(sectorId));
-	            }
-	        }
-	        if (authUserId.isPresent()) {
-	            for (var entry : sectorLookup.entrySet()) {
-	                var sector = entry.getValue();
-	                long totalProblems = sector.problems().stream()
-	                        .filter(p -> p.broken() == null)
-	                        .filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
-	                        .count();
-	                if (totalProblems != 0) {
-	                    long completedProblems = sector.problems().stream()
-	                            .filter(p -> p.broken() == null)
-	                            .filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
-	                            .filter(SectorProblem::ticked)
-	                            .count();
-	                    int percentage = (int) Math.round((double) completedProblems / totalProblems * 100);
-	                    sectorLookup.put(entry.getKey(), sector.withProgress(percentage));
-	                }
-	            }
-	        }
-	        Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
-	        for (int idSector : idSectorOutline.keySet()) {
-	            var sector = sectorLookup.get(idSector);
-	            if (sector != null) {
-	                sector.outline().addAll(idSectorOutline.get(idSector));
-	            }
-	        }
-	        getSectorSlopes(c, sectorLookup.keySet()).forEach((idSector, result) -> {
-	            var sector = sectorLookup.get(idSector);
-	            if (sector != null) {
-	                sectorLookup.put(idSector, sector.withSlopes(result.approach(), result.descent()));
-	            }
-	        });
+			var sectorProblems = getSectorProblems(c, setup, authUserId, reqId, 0);
+			for (int sectorId : sectorProblems.keySet()) {
+				var sector = sectorLookup.get(sectorId);
+				if (sector != null) {
+					sector.problems().addAll(sectorProblems.get(sectorId));
+				}
+			}
+			if (authUserId.isPresent()) {
+				for (var entry : sectorLookup.entrySet()) {
+					var sector = entry.getValue();
+					long totalProblems = sector.problems().stream()
+							.filter(p -> p.broken() == null)
+							.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
+							.count();
+					if (totalProblems != 0) {
+						long completedProblems = sector.problems().stream()
+								.filter(p -> p.broken() == null)
+								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
+								.filter(SectorProblem::ticked)
+								.count();
+						int percentage = (int) Math.round((double) completedProblems / totalProblems * 100);
+						sectorLookup.put(entry.getKey(), sector.withProgress(percentage));
+					}
+				}
+			}
+			Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(c, sectorLookup.keySet());
+			for (int idSector : idSectorOutline.keySet()) {
+				var sector = sectorLookup.get(idSector);
+				if (sector != null) {
+					sector.outline().addAll(idSectorOutline.get(idSector));
+				}
+			}
+			getSectorSlopes(c, sectorLookup.keySet()).forEach((idSector, result) -> {
+				var sector = sectorLookup.get(idSector);
+				if (sector != null) {
+					sectorLookup.put(idSector, sector.withSlopes(result.approach(), result.descent()));
+				}
+			});
 
-	        loadSimplifiedGradeCounts(c, authUserId, reqId, sectorLookup);
-	        for (var sector : sectorLookup.values().stream()
-	        		.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
-	        		.toList()) {
-	            a.sectors().add(sector);
-	            a.sectorOrder().add(new AreaSectorOrder(sector.id(), sector.name(), sector.sorting()));
-	        }
+			loadSimplifiedGradeCounts(c, authUserId, reqId, sectorLookup);
+			for (var sector : sectorLookup.values().stream()
+					.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
+					.toList()) {
+				a.sectors().add(sector);
+				a.sectorOrder().add(new AreaSectorOrder(sector.id(), sector.name(), sector.sorting()));
+			}
 		}
 		logger.debug("getArea(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
 		return a;
 	}
-	
+
 	public Collection<Area> getAreaList(Connection c, Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Area> res = new ArrayList<>();
@@ -1110,13 +1113,13 @@ public class Dao {
 				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
 					avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
 				}
-				
+
 				FormDataBodyPart filePart = new FormDataBodyPart("file", new ByteArrayInputStream(avatarBytes), MediaType.APPLICATION_OCTET_STREAM_TYPE);
 				FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
 						.fileName("avatar.jpg")
 						.build();
 				filePart.setFormDataContentDisposition(disposition);
-				
+
 				User photographer = User.from(USER_ID_UNKNOWN, null);
 				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
 				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
@@ -1218,6 +1221,7 @@ public class Dao {
 	}
 
 	public Collection<DangerousArea> getDangerous(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
 		Map<Integer, DangerousSector> sectorLookup = new HashMap<>();
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -1289,6 +1293,7 @@ public class Dao {
 				}
 			}
 		}
+		logger.debug("getDangerous() - areasLookup.size()={}, duration={}", areasLookup.size(), stopwatch);
 		return areasLookup.values();
 	}
 
@@ -3411,6 +3416,73 @@ public class Dao {
 		return Lists.newArrayList(regionLookup.values());
 	}
 
+	public Collection<RestrictionsRegion> getRestrictions(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
+		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+				  SELECT ? user_id, ? region_id
+				)
+				SELECT r.id region_id, r.name region_name,
+				       a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_closed area_access_closed, a.access_info area_access_info, a.last_updated area_last_updated,
+				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_closed sector_access_closed, s.access_info sector_access_info, s.last_updated sector_last_updated
+				FROM req
+				JOIN region r ON true
+				JOIN area a ON r.id=a.region_id
+				JOIN region_type rt ON r.id=rt.region_id
+				LEFT JOIN sector s ON a.id=s.area_id AND (s.access_info IS NOT NULL OR s.access_closed IS NOT NULL)
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				  AND (a.access_info IS NOT NULL OR a.access_closed IS NOT NULL OR s.access_info IS NOT NULL OR s.access_closed IS NOT NULL)
+				ORDER BY r.name, COALESCE(s.last_updated, a.last_updated) DESC
+				""")) {
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					// Region
+					int regionId = rst.getInt("region_id");
+					RestrictionsRegion r = regionsLookup.get(regionId);
+					if (r == null) {
+						String name = rst.getString("region_name");
+						r = new RestrictionsRegion(regionId, name, new ArrayList<>());
+						regionsLookup.put(regionId, r);
+					}
+					// Area
+					int areaId = rst.getInt("area_id");
+					RestrictionsArea a = areasLookup.get(areaId);
+					if (a == null) {
+						String name = rst.getString("area_name");
+						boolean lockedAdmin = rst.getBoolean("area_locked_admin");
+						boolean lockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						String accessClosed = rst.getString("area_access_closed");
+						String accessInfo = rst.getString("area_access_info");
+						String lastUpdated = TimeAgo.getTimeAgo(rst.getObject("area_last_updated", LocalDate.class));
+						a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, lastUpdated, new ArrayList<>());
+						r.areas().add(a);
+						areasLookup.put(areaId, a);
+					}
+					// Sector
+					int sectorId = rst.getInt("sector_id");
+					String name = rst.getString("sector_name");
+					boolean lockedAdmin = rst.getBoolean("sector_locked_admin");
+					boolean lockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+					String accessClosed = rst.getString("sector_access_closed");
+					String accessInfo = rst.getString("sector_access_info");
+					String lastUpdated = TimeAgo.getTimeAgo(rst.getObject("sector_last_updated", LocalDate.class));
+					var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, lastUpdated);
+					a.sectors().add(s);
+				}
+			}
+		}
+		logger.debug("getRestrictions() - regionsLookup.size()={}, duration={}", regionsLookup.size(), stopwatch);
+		return regionsLookup.values();
+	}
+
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
@@ -3687,7 +3759,7 @@ public class Dao {
 					List<Media> triviaMedia = partitioned.get(true);
 					List<Media> media = partitioned.get(false);
 					var externalLinks = getExternalLinks(c, 0, reqId, 0);
-					
+
 					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), externalLinks, pageViews);
 				}
 			}
@@ -5178,7 +5250,7 @@ public class Dao {
 			}
 		}
 		ensureCoordinatesInDbWithElevationAndId(c, allCoordinates);
-		
+
 		if (s.id() > 0) {
 			Sector currSector = getSector(c, authUserId, false, setup, s.id(), false);
 			setPermissionRecursive = currSector.lockedAdmin() != isLockedAdmin || currSector.lockedSuperadmin() != s.lockedSuperadmin();
@@ -5251,7 +5323,7 @@ public class Dao {
 			}
 		}
 		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
-		
+
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
 			ps.setInt(1, idSector);
 			ps.execute();
@@ -5269,7 +5341,7 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
-		
+
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_approach WHERE sector_id=?")) {
 			ps.setInt(1, idSector);
 			ps.execute();
@@ -5287,7 +5359,7 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
-		
+
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_descent WHERE sector_id=?")) {
 			ps.setInt(1, idSector);
 			ps.execute();
@@ -5305,7 +5377,7 @@ public class Dao {
 				ps.executeBatch();
 			}
 		}
-		
+
 		upsertExternalLinks(c, s.externalLinks(), 0, idSector, 0);
 		Redirect res = null;
 		if (s.trash()) {
@@ -5477,7 +5549,7 @@ public class Dao {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, mediaId);
 		Media originalMedia = getMedia(c, authUserId, m.identity().id());	    
 		boolean thumbnailChanged = originalMedia.thumbnailSeconds() != m.thumbnailSeconds();
-		
+
 		int photographerId = m.photographer().id() > 0 ? m.photographer().id() : getExistingOrInsertUser(c, m.photographer().name());
 		String baseUpdateSql = thumbnailChanged 
 				? "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?"
@@ -5575,11 +5647,11 @@ public class Dao {
 		}
 		// Fill activity
 		for (int idProblem : Stream.of(originalMedia.problems(), m.problems())
-			    .filter(Objects::nonNull)
-			    .flatMap(List::stream)
-			    .map(MediaProblem::problemId)
-			    .toList()) {
-		    fillActivity(c, idProblem);
+				.filter(Objects::nonNull)
+				.flatMap(List::stream)
+				.map(MediaProblem::problemId)
+				.toList()) {
+			fillActivity(c, idProblem);
 		}
 		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
 	}
@@ -5681,7 +5753,7 @@ public class Dao {
 			}
 		}
 	}
-	
+
 	public void upsertPermissionUser(Connection c, Setup setup, Optional<Integer> authUserId, PermissionUser u) throws SQLException {
 		ensureSuperadminWriteRegion(c, setup, authUserId);
 		// Upsert
@@ -5776,79 +5848,79 @@ public class Dao {
 	}
 
 	private void associateMediaToEntities(Connection c, int idMedia, Media m) throws Exception {
-	    boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
-	    boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
-	    boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
-	    boolean hasGuestbook = m.guestbookId() > 0;
-	    boolean hasUserAvatar = m.userAvatarId() > 0;
+		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
+		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
+		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+		boolean hasGuestbook = m.guestbookId() > 0;
+		boolean hasUserAvatar = m.userAvatarId() > 0;
 
-	    if (hasProblems) {
-	        String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
-	            for (Media.MediaProblem problem : m.problems()) {
-	                ps.setInt(1, idMedia);
-	                ps.setInt(2, problem.problemId());
-	                ps.setInt(3, problem.problemPitch());
-	                ps.setBoolean(4, problem.trivia());
-	                ps.setLong(5, problem.milliseconds());
-	                ps.execute();
-	            }
-	        }
-	        for (Media.MediaProblem problem : m.problems()) {
-	            fillActivity(c, problem.problemId());
-	        }
-	    }
-	    else if (hasSectors) {
-	        String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
-	            for (Media.MediaSector sector : m.sectors()) {
-	                ps.setInt(1, idMedia);
-	                ps.setInt(2, sector.sectorId());
-	                ps.setBoolean(3, sector.trivia());
-	                ps.execute();
-	            }
-	        }
-	    }
-	    else if (hasAreas) {
-	        String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
-	            for (Media.MediaArea area : m.areas()) {
-	                ps.setInt(1, idMedia);
-	                ps.setInt(2, area.areaId());
-	                ps.setBoolean(3, area.trivia());
-	                ps.execute();
-	            }
-	        }
-	    }
-	    else if (hasGuestbook) {
-	        String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
-	            ps.setInt(1, idMedia);
-	            ps.setInt(2, m.guestbookId());
-	            ps.execute();
-	        }
-	    }
-	    else if (hasUserAvatar) {
-	        String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
-	        try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
-	            ps.setInt(1, idMedia);
-	            ps.setInt(2, m.userAvatarId());
-	            ps.execute();
-	        }
-	    }
+		if (hasProblems) {
+			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
+				for (Media.MediaProblem problem : m.problems()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, problem.problemId());
+					ps.setInt(3, problem.problemPitch());
+					ps.setBoolean(4, problem.trivia());
+					ps.setLong(5, problem.milliseconds());
+					ps.execute();
+				}
+			}
+			for (Media.MediaProblem problem : m.problems()) {
+				fillActivity(c, problem.problemId());
+			}
+		}
+		else if (hasSectors) {
+			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
+				for (Media.MediaSector sector : m.sectors()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, sector.sectorId());
+					ps.setBoolean(3, sector.trivia());
+					ps.execute();
+				}
+			}
+		}
+		else if (hasAreas) {
+			String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
+				for (Media.MediaArea area : m.areas()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, area.areaId());
+					ps.setBoolean(3, area.trivia());
+					ps.execute();
+				}
+			}
+		}
+		else if (hasGuestbook) {
+			String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, m.guestbookId());
+				ps.execute();
+			}
+		}
+		else if (hasUserAvatar) {
+			String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
+			try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
+				ps.setInt(1, idMedia);
+				ps.setInt(2, m.userAvatarId());
+				ps.execute();
+			}
+		}
 
-	    if (m.tagged() != null && !m.tagged().isEmpty()) {
-	        String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
-	        try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
-	            for (User u : m.tagged()) {
-	                int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
-	                ps.setInt(1, idMedia);
-	                ps.setInt(2, userId);
-	                ps.addBatch();
-	            }
-	            ps.executeBatch();
-	        }
-	    }
+		if (m.tagged() != null && !m.tagged().isEmpty()) {
+			String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
+				for (User u : m.tagged()) {
+					int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
+					ps.setInt(1, idMedia);
+					ps.setInt(2, userId);
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
 	}
 
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
@@ -6096,8 +6168,8 @@ public class Dao {
 			ps.setString(1, name);
 			try (ResultSet rst = ps.executeQuery()) {
 				if (rst.next()) {
-			        return rst.getInt("id");
-			    }
+					return rst.getInt("id");
+				}
 			}
 		}
 		int usId = addUser(c, null, name, null);
@@ -6962,7 +7034,7 @@ public class Dao {
 		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || optAreaId > 0 && optSectorId == 0);
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Multimap<Integer, SectorProblem> res = LinkedListMultimap.create();
-		
+
 		String sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
@@ -6989,9 +7061,9 @@ public class Dao {
 				fa_aid_agg AS (
 				    SELECT a.problem_id,
 				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names,
-                           YEAR(a.aid_date) fa_aid_date
+				                       YEAR(a.aid_date) fa_aid_date
 				    FROM fa_aid a
-                    JOIN fa_aid_user au ON a.problem_id=au.problem_id
+				                JOIN fa_aid_user au ON a.problem_id=au.problem_id
 				    JOIN user u ON au.user_id = u.id
 				    WHERE a.problem_id IN (SELECT id FROM filtered_problems)
 				    GROUP BY a.problem_id, a.aid_date
@@ -7077,95 +7149,95 @@ public class Dao {
 	}
 
 	private Map<Integer, SectorSlopesResult> getSectorSlopes(Connection c, Collection<Integer> idSectors) throws SQLException {
-	    Stopwatch stopwatch = Stopwatch.createStarted();
-	    Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-	    String placeholders = ",?".repeat(idSectors.size()).substring(1);
-	    String sqlStr = """
-	            SELECT 'approach' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
-	                   st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
-	            FROM sector_approach s, coordinates c
-	            WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
-	            
-	            UNION ALL
-	            
-	            SELECT 'descent' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
-	                   st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
-	            FROM sector_descent s, coordinates c
-	            WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
-	            ORDER BY type, id_sector, sorting
-	            """.formatted(placeholders);
-	    Multimap<Integer, Coordinates> approachCoordinates = ArrayListMultimap.create();
-	    Multimap<Integer, Coordinates> descentCoordinates = ArrayListMultimap.create();
-	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-	        int parameterIndex = 1;
-	        for (int i = 0; i < 2; i++) {
-	            for (int idSector : idSectors) {
-	                ps.setInt(parameterIndex++, idSector);
-	            }
-	        }
-	        try (ResultSet rst = ps.executeQuery()) {
-	            String prevType = "";
-	            int prevIdSector = 0;
-	            double distance = 0;
-	            while (rst.next()) {
-	                String type = rst.getString("type");
-	                int idSector = rst.getInt("id_sector");
-	                if (!prevType.equals(type) || prevIdSector != idSector) {
-	                    prevType = type;
-	                    prevIdSector = idSector;
-	                    distance = 0;
-	                }
-	                distance += rst.getDouble("m");
-	                Coordinates coords = new Coordinates(
-	                    rst.getInt("id"),
-	                    rst.getDouble("latitude"),
-	                    rst.getDouble("longitude"),
-	                    rst.getDouble("elevation"),
-	                    rst.getString("elevation_source")
-	                );
-	                coords.setDistance(distance);
-	                var targetMap = "approach".equals(type) ? approachCoordinates : descentCoordinates;
-	                targetMap.put(idSector, coords);
-	            }
-	        }
-	    }
-	    Map<Integer, SectorSlopesResult> results = new HashMap<>();
-	    for (int idSector : idSectors) {
-	        Slope approachSlope = approachCoordinates.containsKey(idSector) 
-	            ? Slope.from(Lists.newArrayList(approachCoordinates.get(idSector))) 
-	            : null;
-	            
-	        Slope descentSlope = descentCoordinates.containsKey(idSector) 
-	            ? Slope.from(Lists.newArrayList(descentCoordinates.get(idSector))) 
-	            : null;
-	        if (approachSlope != null || descentSlope != null) {
-	            results.put(idSector, new SectorSlopesResult(approachSlope, descentSlope));
-	        }
-	    }
-	    logger.debug("getSectorSlopes(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), results.size(), stopwatch);
-	    return results;
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
+		String placeholders = ",?".repeat(idSectors.size()).substring(1);
+		String sqlStr = """
+				SELECT 'approach' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
+				       st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
+				FROM sector_approach s, coordinates c
+				WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
+
+				UNION ALL
+
+				SELECT 'descent' AS type, s.sector_id id_sector, s.sorting, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, 
+				       st_distance_sphere(point(longitude, latitude), point(lag(longitude) over (partition by s.sector_id order by s.sorting), lag(latitude) over (partition by s.sector_id order by s.sorting))) m
+				FROM sector_descent s, coordinates c
+				WHERE s.sector_id IN (%1$s) AND s.coordinates_id=c.id
+				ORDER BY type, id_sector, sorting
+				""".formatted(placeholders);
+		Multimap<Integer, Coordinates> approachCoordinates = ArrayListMultimap.create();
+		Multimap<Integer, Coordinates> descentCoordinates = ArrayListMultimap.create();
+		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+			int parameterIndex = 1;
+			for (int i = 0; i < 2; i++) {
+				for (int idSector : idSectors) {
+					ps.setInt(parameterIndex++, idSector);
+				}
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				String prevType = "";
+				int prevIdSector = 0;
+				double distance = 0;
+				while (rst.next()) {
+					String type = rst.getString("type");
+					int idSector = rst.getInt("id_sector");
+					if (!prevType.equals(type) || prevIdSector != idSector) {
+						prevType = type;
+						prevIdSector = idSector;
+						distance = 0;
+					}
+					distance += rst.getDouble("m");
+					Coordinates coords = new Coordinates(
+							rst.getInt("id"),
+							rst.getDouble("latitude"),
+							rst.getDouble("longitude"),
+							rst.getDouble("elevation"),
+							rst.getString("elevation_source")
+							);
+					coords.setDistance(distance);
+					var targetMap = "approach".equals(type) ? approachCoordinates : descentCoordinates;
+					targetMap.put(idSector, coords);
+				}
+			}
+		}
+		Map<Integer, SectorSlopesResult> results = new HashMap<>();
+		for (int idSector : idSectors) {
+			Slope approachSlope = approachCoordinates.containsKey(idSector) 
+					? Slope.from(Lists.newArrayList(approachCoordinates.get(idSector))) 
+							: null;
+
+			Slope descentSlope = descentCoordinates.containsKey(idSector) 
+					? Slope.from(Lists.newArrayList(descentCoordinates.get(idSector))) 
+							: null;
+			if (approachSlope != null || descentSlope != null) {
+				results.put(idSector, new SectorSlopesResult(approachSlope, descentSlope));
+			}
+		}
+		logger.debug("getSectorSlopes(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), results.size(), stopwatch);
+		return results;
 	}
 
 	private int insertMediaMetadata(Connection c, int uploaderId, Media m, StorageType storageType) throws Exception {
-	    String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
-	    int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
-	    
-	    String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?)";
-	    try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
-	        ps.setBoolean(1, storageType.isMovie());
-	        ps.setString(2, storageType.getExtension());
-	        ps.setInt(3, photographerId);
-	        ps.setInt(4, uploaderId);
-	        ps.setString(5, GlobalFunctions.stripString(m.description()));
-	        ps.setInt(6, m.thumbnailSeconds());
-	        ps.executeUpdate();
-	        try (ResultSet rst = ps.getGeneratedKeys()) {
-	            if (rst != null && rst.next()) {
-	                return rst.getInt(1);
-	            }
-	        }
-	    }
-	    throw new IllegalStateException("Failed to insert media metadata");
+		String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
+		int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
+
+		String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?)";
+		try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
+			ps.setBoolean(1, storageType.isMovie());
+			ps.setString(2, storageType.getExtension());
+			ps.setInt(3, photographerId);
+			ps.setInt(4, uploaderId);
+			ps.setString(5, GlobalFunctions.stripString(m.description()));
+			ps.setInt(6, m.thumbnailSeconds());
+			ps.executeUpdate();
+			try (ResultSet rst = ps.getGeneratedKeys()) {
+				if (rst != null && rst.next()) {
+					return rst.getInt(1);
+				}
+			}
+		}
+		throw new IllegalStateException("Failed to insert media metadata");
 	}
 
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, AreaSector> sectorLookup) throws SQLException {
