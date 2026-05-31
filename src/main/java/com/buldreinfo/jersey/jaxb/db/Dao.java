@@ -3853,6 +3853,7 @@ public class Dao {
 		urls.add(setup.url() + "/graph");
 		urls.add(setup.url() + "/privacy-policy");
 		urls.add(setup.url() + "/problems");
+		urls.add(setup.url() + "/restrictions");
 		urls.add(setup.url() + "/regions/bouldering");
 		urls.add(setup.url() + "/regions/climbing");
 		urls.add(setup.url() + "/regions/ice");
