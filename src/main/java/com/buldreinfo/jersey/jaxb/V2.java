@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageSaver;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.io.VideoHelper;
@@ -1252,6 +1254,47 @@ public class V2 {
 	            }
 	        });
 	        return Response.ok().build();
+	    });
+	}
+	
+	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
+	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/media/video/embed")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postMediaVideoEmbed(@Context HttpServletRequest request, Media media) {
+	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+	        Preconditions.checkArgument(media != null, "Media payload is missing");
+	        Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
+	        String lowerUrl = media.embedUrl().toLowerCase();
+	        boolean isValidProvider = lowerUrl.contains("youtube.com") 
+	                || lowerUrl.contains("youtu.be") 
+	                || lowerUrl.contains("vimeo.com");
+	        Preconditions.checkArgument(isValidProvider, "Unsupported video provider. Only YouTube and Vimeo links are allowed.");
+	        try {
+	            URI.create(media.embedUrl()).toURL();
+	        } catch (Exception e) {
+	            throw new IllegalArgumentException("The provided embed URL is malformed.", e);
+	        }
+	        int newMediaId = dao.addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
+	        Server.runAsync(() -> {
+	            try {
+	                Server.runSql((backgroundDao, backgroundConn) -> {
+	                    ImageHelper.saveImageFromEmbedVideo(backgroundDao, backgroundConn, newMediaId, media.embedUrl());
+	                });
+	            } catch (Exception e) {
+	                logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
+	            }
+	        });
+	        Media res = dao.getMedia(c, authUserId, newMediaId);
+	        return Response.ok().entity(res).build();
 	    });
 	}
 

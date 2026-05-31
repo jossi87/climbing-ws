@@ -5922,6 +5922,14 @@ public class Dao {
 			}
 		}
 	}
+	
+	public int addMediaVideoEmbed(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
+	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+	    m.ensureCorrectMediaAssociations(authUserId);
+	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+	    associateMediaToEntities(c, idMedia, m);
+	    return idMedia;
+	}
 
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
 		boolean ok = false;
@@ -7219,25 +7227,26 @@ public class Dao {
 	}
 
 	private int insertMediaMetadata(Connection c, int uploaderId, Media m, StorageType storageType) throws Exception {
-		String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
-		int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
+	    String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
+	    int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
 
-		String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds) VALUES (?, ?, ?, ?, NOW(), ?, ?)";
-		try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
-			ps.setBoolean(1, storageType.isMovie());
-			ps.setString(2, storageType.getExtension());
-			ps.setInt(3, photographerId);
-			ps.setInt(4, uploaderId);
-			ps.setString(5, GlobalFunctions.stripString(m.description()));
-			ps.setInt(6, m.thumbnailSeconds());
-			ps.executeUpdate();
-			try (ResultSet rst = ps.getGeneratedKeys()) {
-				if (rst != null && rst.next()) {
-					return rst.getInt(1);
-				}
-			}
-		}
-		throw new IllegalStateException("Failed to insert media metadata");
+	    String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
+	    try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
+	        ps.setBoolean(1, storageType.isMovie());
+	        ps.setString(2, storageType.getExtension());
+	        ps.setInt(3, photographerId);
+	        ps.setInt(4, uploaderId);
+	        ps.setString(5, GlobalFunctions.stripString(m.description()));
+	        ps.setInt(6, m.thumbnailSeconds());
+	        ps.setString(7, m.embedUrl());
+	        ps.executeUpdate();
+	        try (ResultSet rst = ps.getGeneratedKeys()) {
+	            if (rst != null && rst.next()) {
+	                return rst.getInt(1);
+	            }
+	        }
+	    }
+	    throw new IllegalStateException("Failed to insert media metadata");
 	}
 
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, AreaSector> sectorLookup) throws SQLException {
