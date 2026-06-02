@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.batch.backup;
+package com.buldreinfo.jersey.jaxb.batch.maintenance;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,7 +7,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class VardenDataSyncOrchestrator {
+public class VardenMaintenanceOrchestrator {
     private static final Logger logger = LogManager.getLogger();
     private static final String SSH_HOST = "172.232.129.122";
     private static final String SSH_USER = "root";
@@ -21,27 +21,34 @@ public class VardenDataSyncOrchestrator {
     private static final List<Integer> privateEmbeddedVideosToIgnore = List.of(36370, 36374, 36379, 36380, 36381, 36383, 36388);
 
     public static void main(String[] args) {
-    	for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
-        	if (!Files.exists(p)) {
-        	    throw new RuntimeException(p.toString() + " not found");
-        	}
-    	}
-    	logger.debug("Starting FixMedia background embedding sync task.");
-    	new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+        for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
+            if (!Files.exists(p)) {
+                throw new RuntimeException(p.toString() + " not found");
+            }
+        }
+        logger.debug("Starting FixMedia background embedding sync task.");
+        new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+        
+        logger.debug("FixMediaAnalyze started");
+        new FixMediaAnalyze(LOCAL_MEDIA_ROOT).run();
+        
         logger.debug("DataSftpDownloadTask started");
         new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, REMOTE_BACKUP_DIR).run();
+        
         logger.debug("S3BucketDownloadBatch started");
         new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT).run();
+        
         logger.debug("S3BucketUploadBatch started");
         new S3BucketUploadBatch(LOCAL_MEDIA_ROOT).run();
+        
         boolean runS3BucketDeleteResized = false;
         if (runS3BucketDeleteResized) {
             logger.debug("S3BucketDeleteResized started");
             new S3BucketDeleteResized().run();
         }
         else {
-        	logger.debug("S3BucketDeleteResized skipped");
+            logger.debug("S3BucketDeleteResized skipped");
         }
-        logger.info("VardenDataSyncOrchestrator finished successfully.");
+        logger.info("VardenMaintenanceOrchestrator finished successfully.");
     }
 }

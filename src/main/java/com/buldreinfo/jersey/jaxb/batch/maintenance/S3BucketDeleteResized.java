@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.batch.backup;
+package com.buldreinfo.jersey.jaxb.batch.maintenance;
 
 import java.util.ArrayList;
 import java.util.List;
