@@ -1022,7 +1022,15 @@ public class Dao {
 					sectorLookup.put(idSector, sector.withSlopes(result.approach(), result.descent()));
 				}
 			});
-
+			var sectorTrailsMultimap = getSectorTrails(c, sectorLookup.keySet());
+			for (int idSector : sectorTrailsMultimap.keySet()) {
+			    var sector = sectorLookup.get(idSector);
+			    if (sector != null) {
+			        Collection<Trail> trails = sectorTrailsMultimap.get(idSector);
+			        sectorLookup.put(idSector, sector.withTrails(trails));
+			    }
+			}
+			
 			loadSimplifiedGradeCounts(c, authUserId, reqId, sectorLookup);
 			for (var sector : sectorLookup.values().stream()
 					.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
@@ -2086,7 +2094,7 @@ public class Dao {
 					var slopes = getSectorSlopes(c, Collections.singleton(sectorId)).get(sectorId);
 					Slope sectorApproach = (slopes != null) ? slopes.approach() : null;
 					Slope sectorDescent  = (slopes != null) ? slopes.descent() : null;
-					Collection<Trail> trails = getSectorTrails(c, reqId);
+					Collection<Trail> trails = getSectorTrails(c, Collections.singleton(sectorId)).get(sectorId);
 					int id = rst.getInt("id");
 					String broken = rst.getString("broken");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
@@ -2128,7 +2136,7 @@ public class Dao {
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
-							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent,
+							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent, trails,
 							neighbours,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
@@ -2141,7 +2149,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
+					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 			}
@@ -3756,7 +3764,7 @@ public class Dao {
 					var slopes = getSectorSlopes(c, Collections.singleton(reqId)).get(reqId);
 					Slope sectorApproach = (slopes != null) ? slopes.approach() : null;
 					Slope sectorDescent  = (slopes != null) ? slopes.descent() : null;
-					Collection<Trail> trails = getSectorTrails(c, reqId);
+					Collection<Trail> trails = getSectorTrails(c, Collections.singleton(reqId)).get(reqId);
 					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
@@ -6339,7 +6347,7 @@ public class Dao {
 					AreaSector as = new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment,
 							accessInfo, accessClosed, sunFromHour, sunToHour,
 							parking, new ArrayList<>(), wallDirectionCalculated, wallDirectionManual,
-							null, null, mediaIdentity, new ArrayList<>(), 0, new ArrayList<>());
+							null, null, null, mediaIdentity, new ArrayList<>(), 0, new ArrayList<>());
 					sectorLookup.put(id, as);
 				}
 			}
@@ -7431,31 +7439,44 @@ public class Dao {
 		return results;
 	}
 
-	private List<Trail> getSectorTrails(Connection c, int idSector) throws SQLException {
+	private Multimap<Integer, Trail> getSectorTrails(Connection c, Collection<Integer> sectorIds) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Trail> res = new ArrayList<>();
+		Preconditions.checkArgument(!sectorIds.isEmpty(), "sectorIds is empty");
+		Multimap<Integer, Trail> res = ArrayListMultimap.create();
+		
+		String inClause = ",?".repeat(sectorIds.size()).substring(1);
+		
 		Map<Integer, TrailBuilder> trailBuilders = new LinkedHashMap<>();
-
-		// Step A: Fetch base trails linked to this single sector
-		String trailSql = """
-			SELECT t.id, t.is_descent, t.title, t.description 
+		Multimap<Integer, Integer> sectorToTrailIds = ArrayListMultimap.create();
+		
+		String trailSql = String.format("""
+			SELECT st.sector_id, t.id, t.is_descent, t.title, t.description 
 			FROM sector_trail st
 			JOIN trail t ON st.trail_id = t.id
-			WHERE st.sector_id = ? AND t.trash IS NULL
+			WHERE st.sector_id IN (%s) AND t.trash IS NULL
 			ORDER BY st.sorting
-			""";
+			""", inClause);
 			
 		try (PreparedStatement ps = c.prepareStatement(trailSql)) {
-			ps.setInt(1, idSector);
+			int paramIdx = 1;
+			for (int idSector : sectorIds) {
+				ps.setInt(paramIdx++, idSector);
+			}
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
+					int sectorId = rst.getInt("sector_id");
 					int trailId = rst.getInt("id");
-					trailBuilders.put(trailId, new TrailBuilder(
-						trailId,
-						rst.getBoolean("is_descent"),
-						rst.getString("title"),
-						rst.getString("description")
-					));
+					
+					sectorToTrailIds.put(sectorId, trailId);
+					
+					if (!trailBuilders.containsKey(trailId)) {
+						trailBuilders.put(trailId, new TrailBuilder(
+							trailId,
+							rst.getBoolean("is_descent"),
+							rst.getString("title"),
+							rst.getString("description")
+						));
+					}
 				}
 			}
 		}
@@ -7464,13 +7485,14 @@ public class Dao {
 			return res;
 		}
 		
-		// Step B: Fetch and append path coordinates for the discovered trails
 		String pathInClause = ",?".repeat(trailBuilders.size()).substring(1);
-		String pathSql = """
+		String pathSql = String.format("""
 			SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
 			FROM trail_coordinate tc
 			JOIN coordinates c ON tc.coordinates_id = c.id
-			WHERE tc.trail_id IN (""" + pathInClause + ") ORDER BY tc.trail_id, tc.sorting";
+			WHERE tc.trail_id IN (%s) 
+			ORDER BY tc.trail_id, tc.sorting
+			""", pathInClause);
 			
 		try (PreparedStatement ps = c.prepareStatement(pathSql)) {
 			int paramIdx = 1;
@@ -7491,12 +7513,12 @@ public class Dao {
 			}
 		}
 		
-		// Step C: Fetch and append custom labeled trail markers
-		String markerSql = """
+		String markerSql = String.format("""
 			SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
 			FROM trail_marker tm
 			JOIN coordinates c ON tm.coordinates_id = c.id
-			WHERE tm.trail_id IN (""" + pathInClause + ")";
+			WHERE tm.trail_id IN (%s)
+			""", pathInClause);
 			
 		try (PreparedStatement ps = c.prepareStatement(markerSql)) {
 			int paramIdx = 1;
@@ -7518,14 +7540,22 @@ public class Dao {
 			}
 		}
 		
-		// Step D: Compile final Trail records with mathematical stats
+		// Declared properly here now
+		Map<Integer, Trail> finalTrailsMap = new HashMap<>();
 		for (TrailBuilder b : trailBuilders.values()) {
-			res.add(Trail.withCalculatedStats(
+			Trail compiledTrail = Trail.withCalculatedStats(
 				b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, null, null
-			));
+			);
+			finalTrailsMap.put(b.id, compiledTrail);
 		}
 		
-		logger.debug("getSectorTrails(idSector={}) - res.size()={}, duration={}", idSector, res.size(), stopwatch);
+		for (int sectorId : sectorIds) {
+			for (int trailId : sectorToTrailIds.get(sectorId)) {
+				res.put(sectorId, finalTrailsMap.get(trailId));
+			}
+		}
+		
+		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), stopwatch);
 		return res;
 	}
 
