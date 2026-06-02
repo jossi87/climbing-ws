@@ -5879,10 +5879,12 @@ public class Dao {
 		
 		// --- END SECURITY GUARDS ---
 
-		// 1. Handle Deletion Early
+		// 1. Handle Soft Deletion Early
 		if (t.delete()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail WHERE id = ?")) {
-				ps.setInt(1, t.id());
+			String sql = "UPDATE trail SET trash = NOW(), trash_by = ? WHERE id = ?";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setInt(1, authUserId.orElseThrow());
+				ps.setInt(2, t.id());
 				ps.executeUpdate();
 			}
 			return t.id();
@@ -5890,9 +5892,9 @@ public class Dao {
 
 		int trailId = t.id();
 
-		// 2. Upsert the Core Trail Information
+		// 2. Upsert the Core Trail Information (Ensures trail is active / untrashed if edited)
 		if (trailId > 0) {
-			String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ? WHERE id = ?";
+			String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ?, trash = NULL, trash_by = 0 WHERE id = ?";
 			try (PreparedStatement ps = c.prepareStatement(sql)) {
 				ps.setBoolean(1, t.isDescent());
 				ps.setString(2, t.title());
@@ -7439,8 +7441,9 @@ public class Dao {
 			SELECT t.id, t.is_descent, t.title, t.description 
 			FROM sector_trail st
 			JOIN trail t ON st.trail_id = t.id
-			WHERE st.sector_id = ? 
-			ORDER BY st.sorting""";
+			WHERE st.sector_id = ? AND t.trash IS NULL
+			ORDER BY st.sorting
+			""";
 			
 		try (PreparedStatement ps = c.prepareStatement(trailSql)) {
 			ps.setInt(1, idSector);
