@@ -202,7 +202,7 @@ public class FillProblems {
 				return s.id();
 			}
 		}
-		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s);
 		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();

@@ -130,6 +130,8 @@ import com.buldreinfo.jersey.jaxb.model.Todo.TodoSector;
 import com.buldreinfo.jersey.jaxb.model.Top;
 import com.buldreinfo.jersey.jaxb.model.Top.TopRank;
 import com.buldreinfo.jersey.jaxb.model.Top.TopUser;
+import com.buldreinfo.jersey.jaxb.model.Trail;
+import com.buldreinfo.jersey.jaxb.model.Trail.TrailBuilder;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
@@ -180,6 +182,14 @@ public class Dao {
 			ImageHelper.saveImage(this, c, idMedia, bytes);
 		}
 		return idMedia;
+	}
+
+	public int addMediaVideoEmbed(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
+	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+	    m.ensureCorrectMediaAssociations(authUserId);
+	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+	    associateMediaToEntities(c, idMedia, m);
+	    return idMedia;
 	}
 
 	public int addMediaVideoPlaceholder(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
@@ -512,7 +522,7 @@ public class Dao {
 			psAddActivity.executeBatch();
 		}
 	}
-
+	
 	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
@@ -1121,7 +1131,7 @@ public class Dao {
 				filePart.setFormDataContentDisposition(disposition);
 
 				User photographer = User.from(USER_ID_UNKNOWN, null);
-				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, 0, finalUserId.get().intValue());
+				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, null, 0, finalUserId.get().intValue());
 				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
@@ -2076,6 +2086,7 @@ public class Dao {
 					var slopes = getSectorSlopes(c, Collections.singleton(sectorId)).get(sectorId);
 					Slope sectorApproach = (slopes != null) ? slopes.approach() : null;
 					Slope sectorDescent  = (slopes != null) ? slopes.descent() : null;
+					Collection<Trail> trails = getSectorTrails(c, reqId);
 					int id = rst.getInt("id");
 					String broken = rst.getString("broken");
 					boolean lockedAdmin = rst.getBoolean("locked_admin");
@@ -2904,7 +2915,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3038,7 +3049,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3281,7 +3292,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3745,6 +3756,7 @@ public class Dao {
 					var slopes = getSectorSlopes(c, Collections.singleton(reqId)).get(reqId);
 					Slope sectorApproach = (slopes != null) ? slopes.approach() : null;
 					Slope sectorDescent  = (slopes != null) ? slopes.descent() : null;
+					Collection<Trail> trails = getSectorTrails(c, reqId);
 					CompassDirection wallDirectionCalculated = getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
@@ -3759,7 +3771,7 @@ public class Dao {
 					List<Media> media = partitioned.get(false);
 					var externalLinks = getExternalLinks(c, 0, reqId, 0);
 
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), externalLinks, pageViews);
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, sectorApproach, sectorDescent, trails, media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), externalLinks, pageViews);
 				}
 			}
 		}
@@ -3767,7 +3779,7 @@ public class Dao {
 			try {
 				Redirect res = getCanonicalUrl(c, 0, reqId, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null);
+					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
 			}
@@ -5459,7 +5471,7 @@ public class Dao {
 		fillActivity(c, t.idProblem());
 		updateProblemConsensusGrade(c, t.idProblem());
 	}
-
+	
 	public void setUserRegion(Connection c, Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {
 		if (delete) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM user_region WHERE user_id=? AND region_id=?")) {
@@ -5537,12 +5549,14 @@ public class Dao {
 		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
 		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
 		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+		boolean hasTrails = m.trailIds() != null && !m.trailIds().isEmpty();
 		boolean hasGuestbook = m.guestbookId() > 0;
 		Preconditions.checkArgument(
-				(hasAreas && !hasSectors && !hasProblems && !hasGuestbook) ||
-				(!hasAreas && hasSectors && !hasProblems && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && hasProblems && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && !hasProblems && hasGuestbook)
+				(hasAreas && !hasSectors && !hasProblems && !hasTrails && !hasGuestbook) ||
+				(!hasAreas && hasSectors && !hasProblems && !hasTrails && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && hasProblems && !hasTrails && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && !hasProblems && hasTrails && !hasGuestbook) ||
+				(!hasAreas && !hasSectors && !hasProblems && !hasTrails && hasGuestbook)
 				, "Multiple types on id=" + m.identity().id());
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int mediaId = m.identity().id();
@@ -5622,6 +5636,22 @@ public class Dao {
 					ps.setInt(3, problem.problemPitch());
 					ps.setBoolean(4, problem.trivia());
 					ps.setLong(5, problem.milliseconds());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		// media_trail
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_trail WHERE media_id=?")) {
+			ps.setInt(1, mediaId);
+			ps.execute();
+		}
+		if (m.trailIds() != null && !m.trailIds().isEmpty()) {
+			String insertTrailSql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertTrailSql)) {
+				for (int trailId : m.trailIds()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, trailId);
 					ps.addBatch();
 				}
 				ps.executeBatch();
@@ -5823,6 +5853,147 @@ public class Dao {
 		}
 	}
 
+	public int upsertTrail(Connection c, Optional<Integer> authUserId, Trail t) throws SQLException, InterruptedException {
+		Preconditions.checkArgument(t.sectors() != null && !t.sectors().isEmpty(), "sectors cannot be empty or null");
+		
+		// --- SECURITY GUARDS ---
+		
+		// Guard A: Check permissions on all incoming target sectors
+		for (var sector : t.sectors()) {
+			ensureAdminWriteSector(c, authUserId, sector.sectorId());
+		}
+		
+		// Guard B: If updating or deleting an existing trail, check permissions on currently connected sectors
+		if (t.id() > 0) {
+			String sql = "SELECT sector_id FROM sector_trail WHERE trail_id = ?";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setInt(1, t.id());
+				try (ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int currentSectorId = rst.getInt("sector_id");
+						ensureAdminWriteSector(c, authUserId, currentSectorId);
+					}
+				}
+			}
+		}
+		
+		// --- END SECURITY GUARDS ---
+
+		// 1. Handle Deletion Early
+		if (t.delete()) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail WHERE id = ?")) {
+				ps.setInt(1, t.id());
+				ps.executeUpdate();
+			}
+			return t.id();
+		}
+
+		int trailId = t.id();
+
+		// 2. Upsert the Core Trail Information
+		if (trailId > 0) {
+			String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ? WHERE id = ?";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setBoolean(1, t.isDescent());
+				ps.setString(2, t.title());
+				ps.setString(3, t.description());
+				ps.setInt(4, trailId);
+				ps.executeUpdate();
+			}
+		} else {
+			String sql = "INSERT INTO trail (is_descent, title, description) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+				ps.setBoolean(1, t.isDescent());
+				ps.setString(2, t.title());
+				ps.setString(3, t.description());
+				ps.executeUpdate();
+				try (ResultSet rs = ps.getGeneratedKeys()) {
+					if (rs.next()) {
+						trailId = rs.getInt(1);
+					}
+				}
+			}
+		}
+
+		// 3. Collect and Ensure All Coordinates Exist in DB
+		List<Coordinates> allCoordinates = new ArrayList<>();
+		if (t.path() != null) {
+			allCoordinates.addAll(t.path());
+		}
+		if (t.markers() != null) {
+			for (Trail.TrailMarker marker : t.markers()) {
+				if (marker.coordinates() != null) {
+					allCoordinates.add(marker.coordinates());
+				}
+			}
+		}
+
+		ensureCoordinatesInDbWithElevationAndId(c, allCoordinates);
+
+		// 4. Sync Path Coordinates (Clear old, batch insert new)
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_coordinate WHERE trail_id = ?")) {
+			ps.setInt(1, trailId);
+			ps.executeUpdate();
+		}
+
+		if (t.path() != null && !t.path().isEmpty()) {
+			String sql = "INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				int sorting = 0;
+				for (Coordinates coord : t.path()) {
+					ps.setInt(1, trailId);
+					ps.setInt(2, coord.getId());
+					ps.setInt(3, sorting++);
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+
+		// 5. Sync Trail Markers (Clear old, batch insert new)
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_marker WHERE trail_id = ?")) {
+			ps.setInt(1, trailId);
+			ps.executeUpdate();
+		}
+
+		if (t.markers() != null && !t.markers().isEmpty()) {
+			String sql = "INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (Trail.TrailMarker marker : t.markers()) {
+					if (marker.coordinates() != null) {
+						ps.setInt(1, trailId);
+						ps.setInt(2, marker.coordinates().getId());
+						ps.setString(3, marker.label());
+						ps.addBatch();
+					}
+				}
+				ps.executeBatch();
+			}
+		}
+
+		// 6. Sync Sector Junction Connections
+		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_trail WHERE trail_id = ?")) {
+			ps.setInt(1, trailId);
+			ps.executeUpdate();
+		}
+
+		if (t.sectors() != null && !t.sectors().isEmpty()) {
+			String sql = "INSERT INTO sector_trail (sector_id, trail_id, sorting) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				int sorting = 0;
+				for (Trail.TrailSector sector : t.sectors()) {
+					ps.setInt(1, sector.sectorId());
+					ps.setInt(2, trailId);
+					ps.setInt(3, sorting++);
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+
+		return trailId;
+	}
+
 	private int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
 		int id = -1;
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
@@ -5851,6 +6022,7 @@ public class Dao {
 		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
 		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
 		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
+		boolean hasTrails = m.trailIds() != null && !m.trailIds().isEmpty();
 		boolean hasGuestbook = m.guestbookId() > 0;
 		boolean hasUserAvatar = m.userAvatarId() > 0;
 
@@ -5892,6 +6064,16 @@ public class Dao {
 				}
 			}
 		}
+		else if (hasTrails) {
+			String insertTrailSql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(insertTrailSql)) {
+				for (int trailId : m.trailIds()) {
+					ps.setInt(1, idMedia);
+					ps.setInt(2, trailId);
+					ps.execute();
+				}
+			}
+		}
 		else if (hasGuestbook) {
 			String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
 			try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
@@ -5923,14 +6105,6 @@ public class Dao {
 		}
 	}
 	
-	public int addMediaVideoEmbed(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
-	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-	    m.ensureCorrectMediaAssociations(authUserId);
-	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-	    associateMediaToEntities(c, idMedia, m);
-	    return idMedia;
-	}
-
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1")) {
@@ -5958,12 +6132,34 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-
+	
 	private void ensureAdminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
 			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	private void ensureAdminWriteSector(Connection c, Optional<Integer> authUserId, int sectorId) throws SQLException {
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT ur.admin_write, ur.superadmin_write
+				FROM user_region ur
+				JOIN area a ON ur.region_id=a.region_id
+				JOIN sector s ON a.id=s.area_id
+				WHERE s.id=?
+				  AND ur.user_id=?
+				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				""")) {
+			ps.setInt(1, sectorId);
 			ps.setInt(2, authUserId.orElseThrow());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
@@ -5983,7 +6179,7 @@ public class Dao {
 				WITH req AS (
 					SELECT ? auth_user_id, ? media_id
 				)
-				SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, g.id guestbook_id
+				SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, g.id guestbook_id, mt.trail_id
 				FROM req
 				JOIN area a ON true
 				JOIN sector s ON a.id=s.area_id
@@ -5994,8 +6190,14 @@ public class Dao {
 				LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.media_id=req.media_id
 				LEFT JOIN guestbook g ON p.id=g.problem_id
 				LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id AND mg.media_id=req.media_id
-				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mg.media_id IS NOT NULL
-				GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, g.id
+				LEFT JOIN sector_trail st ON s.id=st.sector_id
+				LEFT JOIN media_trail mt ON st.trail_id=mt.trail_id AND mt.media_id=req.media_id
+				WHERE ma.media_id IS NOT NULL 
+				   OR ms.media_id IS NOT NULL 
+				   OR mp.media_id IS NOT NULL 
+				   OR mg.media_id IS NOT NULL 
+				   OR mt.media_id IS NOT NULL
+				GROUP BY ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, g.id, mt.trail_id
 				""")) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, idMedia);
@@ -6007,7 +6209,8 @@ public class Dao {
 					int sectorId = rst.getInt("sector_id");
 					int problemId = rst.getInt("problem_id");
 					int guestbookId = rst.getInt("guestbook_id");
-					if ((adminWrite || superAdminWrite) && (areaId > 0 || sectorId > 0 || problemId > 0 || guestbookId > 0)) {
+					int trailId = rst.getInt("trail_id");
+					if ((adminWrite || superAdminWrite) && (areaId > 0 || sectorId > 0 || problemId > 0 || guestbookId > 0 || trailId > 0)) {
 						return;
 					}
 				}
@@ -6395,7 +6598,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, enableMoveToIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -6665,7 +6868,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
 							m.inherited(), sectorId, m.enableMoveToIdProblem(),
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							);
 					pMediaList.add(m);
 				}
@@ -6819,7 +7022,7 @@ public class Dao {
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, enableMoveToIdSector, finalMoveIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.guestbookId(), m.userAvatarId()
+							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -7224,6 +7427,103 @@ public class Dao {
 		}
 		logger.debug("getSectorSlopes(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), results.size(), stopwatch);
 		return results;
+	}
+
+	private List<Trail> getSectorTrails(Connection c, int idSector) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<Trail> res = new ArrayList<>();
+		Map<Integer, TrailBuilder> trailBuilders = new LinkedHashMap<>();
+
+		// Step A: Fetch base trails linked to this single sector
+		String trailSql = """
+			SELECT t.id, t.is_descent, t.title, t.description 
+			FROM sector_trail st
+			JOIN trail t ON st.trail_id = t.id
+			WHERE st.sector_id = ? 
+			ORDER BY st.sorting""";
+			
+		try (PreparedStatement ps = c.prepareStatement(trailSql)) {
+			ps.setInt(1, idSector);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int trailId = rst.getInt("id");
+					trailBuilders.put(trailId, new TrailBuilder(
+						trailId,
+						rst.getBoolean("is_descent"),
+						rst.getString("title"),
+						rst.getString("description")
+					));
+				}
+			}
+		}
+		
+		if (trailBuilders.isEmpty()) {
+			return res;
+		}
+		
+		// Step B: Fetch and append path coordinates for the discovered trails
+		String pathInClause = ",?".repeat(trailBuilders.size()).substring(1);
+		String pathSql = """
+			SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
+			FROM trail_coordinate tc
+			JOIN coordinates c ON tc.coordinates_id = c.id
+			WHERE tc.trail_id IN (""" + pathInClause + ") ORDER BY tc.trail_id, tc.sorting";
+			
+		try (PreparedStatement ps = c.prepareStatement(pathSql)) {
+			int paramIdx = 1;
+			for (int trailId : trailBuilders.keySet()) {
+				ps.setInt(paramIdx++, trailId);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int trailId = rst.getInt("trail_id");
+					trailBuilders.get(trailId).path.add(new Coordinates(
+						rst.getInt("id"),
+						rst.getDouble("latitude"),
+						rst.getDouble("longitude"),
+						rst.getDouble("elevation"),
+						rst.getString("elevation_source")
+					));
+				}
+			}
+		}
+		
+		// Step C: Fetch and append custom labeled trail markers
+		String markerSql = """
+			SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
+			FROM trail_marker tm
+			JOIN coordinates c ON tm.coordinates_id = c.id
+			WHERE tm.trail_id IN (""" + pathInClause + ")";
+			
+		try (PreparedStatement ps = c.prepareStatement(markerSql)) {
+			int paramIdx = 1;
+			for (int trailId : trailBuilders.keySet()) {
+				ps.setInt(paramIdx++, trailId);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int trailId = rst.getInt("trail_id");
+					Coordinates markerCoords = new Coordinates(
+						rst.getInt("id"),
+						rst.getDouble("latitude"),
+						rst.getDouble("longitude"),
+						rst.getDouble("elevation"),
+						rst.getString("elevation_source")
+					);
+					trailBuilders.get(trailId).markers.add(new Trail.TrailMarker(markerCoords, rst.getString("label")));
+				}
+			}
+		}
+		
+		// Step D: Compile final Trail records with mathematical stats
+		for (TrailBuilder b : trailBuilders.values()) {
+			res.add(Trail.withCalculatedStats(
+				b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, null, null
+			));
+		}
+		
+		logger.debug("getSectorTrails(idSector={}) - res.size()={}, duration={}", idSector, res.size(), stopwatch);
+		return res;
 	}
 
 	private int insertMediaMetadata(Connection c, int uploaderId, Media m, StorageType storageType) throws Exception {

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 
+@Deprecated // TODO 2026-06 - Remove when Trail is implemented
 public record Slope(List<Coordinates> coordinates, double calculatedDurationInMinutes, long distance, long elevationGain, long elevationLoss) {
 	public static Slope from(List<Coordinates> coordinates) {
 		double calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(coordinates);

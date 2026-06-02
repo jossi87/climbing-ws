@@ -65,6 +65,7 @@ import com.buldreinfo.jersey.jaxb.model.Toc.TocRegion;
 import com.buldreinfo.jersey.jaxb.model.Toc.TocSector;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Top;
+import com.buldreinfo.jersey.jaxb.model.Trail;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.buldreinfo.jersey.jaxb.model.VideoInitPayload;
@@ -129,7 +130,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-
+	
 	@Operation(summary = "Get activity feed", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -257,7 +258,7 @@ public class V2 {
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "text/plain", schema = @Schema(implementation = Integer.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -276,7 +277,7 @@ public class V2 {
 			return Response.ok().entity(elevation).build();
 		});
 	}
-
+	
 	@Operation(summary = "Get frontpage", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Frontpage.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1256,7 +1257,7 @@ public class V2 {
 	        return Response.ok().build();
 	    });
 	}
-	
+
 	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
 	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
 	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1297,7 +1298,7 @@ public class V2 {
 	        return Response.ok().entity(res).build();
 	    });
 	}
-
+	
 	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = VideoInitResponse.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1494,6 +1495,24 @@ public class V2 {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.toggleTodo(c, authUserId, idProblem);
 			return Response.ok().build();
+		});
+	}
+
+	@Operation(summary = "Upsert trail", responses = {
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/trails")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postTrails(@Context HttpServletRequest request, Trail t) {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
+			int trailId = dao.upsertTrail(connection, authUserId, t);
+			return Response.ok(trailId).build();
 		});
 	}
 

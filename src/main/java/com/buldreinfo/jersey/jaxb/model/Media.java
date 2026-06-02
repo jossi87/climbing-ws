@@ -27,7 +27,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		boolean inherited,
 		int enableMoveToIdSector, int enableMoveToIdProblem,
 		String url,
-		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, int guestbookId, int userAvatarId) {
+		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<Integer> trailIds, int guestbookId, int userAvatarId) {
 
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
 	public record MediaSector(int sectorId, String areaName, String sectorName, boolean trivia) {}
@@ -148,7 +148,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
 				false, 0, 0, null, 
-				areas, sectors, problems, rst.getInt("guestbook_id"), 0
+				areas, sectors, problems, null, rst.getInt("guestbook_id"), 0
 				);
 	}
 	
