@@ -30,6 +30,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -5765,143 +5766,168 @@ public class Dao {
 		}
 	}
 
-	public int upsertTrail(Connection c, Optional<Integer> authUserId, Trail t) throws SQLException, InterruptedException {
-		Preconditions.checkArgument(t.sectors() != null && !t.sectors().isEmpty(), "sectors cannot be empty or null");
-		
-		// Guard A: Check permissions on all incoming target sectors
-		for (var sector : t.sectors()) {
-			ensureAdminWriteSector(c, authUserId, sector.sectorId());
+	public void upsertTrails(Connection c, Optional<Integer> authUserId, List<Trail> trails) throws SQLException, InterruptedException {
+		if (trails == null || trails.isEmpty()) {
+			return;
 		}
-		
-		// Guard B: If updating or deleting an existing trail, check permissions on currently connected sectors
-		if (t.id() > 0) {
+
+		Set<Integer> allSectorsToLock = new TreeSet<>();
+		List<Integer> existingTrailIds = new ArrayList<>();
+
+		for (Trail t : trails) {
+			Preconditions.checkArgument(t.sectors() != null && !t.sectors().isEmpty(), "sectors cannot be empty or null");
+			for (var sector : t.sectors()) {
+				allSectorsToLock.add(sector.sectorId());
+			}
+			if (t.id() > 0) {
+				existingTrailIds.add(t.id());
+			}
+		}
+
+		if (!existingTrailIds.isEmpty()) {
+			existingTrailIds.sort(Comparator.naturalOrder());
 			String sql = "SELECT sector_id FROM sector_trail WHERE trail_id = ?";
 			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				ps.setInt(1, t.id());
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int currentSectorId = rst.getInt("sector_id");
-						ensureAdminWriteSector(c, authUserId, currentSectorId);
-					}
-				}
-			}
-		}
-
-		// 1. Handle Soft Deletion Early
-		if (t.delete()) {
-			String sql = "UPDATE trail SET trash = NOW(), trash_by = ? WHERE id = ?";
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				ps.setInt(1, authUserId.orElseThrow());
-				ps.setInt(2, t.id());
-				ps.executeUpdate();
-			}
-			return t.id();
-		}
-
-		int trailId = t.id();
-
-		// 2. Upsert the Core Trail Information (Ensures trail is active / untrashed if edited)
-		if (trailId > 0) {
-			String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ?, trash = NULL, trash_by = 0 WHERE id = ?";
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				ps.setBoolean(1, t.isDescent());
-				ps.setString(2, t.title());
-				ps.setString(3, t.description());
-				ps.setInt(4, trailId);
-				ps.executeUpdate();
-			}
-		} else {
-			String sql = "INSERT INTO trail (is_descent, title, description) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-				ps.setBoolean(1, t.isDescent());
-				ps.setString(2, t.title());
-				ps.setString(3, t.description());
-				ps.executeUpdate();
-				try (ResultSet rs = ps.getGeneratedKeys()) {
-					if (rs.next()) {
-						trailId = rs.getInt(1);
-					}
-				}
-			}
-		}
-
-		// 3. Collect and Ensure All Coordinates Exist in DB
-		List<Coordinates> allCoordinates = new ArrayList<>();
-		if (t.path() != null) {
-			allCoordinates.addAll(t.path());
-		}
-		if (t.markers() != null) {
-			for (Trail.TrailMarker marker : t.markers()) {
-				if (marker.coordinates() != null) {
-					allCoordinates.add(marker.coordinates());
-				}
-			}
-		}
-
-		ensureCoordinatesInDbWithElevationAndId(c, allCoordinates);
-
-		// 4. Sync Path Coordinates (Clear old, batch insert new)
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_coordinate WHERE trail_id = ?")) {
-			ps.setInt(1, trailId);
-			ps.executeUpdate();
-		}
-
-		if (t.path() != null && !t.path().isEmpty()) {
-			String sql = "INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				int sorting = 0;
-				for (Coordinates coord : t.path()) {
+				for (int trailId : existingTrailIds) {
 					ps.setInt(1, trailId);
-					ps.setInt(2, coord.getId());
-					ps.setInt(3, sorting++);
-					ps.addBatch();
+					try (ResultSet rst = ps.executeQuery()) {
+						while (rst.next()) {
+							allSectorsToLock.add(rst.getInt("sector_id"));
+						}
+					}
 				}
-				ps.executeBatch();
 			}
 		}
 
-		// 5. Sync Trail Markers (Clear old, batch insert new)
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_marker WHERE trail_id = ?")) {
-			ps.setInt(1, trailId);
-			ps.executeUpdate();
+		for (int sectorId : allSectorsToLock) {
+			ensureAdminWriteSector(c, authUserId, sectorId);
 		}
 
-		if (t.markers() != null && !t.markers().isEmpty()) {
-			String sql = "INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
+		List<Coordinates> allCoordinatesGlobal = new ArrayList<>();
+		for (Trail t : trails) {
+			if (t.path() != null) {
+				allCoordinatesGlobal.addAll(t.path());
+			}
+			if (t.markers() != null) {
 				for (Trail.TrailMarker marker : t.markers()) {
 					if (marker.coordinates() != null) {
-						ps.setInt(1, trailId);
-						ps.setInt(2, marker.coordinates().getId());
-						ps.setString(3, marker.label());
-						ps.addBatch();
+						allCoordinatesGlobal.add(marker.coordinates());
 					}
 				}
-				ps.executeBatch();
 			}
 		}
-
-		// 6. Sync Sector Junction Connections
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_trail WHERE trail_id = ?")) {
-			ps.setInt(1, trailId);
-			ps.executeUpdate();
-		}
-
-		if (t.sectors() != null && !t.sectors().isEmpty()) {
-			String sql = "INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				for (Trail.TrailSector sector : t.sectors()) {
-					ps.setInt(1, sector.sectorId());
-					ps.setInt(2, trailId);
-					ps.addBatch();
+		
+		if (!allCoordinatesGlobal.isEmpty()) {
+			allCoordinatesGlobal.sort((c1, c2) -> {
+				if (c1.getId() != c2.getId()) {
+					return Integer.compare(c1.getId(), c2.getId());
 				}
-				ps.executeBatch();
-			}
+				int latCompare = Double.compare(c1.getLatitude(), c2.getLatitude());
+				if (latCompare != 0) return latCompare;
+				return Double.compare(c1.getLongitude(), c2.getLongitude());
+			});
+			
+			ensureCoordinatesInDbWithElevationAndId(c, allCoordinatesGlobal);
 		}
 
-		return trailId;
-	}
+		List<Trail> sortedTrails = new ArrayList<>(trails);
+		sortedTrails.sort(Comparator.comparingInt(Trail::id));
 
+		for (Trail t : sortedTrails) {
+			if (t.delete()) {
+				String sql = "UPDATE trail SET trash = NOW(), trash_by = ? WHERE id = ?";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					ps.setInt(1, authUserId.orElseThrow());
+					ps.setInt(2, t.id());
+					ps.executeUpdate();
+				}
+				continue;
+			}
+
+			int trailId = t.id();
+
+			if (trailId > 0) {
+				String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ?, trash = NULL, trash_by = 0 WHERE id = ?";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					ps.setBoolean(1, t.isDescent());
+					ps.setString(2, t.title());
+					ps.setString(3, t.description());
+					ps.setInt(4, trailId);
+					ps.executeUpdate();
+				}
+			} else {
+				String sql = "INSERT INTO trail (is_descent, title, description) VALUES (?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+					ps.setBoolean(1, t.isDescent());
+					ps.setString(2, t.title());
+					ps.setString(3, t.description());
+					ps.executeUpdate();
+					try (ResultSet rs = ps.getGeneratedKeys()) {
+						if (rs.next()) {
+							trailId = rs.getInt(1);
+						}
+					}
+				}
+			}
+
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_coordinate WHERE trail_id = ?")) {
+				ps.setInt(1, trailId);
+				ps.executeUpdate();
+			}
+
+			if (t.path() != null && !t.path().isEmpty()) {
+				String sql = "INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					int sorting = 0;
+					for (Coordinates coord : t.path()) {
+						ps.setInt(1, trailId);
+						ps.setInt(2, coord.getId());
+						ps.setInt(3, sorting++);
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM trail_marker WHERE trail_id = ?")) {
+				ps.setInt(1, trailId);
+				ps.executeUpdate();
+			}
+
+			if (t.markers() != null && !t.markers().isEmpty()) {
+				String sql = "INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (Trail.TrailMarker marker : t.markers()) {
+						if (marker.coordinates() != null) {
+							ps.setInt(1, trailId);
+							ps.setInt(2, marker.coordinates().getId());
+							ps.setString(3, marker.label());
+							ps.addBatch();
+						}
+					}
+					ps.executeBatch();
+				}
+			}
+
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM sector_trail WHERE trail_id = ?")) {
+				ps.setInt(1, trailId);
+				ps.executeUpdate();
+			}
+
+			if (t.sectors() != null && !t.sectors().isEmpty()) {
+				String sql = "INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (Trail.TrailSector sector : t.sectors()) {
+						ps.setInt(1, sector.sectorId());
+						ps.setInt(2, trailId);
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+		}
+	}
+	
 	private int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
 		int id = -1;
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {

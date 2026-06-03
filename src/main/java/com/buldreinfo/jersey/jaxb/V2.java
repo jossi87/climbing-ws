@@ -1498,7 +1498,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Upsert trail", responses = {
+	@Operation(summary = "Upsert trails", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1509,10 +1509,10 @@ public class V2 {
 	@POST
 	@Path("/trails")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postTrails(@Context HttpServletRequest request, Trail t) {
+	public Response postTrails(@Context HttpServletRequest request, List<Trail> trails) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
-			int trailId = dao.upsertTrail(connection, authUserId, t);
-			return Response.ok(trailId).build();
+			dao.upsertTrails(connection, authUserId, trails);
+			return Response.ok().build();
 		});
 	}
 
