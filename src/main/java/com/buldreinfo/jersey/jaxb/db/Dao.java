@@ -5875,8 +5875,6 @@ public class Dao {
 	public int upsertTrail(Connection c, Optional<Integer> authUserId, Trail t) throws SQLException, InterruptedException {
 		Preconditions.checkArgument(t.sectors() != null && !t.sectors().isEmpty(), "sectors cannot be empty or null");
 		
-		// --- SECURITY GUARDS ---
-		
 		// Guard A: Check permissions on all incoming target sectors
 		for (var sector : t.sectors()) {
 			ensureAdminWriteSector(c, authUserId, sector.sectorId());
@@ -5895,8 +5893,6 @@ public class Dao {
 				}
 			}
 		}
-		
-		// --- END SECURITY GUARDS ---
 
 		// 1. Handle Soft Deletion Early
 		if (t.delete()) {
