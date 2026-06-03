@@ -6673,7 +6673,7 @@ public class Dao {
 						   'id', s3.id,
 						   'problemId', p3.id,
 						   'problemName', p3.name,
-						   'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
+ 						   'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
 						   'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
 						   'problemSubtype', ty3.subtype,
 						   'nr', p3.nr,
@@ -6713,10 +6713,10 @@ public class Dao {
 			JOIN media m ON (mt.media_id = m.id AND m.deleted_user_id IS NULL)
 			LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 			LEFT JOIN user ph ON m.photographer_user_id = ph.id
-			WHERE mt.trail_id IN (%s)
-			GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
-			ORDER BY m.is_movie, m.embed_url, m.id
-			""".formatted(inClause);
+			WHERE mt.trail_id IN (__IN_CLAUSE__)
+			GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
+			ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
+			""".replace("__IN_CLAUSE__", inClause);
 
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
 			int idx = 1;
