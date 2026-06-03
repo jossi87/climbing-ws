@@ -356,6 +356,13 @@ public class PdfGenerator implements AutoCloseable {
 		List<Media> combinedMedia = new ArrayList<>();
 		if (area.media() != null) combinedMedia.addAll(area.media());
 		if (sector.media() != null) combinedMedia.addAll(sector.media());
+		if (sector.trails() != null) {
+			for (var trail : sector.trails()) {
+				if (trail.media() != null) {
+					combinedMedia.addAll(trail.media());
+				}
+			}
+		}
 		if (problem.media() != null) {
 			for (Media m : problem.media()) {
 				boolean isPitchMedia = m.svgs() != null && m.svgs().stream().anyMatch(s -> s.problemId() == problem.id() && s.pitch() > 0);
