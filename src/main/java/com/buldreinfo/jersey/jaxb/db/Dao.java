@@ -5912,13 +5912,11 @@ public class Dao {
 		}
 
 		if (t.sectors() != null && !t.sectors().isEmpty()) {
-			String sql = "INSERT INTO sector_trail (sector_id, trail_id, sorting) VALUES (?, ?, ?)";
+			String sql = "INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)";
 			try (PreparedStatement ps = c.prepareStatement(sql)) {
-				int sorting = 0;
 				for (Trail.TrailSector sector : t.sectors()) {
 					ps.setInt(1, sector.sectorId());
 					ps.setInt(2, trailId);
-					ps.setInt(3, sorting++);
 					ps.addBatch();
 				}
 				ps.executeBatch();
@@ -7291,7 +7289,7 @@ public class Dao {
 			FROM sector_trail st
 			JOIN trail t ON st.trail_id = t.id
 			WHERE st.sector_id IN (%s) AND t.trash IS NULL
-			ORDER BY st.sorting
+			ORDER BY t.is_descent, t.title
 			""", inClause);
 			
 		try (PreparedStatement ps = c.prepareStatement(trailSql)) {
@@ -7307,11 +7305,7 @@ public class Dao {
 					sectorToTrailIds.put(sectorId, trailId);
 					
 					if (!trailBuilders.containsKey(trailId)) {
-						trailBuilders.put(trailId, new TrailBuilder(
-							trailId,
-							rst.getBoolean("is_descent"),
-							rst.getString("title"),
-							rst.getString("description")
+						trailBuilders.put(trailId, new TrailBuilder(trailId, rst.getBoolean("is_descent"), rst.getString("title"), rst.getString("description")
 						));
 					}
 				}
