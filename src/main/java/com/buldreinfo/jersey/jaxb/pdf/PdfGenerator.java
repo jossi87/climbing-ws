@@ -647,11 +647,8 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
 					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 				}
-				if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.approach(), "lime"));
-				}
-				if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.descent(), "purple"));
+				if (sector.trails() != null && !sector.trails().isEmpty()) {
+					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 				}
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
 					final String name = removeIllegalChars(sector.name());
@@ -711,11 +708,8 @@ public class PdfGenerator implements AutoCloseable {
 				String name = removeIllegalChars(problem.name());
 				markers.add(new Marker(problem.coordinates().getLatitude(), problem.coordinates().getLongitude(), IconType.DEFAULT, name));
 			}
-			if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
-				slopes.add(new PrintSlope(sector.approach(), "lime"));
-			}
-			if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
-				slopes.add(new PrintSlope(sector.descent(), "purple"));
+			if (sector.trails() != null && !sector.trails().isEmpty()) {
+				sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 			}
 			if (sector.outline() != null && !sector.outline().isEmpty()) {
 				String label = removeIllegalChars(sector.name());
@@ -794,11 +788,8 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
 					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 				}
-				if (sector.approach() != null && !sector.approach().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.approach(), "lime"));
-				}
-				if (sector.descent() != null && !sector.descent().coordinates().isEmpty()) {
-					slopes.add(new PrintSlope(sector.descent(), "purple"));
+				if (sector.trails() != null && !sector.trails().isEmpty()) {
+					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 				}
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
 					final String label = removeIllegalChars(sector.name());

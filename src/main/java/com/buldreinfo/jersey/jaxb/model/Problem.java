@@ -8,7 +8,7 @@ public record Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, b
 		int sectorId, boolean sectorLockedAdmin, boolean sectorLockedSuperadmin, String sectorName,
 		String sectorAccessInfo, String sectorAccessClosed, int sectorSunFromHour, int sectorSunToHour,
 		Coordinates sectorParking, List<Coordinates> sectorOutline, CompassDirection sectorWallDirectionCalculated, CompassDirection sectorWallDirectionManual,
-		Slope sectorApproach, Slope sectorDescent, Collection<Trail> trails, List<Neighbour> neighbours,
+		Collection<Trail> trails, List<Neighbour> neighbours,
 		int id, String broken, boolean trash, boolean lockedAdmin, boolean lockedSuperadmin,
 		int nr, String name, String rock, String comment, String grade, String originalGrade, String faDate, String faDateHr, List<User> fa,
 		int lengthMeter, Coordinates coordinates, List<Media> media, int numTicks, double stars, boolean ticked,
@@ -40,10 +40,10 @@ public record Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, b
 	}
 
 	public Problem withCoordinates(Coordinates newCoordinates) {
-		return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, newCoordinates, media, numTicks, stars, ticked, ticks, todos, comments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);
+		return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, newCoordinates, media, numTicks, stars, ticked, ticks, todos, comments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);
 	}
 
 	public Problem withFaAid(FaAid newFaAid) {
-		return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorApproach, sectorDescent, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates, media, numTicks, stars, ticked, ticks, todos, comments, t, sections, todo, externalLinks, pageViews, newFaAid, trivia, triviaMedia, startingAltitude, aspect, descent);
+		return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates, media, numTicks, stars, ticked, ticks, todos, comments, t, sections, todo, externalLinks, pageViews, newFaAid, trivia, triviaMedia, startingAltitude, aspect, descent);
 	}
 }

@@ -13,15 +13,12 @@ public record Area(String redirectUrl, String regionName, int id, boolean trash,
 	public record AreaSector(String areaName, int id, int sorting, boolean lockedAdmin, boolean lockedSuperadmin, String name, String comment,
 			String accessInfo, String accessClosed, int sunFromHour, int sunToHour,
 			Coordinates parking, List<Coordinates> outline, CompassDirection wallDirectionCalculated, CompassDirection wallDirectionManual,
-			Slope approach, Slope descent, Collection<Trail> trails, MediaIdentity randomMedia, List<SectorProblem> problems, int progress, List<GradeCount> gradeCounts) {
+			Collection<Trail> trails, MediaIdentity randomMedia, List<SectorProblem> problems, int progress, List<GradeCount> gradeCounts) {
 		public AreaSector withProgress(int newProgress) {
-			return new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outline, wallDirectionCalculated, wallDirectionManual, approach, descent, trails, randomMedia, problems, newProgress, gradeCounts);
-		}
-		public AreaSector withSlopes(Slope newApproach, Slope newDescent) {
-			return new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outline, wallDirectionCalculated, wallDirectionManual, newApproach, newDescent, trails, randomMedia, problems, progress, gradeCounts);
+			return new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outline, wallDirectionCalculated, wallDirectionManual, trails, randomMedia, problems, newProgress, gradeCounts);
 		}
 		public AreaSector withTrails(Collection<Trail> newTrails) {
-			return new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outline, wallDirectionCalculated, wallDirectionManual, approach, descent, newTrails, randomMedia, problems, progress, gradeCounts);
+			return new AreaSector(areaName, id, sorting, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outline, wallDirectionCalculated, wallDirectionManual, newTrails, randomMedia, problems, progress, gradeCounts);
 		}
 	}
 	public record GradeCount(String grade, String color, int num) {}

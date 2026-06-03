@@ -155,7 +155,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
 				false, 0, 0, null, 
-				areas, sectors, problems, null, rst.getInt("guestbook_id"), 0
+				areas, sectors, problems, trailIds, rst.getInt("guestbook_id"), 0
 				);
 	}
 	
