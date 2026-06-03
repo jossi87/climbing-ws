@@ -81,6 +81,7 @@ import com.buldreinfo.jersey.jaxb.model.Grade;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.LatLng;
 import com.buldreinfo.jersey.jaxb.model.Media;
+import com.buldreinfo.jersey.jaxb.model.Media.Association;
 import com.buldreinfo.jersey.jaxb.model.Media.MediaArea;
 import com.buldreinfo.jersey.jaxb.model.Media.MediaProblem;
 import com.buldreinfo.jersey.jaxb.model.Media.MediaSector;
@@ -166,17 +167,22 @@ public class Dao {
 
 	public Dao() {
 	}
-
+	
 	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		m.ensureCorrectMediaAssociations(authUserId);
+		Association associations = m.ensureCorrectMediaAssociations(authUserId);
 		Preconditions.checkNotNull(filePart, "File part is required");
 		String fileName = filePart.getContentDisposition().getFileName();
 		StorageType storageType = StorageType.fromFilename(fileName)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
 		Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
 		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-		associateMediaToEntities(c, idMedia, m);
+		saveMediaContext(c, idMedia, associations, m, false);
+		if (associations == Association.PROBLEMS) {
+			for (Media.MediaProblem problem : m.problems()) {
+				fillActivity(c, problem.problemId());
+			}
+		}
 		try (InputStream is = inputStreamSupplier.get()) {
 			byte[] bytes = StorageManager.getInstance().readBoundedStream(is);
 			ImageHelper.saveImage(this, c, idMedia, bytes);
@@ -185,18 +191,28 @@ public class Dao {
 	}
 
 	public int addMediaVideoEmbed(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
-	    Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-	    m.ensureCorrectMediaAssociations(authUserId);
-	    int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-	    associateMediaToEntities(c, idMedia, m);
-	    return idMedia;
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		Association associations = m.ensureCorrectMediaAssociations(authUserId);
+		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
+		saveMediaContext(c, idMedia, associations, m, false);
+		if (associations == Association.PROBLEMS) {
+			for (Media.MediaProblem problem : m.problems()) {
+				fillActivity(c, problem.problemId());
+			}
+		}
+		return idMedia;
 	}
 
 	public int addMediaVideoPlaceholder(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		m.ensureCorrectMediaAssociations(authUserId);
+		Association associations = m.ensureCorrectMediaAssociations(authUserId);
 		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
-		associateMediaToEntities(c, idMedia, m);
+		saveMediaContext(c, idMedia, associations, m, false);
+		if (associations == Association.PROBLEMS) {
+			for (Media.MediaProblem problem : m.problems()) {
+				fillActivity(c, problem.problemId());
+			}
+		}
 		return idMedia;
 	}
 
@@ -5565,29 +5581,16 @@ public class Dao {
 	public void updateMedia(Connection c, Optional<Integer> authUserId, Media m) throws Exception {
 		Preconditions.checkArgument(m.identity() != null && m.identity().id() != 0, "Media id required.");
 		Preconditions.checkArgument(m.photographer() != null && !Strings.isNullOrEmpty(m.photographer().name()), "A valid photographer must be specified to update media context.");
-		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
-		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
-		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
-		boolean hasTrails = m.trailIds() != null && !m.trailIds().isEmpty();
-		boolean hasGuestbook = m.guestbookId() > 0;
-		Preconditions.checkArgument(
-				(hasAreas && !hasSectors && !hasProblems && !hasTrails && !hasGuestbook) ||
-				(!hasAreas && hasSectors && !hasProblems && !hasTrails && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && hasProblems && !hasTrails && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && !hasProblems && hasTrails && !hasGuestbook) ||
-				(!hasAreas && !hasSectors && !hasProblems && !hasTrails && hasGuestbook)
-				, "Multiple types on id=" + m.identity().id());
+		Association associations = m.ensureCorrectMediaAssociations(authUserId);
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final int mediaId = m.identity().id();
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, mediaId);
 		Media originalMedia = getMedia(c, authUserId, m.identity().id());	    
 		boolean thumbnailChanged = originalMedia.thumbnailSeconds() != m.thumbnailSeconds();
-
 		int photographerId = m.photographer().id() > 0 ? m.photographer().id() : getExistingOrInsertUser(c, m.photographer().name());
 		String baseUpdateSql = thumbnailChanged 
 				? "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?"
 						: "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=? WHERE id=?";
-
 		try (PreparedStatement ps = c.prepareStatement(baseUpdateSql)) {
 			ps.setString(1, Strings.emptyToNull(m.description()));
 			ps.setInt(2, photographerId);
@@ -5607,99 +5610,13 @@ public class Dao {
 				Files.deleteIfExists(tempOriginal);
 			}
 		}
-		// media_area
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=?")) {
-			ps.setInt(1, mediaId);
-			ps.execute();
-		}
-		if (m.areas() != null && !m.areas().isEmpty()) {
-			String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
-				for (Media.MediaArea area : m.areas()) {
-					ps.setInt(1, mediaId);
-					ps.setInt(2, area.areaId());
-					ps.setBoolean(3, area.trivia());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		// media_sector
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) {
-			ps.setInt(1, mediaId);
-			ps.execute();
-		}
-		if (m.sectors() != null && !m.sectors().isEmpty()) {
-			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
-				for (Media.MediaSector sector : m.sectors()) {
-					ps.setInt(1, mediaId);
-					ps.setInt(2, sector.sectorId());
-					ps.setBoolean(3, sector.trivia());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		// media_problem
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) {
-			ps.setInt(1, mediaId);
-			ps.execute();
-		}
-		if (m.problems() != null && !m.problems().isEmpty()) {
-			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
-				for (Media.MediaProblem problem : m.problems()) {
-					ps.setInt(1, mediaId);
-					ps.setInt(2, problem.problemId());
-					ps.setInt(3, problem.problemPitch());
-					ps.setBoolean(4, problem.trivia());
-					ps.setLong(5, problem.milliseconds());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		// media_trail
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_trail WHERE media_id=?")) {
-			ps.setInt(1, mediaId);
-			ps.execute();
-		}
-		if (m.trailIds() != null && !m.trailIds().isEmpty()) {
-			String insertTrailSql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertTrailSql)) {
-				for (int trailId : m.trailIds()) {
-					ps.setInt(1, mediaId);
-					ps.setInt(2, trailId);
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		// media_user
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) {
-			ps.setInt(1, mediaId);
-			ps.execute();
-		}
-		if (m.tagged() != null && !m.tagged().isEmpty()) {
-			String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
-				for (User u : m.tagged()) {
-					Preconditions.checkArgument(!Strings.isNullOrEmpty(u.name()), "Invalid tagged user: " + u);
-					int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
-					ps.setInt(1, mediaId);
-					ps.setInt(2, userId);
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		// Fill activity
-		for (int idProblem : Stream.of(originalMedia.problems(), m.problems())
+		saveMediaContext(c, mediaId, associations, m, true);
+		Set<Integer> problemIdsToUpdate = Stream.of(originalMedia.problems(), m.problems())
 				.filter(Objects::nonNull)
 				.flatMap(List::stream)
 				.map(MediaProblem::problemId)
-				.toList()) {
+				.collect(Collectors.toSet());
+		for (int idProblem : problemIdsToUpdate) {
 			fillActivity(c, idProblem);
 		}
 		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
@@ -6035,93 +5952,6 @@ public class Dao {
 		return id;
 	}
 
-	private void associateMediaToEntities(Connection c, int idMedia, Media m) throws Exception {
-		boolean hasAreas = m.areas() != null && !m.areas().isEmpty();
-		boolean hasSectors = m.sectors() != null && !m.sectors().isEmpty();
-		boolean hasProblems = m.problems() != null && !m.problems().isEmpty();
-		boolean hasTrails = m.trailIds() != null && !m.trailIds().isEmpty();
-		boolean hasGuestbook = m.guestbookId() > 0;
-		boolean hasUserAvatar = m.userAvatarId() > 0;
-
-		if (hasProblems) {
-			String insertProblemSql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertProblemSql)) {
-				for (Media.MediaProblem problem : m.problems()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, problem.problemId());
-					ps.setInt(3, problem.problemPitch());
-					ps.setBoolean(4, problem.trivia());
-					ps.setLong(5, problem.milliseconds());
-					ps.execute();
-				}
-			}
-			for (Media.MediaProblem problem : m.problems()) {
-				fillActivity(c, problem.problemId());
-			}
-		}
-		else if (hasSectors) {
-			String insertSectorSql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertSectorSql)) {
-				for (Media.MediaSector sector : m.sectors()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, sector.sectorId());
-					ps.setBoolean(3, sector.trivia());
-					ps.execute();
-				}
-			}
-		}
-		else if (hasAreas) {
-			String insertAreaSql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertAreaSql)) {
-				for (Media.MediaArea area : m.areas()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, area.areaId());
-					ps.setBoolean(3, area.trivia());
-					ps.execute();
-				}
-			}
-		}
-		else if (hasTrails) {
-			String insertTrailSql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertTrailSql)) {
-				for (int trailId : m.trailIds()) {
-					ps.setInt(1, idMedia);
-					ps.setInt(2, trailId);
-					ps.execute();
-				}
-			}
-		}
-		else if (hasGuestbook) {
-			String insertGuestbookSql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertGuestbookSql)) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, m.guestbookId());
-				ps.execute();
-			}
-		}
-		else if (hasUserAvatar) {
-			String updateUserAvatarSql = "UPDATE user SET media_id=? WHERE id=?";
-			try (PreparedStatement ps = c.prepareStatement(updateUserAvatarSql)) {
-				ps.setInt(1, idMedia);
-				ps.setInt(2, m.userAvatarId());
-				ps.execute();
-			}
-		}
-
-		if (m.tagged() != null && !m.tagged().isEmpty()) {
-			String insertUserSql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
-			try (PreparedStatement ps = c.prepareStatement(insertUserSql)) {
-				for (User u : m.tagged()) {
-					int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
-					ps.setInt(1, idMedia);
-					ps.setInt(2, userId);
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-	}
-	
 	private void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1")) {
@@ -6135,7 +5965,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-
+	
 	private void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1")) {
@@ -6149,7 +5979,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	private void ensureAdminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		boolean ok = false;
@@ -6164,7 +5994,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-
+	
 	private void ensureAdminWriteSector(Connection c, Optional<Integer> authUserId, int sectorId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -7646,6 +7476,104 @@ public class Dao {
 			}
 		}
 		logger.debug("loadSimplifiedGradeCounts(areaId={}, sectorLookup.size()={}) - duration={}", areaId, sectorLookup.size(), stopwatch);
+	}
+
+	private void saveMediaContext(Connection c, int mediaId, Association associations, Media m, boolean isUpdate) throws SQLException {
+		// If this is an update, cleanly wipe out all previous entity and user associations first
+		if (isUpdate) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_trail WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_guestbook WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+		}
+
+		// 1. Sync the Primary Exclusive Association
+		switch (associations) {
+			case AREAS -> {
+				String sql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (Media.MediaArea area : m.areas()) {
+						ps.setInt(1, mediaId);
+						ps.setInt(2, area.areaId());
+						ps.setBoolean(3, area.trivia());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			case SECTORS -> {
+				String sql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (Media.MediaSector sector : m.sectors()) {
+						ps.setInt(1, mediaId);
+						ps.setInt(2, sector.sectorId());
+						ps.setBoolean(3, sector.trivia());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			case PROBLEMS -> {
+				String sql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (Media.MediaProblem problem : m.problems()) {
+						ps.setInt(1, mediaId);
+						ps.setInt(2, problem.problemId());
+						ps.setInt(3, problem.problemPitch());
+						ps.setBoolean(4, problem.trivia());
+						ps.setLong(5, problem.milliseconds());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			case TRAILS -> {
+				String sql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					for (int trailId : m.trailIds()) {
+						ps.setInt(1, mediaId);
+						ps.setInt(2, trailId);
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			case GUESTBOOK -> {
+				String sql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, m.guestbookId());
+					ps.execute();
+				}
+			}
+			case USER_AVATAR -> {
+				String sql = "UPDATE user SET media_id=? WHERE id=?";
+				try (PreparedStatement ps = c.prepareStatement(sql)) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, m.userAvatarId());
+					ps.execute();
+				}
+			}
+		}
+
+		// 2. Tagged Users
+		if (m.tagged() != null && !m.tagged().isEmpty()) {
+			String sql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (User u : m.tagged()) {
+					if (isUpdate) {
+						Preconditions.checkArgument(!Strings.isNullOrEmpty(u.name()), "Invalid tagged user: " + u);
+					}
+					int userId = u.id() > 0 ? u.id() : getExistingOrInsertUser(c, u.name());
+					ps.setInt(1, mediaId);
+					ps.setInt(2, userId);
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
 	}
 
 	private void setNullablePositiveDouble(PreparedStatement ps, int parameterIndex, double value) throws SQLException {

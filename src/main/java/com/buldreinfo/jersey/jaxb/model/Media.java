@@ -32,6 +32,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
 	public record MediaSector(int sectorId, String areaName, String sectorName, boolean trivia) {}
 	public record MediaProblem(int problemId, String problemName, String problemGrade, int problemPitch, int problemNumPitches, long milliseconds, String areaName, String sectorName, boolean trivia) {}
+	public enum Association{ AREAS, SECTORS, PROBLEMS, TRAILS, GUESTBOOK, USER_AVATAR }
 
 	private static final TypeAdapter<Boolean> booleanCoercionAdapter = new TypeAdapter<>() {
 		@Override
@@ -152,18 +153,36 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				);
 	}
 	
-	public void ensureCorrectMediaAssociations(Optional<Integer> authUserId) {
-		boolean hasAreas = areas() != null && !areas().isEmpty();
-	    boolean hasSectors = sectors() != null && !sectors().isEmpty();
-	    boolean hasProblems = problems() != null && !problems().isEmpty();
-	    boolean hasGuestbook = guestbookId() > 0;
-	    boolean hasUserAvatar = userAvatarId() > 0;
-	    Preconditions.checkArgument(
-	        (hasAreas && !hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
-	        || (!hasAreas && hasSectors && !hasProblems && !hasGuestbook && !hasUserAvatar)
-	        || (!hasAreas && !hasSectors && hasProblems && !hasGuestbook && !hasUserAvatar)
-	        || (!hasAreas && !hasSectors && !hasProblems && hasGuestbook && !hasUserAvatar)
-	        || (!hasAreas && !hasSectors && !hasProblems && !hasGuestbook && hasUserAvatar && userAvatarId() == authUserId.orElseThrow()));
+	public Association ensureCorrectMediaAssociations(Optional<Integer> authUserId) {
+	    Association activeAssociation = null;
+	    int associationCount = 0;
+	    if (areas() != null && !areas().isEmpty()) {
+	        activeAssociation = Association.AREAS;
+	        associationCount++;
+	    }
+	    if (sectors() != null && !sectors().isEmpty()) {
+	        activeAssociation = Association.SECTORS;
+	        associationCount++;
+	    }
+	    if (problems() != null && !problems().isEmpty()) {
+	        activeAssociation = Association.PROBLEMS;
+	        associationCount++;
+	    }
+	    if (trailIds() != null && !trailIds().isEmpty()) {
+	        activeAssociation = Association.TRAILS;
+	        associationCount++;
+	    }
+	    if (guestbookId() > 0) {
+	        activeAssociation = Association.GUESTBOOK;
+	        associationCount++;
+	    }
+	    if (userAvatarId() > 0) {
+	        Preconditions.checkArgument(userAvatarId() == authUserId.orElseThrow(), "Cannot associate media to another user's avatar");
+	        activeAssociation = Association.USER_AVATAR;
+	        associationCount++;
+	    }
+	    Preconditions.checkArgument(associationCount == 1, "Media must be associated with exactly one entity type. Found: " + associationCount);
+	    return activeAssociation;
 	}
 
 	private static List<MediaSvgElement> parseSvgElements(String svgsJson, Gson gson) {
