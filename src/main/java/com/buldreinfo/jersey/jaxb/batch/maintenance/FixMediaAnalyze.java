@@ -47,6 +47,7 @@ public class FixMediaAnalyze {
                 }
             }
         });
+        logger.debug("Run MediaAnalyze on {} items", tasks.size());
         for (Task t : tasks) {
             executor.submit(() -> {
                 try {
@@ -62,6 +63,9 @@ public class FixMediaAnalyze {
         } catch (InterruptedException e) {
             logger.error("Executor interrupted", e);
             Thread.currentThread().interrupt();
+        }
+        for (String w : warnings) {
+            logger.warn(w);
         }
         logger.debug("Updating cache columns...");
         Server.runSql((_, c) -> {
@@ -104,9 +108,6 @@ public class FixMediaAnalyze {
                 ps.execute();
             }
         });
-        for (String w : warnings) {
-            logger.warn(w);
-        }
         logger.debug("Done");
     }
     
