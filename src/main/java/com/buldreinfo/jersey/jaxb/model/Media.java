@@ -136,6 +136,12 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 							.thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())))
 					.toList();
 		}
+		
+		String trailsJson = rst.getString("trails_json");
+		List<Integer> trailIds = Strings.isNullOrEmpty(trailsJson) ? List.of() : localGson.fromJson(trailsJson, new TypeToken<List<Integer>>(){}.getType());
+		if (!trailIds.isEmpty()) {
+			trailIds = trailIds.stream().sorted().toList();
+		}
 
 		List<MediaSvgElement> svgElements = parseSvgElements(rst.getString("svgs_json"), localGson);
 
