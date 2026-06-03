@@ -1351,7 +1351,7 @@ public class Dao {
 				    FROM problem p1
 				    JOIN sector s1 ON p1.sector_id = s1.id
 				    JOIN area ar1 ON s1.area_id = ar1.id
-				    WHERE p1.fa_date IS NOT NULL
+				    WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
 				      AND ar1.region_id IN (
 				        SELECT r.id FROM region r 
 				        JOIN region_type rt ON r.id = rt.region_id 
