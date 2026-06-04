@@ -24,14 +24,13 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		String dateCreated, String dateTaken, User photographer, List<User> tagged, String description,
 		List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs,
 		String embedUrl, int thumbnailSeconds,
-		boolean inherited,
-		int enableMoveToIdSector, int enableMoveToIdProblem,
-		String url,
-		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<Integer> trailIds, int guestbookId, int userAvatarId) {
+		boolean inherited, String url,
+		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<MediaTrail> trails, int guestbookId, int userAvatarId) {
 
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
-	public record MediaSector(int sectorId, String areaName, String sectorName, boolean trivia) {}
-	public record MediaProblem(int problemId, String problemName, String problemGrade, int problemPitch, int problemNumPitches, long milliseconds, String areaName, String sectorName, boolean trivia) {}
+	public record MediaSector(int areaId, String areaName, int sectorId, String sectorName, boolean trivia) {}
+	public record MediaProblem(int problemId, String problemName, String problemGrade, int problemPitch, int problemNumPitches, long milliseconds, int areaId, String areaName, int sectorId, String sectorName, boolean trivia) {}
+	public record MediaTrail(int areaId, String areaName, int sectorId, String sectorName, int trailId, String trailTitle) {}
 	public enum Association{ AREAS, SECTORS, PROBLEMS, TRAILS, GUESTBOOK, USER_AVATAR }
 
 	private static final TypeAdapter<Boolean> booleanCoercionAdapter = new TypeAdapter<>() {
@@ -138,9 +137,11 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		}
 		
 		String trailsJson = rst.getString("trails_json");
-		List<Integer> trailIds = Strings.isNullOrEmpty(trailsJson) ? List.of() : localGson.fromJson(trailsJson, new TypeToken<List<Integer>>(){}.getType());
-		if (!trailIds.isEmpty()) {
-			trailIds = trailIds.stream().sorted().toList();
+		List<MediaTrail> trails = Strings.isNullOrEmpty(trailsJson) ? List.of() : localGson.fromJson(trailsJson, new TypeToken<List<MediaTrail>>(){}.getType());
+		if (!trails.isEmpty()) {
+			trails = trails.stream()
+					.sorted(Comparator.comparingInt(MediaTrail::trailId))
+					.toList();
 		}
 
 		List<MediaSvgElement> svgElements = parseSvgElements(rst.getString("svgs_json"), localGson);
@@ -154,8 +155,8 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
-				false, 0, 0, null, 
-				areas, sectors, problems, trailIds, rst.getInt("guestbook_id"), 0
+				false, null, 
+				areas, sectors, problems, trails, rst.getInt("guestbook_id"), 0
 				);
 	}
 	
@@ -174,7 +175,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 	        activeAssociation = Association.PROBLEMS;
 	        associationCount++;
 	    }
-	    if (trailIds() != null && !trailIds().isEmpty()) {
+	    if (trails() != null && !trails().isEmpty()) {
 	        activeAssociation = Association.TRAILS;
 	        associationCount++;
 	    }

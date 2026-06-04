@@ -166,7 +166,7 @@ public class Dao {
 
 	public Dao() {
 	}
-	
+
 	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Association associations = m.ensureCorrectMediaAssociations(authUserId);
@@ -537,7 +537,7 @@ public class Dao {
 			psAddActivity.executeBatch();
 		}
 	}
-	
+
 	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		final List<Activity> res = new ArrayList<>();
@@ -970,7 +970,7 @@ public class Dao {
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false, 0, 0);
+					List<Media> allMedia = getMediaArea(c, authUserId, reqId, false);
 					Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
 							.orElse(List.of())
 							.stream()
@@ -1033,13 +1033,13 @@ public class Dao {
 			}
 			var sectorTrailsMultimap = getSectorTrails(c, authUserId, sectorLookup.keySet());
 			for (int idSector : sectorTrailsMultimap.keySet()) {
-			    var sector = sectorLookup.get(idSector);
-			    if (sector != null) {
-			        Collection<Trail> trails = sectorTrailsMultimap.get(idSector);
-			        sectorLookup.put(idSector, sector.withTrails(trails));
-			    }
+				var sector = sectorLookup.get(idSector);
+				if (sector != null) {
+					Collection<Trail> trails = sectorTrailsMultimap.get(idSector);
+					sectorLookup.put(idSector, sector.withTrails(trails));
+				}
 			}
-			
+
 			loadSimplifiedGradeCounts(c, authUserId, reqId, sectorLookup);
 			for (var sector : sectorLookup.values().stream()
 					.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
@@ -1148,7 +1148,7 @@ public class Dao {
 				filePart.setFormDataContentDisposition(disposition);
 
 				User photographer = User.from(USER_ID_UNKNOWN, null);
-				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, 0, 0, null, null, null, null, null, 0, finalUserId.get().intValue());
+				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, null, 0, finalUserId.get().intValue());
 				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
@@ -1818,7 +1818,7 @@ public class Dao {
 				           WHERE ma.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a.name, 'sectorName', s.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a.id, 'areaName', a.name, 'sectorId', ms.sector_id, 'sectorName', s.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s ON ms.sector_id = s.id
 				           JOIN area a ON s.area_id = a.id
@@ -1828,7 +1828,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p.id, 'problemName', p.name, 'problemGrade', g.grade, 'problemPitch', mp.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id),
-				               'milliseconds', mp.milliseconds, 'areaName', a.name, 'sectorName', s.name, 'trivia', mp.trivia
+				               'milliseconds', mp.milliseconds, 'areaId', a.id, 'areaName', a.name, 'sectorId', s.id, 'sectorName', s.name, 'trivia', mp.trivia
 				           ))
 				           FROM media_problem mp
 				           JOIN problem p ON mp.problem_id = p.id
@@ -1840,9 +1840,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -2833,7 +2839,7 @@ public class Dao {
 				           WHERE ma.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s2 ON ms.sector_id = s2.id
 				           JOIN area a2 ON s2.area_id = a2.id
@@ -2843,7 +2849,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp2.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp2.trivia
+				               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
 				           ))
 				           FROM media_problem mp2
 				           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -2855,9 +2861,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -2928,8 +2940,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							m.inherited(), rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -2963,7 +2974,7 @@ public class Dao {
 				           WHERE ma.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s2 ON ms.sector_id = s2.id
 				           JOIN area a2 ON s2.area_id = a2.id
@@ -2973,7 +2984,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp2.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp2.trivia
+				               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
 				           ))
 				           FROM media_problem mp2
 				           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -2985,9 +2996,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -3060,8 +3077,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							m.inherited(), rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -3096,7 +3112,7 @@ public class Dao {
 					           WHERE ma.media_id = m.id
 					       ) areas_json,
 					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+					           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 					           FROM media_sector ms
 					           JOIN sector s2 ON ms.sector_id = s2.id
 					           JOIN area a2 ON s2.area_id = a2.id
@@ -3106,7 +3122,7 @@ public class Dao {
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 					               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 					               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-					               'milliseconds', mp2.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp2.trivia
+					               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
 					           ))
 					           FROM media_problem mp2
 					           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -3118,9 +3134,15 @@ public class Dao {
 					             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 					       ) problems_json,
 					       (
-					           SELECT JSON_ARRAYAGG(mt.trail_id)
-					           FROM media_trail mt
-					           WHERE mt.media_id = m.id
+					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+					              'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+					          ))
+					          FROM media_trail mt9
+					          JOIN trail t9 ON mt9.trail_id = t9.id
+					          JOIN sector_trail st9 ON t9.id = st9.trail_id
+					          JOIN sector s9 ON st9.sector_id = s9.id
+					          JOIN area a9 ON s9.area_id = a9.id
+					          WHERE mt9.media_id = m.id
 					       ) trails_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -3206,7 +3228,7 @@ public class Dao {
 					           WHERE ma.media_id = m.id
 					       ) areas_json,
 					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+					           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 					           FROM media_sector ms
 					           JOIN sector s2 ON ms.sector_id = s2.id
 					           JOIN area a2 ON s2.area_id = a2.id
@@ -3216,7 +3238,7 @@ public class Dao {
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 					               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 					               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-					               'milliseconds', mp2.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp2.trivia
+					               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
 					           ))
 					           FROM media_problem mp2
 					           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -3228,9 +3250,15 @@ public class Dao {
 					             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 					       ) problems_json,
 					       (
-					           SELECT JSON_ARRAYAGG(mt.trail_id)
-					           FROM media_trail mt
-					           WHERE mt.media_id = m.id
+					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+					              'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+					          ))
+					          FROM media_trail mt9
+					          JOIN trail t9 ON mt9.trail_id = t9.id
+					          JOIN sector_trail st9 ON t9.id = st9.trail_id
+					          JOIN sector s9 ON st9.sector_id = s9.id
+					          JOIN area a9 ON s9.area_id = a9.id
+					          WHERE mt9.media_id = m.id
 					       ) trails_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -3309,8 +3337,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							m.inherited(), m.enableMoveToIdSector(), m.enableMoveToIdProblem(),
-							rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							m.inherited(), rst.getString("url"), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -4698,162 +4725,6 @@ public class Dao {
 		}
 	}
 
-	public void moveMedia(Connection c, Optional<Integer> authUserId, int id, boolean left, int toIdSector, int toIdProblem) throws SQLException {
-		boolean ok = false;
-		int areaId = 0;
-		int sectorId = 0;
-		int problemId = 0;
-		int trailId = 0;
-		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (
-				  SELECT ? auth_user_id, ? media_id
-				)
-				SELECT ur.admin_write, ur.superadmin_write,
-				       MAX(ma.area_id) area_id, MAX(ms.sector_id) sector_id, MAX(mp.problem_id) problem_id, MAX(mt.trail_id) trail_id
-				FROM req
-				JOIN area a ON true
-				JOIN sector s ON a.id=s.area_id
-				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
-				LEFT JOIN media_area ma ON a.id=ma.area_id AND ma.media_id=req.media_id
-				LEFT JOIN media_sector ms ON s.id=ms.sector_id AND ms.media_id=req.media_id
-				LEFT JOIN problem p ON s.id=p.sector_id
-				LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.media_id=req.media_id
-				LEFT JOIN sector_trail st ON s.id=st.sector_id
-				LEFT JOIN media_trail mt ON st.trail_id=mt.trail_id AND mt.media_id=req.media_id
-				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mt.media_id IS NOT NULL
-				GROUP BY ur.admin_write, ur.superadmin_write
-				""")) {
-			ps.setInt(1, authUserId.orElseThrow());
-			ps.setInt(2, id);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-					areaId = rst.getInt("area_id");
-					sectorId = rst.getInt("sector_id");
-					problemId = rst.getInt("problem_id");
-					trailId = rst.getInt("trail_id");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-
-		if (toIdSector > 0) {
-			if (problemId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=? AND problem_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, problemId);
-					ps.execute();
-				}
-			}
-			else if (areaId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=? AND area_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, areaId);
-					ps.execute();
-				}
-			}
-			else {
-				throw new IllegalArgumentException("Invalid location on media with id=" + id);
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_sector (media_id, sector_id) VALUES (?, ?)")) {
-				ps.setInt(1, id);
-				ps.setInt(2, toIdSector);
-				ps.execute();
-			}
-		}
-		else if (toIdProblem > 0) {
-			if (sectorId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=? AND sector_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, sectorId);
-					ps.execute();
-				}
-			}
-			else if (areaId > 0) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=? AND area_id=?")) {
-					ps.setInt(1, id);
-					ps.setInt(2, areaId);
-					ps.execute();
-				}
-			}
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_problem (media_id, problem_id) VALUES (?, ?)")) {
-				ps.setInt(1, id);
-				ps.setInt(2, toIdProblem);
-				ps.execute();
-			}
-		}
-		else { // Move image left/right
-			String table = null;
-			String column = null;
-			String extraOrder = "";
-			int columnId = 0;
-			if (areaId > 0) {
-				table = "media_area";
-				column = "area_id";
-				columnId = areaId;
-			}
-			else if (sectorId > 0) {
-				table = "media_sector";
-				column = "sector_id";
-				columnId = sectorId;
-			}
-			else if (trailId > 0) {
-				table = "media_trail";
-				column = "trail_id";
-				columnId = trailId;
-			}
-			else if (problemId > 0) {
-				table = "media_problem";
-				column = "problem_id";
-				columnId = problemId;
-				extraOrder = "IFNULL(pitch,0), ";
-			}
-			else {
-				throw new UnsupportedOperationException("Could not find media association for left/right move.");
-			}
-			List<Integer> idMediaList = new ArrayList<>();
-			try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
-				ps.setInt(1, columnId);
-				try (ResultSet rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int idMedia = rst.getInt("id");
-						idMediaList.add(idMedia);
-					}
-				}
-			}
-			final int ixToMove = idMediaList.indexOf(id);
-			idMediaList.remove(ixToMove);
-			Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
-			if (left) {
-				if (ixToMove == 0) {
-					idMediaList.add(id); // Move from start to end
-				} else {
-					idMediaList.add(ixToMove-1, id);
-				}
-			} else {
-				if (ixToMove == idMediaList.size()) {
-					idMediaList.addFirst(id); // Move from end to start
-				} else {
-					idMediaList.add(ixToMove+1, id);
-				}
-			}
-			try (PreparedStatement ps = c.prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
-				int sorting = 0;
-				for (int idMedia : idMediaList) {
-					ps.setInt(1, ++sorting);
-					ps.setInt(2, columnId);
-					ps.setInt(3, idMedia);
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-
-		if (problemId > 0) {
-			fillActivity(c, problemId);
-		}
-	}
-
 	public void rotateMedia(Connection c, Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
 		Rotation r = switch (degrees) {
@@ -4866,99 +4737,99 @@ public class Dao {
 	}
 
 	public void saveMediaAnalysis(Connection c, int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
-	    Preconditions.checkArgument(mediaId > 0, "Media id required");
+		Preconditions.checkArgument(mediaId > 0, "Media id required");
 
-	    boolean exists = false;
-	    try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM media_ml_analysis WHERE media_id = ?")) {
-	        ps.setInt(1, mediaId);
-	        try (ResultSet rs = ps.executeQuery()) {
-	            if (rs.next()) {
-	                exists = true;
-	            }
-	        }
-	    }
-	    if (exists) {
-	        try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
-	            ps.setInt(1, mediaId);
-	            ps.execute();
-	        }
-	    }
+		boolean exists = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM media_ml_analysis WHERE media_id = ?")) {
+			ps.setInt(1, mediaId);
+			try (ResultSet rs = ps.executeQuery()) {
+				if (rs.next()) {
+					exists = true;
+				}
+			}
+		}
+		if (exists) {
+			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_ml_analysis WHERE media_id=?")) {
+				ps.setInt(1, mediaId);
+				ps.execute();
+			}
+		}
 
-	    boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
+		boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
 
-	    int focusX = 0;
-	    int focusY = 0;
+		int focusX = 0;
+		int focusY = 0;
 
-	    if (hasPersonObject) {
-	        var climber = objects.stream()
-	                .filter(obj -> obj.getName().equalsIgnoreCase("Person"))
-	                .min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
-	                .orElse(null);
+		if (hasPersonObject) {
+			var climber = objects.stream()
+					.filter(obj -> obj.getName().equalsIgnoreCase("Person"))
+					.min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
+					.orElse(null);
 
-	        if (climber != null) {
-	            List<NormalizedVertex> v = climber.getBoundingPoly().getNormalizedVerticesList();
-	            if (v.size() >= 3) {
-	                float xMin = v.get(0).getX();
-	                float yMin = v.get(0).getY();
-	                float xMax = v.get(2).getX();
-	                float yMax = v.get(2).getY();
-	                float personHeight = yMax - yMin;
+			if (climber != null) {
+				List<NormalizedVertex> v = climber.getBoundingPoly().getNormalizedVerticesList();
+				if (v.size() >= 3) {
+					float xMin = v.get(0).getX();
+					float yMin = v.get(0).getY();
+					float xMax = v.get(2).getX();
+					float yMax = v.get(2).getY();
+					float personHeight = yMax - yMin;
 
-	                focusX = Math.round(((xMin + xMax) / 2) * 100);
-	                if (imageHeight > imageWidth) {
-	                    if (yMax > 0.80f && personHeight < 0.60f) {
-	                        focusY = Math.round(yMax * 100);
-	                    } else {
-	                        focusY = Math.round((yMin + personHeight * 0.85f) * 100);
-	                    }
-	                } else {
-	                    focusY = Math.round(((yMin + yMax) / 2) * 100);
-	                }
-	            }
-	        }
-	    }
+					focusX = Math.round(((xMin + xMax) / 2) * 100);
+					if (imageHeight > imageWidth) {
+						if (yMax > 0.80f && personHeight < 0.60f) {
+							focusY = Math.round(yMax * 100);
+						} else {
+							focusY = Math.round((yMin + personHeight * 0.85f) * 100);
+						}
+					} else {
+						focusY = Math.round(((yMin + yMax) / 2) * 100);
+					}
+				}
+			}
+		}
 
-	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
-	        ps.setInt(1, mediaId);
-	        ps.setString(2, hexColor);
-	        ps.setInt(3, focusX);
-	        ps.setInt(4, focusY);
-	        ps.setBoolean(5, hasPersonObject);
-	        ps.setBoolean(6, failed);
-	        ps.execute();
-	    }
+		try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_analysis (media_id, primary_color_hex, focus_x, focus_y, is_action_shot, failed) VALUES (?, ?, ?, ?, ?, ?)")) {
+			ps.setInt(1, mediaId);
+			ps.setString(2, hexColor);
+			ps.setInt(3, focusX);
+			ps.setInt(4, focusY);
+			ps.setBoolean(5, hasPersonObject);
+			ps.setBoolean(6, failed);
+			ps.execute();
+		}
 
-	    if (!failed) {
-	        if (labels != null && !labels.isEmpty()) {
-	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
-	                for (EntityAnnotation l : labels) {
-	                    ps.setInt(1, mediaId);
-	                    ps.setString(2, l.getDescription());
-	                    ps.setFloat(3, l.getScore());
-	                    ps.addBatch();
-	                }
-	                ps.executeBatch();
-	            }
-	        }
-	        if (objects != null && !objects.isEmpty()) {
-	            try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-	                for (LocalizedObjectAnnotation obj : objects) {
-	                    List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
-	                    if (v.size() >= 3) {
-	                        ps.setInt(1, mediaId);
-	                        ps.setString(2, obj.getName());
-	                        ps.setFloat(3, obj.getScore());
-	                        ps.setFloat(4, v.get(0).getX());
-	                        ps.setFloat(5, v.get(0).getY());
-	                        ps.setFloat(6, v.get(2).getX());
-	                        ps.setFloat(7, v.get(2).getY());
-	                        ps.addBatch();
-	                    }
-	                }
-	                ps.executeBatch();
-	            }
-	        }
-	    }
+		if (!failed) {
+			if (labels != null && !labels.isEmpty()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
+					for (EntityAnnotation l : labels) {
+						ps.setInt(1, mediaId);
+						ps.setString(2, l.getDescription());
+						ps.setFloat(3, l.getScore());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			}
+			if (objects != null && !objects.isEmpty()) {
+				try (PreparedStatement ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+					for (LocalizedObjectAnnotation obj : objects) {
+						List<NormalizedVertex> v = obj.getBoundingPoly().getNormalizedVerticesList();
+						if (v.size() >= 3) {
+							ps.setInt(1, mediaId);
+							ps.setString(2, obj.getName());
+							ps.setFloat(3, obj.getScore());
+							ps.setFloat(4, v.get(0).getX());
+							ps.setFloat(5, v.get(0).getY());
+							ps.setFloat(6, v.get(2).getX());
+							ps.setFloat(7, v.get(2).getY());
+							ps.addBatch();
+						}
+					}
+					ps.executeBatch();
+				}
+			}
+		}
 	}
 
 	public Redirect setArea(Connection c, Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException {
@@ -5483,7 +5354,7 @@ public class Dao {
 		fillActivity(c, t.idProblem());
 		updateProblemConsensusGrade(c, t.idProblem());
 	}
-	
+
 	public void setUserRegion(Connection c, Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {
 		if (delete) {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM user_region WHERE user_id=? AND region_id=?")) {
@@ -5498,6 +5369,119 @@ public class Dao {
 				ps.setInt(2, regionId);
 				ps.execute();
 			}
+		}
+	}
+
+	public void shiftMediaPosition(Connection c, Optional<Integer> authUserId, int id, boolean left, boolean right) throws SQLException {
+		boolean ok = false;
+		int areaId = 0;
+		int sectorId = 0;
+		int problemId = 0;
+		int trailId = 0;
+		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+				  SELECT ? auth_user_id, ? media_id
+				)
+				SELECT ur.admin_write, ur.superadmin_write,
+				       MAX(ma.area_id) area_id, MAX(ms.sector_id) sector_id, MAX(mp.problem_id) problem_id, MAX(mt.trail_id) trail_id
+				FROM req
+				JOIN area a ON true
+				JOIN sector s ON a.id=s.area_id
+				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
+				LEFT JOIN media_area ma ON a.id=ma.area_id AND ma.media_id=req.media_id
+				LEFT JOIN media_sector ms ON s.id=ms.sector_id AND ms.media_id=req.media_id
+				LEFT JOIN problem p ON s.id=p.sector_id
+				LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.media_id=req.media_id
+				LEFT JOIN sector_trail st ON s.id=st.sector_id
+				LEFT JOIN media_trail mt ON st.trail_id=mt.trail_id AND mt.media_id=req.media_id
+				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mt.media_id IS NOT NULL
+				GROUP BY ur.admin_write, ur.superadmin_write
+				""")) {
+			ps.setInt(1, authUserId.orElseThrow());
+			ps.setInt(2, id);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+					areaId = rst.getInt("area_id");
+					sectorId = rst.getInt("sector_id");
+					problemId = rst.getInt("problem_id");
+					trailId = rst.getInt("trail_id");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+
+		String table = null;
+		String column = null;
+		String extraOrder = "";
+		int columnId = 0;
+		if (areaId > 0) {
+			table = "media_area";
+			column = "area_id";
+			columnId = areaId;
+		}
+		else if (sectorId > 0) {
+			table = "media_sector";
+			column = "sector_id";
+			columnId = sectorId;
+		}
+		else if (trailId > 0) {
+			table = "media_trail";
+			column = "trail_id";
+			columnId = trailId;
+		}
+		else if (problemId > 0) {
+			table = "media_problem";
+			column = "problem_id";
+			columnId = problemId;
+			extraOrder = "IFNULL(pitch,0), ";
+		}
+		else {
+			throw new UnsupportedOperationException("Could not find media association for left/right move.");
+		}
+		List<Integer> idMediaList = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
+			ps.setInt(1, columnId);
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int idMedia = rst.getInt("id");
+					idMediaList.add(idMedia);
+				}
+			}
+		}
+		final int ixToMove = idMediaList.indexOf(id);
+		idMediaList.remove(ixToMove);
+		Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
+		if (left) {
+			if (ixToMove == 0) {
+				idMediaList.add(id); // Move from start to end
+			} else {
+				idMediaList.add(ixToMove-1, id);
+			}
+		}
+		else if (right) {
+			if (ixToMove == idMediaList.size()) {
+				idMediaList.addFirst(id); // Move from end to start
+			} else {
+				idMediaList.add(ixToMove+1, id);
+			}
+		}
+		else {
+			throw new UnsupportedOperationException("left=false and right=false");
+		}
+		try (PreparedStatement ps = c.prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
+			int sorting = 0;
+			for (int idMedia : idMediaList) {
+				ps.setInt(1, ++sorting);
+				ps.setInt(2, columnId);
+				ps.setInt(3, idMedia);
+				ps.addBatch();
+			}
+			ps.executeBatch();
+		}
+
+		if (problemId > 0) {
+			fillActivity(c, problemId);
 		}
 	}
 
@@ -5816,7 +5800,7 @@ public class Dao {
 				}
 			}
 		}
-		
+
 		if (!allCoordinatesGlobal.isEmpty()) {
 			allCoordinatesGlobal.sort((c1, c2) -> {
 				if (c1.getId() != c2.getId()) {
@@ -5826,7 +5810,7 @@ public class Dao {
 				if (latCompare != 0) return latCompare;
 				return Double.compare(c1.getLongitude(), c2.getLongitude());
 			});
-			
+
 			ensureCoordinatesInDbWithElevationAndId(c, allCoordinatesGlobal);
 		}
 
@@ -5927,7 +5911,7 @@ public class Dao {
 			}
 		}
 	}
-	
+
 	private int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
 		int id = -1;
 		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
@@ -5965,7 +5949,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	private void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1")) {
@@ -5994,7 +5978,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	private void ensureAdminWriteSector(Connection c, Optional<Integer> authUserId, int sectorId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("""
@@ -6318,7 +6302,7 @@ public class Dao {
 		return res;
 	}
 
-	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited, int enableMoveToIdSector, int enableMoveToIdProblem) throws SQLException {
+	private List<Media> getMediaArea(Connection c, Optional<Integer> authUserId, int id, boolean inherited) throws SQLException {
 		List<Media> res = new ArrayList<>();
 		int currentAuthUserId = authUserId.orElse(0);
 		String sql = """
@@ -6341,7 +6325,7 @@ public class Dao {
 				           WHERE ma2.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a3.name, 'sectorName', s3.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a3.id, 'areaName', a3.name, 'sectorId', ms.sector_id, 'sectorName', s3.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s3 ON ms.sector_id = s3.id
 				           JOIN area a3 ON s3.area_id = a3.id
@@ -6351,7 +6335,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp2.milliseconds, 'areaName', a4.name, 'sectorName', s4.name, 'trivia', mp2.trivia
+				               'milliseconds', mp2.milliseconds, 'areaId', a4.id, 'areaName', a4.name, 'sectorId', s4.id, 'sectorName', s4.name, 'trivia', mp2.trivia
 				           ))
 				           FROM media_problem mp2
 				           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -6363,9 +6347,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6440,8 +6430,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							inherited, enableMoveToIdSector, enableMoveToIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							inherited, m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -6474,7 +6463,7 @@ public class Dao {
 				           WHERE ma.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s2 ON ms.sector_id = s2.id
 				           JOIN area a2 ON s2.area_id = a2.id
@@ -6484,7 +6473,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g2.grade, 'problemPitch', mp.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp.trivia
+				               'milliseconds', mp.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp.trivia
 				           ))
 				           FROM media_problem mp
 				           JOIN problem p2 ON mp.problem_id = p2.id
@@ -6496,9 +6485,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6573,137 +6568,6 @@ public class Dao {
 		logger.debug("getMediaGuestbook(guestbookId={}) - res.size={}, duration={}", guestbookId, res.size(), stopwatch);
 		return res;
 	}
-	
-	private Multimap<Integer, Media> getMediaTrails(Connection c, Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		Multimap<Integer, Media> res = ArrayListMultimap.create();
-		if (trailIds.isEmpty()) {
-			return res;
-		}
-
-		int currentAuthUserId = authUserId.orElse(0);
-		String inClause = ",?".repeat(trailIds.size()).substring(1);
-
-		String sql = """
-			WITH req AS (
-			    SELECT ? auth_user_id
-			)
-			SELECT mt.trail_id, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				   m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
-				   DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
-				   ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT('id', tu.id, 'name', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,'')))))
-					   FROM media_user tmu
-					   JOIN user tu ON tmu.user_id = tu.id
-					   WHERE tmu.media_id = m.id
-				   ) tagged_json,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', ma.area_id, 'areaName', a2.name, 'trivia', ma.trivia))
-					   FROM media_area ma
-					   JOIN area a2 ON ma.area_id = a2.id
-					   WHERE ma.media_id = m.id
-				   ) areas_json,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
-					   FROM media_sector ms
-					   JOIN sector s2 ON ms.sector_id = s2.id
-					   JOIN area a2 ON s2.area_id = a2.id
-					   WHERE ms.media_id = m.id
-				   ) sectors_json,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT(
-						   'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp.pitch,
-						   'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-						   'milliseconds', mp.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp.trivia
-					   ))
-					   FROM media_problem mp
-					   JOIN problem p2 ON mp.problem_id = p2.id
-					   JOIN sector s2 ON p2.sector_id = s2.id
-					   JOIN area a2 ON s2.area_id = a2.id
-					   JOIN grade g ON p2.consensus_grade_id = g.id
-					   LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-					   WHERE mp.media_id = m.id
-						 AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
-				   ) problems_json,
-				   (
-					   SELECT JSON_ARRAYAGG(mt2.trail_id)
-					   FROM media_trail mt2
-					   WHERE mt2.media_id = m.id
-				   ) trails_json,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT(
-						   'id', id, 'path', path, 'rappelX', rappel_x, 'rappelY', rappel_y, 'rappelBolted', rappel_bolted
-					   ))
-					   FROM media_svg
-					   WHERE media_id = m.id
-				   ) svgs_json,
-				   (
-					   SELECT JSON_ARRAYAGG(JSON_OBJECT(
-						   'id', s3.id,
-						   'problemId', p3.id,
-						   'problemName', p3.name,
- 						   'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
-						   'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-						   'problemSubtype', ty3.subtype,
-						   'nr', p3.nr,
-						   'pitch', COALESCE(ps3.nr, 0),
-						   'path', s3.path,
-						   'hasAnchor', s3.has_anchor,
-						   'texts', s3.texts,
-						   'anchors', s3.anchors,
-						   'tradBelayStations', s3.trad_belay_stations,
-						   'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-						   'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
-						   'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
-						   'dangerous', COALESCE((
-							   SELECT gb3.danger 
-							   FROM guestbook gb3 
-							   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
-							   ORDER BY gb3.id DESC LIMIT 1
-							), 0) = 1
-					   ))
-					   FROM svg s3
-					   JOIN problem p3 ON s3.problem_id = p3.id
-					   JOIN grade g3 ON p3.consensus_grade_id = g3.id
-					   JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-					   JOIN type ty3 ON p3.type_id = ty3.id
-					   JOIN sector sec3 ON p3.sector_id = sec3.id
-					   JOIN area a5 ON sec3.area_id = a5.id
-					   LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
-					   LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
-					   LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
-					   LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
-					   WHERE s3.media_id = m.id
-						 AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
-				   ) svgs_table_json,
-				   COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
-			FROM req
-			CROSS JOIN media_trail mt
-			JOIN media m ON (mt.media_id = m.id AND m.deleted_user_id IS NULL)
-			LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-			LEFT JOIN user ph ON m.photographer_user_id = ph.id
-			WHERE mt.trail_id IN (__IN_CLAUSE__)
-			GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
-			ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
-			""".replace("__IN_CLAUSE__", inClause);
-
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
-			int idx = 1;
-			ps.setInt(idx++, currentAuthUserId);
-			for (int trailId : trailIds) {
-				ps.setInt(idx++, trailId);
-			}
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int trailId = rst.getInt("trail_id");
-					res.put(trailId, Media.fromResultSet(rst, currentAuthUserId, gson));
-				}
-			}
-		}
-		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), stopwatch);
-		return res;
-	}
 
 	private List<Media> getMediaProblem(Connection c, Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
@@ -6738,7 +6602,7 @@ public class Dao {
 				           WHERE ma.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms.sector_id, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', ms.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
 				           FROM media_sector ms
 				           JOIN sector s2 ON ms.sector_id = s2.id
 				           JOIN area a2 ON s2.area_id = a2.id
@@ -6748,7 +6612,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp2.milliseconds, 'areaName', a2.name, 'sectorName', s2.name, 'trivia', mp2.trivia
+				               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorName', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
 				           ))
 				           FROM media_problem mp2
 				           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -6760,9 +6624,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6843,8 +6713,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
-							m.inherited(), sectorId, m.enableMoveToIdProblem(),
-							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							m.inherited(), m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							);
 					pMediaList.add(m);
 				}
@@ -6892,7 +6761,7 @@ public class Dao {
 				           WHERE ma2.media_id = m.id
 				       ) areas_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT('sectorId', ms2.sector_id, 'areaName', a3.name, 'sectorName', s3.name, 'trivia', ms2.trivia))
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a3.id, 'areaName', a3.name, 'sectorId', ms2.sector_id, 'sectorName', s3.name, 'trivia', ms2.trivia))
 				           FROM media_sector ms2
 				           JOIN sector s3 ON ms2.sector_id = s3.id
 				           JOIN area a3 ON s3.area_id = a3.id
@@ -6902,7 +6771,7 @@ public class Dao {
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
 				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-				               'milliseconds', mp2.milliseconds, 'areaName', a4.name, 'sectorName', s4.name, 'trivia', mp2.trivia
+				               'milliseconds', mp2.milliseconds, 'areaId', a4.id, 'areaName', a4.name, 'sectorId', s4.id, 'sectorName', s4.name, 'trivia', mp2.trivia
 				           ))
 				           FROM media_problem mp2
 				           JOIN problem p2 ON mp2.problem_id = p2.id
@@ -6914,9 +6783,15 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(mt.trail_id)
-				           FROM media_trail mt
-				           WHERE mt.media_id = m.id
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6987,14 +6862,11 @@ public class Dao {
 
 					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
 
-					int finalMoveIdProblem = (m.svgs() != null && m.svgs().stream().filter(x -> x.problemId() != enableMoveToIdProblem).findAny().isEmpty()) ? enableMoveToIdProblem : 0;
-
 					initialList.add(new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							inherited, enableMoveToIdSector, finalMoveIdProblem,
-							m.url(), m.areas(), m.sectors(), m.problems(), m.trailIds(), m.guestbookId(), m.userAvatarId()
+							inherited, m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -7018,6 +6890,142 @@ public class Dao {
 		}
 		logger.debug("getMediaSector(idSector={}, optionalIdProblem={}, inherited={}, enableMoveToIdArea={}, enableMoveIdSector={}, enableMoveIdProblem={}, showHiddenMedia={}) - allMedia.size()={}, duration={}", idSector, optionalIdProblem, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, showHiddenMedia, allMedia.size(), stopwatch);
 		return allMedia;
+	}
+
+	private Multimap<Integer, Media> getMediaTrails(Connection c, Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		Multimap<Integer, Media> res = ArrayListMultimap.create();
+		if (trailIds.isEmpty()) {
+			return res;
+		}
+
+		int currentAuthUserId = authUserId.orElse(0);
+		String inClause = ",?".repeat(trailIds.size()).substring(1);
+		String sql = """
+				WITH req AS (
+				    SELECT ? auth_user_id
+				)
+				SELECT mt.trail_id, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
+					   m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+					   DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken,
+					   ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT('id', tu.id, 'name', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,'')))))
+						   FROM media_user tmu
+						   JOIN user tu ON tmu.user_id = tu.id
+						   WHERE tmu.media_id = m.id
+					   ) tagged_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', ma.area_id, 'areaName', a2.name, 'trivia', ma.trivia))
+						   FROM media_area ma
+						   JOIN area a2 ON ma.area_id = a2.id
+						   WHERE ma.media_id = m.id
+					   ) areas_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
+						   FROM media_sector ms
+						   JOIN sector s2 ON ms.sector_id = s2.id
+						   JOIN area a2 ON s2.area_id = a2.id
+						   WHERE ms.media_id = m.id
+					   ) sectors_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
+							   'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp.pitch,
+							   'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
+							   'milliseconds', mp.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorId', s2.id, 'sectorName', s2.name, 'trivia', mp.trivia
+						   ))
+						   FROM media_problem mp
+						   JOIN problem p2 ON mp.problem_id = p2.id
+						   JOIN sector s2 ON p2.sector_id = s2.id
+						   JOIN area a2 ON s2.area_id = a2.id
+						   JOIN grade g ON p2.consensus_grade_id = g.id
+						   LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+						   WHERE mp.media_id = m.id
+							 AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+					   ) problems_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
+				           ))
+				           FROM media_trail mt9
+				           JOIN trail t9 ON mt9.trail_id = t9.id
+				           JOIN sector_trail st9 ON t9.id = st9.trail_id
+				           JOIN sector s9 ON st9.sector_id = s9.id
+				           JOIN area a9 ON s9.area_id = a9.id
+				           WHERE mt9.media_id = m.id
+					   ) trails_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
+							   'id', id, 'path', path, 'rappelX', rappel_x, 'rappelY', rappel_y, 'rappelBolted', rappel_bolted
+						   ))
+						   FROM media_svg
+						   WHERE media_id = m.id
+					   ) svgs_json,
+					   (
+						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
+							   'id', s3.id,
+							   'problemId', p3.id,
+							   'problemName', p3.name,
+								   'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
+							   'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
+							   'problemSubtype', ty3.subtype,
+							   'nr', p3.nr,
+							   'pitch', COALESCE(ps3.nr, 0),
+							   'path', s3.path,
+							   'hasAnchor', s3.has_anchor,
+							   'texts', s3.texts,
+							   'anchors', s3.anchors,
+							   'tradBelayStations', s3.trad_belay_stations,
+							   'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+							   'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
+							   'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
+							   'dangerous', COALESCE((
+								   SELECT gb3.danger 
+								   FROM guestbook gb3 
+								   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+								   ORDER BY gb3.id DESC LIMIT 1
+								), 0) = 1
+						   ))
+						   FROM svg s3
+						   JOIN problem p3 ON s3.problem_id = p3.id
+						   JOIN grade g3 ON p3.consensus_grade_id = g3.id
+						   JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
+						   JOIN type ty3 ON p3.type_id = ty3.id
+						   JOIN sector sec3 ON p3.sector_id = sec3.id
+						   JOIN area a5 ON sec3.area_id = a5.id
+						   LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
+						   LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
+						   LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
+						   LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
+						   WHERE s3.media_id = m.id
+							 AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+					   ) svgs_table_json,
+					   COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
+				FROM req
+				CROSS JOIN media_trail mt
+				JOIN media m ON (mt.media_id = m.id AND m.deleted_user_id IS NULL)
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				LEFT JOIN user ph ON m.photographer_user_id = ph.id
+				WHERE mt.trail_id IN (__IN_CLAUSE__)
+				GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
+				ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
+				""".replace("__IN_CLAUSE__", inClause);
+
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			int idx = 1;
+			ps.setInt(idx++, currentAuthUserId);
+			for (int trailId : trailIds) {
+				ps.setInt(idx++, trailId);
+			}
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int trailId = rst.getInt("trail_id");
+					res.put(trailId, Media.fromResultSet(rst, currentAuthUserId, gson));
+				}
+			}
+		}
+		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), stopwatch);
+		return res;
 	}
 
 	private Map<Integer, Coordinates> getProblemCoordinates(Connection c, Collection<Integer> idProblems) throws SQLException {
@@ -7335,20 +7343,20 @@ public class Dao {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Preconditions.checkArgument(!sectorIds.isEmpty(), "sectorIds is empty");
 		Multimap<Integer, Trail> res = ArrayListMultimap.create();
-		
+
 		String inClause = ",?".repeat(sectorIds.size()).substring(1);
-		
+
 		Map<Integer, TrailBuilder> trailBuilders = new LinkedHashMap<>();
 		Multimap<Integer, Integer> sectorToTrailIds = ArrayListMultimap.create();
-		
+
 		String trailSql = String.format("""
-			SELECT st.sector_id, t.id, t.is_descent, t.title, t.description 
-			FROM sector_trail st
-			JOIN trail t ON st.trail_id = t.id
-			WHERE st.sector_id IN (%s) AND t.trash IS NULL
-			ORDER BY t.is_descent, t.title
-			""", inClause);
-			
+				SELECT st.sector_id, t.id, t.is_descent, t.title, t.description 
+				FROM sector_trail st
+				JOIN trail t ON st.trail_id = t.id
+				WHERE st.sector_id IN (%s) AND t.trash IS NULL
+				ORDER BY t.is_descent, t.title
+				""", inClause);
+
 		try (PreparedStatement ps = c.prepareStatement(trailSql)) {
 			int paramIdx = 1;
 			for (int idSector : sectorIds) {
@@ -7358,30 +7366,30 @@ public class Dao {
 				while (rst.next()) {
 					int sectorId = rst.getInt("sector_id");
 					int trailId = rst.getInt("id");
-					
+
 					sectorToTrailIds.put(sectorId, trailId);
-					
+
 					if (!trailBuilders.containsKey(trailId)) {
 						trailBuilders.put(trailId, new TrailBuilder(trailId, rst.getBoolean("is_descent"), rst.getString("title"), rst.getString("description")
-						));
+								));
 					}
 				}
 			}
 		}
-		
+
 		if (trailBuilders.isEmpty()) {
 			return res;
 		}
-		
+
 		String pathInClause = ",?".repeat(trailBuilders.size()).substring(1);
 		String pathSql = String.format("""
-			SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
-			FROM trail_coordinate tc
-			JOIN coordinates c ON tc.coordinates_id = c.id
-			WHERE tc.trail_id IN (%s) 
-			ORDER BY tc.trail_id, tc.sorting
-			""", pathInClause);
-			
+				SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
+				FROM trail_coordinate tc
+				JOIN coordinates c ON tc.coordinates_id = c.id
+				WHERE tc.trail_id IN (%s) 
+				ORDER BY tc.trail_id, tc.sorting
+				""", pathInClause);
+
 		try (PreparedStatement ps = c.prepareStatement(pathSql)) {
 			int paramIdx = 1;
 			for (int trailId : trailBuilders.keySet()) {
@@ -7391,23 +7399,23 @@ public class Dao {
 				while (rst.next()) {
 					int trailId = rst.getInt("trail_id");
 					trailBuilders.get(trailId).path.add(new Coordinates(
-						rst.getInt("id"),
-						rst.getDouble("latitude"),
-						rst.getDouble("longitude"),
-						rst.getDouble("elevation"),
-						rst.getString("elevation_source")
-					));
+							rst.getInt("id"),
+							rst.getDouble("latitude"),
+							rst.getDouble("longitude"),
+							rst.getDouble("elevation"),
+							rst.getString("elevation_source")
+							));
 				}
 			}
 		}
-		
+
 		String markerSql = String.format("""
-			SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
-			FROM trail_marker tm
-			JOIN coordinates c ON tm.coordinates_id = c.id
-			WHERE tm.trail_id IN (%s)
-			""", pathInClause);
-			
+				SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
+				FROM trail_marker tm
+				JOIN coordinates c ON tm.coordinates_id = c.id
+				WHERE tm.trail_id IN (%s)
+				""", pathInClause);
+
 		try (PreparedStatement ps = c.prepareStatement(markerSql)) {
 			int paramIdx = 1;
 			for (int trailId : trailBuilders.keySet()) {
@@ -7417,59 +7425,59 @@ public class Dao {
 				while (rst.next()) {
 					int trailId = rst.getInt("trail_id");
 					Coordinates markerCoords = new Coordinates(
-						rst.getInt("id"),
-						rst.getDouble("latitude"),
-						rst.getDouble("longitude"),
-						rst.getDouble("elevation"),
-						rst.getString("elevation_source")
-					);
+							rst.getInt("id"),
+							rst.getDouble("latitude"),
+							rst.getDouble("longitude"),
+							rst.getDouble("elevation"),
+							rst.getString("elevation_source")
+							);
 					trailBuilders.get(trailId).markers.add(new Trail.TrailMarker(markerCoords, rst.getString("label")));
 				}
 			}
 		}
-		
+
 		Multimap<Integer, Media> trailsMediaMap = getMediaTrails(c, authUserId, trailBuilders.keySet());
-		
+
 		Map<Integer, Trail> finalTrailsMap = new HashMap<>();
 		for (TrailBuilder b : trailBuilders.values()) {
 			List<Media> trailMediaList = (List<Media>) trailsMediaMap.get(b.id);
 			Trail compiledTrail = Trail.withCalculatedStats(
-				b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, trailMediaList, null
-			);
+					b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, trailMediaList, null
+					);
 			finalTrailsMap.put(b.id, compiledTrail);
 		}
-		
+
 		for (int sectorId : sectorIds) {
 			for (int trailId : sectorToTrailIds.get(sectorId)) {
 				res.put(sectorId, finalTrailsMap.get(trailId));
 			}
 		}
-		
+
 		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), stopwatch);
 		return res;
 	}
 
 	private int insertMediaMetadata(Connection c, int uploaderId, Media m, StorageType storageType) throws Exception {
-	    String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
-	    int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
+		String photographerName = (m.photographer() != null) ? m.photographer().name() : null;
+		int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : getExistingOrInsertUser(c, photographerName);
 
-	    String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
-	    try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
-	        ps.setBoolean(1, storageType.isMovie());
-	        ps.setString(2, storageType.getExtension());
-	        ps.setInt(3, photographerId);
-	        ps.setInt(4, uploaderId);
-	        ps.setString(5, GlobalFunctions.stripString(m.description()));
-	        ps.setInt(6, m.thumbnailSeconds());
-	        ps.setString(7, m.embedUrl());
-	        ps.executeUpdate();
-	        try (ResultSet rst = ps.getGeneratedKeys()) {
-	            if (rst != null && rst.next()) {
-	                return rst.getInt(1);
-	            }
-	        }
-	    }
-	    throw new IllegalStateException("Failed to insert media metadata");
+		String insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
+		try (PreparedStatement ps = c.prepareStatement(insertMediaSql, Statement.RETURN_GENERATED_KEYS)) {
+			ps.setBoolean(1, storageType.isMovie());
+			ps.setString(2, storageType.getExtension());
+			ps.setInt(3, photographerId);
+			ps.setInt(4, uploaderId);
+			ps.setString(5, GlobalFunctions.stripString(m.description()));
+			ps.setInt(6, m.thumbnailSeconds());
+			ps.setString(7, m.embedUrl());
+			ps.executeUpdate();
+			try (ResultSet rst = ps.getGeneratedKeys()) {
+				if (rst != null && rst.next()) {
+					return rst.getInt(1);
+				}
+			}
+		}
+		throw new IllegalStateException("Failed to insert media metadata");
 	}
 
 	private void loadSimplifiedGradeCounts(Connection c, Optional<Integer> authUserId, int areaId, Map<Integer, AreaSector> sectorLookup) throws SQLException {
@@ -7544,71 +7552,71 @@ public class Dao {
 
 		// 1. Sync the Primary Exclusive Association
 		switch (associations) {
-			case AREAS -> {
-				String sql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
-					for (Media.MediaArea area : m.areas()) {
-						ps.setInt(1, mediaId);
-						ps.setInt(2, area.areaId());
-						ps.setBoolean(3, area.trivia());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			case SECTORS -> {
-				String sql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
-					for (Media.MediaSector sector : m.sectors()) {
-						ps.setInt(1, mediaId);
-						ps.setInt(2, sector.sectorId());
-						ps.setBoolean(3, sector.trivia());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			case PROBLEMS -> {
-				String sql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
-					for (Media.MediaProblem problem : m.problems()) {
-						ps.setInt(1, mediaId);
-						ps.setInt(2, problem.problemId());
-						ps.setInt(3, problem.problemPitch());
-						ps.setBoolean(4, problem.trivia());
-						ps.setLong(5, problem.milliseconds());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			case TRAILS -> {
-				String sql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
-					for (int trailId : m.trailIds()) {
-						ps.setInt(1, mediaId);
-						ps.setInt(2, trailId);
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			}
-			case GUESTBOOK -> {
-				String sql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
+		case AREAS -> {
+			String sql = "INSERT INTO media_area (media_id, area_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (Media.MediaArea area : m.areas()) {
 					ps.setInt(1, mediaId);
-					ps.setInt(2, m.guestbookId());
-					ps.execute();
+					ps.setInt(2, area.areaId());
+					ps.setBoolean(3, area.trivia());
+					ps.addBatch();
 				}
+				ps.executeBatch();
 			}
-			case USER_AVATAR -> {
-				String sql = "UPDATE user SET media_id=? WHERE id=?";
-				try (PreparedStatement ps = c.prepareStatement(sql)) {
+		}
+		case SECTORS -> {
+			String sql = "INSERT INTO media_sector (media_id, sector_id, trivia) VALUES (?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (Media.MediaSector sector : m.sectors()) {
 					ps.setInt(1, mediaId);
-					ps.setInt(2, m.userAvatarId());
-					ps.execute();
+					ps.setInt(2, sector.sectorId());
+					ps.setBoolean(3, sector.trivia());
+					ps.addBatch();
 				}
+				ps.executeBatch();
 			}
+		}
+		case PROBLEMS -> {
+			String sql = "INSERT INTO media_problem (media_id, problem_id, pitch, trivia, milliseconds) VALUES (?, ?, ?, ?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (Media.MediaProblem problem : m.problems()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, problem.problemId());
+					ps.setInt(3, problem.problemPitch());
+					ps.setBoolean(4, problem.trivia());
+					ps.setLong(5, problem.milliseconds());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		case TRAILS -> {
+			String sql = "INSERT INTO media_trail (media_id, trail_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				for (Media.MediaTrail trail : m.trails()) {
+					ps.setInt(1, mediaId);
+					ps.setInt(2, trail.trailId());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+		case GUESTBOOK -> {
+			String sql = "INSERT INTO media_guestbook (media_id, guestbook_id) VALUES (?, ?)";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setInt(1, mediaId);
+				ps.setInt(2, m.guestbookId());
+				ps.execute();
+			}
+		}
+		case USER_AVATAR -> {
+			String sql = "UPDATE user SET media_id=? WHERE id=?";
+			try (PreparedStatement ps = c.prepareStatement(sql)) {
+				ps.setInt(1, mediaId);
+				ps.setInt(2, m.userAvatarId());
+				ps.execute();
+			}
+		}
 		}
 
 		// 2. Tagged Users

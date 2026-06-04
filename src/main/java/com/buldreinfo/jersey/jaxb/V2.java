@@ -91,6 +91,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -1150,6 +1151,29 @@ public class V2 {
 		});
 	}
 
+	@Operation(summary = "Reorder media", responses = {
+	        @ApiResponse(responseCode = "200"),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PATCH
+	@Path("/media/order")
+	public Response patchMediaOrder(@Context HttpServletRequest request,
+	        @Parameter(description = "Media id", required = true) @QueryParam("id") int id,
+	        @Parameter(description = "Move left", required = false) @QueryParam("left") boolean left,
+	        @Parameter(description = "Move right", required = false) @QueryParam("right") boolean right
+	        ) {
+	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+	        Preconditions.checkArgument(id > 0);
+	        Preconditions.checkArgument(left ^ right, "You must specify either 'left' or 'right', but not both.");
+	        dao.shiftMediaPosition(c, authUserId, id, left, right);
+	        return Response.ok().build();
+	    });
+	}
+
 	@Operation(summary = "Update area", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Redirect.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1257,7 +1281,7 @@ public class V2 {
 	        return Response.ok().build();
 	    });
 	}
-
+	
 	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
 	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
 	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1298,7 +1322,7 @@ public class V2 {
 	        return Response.ok().entity(res).build();
 	    });
 	}
-	
+
 	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = VideoInitResponse.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1534,7 +1558,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-
+	
 	@Operation(summary = "Update media", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1552,7 +1576,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
+
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1570,34 +1594,6 @@ public class V2 {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.rotateMedia(c, authUserId, idMedia, degrees);
-			return Response.ok().build();
-		});
-	}
-
-	@Operation(summary = "Update media location", responses = {
-			@ApiResponse(responseCode = "200"),
-			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@PUT
-	@Path("/media/location")
-	public Response putMediaLocation(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Move left", required = true) @QueryParam("left") boolean left,
-			@Parameter(description = "To sector id (will move media to sector if toSectorId>0, toIdArea=0 and toIdProblem=0)", required = true) @QueryParam("toIdSector") int toIdSector,
-			@Parameter(description = "To problem id (will move media to problem if toProblemId>0, toIdArea=0 and toSectorId=0)", required = true) @QueryParam("toIdProblem") int toIdProblem
-			) {
-		Preconditions.checkArgument((left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem == 0) ||
-				(!left && toIdSector > 0 && toIdProblem == 0) ||
-				(!left && toIdSector == 0 && toIdProblem > 0),
-				"Invalid arguments");
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(id > 0);
-			dao.moveMedia(c, authUserId, id, left, toIdSector, toIdProblem);
 			return Response.ok().build();
 		});
 	}
