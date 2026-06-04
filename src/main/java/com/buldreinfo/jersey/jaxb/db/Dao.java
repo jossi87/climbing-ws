@@ -6123,7 +6123,7 @@ public class Dao {
 				ranked_media AS (
 				  SELECT s.id sector_id,
 				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.id DESC) rn
+				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.is_360, m.is_movie, m.id DESC) rn
 				  FROM req
 				  JOIN area a ON req.area_id=a.id
 				  JOIN sector s ON a.id=s.area_id
