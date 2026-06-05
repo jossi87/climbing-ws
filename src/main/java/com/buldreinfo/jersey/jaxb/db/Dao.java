@@ -987,7 +987,7 @@ public class Dao {
 		}
 		if (a == null) {
 			try {
-				Redirect res = getCanonicalUrl(c, reqId, 0, 0);
+				Redirect res = getCanonicalUrl(c, setup, reqId, 0, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null, null);
 				}
@@ -1158,7 +1158,7 @@ public class Dao {
 		return authUserId;
 	}
 
-	public Redirect getCanonicalUrl(Connection c, int idArea, int idSector, int idProblem) throws SQLException {
+	public Redirect getCanonicalUrl(Connection c, Setup setup, int idArea, int idSector, int idProblem) throws SQLException {
 		String sqlStr = null;
 		int id = 0;
 		if (idArea > 0) {
@@ -1166,7 +1166,7 @@ public class Dao {
 					SELECT CONCAT(r.url,'/area/',a.id) url
 					FROM region r
 					JOIN area a ON r.id=a.region_id
-					WHERE a.id=?
+					WHERE r.id!=? AND a.id=?
 					""";
 			id = idArea;
 		}
@@ -1176,7 +1176,7 @@ public class Dao {
 					FROM region r
 					JOIN area a ON r.id=a.region_id
 					JOIN sector s ON a.id=s.area_id
-					WHERE s.id=?
+					WHERE r.id!=? AND s.id=?
 					""";
 			id = idSector;
 		}
@@ -1187,7 +1187,7 @@ public class Dao {
 					JOIN area a ON r.id=a.region_id
 					JOIN sector s ON a.id=s.area_id
 					JOIN problem p ON s.id=p.sector_id
-					WHERE p.id=?
+					WHERE r.id!=? AND p.id=?
 					""";
 			id = idProblem;
 		}
@@ -1195,6 +1195,7 @@ public class Dao {
 		Redirect res = null;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, id);
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					res = Redirect.fromRedirectUrl(rst.getString("url"));
@@ -2182,7 +2183,7 @@ public class Dao {
 		}
 		if (p == null) {
 			try {
-				Redirect res = getCanonicalUrl(c, 0, 0, reqId);
+				Redirect res = getCanonicalUrl(c, s, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
 				}
@@ -3472,7 +3473,7 @@ public class Dao {
 		}
 		if (s == null) {
 			try {
-				Redirect res = getCanonicalUrl(c, 0, reqId, 0);
+				Redirect res = getCanonicalUrl(c, setup, 0, reqId, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
 				}
