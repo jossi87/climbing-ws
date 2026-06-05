@@ -1162,15 +1162,33 @@ public class Dao {
 		String sqlStr = null;
 		int id = 0;
 		if (idArea > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/area/',a.id) url FROM region r, area a WHERE r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=?";
+			sqlStr = """
+					SELECT CONCAT(r.url,'/area/',a.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					WHERE a.id=?
+					""";
 			id = idArea;
 		}
 		else if (idSector > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/sector/',s.id) url FROM region r, area a, sector s WHERE r.id=a.region_id AND a.id=s.area_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=?";
+			sqlStr = """
+					SELECT CONCAT(r.url,'/sector/',s.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					WHERE s.id=?
+					""";
 			id = idSector;
 		}
 		else if (idProblem > 0) {
-			sqlStr = "SELECT CONCAT(r.url,'/problem/',p.id) url FROM region r, area a, sector s, problem p WHERE r.id=a.region_id AND a.id=s.area_id AND s.id=p.sector_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=?";
+			sqlStr = """
+					SELECT CONCAT(r.url,'/problem/',p.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					JOIN problem p ON s.id=p.sector_id
+					WHERE p.id=?
+					""";
 			id = idProblem;
 		}
 		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
@@ -2812,7 +2830,7 @@ public class Dao {
 		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, stopwatch);
 		return res;
 	}
-	
+
 	public List<Media> getProfileMedia(Connection c, Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<Media> res = new ArrayList<>();
@@ -2820,7 +2838,7 @@ public class Dao {
 
 		String targetFilter = captured 
 				? "m.photographer_user_id = req.target_user_id" 
-				: "EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id)";
+						: "EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.target_user_id)";
 
 		String sql = """
 				WITH req AS (
@@ -2937,18 +2955,18 @@ public class Dao {
 				JOIN media m ON __TARGET_FILTER__ AND m.deleted_user_id IS NULL
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
-				
+
 				LEFT JOIN media_problem mp ON m.id = mp.media_id
 				LEFT JOIN problem p ON mp.problem_id = p.id
 				LEFT JOIN sector sp ON p.sector_id = sp.id
 				LEFT JOIN area ap ON sp.area_id = ap.id
 				LEFT JOIN user_region urp ON ap.region_id = urp.region_id AND urp.user_id = req.auth_user_id
-				
+
 				LEFT JOIN media_sector ms ON m.id = ms.media_id
 				LEFT JOIN sector ss ON ms.sector_id = ss.id
 				LEFT JOIN area asec ON ss.area_id = asec.id
 				LEFT JOIN user_region urs ON asec.region_id = urs.region_id AND urs.user_id = req.auth_user_id
-				
+
 				LEFT JOIN media_area ma ON m.id = ma.media_id
 				LEFT JOIN area am ON ma.area_id = am.id
 				LEFT JOIN user_region ura ON am.region_id = ura.region_id AND ura.user_id = req.auth_user_id
@@ -2963,7 +2981,7 @@ public class Dao {
 				  AND (ms.media_id IS NULL OR is_readable(urs.admin_read, urs.superadmin_read, ss.locked_admin, ss.locked_superadmin, ss.trash) = 1)
 				  AND (ma.media_id IS NULL OR is_readable(ura.admin_read, ura.superadmin_read, am.locked_admin, am.locked_superadmin, am.trash) = 1)
 				  AND (mt.media_id IS NULL OR is_readable(urt.admin_read, urt.superadmin_read, s_tr.locked_admin, a_tr.locked_superadmin, s_tr.trash) = 1)
-				
+
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.id DESC
 				""".replace("__TARGET_FILTER__", targetFilter);
@@ -5425,13 +5443,13 @@ public class Dao {
 		for (Trail t : trails) {
 			if (t.path() != null && t.path().size() >= 2 && t.sectors() != null && !t.sectors().isEmpty()) {
 				String parkingSql = """
-					SELECT c.latitude, c.longitude 
-					FROM sector s
-					JOIN coordinates c ON s.parking_coordinates_id = c.id
-					WHERE s.id IN (%s)
-					LIMIT 1
-				""".formatted(",?".repeat(t.sectors().size()).substring(1));
-				
+							SELECT c.latitude, c.longitude 
+							FROM sector s
+							JOIN coordinates c ON s.parking_coordinates_id = c.id
+							WHERE s.id IN (%s)
+							LIMIT 1
+						""".formatted(",?".repeat(t.sectors().size()).substring(1));
+
 				try (PreparedStatement ps = c.prepareStatement(parkingSql)) {
 					int pIdx = 1;
 					for (Trail.TrailSector sector : t.sectors()) {
