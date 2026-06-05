@@ -2782,25 +2782,15 @@ public class Dao {
 				),
 				valid_media AS (
 				    SELECT m.id, m.is_movie, m.photographer_user_id
-				    FROM media m
+				    FROM req
+				    CROSS JOIN media m
+				    LEFT JOIN media_problem mp ON m.id = mp.media_id
+				    LEFT JOIN media_sector ms ON m.id = ms.media_id
+				    LEFT JOIN media_area ma ON m.id = ma.media_id
+				    LEFT JOIN media_trail mt ON m.id = mt.media_id
 				    WHERE m.deleted_user_id IS NULL
-				      AND (
-				        EXISTS (SELECT 1 FROM media_area ma 
-				                JOIN area a ON ma.area_id = a.id 
-				                JOIN region_type rt ON a.region_id = rt.region_id 
-				                WHERE ma.media_id = m.id)
-				        OR EXISTS (SELECT 1 FROM media_sector ms 
-				                   JOIN sector s ON ms.sector_id = s.id 
-				                   JOIN area a ON s.area_id = a.id
-				                   JOIN region_type rt ON a.region_id = rt.region_id
-				                   WHERE ms.media_id = m.id)
-				        OR EXISTS (SELECT 1 FROM media_problem mp 
-				                   JOIN problem p ON mp.problem_id = p.id 
-				                   JOIN sector s ON p.sector_id = s.id
-				                   JOIN area a ON s.area_id = a.id
-				                   JOIN region_type rt ON a.region_id = rt.region_id
-				                   WHERE mp.media_id = m.id)
-				      )
+				      AND (m.photographer_user_id = req.user_id OR EXISTS (SELECT 1 FROM media_user mu WHERE mu.media_id = m.id AND mu.user_id = req.user_id))
+				      AND (mp.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR ma.media_id IS NOT NULL OR mt.media_id IS NOT NULL OR m.embed_url IS NOT NULL)
 				)
 				SELECT 
 				    COUNT(DISTINCT CASE WHEN vm.photographer_user_id = req.user_id AND vm.is_movie = 0 THEN vm.id END) as created_img,
