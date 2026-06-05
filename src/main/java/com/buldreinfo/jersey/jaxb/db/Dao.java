@@ -5837,6 +5837,55 @@ public class Dao {
 			ensureAdminWriteSector(c, authUserId, sectorId);
 		}
 
+		for (Trail t : trails) {
+			if (t.path() != null && t.path().size() >= 2 && t.sectors() != null && !t.sectors().isEmpty()) {
+				String parkingSql = """
+					SELECT c.latitude, c.longitude 
+					FROM sector s
+					JOIN coordinates c ON s.parking_coordinates_id = c.id
+					WHERE s.id IN (%s)
+					LIMIT 1
+				""".formatted(",?".repeat(t.sectors().size()).substring(1));
+				
+				try (PreparedStatement ps = c.prepareStatement(parkingSql)) {
+					int pIdx = 1;
+					for (Trail.TrailSector sector : t.sectors()) {
+						ps.setInt(pIdx++, sector.sectorId());
+					}
+					try (ResultSet rst = ps.executeQuery()) {
+						if (rst.next()) {
+							double parkingLat = rst.getDouble("latitude");
+							double parkingLng = rst.getDouble("longitude");
+
+							Coordinates firstCoord = t.path().getFirst();
+							Coordinates lastCoord = t.path().getLast();
+
+							double distToStart = GeoHelper.getHaversineDistanceInMeters(parkingLat, parkingLng, firstCoord.getLatitude(), firstCoord.getLongitude());
+							double distToEnd = GeoHelper.getHaversineDistanceInMeters(parkingLat, parkingLng, lastCoord.getLatitude(), lastCoord.getLongitude());
+
+							boolean shouldReverse = false;
+							if (t.isDescent()) {
+								if (distToStart < distToEnd) {
+									shouldReverse = true;
+								}
+							} else {
+								if (distToEnd < distToStart) {
+									shouldReverse = true;
+								}
+							}
+
+							if (shouldReverse) {
+								Collections.reverse(t.path());
+								if (t.markers() != null && !t.markers().isEmpty()) {
+									Collections.reverse(t.markers());
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		List<Coordinates> allCoordinatesGlobal = new ArrayList<>();
 		for (Trail t : trails) {
 			if (t.path() != null) {

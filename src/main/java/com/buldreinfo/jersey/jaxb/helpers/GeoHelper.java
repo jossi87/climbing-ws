@@ -196,6 +196,16 @@ public class GeoHelper {
 		return (int)Math.round(coordinates.getFirst().getElevation());
 	}
 	
+	public static double getHaversineDistanceInMeters(double lat1, double lng1, double lat2, double lng2) {
+		final int R = 6371000;
+		double latDistance = Math.toRadians(lat2 - lat1);
+		double lngDistance = Math.toRadians(lng2 - lng1);
+		double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+				* Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
+		return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	}
+	
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
 			return null;
@@ -208,7 +218,6 @@ public class GeoHelper {
 		}
 		return null;
 	}
-	
 	private List<GeoPoint> geoPoints = new ArrayList<>();
 	private GeoPoint firstPointLow;
 	private GeoPoint firstPointHigh;
@@ -217,11 +226,12 @@ public class GeoHelper {
 	private double wallBearing;
 	private double wallPerpendicularBearing;
 	private int sunOffset;
+
 	private long wallDirectionDegrees;
 
 	private GeoHelper() {
 	}
-
+	
 	private void calculateBoundingBox() {
 		// Find bounding box
 		List<GeoPoint> boundingBoxPoints = geoPoints

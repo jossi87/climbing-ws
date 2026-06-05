@@ -58,15 +58,7 @@ public record Trail(
 			for (int i = 1; i < path.size(); i++) {
 				Coordinates prev = path.get(i - 1);
 				Coordinates curr = path.get(i);
-				// Haversine implementation
-				final int R = 6371000;
-				double latDistance = Math.toRadians(curr.getLatitude() - prev.getLatitude());
-				double lonDistance = Math.toRadians(curr.getLongitude() - prev.getLongitude());
-				double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-						+ Math.cos(Math.toRadians(prev.getLatitude())) * Math.cos(Math.toRadians(curr.getLatitude()))
-						* Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-				double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-				double distanceDelta = R * c; // Horizontal distance in meters
+				double distanceDelta = GeoHelper.getHaversineDistanceInMeters(prev.getLatitude(), prev.getLongitude(), curr.getLatitude(), curr.getLongitude());
 				totalDistance += distanceDelta;
 				curr.setDistance(totalDistance);
 			}
