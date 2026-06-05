@@ -1840,16 +1840,26 @@ public class Dao {
 				             AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
 				       ) problems_json,
 				       (
-				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
-				       ) trails_json,
+						    SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
+						) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
 				               'id', id, 'path', path, 'rappelX', rappel_x, 'rappelY', rappel_y, 'rappelBolted', rappel_bolted
@@ -2862,14 +2872,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -2997,14 +3017,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -3135,14 +3165,24 @@ public class Dao {
 					       ) problems_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					              'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-					          ))
-					          FROM media_trail mt9
-					          JOIN trail t9 ON mt9.trail_id = t9.id
-					          JOIN sector_trail st9 ON t9.id = st9.trail_id
-					          JOIN sector s9 ON st9.sector_id = s9.id
-					          JOIN area a9 ON s9.area_id = a9.id
-					          WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 					       ) trails_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -3251,14 +3291,24 @@ public class Dao {
 					       ) problems_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					              'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-					          ))
-					          FROM media_trail mt9
-					          JOIN trail t9 ON mt9.trail_id = t9.id
-					          JOIN sector_trail st9 ON t9.id = st9.trail_id
-					          JOIN sector s9 ON st9.sector_id = s9.id
-					          JOIN area a9 ON s9.area_id = a9.id
-					          WHERE mt9.media_id = m.id
+							        'trailId', t9.id,
+							        'trailTitle', t9.title,
+							        'sectors', (
+							            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+							                'areaId', a9_sub.id,
+							                'areaName', a9_sub.name,
+							                'sectorId', s9_sub.id,
+							                'sectorName', s9_sub.name
+							            ))
+							            FROM sector_trail st9_sub
+							            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+							            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+							            WHERE st9_sub.trail_id = t9.id
+							        )
+							    ))
+							    FROM media_trail mt9
+							    JOIN trail t9 ON mt9.trail_id = t9.id
+							    WHERE mt9.media_id = m.id
 					       ) trails_json,
 					       (
 					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6348,14 +6398,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6486,14 +6546,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6625,14 +6695,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6784,14 +6864,24 @@ public class Dao {
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 				       ) trails_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -6945,14 +7035,24 @@ public class Dao {
 					   ) problems_json,
 					   (
 						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
-				               'areaId', a9.id, 'areaName', a9.name, 'sectorId', s9.id, 'sectorName', s9.name, 'trailId', t9.id, 'trailTitle', t9.title
-				           ))
-				           FROM media_trail mt9
-				           JOIN trail t9 ON mt9.trail_id = t9.id
-				           JOIN sector_trail st9 ON t9.id = st9.trail_id
-				           JOIN sector s9 ON st9.sector_id = s9.id
-				           JOIN area a9 ON s9.area_id = a9.id
-				           WHERE mt9.media_id = m.id
+						        'trailId', t9.id,
+						        'trailTitle', t9.title,
+						        'sectors', (
+						            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+						                'areaId', a9_sub.id,
+						                'areaName', a9_sub.name,
+						                'sectorId', s9_sub.id,
+						                'sectorName', s9_sub.name
+						            ))
+						            FROM sector_trail st9_sub
+						            JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+						            JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+						            WHERE st9_sub.trail_id = t9.id
+						        )
+						    ))
+						    FROM media_trail mt9
+						    JOIN trail t9 ON mt9.trail_id = t9.id
+						    WHERE mt9.media_id = m.id
 					   ) trails_json,
 					   (
 						   SELECT JSON_ARRAYAGG(JSON_OBJECT(

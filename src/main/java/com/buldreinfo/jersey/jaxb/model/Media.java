@@ -30,7 +30,9 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
 	public record MediaSector(int areaId, String areaName, int sectorId, String sectorName, boolean trivia) {}
 	public record MediaProblem(int problemId, String problemName, String problemGrade, int problemPitch, int problemNumPitches, long milliseconds, int areaId, String areaName, int sectorId, String sectorName, boolean trivia) {}
-	public record MediaTrail(int areaId, String areaName, int sectorId, String sectorName, int trailId, String trailTitle) {}
+	public record MediaTrail(int trailId, String trailTitle, List<MediaTrailSector> sectors) {
+		public record MediaTrailSector(int areaId, String areaName, int sectorId, String sectorName) {}
+	}
 	public enum Association{ AREAS, SECTORS, PROBLEMS, TRAILS, GUESTBOOK, USER_AVATAR }
 
 	private static final TypeAdapter<Boolean> booleanCoercionAdapter = new TypeAdapter<>() {
