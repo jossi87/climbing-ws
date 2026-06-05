@@ -1148,7 +1148,7 @@ public class Dao {
 				filePart.setFormDataContentDisposition(disposition);
 
 				User photographer = User.from(USER_ID_UNKNOWN, null);
-				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, null, 0, finalUserId.get().intValue());
+				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
 				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
@@ -6124,7 +6124,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							inherited, m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
+							inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}
@@ -6427,7 +6427,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
-							m.inherited(), m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
+							m.inherited(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							);
 					pMediaList.add(m);
 				}
@@ -6590,7 +6590,7 @@ public class Dao {
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-							inherited, m.url(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
+							inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
 							));
 				}
 			}

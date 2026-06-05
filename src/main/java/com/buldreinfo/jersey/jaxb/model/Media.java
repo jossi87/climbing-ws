@@ -23,9 +23,7 @@ import com.google.gson.stream.JsonWriter;
 public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie, boolean is360,
 		String dateCreated, String dateTaken, User photographer, List<User> tagged, String description,
 		List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs,
-		String embedUrl, int thumbnailSeconds,
-		boolean inherited, String url,
-		List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<MediaTrail> trails, int guestbookId, int userAvatarId) {
+		String embedUrl, int thumbnailSeconds, boolean inherited, List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<MediaTrail> trails, int guestbookId, int userAvatarId) {
 
 	public record MediaArea(int areaId, String areaName, boolean trivia) {}
 	public record MediaSector(int areaId, String areaName, int sectorId, String sectorName, boolean trivia) {}
@@ -157,8 +155,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
-				false, null, 
-				areas, sectors, problems, trails, rst.getInt("guestbook_id"), 0
+				false, areas, sectors, problems, trails, rst.getInt("guestbook_id"), 0
 				);
 	}
 	
