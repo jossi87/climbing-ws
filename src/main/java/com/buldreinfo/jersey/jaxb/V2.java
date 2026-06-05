@@ -8,7 +8,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -624,7 +623,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Get profile media by id", responses = {
+	@Operation(summary = "Get profile media by user id", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
 			@ApiResponse(responseCode = "404", description = "User not found"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -640,12 +639,7 @@ public class V2 {
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.ensureUserExists(c, id);
-			List<Media> res = new ArrayList<>(dao.getProfileMediaProblem(c, authUserId, id, captured));
-			if (captured) {
-				res.addAll(dao.getProfileMediaCapturedSector(c, authUserId, id));
-				res.addAll(dao.getProfileMediaCapturedArea(c, authUserId, id));
-				res.sort(Comparator.comparingInt((Media m) -> m.identity().id()).reversed());
-			}
+			List<Media> res = dao.getProfileMedia(c, authUserId, id, captured);
 			return Response.ok().entity(res).build();
 		});
 	}
