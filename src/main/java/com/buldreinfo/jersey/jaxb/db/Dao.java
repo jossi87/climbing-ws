@@ -1194,8 +1194,8 @@ public class Dao {
 		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
 		Redirect res = null;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, id);
-			ps.setInt(2, setup.idRegion());
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					res = Redirect.fromRedirectUrl(rst.getString("url"));
