@@ -291,7 +291,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
 			var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageStats(c, authUserId, setup));
 			var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRandomMedia(c, setup));
-			var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageActivityFirstAscents(c, authUserId, setup));
+			var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageFirstAscents(c, authUserId, setup));
 			var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestAscents(c, authUserId, setup));
 			var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestMedia(c, authUserId, setup));
 			var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageLastComments(c, authUserId, setup));

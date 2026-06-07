@@ -660,6 +660,7 @@ public class Dao {
 					LEFT JOIN media m ON u.media_id=m.id
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(tickIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -690,14 +691,15 @@ public class Dao {
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 					       r.comment description, t.stars, g.grade
-								FROM activity a
-								JOIN user u ON a.user_id=u.id
-								JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
-								LEFT JOIN grade g ON t.grade_id=g.id
-								JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
-								LEFT JOIN media m ON u.media_id=m.id
-								LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-								WHERE a.id IN (%s)
+					FROM activity a
+					JOIN user u ON a.user_id=u.id
+					JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id
+					LEFT JOIN grade g ON t.grade_id=g.id
+					JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id
+					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
 								""".formatted(Joiner.on(",").join(repeatIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -779,6 +781,7 @@ public class Dao {
 					LEFT JOIN media m ON u.media_id=m.id
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
+					ORDER BY u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(faIds)))) {
 				try (ResultSet rst = ps.executeQuery()) {
 					while (rst.next()) {
@@ -822,6 +825,7 @@ public class Dao {
 							JOIN media m ON mp.media_id = m.id
 							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 							WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL
+							ORDER BY mp.sorting
 							""".formatted(Joiner.on(",").join(problemIds)))) {
 						try (ResultSet rst = ps.executeQuery()) {
 							while (rst.next()) {
@@ -1362,7 +1366,7 @@ public class Dao {
 		return res;
 	}
 
-	public List<FrontpageFirstAscent> getFrontpageActivityFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
+	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageFirstAscent> res = new ArrayList<>();
 		String sqlStr = """
 				WITH x AS (
@@ -1384,7 +1388,11 @@ public class Dao {
 				    x.activity_timestamp, a.id area_id, a.name area_name,
 				    p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 				    g.grade grade,
-				    GROUP_CONCAT(DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) SEPARATOR '|') user_data
+				    GROUP_CONCAT(
+				        DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) 
+				        ORDER BY u.firstname ASC, COALESCE(u.lastname,'') ASC 
+				        SEPARATOR '|'
+				    ) user_data
 				FROM x
 				JOIN problem p ON x.problem_id = p.id
 				JOIN type ty ON p.type_id = ty.id 
