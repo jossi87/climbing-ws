@@ -98,7 +98,6 @@ import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDisciplineGradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDiscipline;
-import com.buldreinfo.jersey.jaxb.model.Profile.ProfileGradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileKpis;
 import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
@@ -2740,9 +2739,9 @@ public class Dao {
 
 					SELECT 
 						CASE 
-							WHEN ty.group = 'Bouldering' THEN 'Boulder'
-							WHEN ty.group = 'Climbing' THEN 'Route'
-							ELSE ty.group 
+							WHEN ty.group = 'Bouldering' THEN 'Boulder problems'
+							WHEN ty.group = 'Climbing' THEN 'Climbing routes'
+							ELSE 'Ice routes'
 						END AS type,
 						ty.group AS discipline,
 						g.grade, 
@@ -2819,69 +2818,6 @@ public class Dao {
 		return res;
 	}
 
-	public List<ProfileGradeDistribution> getProfileGradeDistribution(Connection c, Setup setup, int userId) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<ProfileGradeDistribution> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
-				WITH req AS (
-				    SELECT ? region_id, ? auth_user_id
-				),
-				target_types AS (
-				    SELECT rt.type_id 
-				    FROM region_type rt
-				    JOIN req ON rt.region_id = req.region_id
-				)
-				SELECT v.grade, v.color, SUM(v.is_fa) num_fa, SUM(v.is_tick) num_tick, SUM(v.is_repeat) num_repeat
-				FROM (SELECT g.grade, clr.hex_code color, g.weight, 1 is_fa, 0 is_tick, 0 is_repeat
-					  FROM req
-				      JOIN fa f ON f.user_id=req.auth_user_id
-				      JOIN problem p ON f.problem_id=p.id
-				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON p.grade_id=g.id
-				      JOIN grade_color clr ON g.grade_color_id=clr.id
-
-				      UNION ALL
-
-				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 1 is_tick, 0 is_repeat
-				      FROM req
-				      JOIN tick t ON t.user_id=req.auth_user_id
-				      JOIN problem p ON t.problem_id=p.id
-				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON COALESCE(t.grade_id,p.consensus_grade_id)=g.id
-				      JOIN grade_color clr ON g.grade_color_id=clr.id
-				        AND NOT EXISTS (SELECT 1 FROM fa f2 WHERE f2.user_id=req.auth_user_id AND f2.problem_id=t.problem_id)
-
-				      UNION ALL
-
-				      SELECT g.grade, clr.hex_code color, g.weight, 0 is_fa, 0 is_tick, 1 is_repeat
-				      FROM req
-				      JOIN tick t ON req.auth_user_id=t.user_id
-				      JOIN tick_repeat tr ON t.id=tr.tick_id
-				      JOIN problem p ON t.problem_id=p.id
-				      JOIN target_types tt ON p.type_id=tt.type_id
-				      JOIN grade g ON COALESCE(t.grade_id,p.consensus_grade_id)=g.id
-				      JOIN grade_color clr ON g.grade_color_id=clr.id
-				) v
-				GROUP BY v.grade, v.color, v.weight
-				ORDER BY v.weight DESC
-				""")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, userId);
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					String grade = rst.getString("grade");
-					String color = rst.getString("color");
-					int fa = rst.getInt("num_fa");
-					int tick = rst.getInt("num_tick");
-					int repeat = rst.getInt("num_repeat");
-					res.add(new ProfileGradeDistribution(grade, color, fa, tick, repeat));
-				}
-			}
-		}
-		logger.debug("getProfileGradeDistribution(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
-		return res;
-	}
-	
 	public ProfileIdentity getProfileIdentity(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("""
