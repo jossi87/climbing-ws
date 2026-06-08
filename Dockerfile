@@ -2,8 +2,8 @@ FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz | tar -xzC /opt && \
-    ln -s /opt/apache-maven-3.9.9/bin/mvn /usr/bin/mvn
+    curl -fsSL https://archive.apache.org/dist/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.tar.gz | tar -xzC /opt && \
+    ln -s /opt/apache-maven-3.9.16/bin/mvn /usr/bin/mvn
 
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
@@ -11,7 +11,7 @@ RUN mvn dependency:go-offline -B
 COPY . .
 RUN mvn clean package -DskipTests
 
-FROM tomcat:11.0-jdk25-temurin-jammy
+FROM tomcat:11.0.22-jdk25-temurin-jammy
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
