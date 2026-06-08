@@ -2707,6 +2707,74 @@ public class Dao {
 						GROUP BY ty.group, r.url
 					) ranked_regions
 					WHERE rn = 1
+				),
+				pitch_counts AS (
+					SELECT problem_id, COUNT(*) AS total_pitches
+					FROM problem_section
+					GROUP BY problem_id
+				),
+				raw_activity AS (
+					SELECT 
+						ty.group AS discipline,
+						g.grade, 
+						clr.hex_code color, 
+						g.weight, 
+						1 is_fa, 
+						0 is_tick,
+						COALESCE(pc.total_pitches, 0) AS pitches
+					FROM req
+					JOIN fa f ON f.user_id = req.user_id
+					JOIN problem p ON f.problem_id = p.id
+					JOIN type ty ON p.type_id = ty.id
+					JOIN grade g ON p.grade_id = g.id
+					JOIN grade_color clr ON g.grade_color_id = clr.id
+					LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+				
+					UNION ALL
+				
+					SELECT 
+						ty.group AS discipline,
+						g.grade, 
+						clr.hex_code color, 
+						g.weight, 
+						0 is_fa, 
+						1 is_tick,
+						COALESCE(pc.total_pitches, 0) AS pitches
+					FROM req
+					JOIN tick t ON t.user_id = req.user_id
+					JOIN problem p ON t.problem_id = p.id
+					JOIN type ty ON p.type_id = ty.id
+					JOIN grade g ON COALESCE(t.grade_id, p.consensus_grade_id) = g.id
+					JOIN grade_color clr ON g.grade_color_id = clr.id
+					LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
+					WHERE NOT EXISTS (
+						SELECT 1 
+						FROM fa f2 
+						WHERE f2.user_id = req.user_id 
+						  AND f2.problem_id = t.problem_id
+					)
+				),
+				categorized_activity AS (
+					SELECT 
+						discipline,
+						grade,
+						color,
+						weight,
+						is_fa,
+						is_tick,
+						CASE 
+							WHEN discipline = 'Bouldering' THEN 'Boulder problems'
+							WHEN discipline = 'Ice' THEN 'Climbing routes (ice)'
+							WHEN pitches > 0 THEN 'Climbing routes (multi-pitch)'
+							ELSE 'Climbing routes (single-pitch)'
+						END AS type,
+						CASE 
+							WHEN discipline = 'Bouldering' THEN 'Boulder'
+							WHEN discipline = 'Ice' THEN 'Ice'
+							WHEN pitches > 0 THEN 'Multi'
+							ELSE 'Single'
+						END AS internal_subtype
+					FROM raw_activity
 				)
 				SELECT 
 					v.type,
@@ -2715,71 +2783,54 @@ public class Dao {
 					v.color, 
 					SUM(v.is_fa) num_fa, 
 					SUM(v.is_tick) num_tick
-				FROM (
-					SELECT 
-						CASE 
-							WHEN ty.group = 'Bouldering' THEN 'Boulder problems'
-							WHEN ty.group = 'Climbing' THEN 'Climbing routes'
-							ELSE 'Ice routes'
-						END AS type,
-						ty.group AS discipline,
-						g.grade, 
-						clr.hex_code color, 
-						g.weight, 
-						1 is_fa, 
-						0 is_tick
-					FROM req
-					JOIN fa f ON f.user_id = req.user_id
-					JOIN problem p ON f.problem_id = p.id
-					JOIN type ty ON p.type_id = ty.id
-					JOIN grade g ON p.grade_id = g.id
-					JOIN grade_color clr ON g.grade_color_id = clr.id
-
-					UNION ALL
-
-					SELECT 
-						CASE 
-							WHEN ty.group = 'Bouldering' THEN 'Boulder problems'
-							WHEN ty.group = 'Climbing' THEN 'Climbing routes'
-							ELSE 'Ice routes'
-						END AS type,
-						ty.group AS discipline,
-						g.grade, 
-						clr.hex_code color, 
-						g.weight, 
-						0 is_fa, 1 is_tick
-					FROM req
-					JOIN tick t ON t.user_id = req.user_id
-					JOIN problem p ON t.problem_id = p.id
-					JOIN type ty ON p.type_id = ty.id
-					JOIN grade g ON COALESCE(t.grade_id, p.consensus_grade_id) = g.id
-					JOIN grade_color clr ON g.grade_color_id = clr.id
-					WHERE NOT EXISTS (
-						SELECT 1 
-						FROM fa f2 
-						WHERE f2.user_id = req.user_id 
-						  AND f2.problem_id = t.problem_id
-					)
-				) v
+				FROM categorized_activity v
 				JOIN req ON true
-				LEFT JOIN top_urls u ON u.discipline = v.discipline
+				LEFT JOIN top_urls u ON u.discipline = (
+					CASE 
+						WHEN v.discipline IN ('Bouldering', 'Ice') THEN v.discipline
+						ELSE 'Climbing'
+					END
+				)
 				GROUP BY 
 					req.user_id,
 					req.req_is_bouldering,
 					req.req_is_climbing,
 					req.req_is_ice,
-					v.type,
+					v.type, 
 					v.grade, 
 					v.color, 
-					v.weight
+					v.weight,
+					v.internal_subtype
 				ORDER BY 
-					CASE WHEN req.req_is_bouldering = 1 AND v.type = 'Boulder problems' THEN 0 ELSE 1 END,
-					CASE WHEN req.req_is_climbing = 1 AND v.type = 'Climbing routes' THEN 0 ELSE 1 END,
-					CASE WHEN req.req_is_ice = 1 AND v.type = 'Ice routes' THEN 0 ELSE 1 END,
 					CASE 
-						WHEN v.type = 'Boulder problems' THEN 1 
-						WHEN v.type = 'Climbing routes' THEN 2 
-						ELSE 3 
+						WHEN req.req_is_bouldering = 1 THEN 
+							CASE 
+								WHEN v.internal_subtype = 'Boulder' THEN 1
+								WHEN v.internal_subtype = 'Single' THEN 2
+								WHEN v.internal_subtype = 'Multi' THEN 3
+								ELSE 4
+							END
+						WHEN req.req_is_climbing = 1 THEN 
+							CASE 
+								WHEN v.internal_subtype = 'Single' THEN 1
+								WHEN v.internal_subtype = 'Multi' THEN 2
+								WHEN v.internal_subtype = 'Ice' THEN 3
+								ELSE 4
+							END
+						WHEN req.req_is_ice = 1 THEN 
+							CASE 
+								WHEN v.internal_subtype = 'Ice' THEN 1
+								WHEN v.internal_subtype = 'Single' THEN 2
+								WHEN v.internal_subtype = 'Multi' THEN 3
+								ELSE 4
+							END
+						ELSE 
+							CASE 
+								WHEN v.internal_subtype = 'Boulder' THEN 1
+								WHEN v.internal_subtype = 'Single' THEN 2
+								WHEN v.internal_subtype = 'Multi' THEN 3
+								ELSE 4
+							END
 					END,
 					v.weight DESC
 				""")) {
