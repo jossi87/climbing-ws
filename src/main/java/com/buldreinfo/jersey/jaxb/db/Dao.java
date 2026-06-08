@@ -96,6 +96,8 @@ import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDisciplineGradeDistribution;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDiscipline;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileGradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileKpis;
@@ -2679,6 +2681,144 @@ public class Dao {
 		return res;
 	}
 
+	public List<ProfileDiscipline> getProfileDisciplines(Connection c, Setup setup, int userId) throws SQLException {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		List<ProfileDiscipline> res = new ArrayList<>();
+		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+					SELECT ? AS user_id, ? AS req_is_bouldering, ? AS req_is_climbing, ? AS req_is_ice
+				),
+				top_urls AS (
+					SELECT discipline, url
+					FROM (
+						SELECT 
+							ty.group AS discipline,
+							r.url,
+							ROW_NUMBER() OVER (PARTITION BY ty.group ORDER BY COUNT(*) DESC) as rn
+						FROM (
+							SELECT problem_id FROM fa WHERE user_id = (SELECT user_id FROM req)
+							UNION ALL
+							SELECT problem_id FROM tick WHERE user_id = (SELECT user_id FROM req)
+						) active_problems
+						JOIN problem p ON active_problems.problem_id = p.id
+						JOIN type ty ON p.type_id = ty.id
+						JOIN sector s ON p.sector_id = s.id
+						JOIN area a ON s.area_id = a.id
+						JOIN region r ON a.region_id = r.id
+						GROUP BY ty.group, r.url
+					) ranked_regions
+					WHERE rn = 1
+				)
+				SELECT 
+					v.type,
+					CONCAT(MAX(u.url), '/user/', req.user_id) url,
+					v.grade, 
+					v.color, 
+					SUM(v.is_fa) num_fa, 
+					SUM(v.is_tick) num_tick
+				FROM (
+					SELECT 
+						CASE 
+							WHEN ty.group = 'Bouldering' THEN 'Boulder'
+							WHEN ty.group = 'Climbing' THEN 'Route'
+							ELSE ty.group 
+						END AS type,
+						ty.group AS discipline,
+						g.grade, 
+						clr.hex_code color, 
+						g.weight, 
+						1 is_fa, 
+						0 is_tick
+					FROM req
+					JOIN fa f ON f.user_id = req.user_id
+					JOIN problem p ON f.problem_id = p.id
+					JOIN type ty ON p.type_id = ty.id
+					JOIN grade g ON p.grade_id = g.id
+					JOIN grade_color clr ON g.grade_color_id = clr.id
+
+					UNION ALL
+
+					SELECT 
+						CASE 
+							WHEN ty.group = 'Bouldering' THEN 'Boulder'
+							WHEN ty.group = 'Climbing' THEN 'Route'
+							ELSE ty.group 
+						END AS type,
+						ty.group AS discipline,
+						g.grade, 
+						clr.hex_code color, 
+						g.weight, 
+						0 is_fa, 1 is_tick
+					FROM req
+					JOIN tick t ON t.user_id = req.user_id
+					JOIN problem p ON t.problem_id = p.id
+					JOIN type ty ON p.type_id = ty.id
+					JOIN grade g ON COALESCE(t.grade_id, p.consensus_grade_id) = g.id
+					JOIN grade_color clr ON g.grade_color_id = clr.id
+					WHERE NOT EXISTS (
+						SELECT 1 
+						FROM fa f2 
+						WHERE f2.user_id = req.user_id 
+						  AND f2.problem_id = t.problem_id
+					)
+				) v
+				JOIN req ON true
+				LEFT JOIN top_urls u ON u.discipline = v.discipline
+				GROUP BY 
+					req.user_id,
+					req.req_is_bouldering,
+					req.req_is_climbing,
+					req.req_is_ice,
+					v.type,
+					v.grade, 
+					v.color, 
+					v.weight
+				ORDER BY 
+					CASE WHEN req.req_is_bouldering = 1 AND v.type = 'Boulder' THEN 0 ELSE 1 END,
+					CASE WHEN req.req_is_climbing = 1 AND v.type = 'Route' THEN 0 ELSE 1 END,
+					CASE WHEN req.req_is_ice = 1 AND v.type = 'Ice' THEN 0 ELSE 1 END,
+					CASE 
+						WHEN v.type = 'Boulder' THEN 1 
+						WHEN v.type = 'Route' THEN 2 
+						ELSE 3 
+					END,
+					v.weight DESC
+				""")) {
+			ps.setInt(1, userId);
+			ps.setBoolean(2, setup.isBouldering());
+			ps.setBoolean(3, setup.isClimbing());
+			ps.setBoolean(4, setup.isIce());
+			try (ResultSet rst = ps.executeQuery()) {
+				String currentType = null;
+				String currentUrl = null;
+				List<ProfileDisciplineGradeDistribution> distributions = null;
+				while (rst.next()) {
+					String type = rst.getString("type");
+					String url = rst.getString("url");
+					String grade = rst.getString("grade");
+					String color = rst.getString("color");
+					int fa = rst.getInt("num_fa");
+					int tick = rst.getInt("num_tick");
+					if (!type.equals(currentType)) {
+						if (currentType != null) {
+							res.add(new ProfileDiscipline(currentType, currentUrl, distributions));
+						}
+						currentType = type;
+						currentUrl = url;
+						distributions = new ArrayList<>();
+					}
+					distributions.add(new ProfileDisciplineGradeDistribution(grade, color, fa, tick));
+				}
+
+				if (currentType != null) {
+					res.add(new ProfileDiscipline(currentType, currentUrl, distributions));
+				}
+			}
+		}
+		logger.debug("getProfileDisciplines(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
+		return res;
+	}
+
 	public List<ProfileGradeDistribution> getProfileGradeDistribution(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<ProfileGradeDistribution> res = new ArrayList<>();
@@ -2741,7 +2881,7 @@ public class Dao {
 		logger.debug("getProfileGradeDistribution(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
 		return res;
 	}
-
+	
 	public ProfileIdentity getProfileIdentity(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("""

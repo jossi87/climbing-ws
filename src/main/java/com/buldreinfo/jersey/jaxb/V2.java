@@ -600,7 +600,8 @@ public class V2 {
 			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, setup, reqUserId));
 			var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
 			var gradeDistribution = Server.submitDaoTask((dao, c) -> dao.getProfileGradeDistribution(c, setup, reqUserId));
-			Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get());
+			var disciplines = Server.submitDaoTask((dao, c) -> dao.getProfileDisciplines(c, setup, reqUserId));
+			Profile res = new Profile(identity.get(), kpis.get(), gradeDistribution.get(), disciplines.get());
 			return Response.ok().entity(res).build();
 		});
 	}
