@@ -2718,9 +2718,9 @@ public class Dao {
 				FROM (
 					SELECT 
 						CASE 
-							WHEN ty.group = 'Bouldering' THEN 'Boulder'
-							WHEN ty.group = 'Climbing' THEN 'Route'
-							ELSE ty.group 
+							WHEN ty.group = 'Bouldering' THEN 'Boulder problems'
+							WHEN ty.group = 'Climbing' THEN 'Climbing routes'
+							ELSE 'Ice routes'
 						END AS type,
 						ty.group AS discipline,
 						g.grade, 
@@ -2773,12 +2773,12 @@ public class Dao {
 					v.color, 
 					v.weight
 				ORDER BY 
-					CASE WHEN req.req_is_bouldering = 1 AND v.type = 'Boulder' THEN 0 ELSE 1 END,
-					CASE WHEN req.req_is_climbing = 1 AND v.type = 'Route' THEN 0 ELSE 1 END,
-					CASE WHEN req.req_is_ice = 1 AND v.type = 'Ice' THEN 0 ELSE 1 END,
+					CASE WHEN req.req_is_bouldering = 1 AND v.type = 'Boulder problems' THEN 0 ELSE 1 END,
+					CASE WHEN req.req_is_climbing = 1 AND v.type = 'Climbing routes' THEN 0 ELSE 1 END,
+					CASE WHEN req.req_is_ice = 1 AND v.type = 'Ice routes' THEN 0 ELSE 1 END,
 					CASE 
-						WHEN v.type = 'Boulder' THEN 1 
-						WHEN v.type = 'Route' THEN 2 
+						WHEN v.type = 'Boulder problems' THEN 1 
+						WHEN v.type = 'Climbing routes' THEN 2 
 						ELSE 3 
 					END,
 					v.weight DESC
