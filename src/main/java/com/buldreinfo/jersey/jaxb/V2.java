@@ -92,6 +92,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -1244,18 +1245,21 @@ public class V2 {
 	@Path("/media/instagram-save")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaInstagramSave(@Context HttpServletRequest request, Media mediaPayload) {
+	public Response postMediaInstagramSave(
+			@Context HttpServletRequest request, 
+			@HeaderParam("X-Selected-Cdn-Url") String selectedCdnUrl,
+			@HeaderParam("X-Selected-Is-Video") boolean isVideo,
+			Media mediaPayload) {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
-		Preconditions.checkArgument(mediaPayload.embedUrl() != null && !mediaPayload.embedUrl().isBlank(), "Instagram source URL is required inside embedUrl field");
+		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
-			ApifyInstagramResolver.InstagramMedia scraped = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
-			if (scraped.isVideo()) {
+			if (isVideo) {
 				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
 				Server.runAsync(() -> {
 					try {
-						URI cdnUri = URI.create(scraped.cdnUrl());
+						URI cdnUri = URI.create(selectedCdnUrl);
 						byte[] videoData;
 						try (InputStream is = cdnUri.toURL().openStream()) {
 							videoData = StorageManager.getInstance().readBoundedStream(is);
@@ -1271,7 +1275,7 @@ public class V2 {
 				Media res = dao.getMedia(c, authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
-			URI cdnUri = URI.create(scraped.cdnUrl());
+			URI cdnUri = URI.create(selectedCdnUrl);
 			try (InputStream is = cdnUri.toURL().openStream()) {
 				byte[] imageData = StorageManager.getInstance().readBoundedStream(is);
 				int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, null, () -> new ByteArrayInputStream(imageData));
@@ -1282,7 +1286,7 @@ public class V2 {
 	}
 	
 	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class))}),
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
@@ -1296,8 +1300,8 @@ public class V2 {
 		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
-			ApifyInstagramResolver.InstagramMedia scraped = ApifyInstagramResolver.resolveMedia(url);
-			return Response.ok().entity(scraped).build();
+			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
+			return Response.ok().entity(scrapedList).build();
 		});
 	}
 
