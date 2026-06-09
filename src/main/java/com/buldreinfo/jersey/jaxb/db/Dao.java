@@ -39,8 +39,6 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
@@ -96,8 +94,8 @@ import com.buldreinfo.jersey.jaxb.model.ProblemComment;
 import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
-import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDisciplineGradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDiscipline;
+import com.buldreinfo.jersey.jaxb.model.Profile.ProfileDisciplineGradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileKpis;
 import com.buldreinfo.jersey.jaxb.model.ProfileAscent;
@@ -153,8 +151,6 @@ import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import jakarta.ws.rs.core.MediaType;
-
 public class Dao {
 	private static final String ACTIVITY_TYPE_FA = "FA";
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
@@ -168,14 +164,13 @@ public class Dao {
 	public Dao() {
 	}
 
-	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, FormDataBodyPart filePart, Supplier<InputStream> inputStreamSupplier) throws Exception {
+	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType, Supplier<InputStream> inputStreamSupplier) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Association associations = m.ensureCorrectMediaAssociations(authUserId);
-		Preconditions.checkNotNull(filePart, "File part is required");
-		String fileName = filePart.getContentDisposition().getFileName();
-		StorageType storageType = StorageType.fromFilename(fileName)
-				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
+		Preconditions.checkNotNull(storageType, "StorageType is required");
+		Preconditions.checkNotNull(inputStreamSupplier, "InputStreamSupplier is required");
 		Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
+		
+		Association associations = m.ensureCorrectMediaAssociations(authUserId);
 		int idMedia = insertMediaMetadata(c, authUserId.get(), m, storageType);
 		saveMediaContext(c, idMedia, associations, m, false);
 		if (associations == Association.PROBLEMS) {
@@ -1160,16 +1155,9 @@ public class Dao {
 				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
 					avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
 				}
-
-				FormDataBodyPart filePart = new FormDataBodyPart("file", new ByteArrayInputStream(avatarBytes), MediaType.APPLICATION_OCTET_STREAM_TYPE);
-				FormDataContentDisposition disposition = FormDataContentDisposition.name("file")
-						.fileName("avatar.jpg")
-						.build();
-				filePart.setFormDataContentDisposition(disposition);
-
 				User photographer = User.from(USER_ID_UNKNOWN, null);
 				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
-				addMediaImage(c, finalUserId, m, filePart, () -> new ByteArrayInputStream(avatarBytes));
+				addMediaImage(c, finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
 			}

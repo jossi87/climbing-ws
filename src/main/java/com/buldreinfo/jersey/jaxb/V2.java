@@ -1228,7 +1228,11 @@ public class V2 {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(m != null);
 			FormDataBodyPart filePart = multiPart.getField("file");
-			int newMediaId = dao.addMediaImage(c, authUserId, m, filePart, () -> filePart.getValueAs(InputStream.class));
+			Preconditions.checkNotNull(filePart, "File part is required");
+			String fileName = filePart.getContentDisposition().getFileName();
+			StorageType storageType = StorageType.fromFilename(fileName)
+					.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
+			int newMediaId = dao.addMediaImage(c, authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
 			Media res = dao.getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
@@ -1301,7 +1305,7 @@ public class V2 {
 				}
 			}
 			final byte[] finalImageData = imageData;
-			int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, null, () -> new ByteArrayInputStream(finalImageData));
+			int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
 			Media res = dao.getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
