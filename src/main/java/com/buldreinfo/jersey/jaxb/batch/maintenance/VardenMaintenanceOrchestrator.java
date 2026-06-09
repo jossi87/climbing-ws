@@ -26,17 +26,17 @@ public class VardenMaintenanceOrchestrator {
                 throw new RuntimeException(p.toString() + " not found");
             }
         }
-        logger.debug("Starting FixMedia background embedding sync task.");
-        new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
-        
-        logger.debug("FixMediaAnalyze started");
-        new FixMediaAnalyze(LOCAL_MEDIA_ROOT).run();
-        
         logger.debug("DataSftpDownloadTask started");
         new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, REMOTE_BACKUP_DIR).run();
         
         logger.debug("S3BucketDownloadBatch started");
         new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT).run();
+        
+        logger.debug("Starting FixMedia background embedding sync task.");
+        new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+        
+        logger.debug("FixMediaAnalyze started");
+        new FixMediaAnalyze(LOCAL_MEDIA_ROOT).run();
         
         logger.debug("S3BucketUploadBatch started");
         new S3BucketUploadBatch(LOCAL_MEDIA_ROOT).run();
