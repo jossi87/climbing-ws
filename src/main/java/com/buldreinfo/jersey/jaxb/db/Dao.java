@@ -5357,7 +5357,7 @@ public class Dao {
 			Path tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
 			try {
 				storage.downloadFile(originalMp4Key, tempOriginal);
-				VideoHelper.extractThumbnail(c, this, "ffmpeg", mediaId, tempOriginal, m.thumbnailSeconds());
+				VideoHelper.extractThumbnail(c, this, mediaId, tempOriginal, m.thumbnailSeconds());
 				S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
 			} finally {
 				Files.deleteIfExists(tempOriginal);

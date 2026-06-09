@@ -19,14 +19,14 @@ import com.google.common.base.Stopwatch;
 
 public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
-	public static final String FFMPEG_DEFAULT = "ffmpeg";
+	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
-	public static void extractThumbnail(Connection c, Dao dao, String ffmpegPath, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	public static void extractThumbnail(Connection c, Dao dao, int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
 			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
-			String[] cmd = {ffmpegPath, "-y", "-nostdin", seekFlag, String.valueOf(thumbnailSeconds), "-i", src.toString(), 
+			String[] cmd = {FFMPEG_DEFAULT, "-y", "-nostdin", seekFlag, String.valueOf(thumbnailSeconds), "-i", src.toString(), 
 							"-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
 			runCommand(cmd);
 			if (Files.exists(tempThumb) && Files.size(tempThumb) > 0) {
@@ -42,31 +42,10 @@ public class VideoHelper {
 		} finally {
 			Files.deleteIfExists(tempThumb);
 		}
-		logger.info("extractThumbnail(ffmpegPath={}, idMedia={}, src={}, thumbnailSeconds={}) - duration={}", ffmpegPath, idMedia, src, thumbnailSeconds, stopwatch);
-	}
-
-	public static void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
-		logger.info("Generating MP4: {} -> {}", src, dst);
-		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
-				"-vcodec", "libx264", "-preset", "veryfast", "-crf", "23",
-				"-pix_fmt", "yuv420p", "-profile:v", "main", "-level", "3.1",
-				"-vf", "scale=-2:1080", "-acodec", "aac", dst.toString()};
-		runCommand(cmd);
-	}
-	
-	public static void generateWebm(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
-		logger.info("Generating WebM: {} -> {}", src, dst);
-		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
-				"-codec:v", "libvpx", "-b:v", "1500k", "-cpu-used", "5", "-deadline", "good",
-				"-vf", "scale=-2:1080", "-codec:a", "libvorbis", "-b:a", "128k", dst.toString()};
-		runCommand(cmd);
+		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
 	}
 
 	public static void processVideo(Connection c, Dao dao, int idMedia, int thumbnailSeconds) throws Exception {
-		processVideo(c, dao, FFMPEG_DEFAULT, idMedia, thumbnailSeconds);
-	}
-
-	private static void processVideo(Connection c, Dao dao, String ffmpegPath, int idMedia, int thumbnailSeconds) throws Exception {
 		StorageManager storage = StorageManager.getInstance();
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
@@ -85,7 +64,7 @@ public class VideoHelper {
 			if (needsWebm) {
 				Path tempWebm = Files.createTempFile("webm-" + idMedia, "." + StorageType.WEBM.getExtension());
 				try {
-					generateWebm(ffmpegPath, tempOriginal, tempWebm);
+					generateWebm(FFMPEG_DEFAULT, tempOriginal, tempWebm);
 					storage.uploadFile(webmKey, tempWebm, StorageType.WEBM);
 				} finally {
 					Files.deleteIfExists(tempWebm);
@@ -94,18 +73,35 @@ public class VideoHelper {
 			if (needsMp4) {
 				Path tempMp4 = Files.createTempFile("mp4-" + idMedia, "." + StorageType.MP4.getExtension());
 				try {
-					generateMp4(ffmpegPath, tempOriginal, tempMp4);
+					generateMp4(FFMPEG_DEFAULT, tempOriginal, tempMp4);
 					storage.uploadFile(mp4Key, tempMp4, StorageType.MP4);
 				} finally {
 					Files.deleteIfExists(tempMp4);
 				}
 			}
 			if (needsThumb) {
-				extractThumbnail(c, dao, ffmpegPath, idMedia, tempOriginal, thumbnailSeconds);
+				extractThumbnail(c, dao, idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {
 			Files.deleteIfExists(tempOriginal);
 		}
+	}
+	
+	private static void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
+		logger.info("Generating MP4: {} -> {}", src, dst);
+		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
+				"-vcodec", "libx264", "-preset", "veryfast", "-crf", "23",
+				"-pix_fmt", "yuv420p", "-profile:v", "main", "-level", "3.1",
+				"-vf", "scale=-2:1080", "-acodec", "aac", dst.toString()};
+		runCommand(cmd);
+	}
+
+	private static void generateWebm(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
+		logger.info("Generating WebM: {} -> {}", src, dst);
+		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
+				"-codec:v", "libvpx", "-b:v", "1500k", "-cpu-used", "5", "-deadline", "good",
+				"-vf", "scale=-2:1080", "-codec:a", "libvorbis", "-b:a", "128k", dst.toString()};
+		runCommand(cmd);
 	}
 
 	private static void runCommand(String[] cmd) throws IOException, InterruptedException {
