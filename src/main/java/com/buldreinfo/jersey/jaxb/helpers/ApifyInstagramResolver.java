@@ -1,5 +1,10 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -10,16 +15,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 public class ApifyInstagramResolver {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
-
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(15))
 			.build();
+	private static final Gson GSON = new GsonBuilder()
+			.disableHtmlEscaping()
+			.create();
 
 	public static List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
 		String apiToken = com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.getConfig().getProperty(com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.PROPERTY_KEY_APIFY_API_TOKEN);
@@ -33,9 +36,8 @@ public class ApifyInstagramResolver {
 				.uri(URI.create(url))
 				.header("Content-Type", "application/json")
 				.timeout(Duration.ofSeconds(60))
-				.POST(HttpRequest.BodyPublishers.ofString(inputJson.toString(), StandardCharsets.UTF_8))
+				.POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(inputJson), StandardCharsets.UTF_8))
 				.build();
-
 		HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 		if (response.statusCode() != 200 && response.statusCode() != 201) {
 			throw new IOException("Apify scrape request failed with HTTP code: " + response.statusCode());
@@ -49,9 +51,14 @@ public class ApifyInstagramResolver {
 			JsonObject entry = resultArray.get(i).getAsJsonObject();
 			if (entry.has("download_url") && !entry.get("download_url").isJsonNull()) {
 				String cdnUrl = entry.get("download_url").getAsString().replaceAll("&amp;", "&");
-				String mediaType = entry.has("media_type") && !entry.get("media_type").isJsonNull() ? entry.get("media_type").getAsString() : "image";
+				String mediaType = entry.has("media_type") && !entry.get("media_type").isJsonNull()
+						? entry.get("media_type").getAsString()
+						: "image";
 				boolean isVideo = "video".equalsIgnoreCase(mediaType);
-				int apiMediaIndex = entry.has("media_index") && !entry.get("media_index").isJsonNull() ? entry.get("media_index").getAsInt() : i;
+				int apiMediaIndex = entry.has("media_index") && !entry.get("media_index").isJsonNull()
+						? entry.get("media_index").getAsInt()
+						: i;
+
 				mediaList.add(new InstagramMedia(cdnUrl, isVideo, apiMediaIndex));
 			}
 		}
