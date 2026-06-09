@@ -3,6 +3,7 @@ package com.buldreinfo.jersey.jaxb;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -1249,6 +1250,7 @@ public class V2 {
 			@Context HttpServletRequest request, 
 			@HeaderParam("X-Selected-Cdn-Url") String selectedCdnUrl,
 			@HeaderParam("X-Selected-Is-Video") boolean isVideo,
+			@HeaderParam("X-Selected-Media-Index") int mediaIndex,
 			Media mediaPayload) {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
@@ -1259,10 +1261,19 @@ public class V2 {
 				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
 				Server.runAsync(() -> {
 					try {
-						URI cdnUri = URI.create(selectedCdnUrl);
 						byte[] videoData;
-						try (InputStream is = cdnUri.toURL().openStream()) {
+						try (InputStream is = URI.create(selectedCdnUrl).toURL().openStream()) {
 							videoData = StorageManager.getInstance().readBoundedStream(is);
+						} catch (IOException e) {
+							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + newMediaId, e);
+							List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
+							ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
+									.filter(m -> m.mediaIndex() == mediaIndex)
+									.findFirst()
+									.orElse(freshMedia.get(0));
+							try (InputStream is = URI.create(target.cdnUrl()).toURL().openStream()) {
+								videoData = StorageManager.getInstance().readBoundedStream(is);
+							}
 						}
 						StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(newMediaId), videoData, StorageType.MP4);
 						Server.runSql((backgroundDao, backgroundConn) -> {
@@ -1275,13 +1286,24 @@ public class V2 {
 				Media res = dao.getMedia(c, authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
-			URI cdnUri = URI.create(selectedCdnUrl);
-			try (InputStream is = cdnUri.toURL().openStream()) {
-				byte[] imageData = StorageManager.getInstance().readBoundedStream(is);
-				int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, null, () -> new ByteArrayInputStream(imageData));
-				Media res = dao.getMedia(c, authUserId, newMediaId);
-				return Response.ok().entity(res).build();
+			byte[] imageData;
+			try (InputStream is = URI.create(selectedCdnUrl).toURL().openStream()) {
+				imageData = StorageManager.getInstance().readBoundedStream(is);
+			} catch (IOException e) {
+				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
+				List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
+				ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
+						.filter(m -> m.mediaIndex() == mediaIndex)
+						.findFirst()
+						.orElse(freshMedia.get(0));
+				try (InputStream is = URI.create(target.cdnUrl()).toURL().openStream()) {
+					imageData = StorageManager.getInstance().readBoundedStream(is);
+				}
 			}
+			final byte[] finalImageData = imageData;
+			int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, null, () -> new ByteArrayInputStream(finalImageData));
+			Media res = dao.getMedia(c, authUserId, newMediaId);
+			return Response.ok().entity(res).build();
 		});
 	}
 	
