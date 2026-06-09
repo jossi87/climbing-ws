@@ -1232,7 +1232,7 @@ public class V2 {
 		});
 	}
 
-	@Operation(summary = "Scrape media from Instagram and download/process inside application storage", responses = {
+	@Operation(summary = "Commit verified Instagram media to application storage", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
@@ -1241,10 +1241,10 @@ public class V2 {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
-	@Path("/media/instagram-import")
+	@Path("/media/instagram-save")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaInstagramImport(@Context HttpServletRequest request, Media mediaPayload) {
+	public Response postMediaInstagramSave(@Context HttpServletRequest request, Media mediaPayload) {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(mediaPayload.embedUrl() != null && !mediaPayload.embedUrl().isBlank(), "Instagram source URL is required inside embedUrl field");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
@@ -1265,7 +1265,7 @@ public class V2 {
 							VideoHelper.processVideo(backgroundConn, backgroundDao, newMediaId, mediaPayload.thumbnailSeconds());
 						});
 					} catch (Exception e) {
-						logger.error("Failed async instagram video download and processing for id=" + newMediaId, e);
+						logger.error("Failed async instagram video save for id=" + newMediaId, e);
 					}
 				});
 				Media res = dao.getMedia(c, authUserId, newMediaId);
@@ -1278,6 +1278,26 @@ public class V2 {
 				Media res = dao.getMedia(c, authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
+		});
+	}
+	
+	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/media/instagram-scrape")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
+		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
+			ApifyInstagramResolver.InstagramMedia scraped = ApifyInstagramResolver.resolveMedia(url);
+			return Response.ok().entity(scraped).build();
 		});
 	}
 
