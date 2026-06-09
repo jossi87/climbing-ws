@@ -6,3 +6,4 @@ google.apikey=WhateverYouWant
 vegvesen.auth=WhateverYouWant
 akamai.access_key=WhateverYouWant
 akamai.secret_key=WhateverYouWant
+apify.api_token=WhateverYouWant

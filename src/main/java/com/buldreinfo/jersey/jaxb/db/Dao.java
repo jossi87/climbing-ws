@@ -298,6 +298,21 @@ public class Dao {
 		}
 	}
 
+	public void ensureSuperadminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
 	public void ensureUserExists(Connection c, int userId) throws SQLException {
 		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
 		boolean exists = false;
@@ -5886,21 +5901,6 @@ public class Dao {
 			}
 		}
 		throw new IllegalArgumentException("Insufficient permissions");
-	}
-
-	private void ensureSuperadminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	private void fillMissingElevations(Connection c) throws SQLException, InterruptedException {

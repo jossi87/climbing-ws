@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,6 +26,7 @@ import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
+import com.buldreinfo.jersey.jaxb.helpers.ApifyInstagramResolver;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
@@ -130,7 +132,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
+
 	@Operation(summary = "Get activity feed", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -277,7 +279,7 @@ public class V2 {
 			return Response.ok().entity(elevation).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get frontpage", responses = {
 			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Frontpage.class))}),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
@@ -1146,26 +1148,26 @@ public class V2 {
 	}
 
 	@Operation(summary = "Reorder media", responses = {
-	        @ApiResponse(responseCode = "200"),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PATCH
 	@Path("/media/order")
 	public Response patchMediaOrder(@Context HttpServletRequest request,
-	        @Parameter(description = "Media id", required = true) @QueryParam("id") int id,
-	        @Parameter(description = "Move left", required = false) @QueryParam("left") boolean left,
-	        @Parameter(description = "Move right", required = false) @QueryParam("right") boolean right
-	        ) {
-	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-	        Preconditions.checkArgument(id > 0);
-	        Preconditions.checkArgument(left ^ right, "You must specify either 'left' or 'right', but not both.");
-	        dao.shiftMediaPosition(c, authUserId, id, left, right);
-	        return Response.ok().build();
-	    });
+			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
+			@Parameter(description = "Move left", required = false) @QueryParam("left") boolean left,
+			@Parameter(description = "Move right", required = false) @QueryParam("right") boolean right
+			) {
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(id > 0);
+			Preconditions.checkArgument(left ^ right, "You must specify either 'left' or 'right', but not both.");
+			dao.shiftMediaPosition(c, authUserId, id, left, right);
+			return Response.ok().build();
+		});
 	}
 
 	@Operation(summary = "Update area", responses = {
@@ -1218,16 +1220,65 @@ public class V2 {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaImage(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
-	    FormDataBodyPart jsonPart = multiPart.getField("json");
-	    Preconditions.checkArgument(jsonPart != null);
-	    Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
-	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-	        Preconditions.checkArgument(m != null);
-	        FormDataBodyPart filePart = multiPart.getField("file");
-	        int newMediaId = dao.addMediaImage(c, authUserId, m, filePart, () -> filePart.getValueAs(InputStream.class));
-	        Media res = dao.getMedia(c, authUserId, newMediaId);
-	        return Response.ok().entity(res).build();
-	    });
+		FormDataBodyPart jsonPart = multiPart.getField("json");
+		Preconditions.checkArgument(jsonPart != null);
+		Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(m != null);
+			FormDataBodyPart filePart = multiPart.getField("file");
+			int newMediaId = dao.addMediaImage(c, authUserId, m, filePart, () -> filePart.getValueAs(InputStream.class));
+			Media res = dao.getMedia(c, authUserId, newMediaId);
+			return Response.ok().entity(res).build();
+		});
+	}
+
+	@Operation(summary = "Scrape media from Instagram and download/process inside application storage", responses = {
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@POST
+	@Path("/media/instagram-import")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response postMediaInstagramImport(@Context HttpServletRequest request, Media mediaPayload) {
+		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
+		Preconditions.checkArgument(mediaPayload.embedUrl() != null && !mediaPayload.embedUrl().isBlank(), "Instagram source URL is required inside embedUrl field");
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
+			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
+			mediaPayload.ensureCorrectMediaAssociations(authUserId);
+			ApifyInstagramResolver.InstagramMedia scraped = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
+			if (scraped.isVideo()) {
+				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
+				Server.runAsync(() -> {
+					try {
+						URI cdnUri = URI.create(scraped.cdnUrl());
+						byte[] videoData;
+						try (InputStream is = cdnUri.toURL().openStream()) {
+							videoData = StorageManager.getInstance().readBoundedStream(is);
+						}
+						StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(newMediaId), videoData, StorageType.MP4);
+						Server.runSql((backgroundDao, backgroundConn) -> {
+							VideoHelper.processVideo(backgroundConn, backgroundDao, newMediaId, mediaPayload.thumbnailSeconds());
+						});
+					} catch (Exception e) {
+						logger.error("Failed async instagram video download and processing for id=" + newMediaId, e);
+					}
+				});
+				Media res = dao.getMedia(c, authUserId, newMediaId);
+				return Response.ok().entity(res).build();
+			}
+			URI cdnUri = URI.create(scraped.cdnUrl());
+			try (InputStream is = cdnUri.toURL().openStream()) {
+				byte[] imageData = StorageManager.getInstance().readBoundedStream(is);
+				int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, null, () -> new ByteArrayInputStream(imageData));
+				Media res = dao.getMedia(c, authUserId, newMediaId);
+				return Response.ok().entity(res).build();
+			}
+		});
 	}
 
 	@Operation(summary = "Update Media SVG", responses = {
@@ -1258,30 +1309,30 @@ public class V2 {
 	@POST
 	@Path("/media/video/{id}/complete")
 	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) {
-	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-	        Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-	        Media media = dao.getMedia(c, authUserId, mediaId);
-	        Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
-	        Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
-	        Server.runAsync(() -> {
-	            try {
-	                Server.runSql((backgroundDao, backgroundConn) -> {
-	                    VideoHelper.processVideo(backgroundConn, backgroundDao, mediaId, media.thumbnailSeconds());
-	                });
-	            } catch (Exception e) {
-	                logger.error("Failed async video processing for id=" + mediaId, e);
-	            }
-	        });
-	        return Response.ok().build();
-	    });
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+			Media media = dao.getMedia(c, authUserId, mediaId);
+			Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
+			Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
+			Server.runAsync(() -> {
+				try {
+					Server.runSql((backgroundDao, backgroundConn) -> {
+						VideoHelper.processVideo(backgroundConn, backgroundDao, mediaId, media.thumbnailSeconds());
+					});
+				} catch (Exception e) {
+					logger.error("Failed async video processing for id=" + mediaId, e);
+				}
+			});
+			return Response.ok().build();
+		});
 	}
-	
+
 	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
-	        @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
+			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.UNAUTHORIZED_CODE, description = OpenApiResponseRefs.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.FORBIDDEN_CODE, description = OpenApiResponseRefs.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_CODE, description = OpenApiResponseRefs.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
@@ -1289,32 +1340,32 @@ public class V2 {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaVideoEmbed(@Context HttpServletRequest request, Media media) {
-	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-	        Preconditions.checkArgument(media != null, "Media payload is missing");
-	        Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
-	        String lowerUrl = media.embedUrl().toLowerCase();
-	        boolean isValidProvider = lowerUrl.contains("youtube.com") 
-	                || lowerUrl.contains("youtu.be") 
-	                || lowerUrl.contains("vimeo.com");
-	        Preconditions.checkArgument(isValidProvider, "Unsupported video provider. Only YouTube and Vimeo links are allowed.");
-	        try {
-	            URI.create(media.embedUrl()).toURL();
-	        } catch (Exception e) {
-	            throw new IllegalArgumentException("The provided embed URL is malformed.", e);
-	        }
-	        int newMediaId = dao.addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
-	        Server.runAsync(() -> {
-	            try {
-	                Server.runSql((backgroundDao, backgroundConn) -> {
-	                    ImageHelper.saveImageFromEmbedVideo(backgroundDao, backgroundConn, newMediaId, media.embedUrl());
-	                });
-	            } catch (Exception e) {
-	                logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
-	            }
-	        });
-	        Media res = dao.getMedia(c, authUserId, newMediaId);
-	        return Response.ok().entity(res).build();
-	    });
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(media != null, "Media payload is missing");
+			Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
+			String lowerUrl = media.embedUrl().toLowerCase();
+			boolean isValidProvider = lowerUrl.contains("youtube.com") 
+					|| lowerUrl.contains("youtu.be") 
+					|| lowerUrl.contains("vimeo.com");
+			Preconditions.checkArgument(isValidProvider, "Unsupported video provider. Only YouTube and Vimeo links are allowed.");
+			try {
+				URI.create(media.embedUrl()).toURL();
+			} catch (Exception e) {
+				throw new IllegalArgumentException("The provided embed URL is malformed.", e);
+			}
+			int newMediaId = dao.addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
+			Server.runAsync(() -> {
+				try {
+					Server.runSql((backgroundDao, backgroundConn) -> {
+						ImageHelper.saveImageFromEmbedVideo(backgroundDao, backgroundConn, newMediaId, media.embedUrl());
+					});
+				} catch (Exception e) {
+					logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
+				}
+			});
+			Media res = dao.getMedia(c, authUserId, newMediaId);
+			return Response.ok().entity(res).build();
+		});
 	}
 
 	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
@@ -1330,20 +1381,20 @@ public class V2 {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaVideoInitiate(@Context HttpServletRequest request, VideoInitPayload payload) {
-	    return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-	        Preconditions.checkArgument(payload != null && payload.media() != null);
-	        Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size (max " + StorageManager.MAX_VIDEO_UPLOAD_BYTES + " bytes)");
-	        StorageType storageType = StorageType.fromMimeType(payload.contentType())
-	            .orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
-	        Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
-	        int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
-	        String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
-	            S3KeyGenerator.getOriginalMp4(newMediaId), 
-	            storageType.getMimeType(),
-	            payload.fileSize()
-	        );
-	        return Response.ok().entity(new VideoInitResponse(newMediaId, presignedUrl)).build();
-	    });
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			Preconditions.checkArgument(payload != null && payload.media() != null);
+			Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size (max " + StorageManager.MAX_VIDEO_UPLOAD_BYTES + " bytes)");
+			StorageType storageType = StorageType.fromMimeType(payload.contentType())
+					.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
+			Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
+			int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
+			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
+					S3KeyGenerator.getOriginalMp4(newMediaId), 
+					storageType.getMimeType(),
+					payload.fileSize()
+					);
+			return Response.ok().entity(new VideoInitResponse(newMediaId, presignedUrl)).build();
+		});
 	}
 
 	@Operation(summary = "Update user privileges", responses = {
@@ -1552,7 +1603,7 @@ public class V2 {
 			return Response.ok().build();
 		});
 	}
-	
+
 	@Operation(summary = "Update media", responses = {
 			@ApiResponse(responseCode = "200"),
 			@ApiResponse(responseCode = OpenApiResponseRefs.BAD_REQUEST_CODE, description = OpenApiResponseRefs.BAD_REQUEST_DESCRIPTION),
