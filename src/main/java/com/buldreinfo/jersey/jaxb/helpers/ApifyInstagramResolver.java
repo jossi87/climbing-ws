@@ -10,6 +10,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -18,6 +21,9 @@ import com.google.gson.JsonParser;
 
 public class ApifyInstagramResolver {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
+	
+	private static final Logger logger = LoggerFactory.getLogger(ApifyInstagramResolver.class);
+	
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(15))
 			.build();
@@ -76,11 +82,19 @@ public class ApifyInstagramResolver {
 				.build();
 		HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 		if (response.statusCode() != 200 && response.statusCode() != 201) {
-			throw new IOException("Apify scrape request failed with HTTP code: " + response.statusCode());
+			throw new IOException("Apify scrape request failed with HTTP code: " + response.statusCode() + " for URL: " + instagramUrl);
 		}
 		JsonArray resultArray = JsonParser.parseString(response.body()).getAsJsonArray();
 		if (resultArray == null || resultArray.isEmpty()) {
-			throw new IOException("Apify returned an empty dataset response.");
+			logger.warn("Apify sync call timed out empty for URL: {}. Initiating 2-second fallback retry delay...", instagramUrl);
+			Thread.sleep(2000);
+			response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() == 200 || response.statusCode() == 201) {
+				resultArray = JsonParser.parseString(response.body()).getAsJsonArray();
+			}
+		}
+		if (resultArray == null || resultArray.isEmpty()) {
+			throw new IOException("Apify returned an empty dataset response after retry for URL: " + instagramUrl);
 		}
 		List<InstagramMedia> mediaList = new ArrayList<>();
 		for (int i = 0; i < resultArray.size(); i++) {
@@ -99,7 +113,7 @@ public class ApifyInstagramResolver {
 			}
 		}
 		if (mediaList.isEmpty()) {
-			throw new IOException("No download_url found in Apify response payload.");
+			throw new IOException("No download_url found in Apify response payload for URL: " + instagramUrl);
 		}
 		return mediaList;
 	}
