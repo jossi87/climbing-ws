@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,16 +22,15 @@ import com.google.gson.JsonParser;
 
 public class ApifyInstagramResolver {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
-	
 	private static final Logger logger = LoggerFactory.getLogger(ApifyInstagramResolver.class);
-	
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(15))
 			.build();
 	private static final Gson GSON = new GsonBuilder()
 			.disableHtmlEscaping()
 			.create();
-
+	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
+	
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
 		if (cleanUrl.endsWith("/")) {
@@ -44,20 +44,7 @@ public class ApifyInstagramResolver {
 		}
 		return "unknown";
 	}
-	
-	public static URI validateInstagramCdnUrl(String urlString) {
-		try {
-			URI uri = URI.create(urlString);
-			String host = uri.getHost();
-			if (host == null || (!host.endsWith(".cdninstagram.com") && !host.endsWith(".fbcdn.net"))) {
-				throw new IllegalArgumentException("Invalid media source domain");
-			}
-			return uri;
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Malformed or unauthorized media storage URL", e);
-		}
-	}
-	
+
 	public static List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
 		if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {
 			throw new IllegalArgumentException("Invalid Instagram media URL format");
@@ -144,5 +131,16 @@ public class ApifyInstagramResolver {
 			throw new IOException("No download_url found in Apify response payload for URL: " + instagramUrl);
 		}
 		return mediaList;
+	}
+	
+	public static URI validateInstagramCdnUrl(String urlString) {
+		if (urlString == null) {
+			throw new IllegalArgumentException("URL cannot be null");
+		}
+		java.util.regex.Matcher matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
+		if (!matcher.matches()) {
+			throw new IllegalArgumentException("Unauthorized or malicious media storage URL");
+		}
+		return URI.create(matcher.group(0));
 	}
 }
