@@ -1259,9 +1259,9 @@ public class V2 {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			if (dao.isInstagramScrapeLimitReached(c, setup, authUserId)) {
-				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached").build();
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			if (dao.getDailyInstagramScrapeCount(c, authUserId) > 50) {
+				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 
@@ -1334,9 +1334,9 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
 		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
-		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			if (dao.isInstagramScrapeLimitReached(c, setup, authUserId)) {
-				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached").build();
+		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
+			if (dao.getDailyInstagramScrapeCount(c, authUserId) > 50) {
+				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
 			}
 			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
 			dao.logInstagramScrape(c, authUserId, url, scrapedList.size());

@@ -1260,6 +1260,19 @@ public class Dao {
 		return res.values();
 	}
 
+	public int getDailyInstagramScrapeCount(Connection c, Optional<Integer> authUserId) throws SQLException {
+		String sql = "SELECT COUNT(*) FROM instagram_scrape_log WHERE user_id = ? AND created_at >= NOW() - INTERVAL 1 DAY";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			ps.setInt(1, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				if (rst.next()) {
+					return rst.getInt(1);
+				}
+			}
+		}
+		return 0;
+	}
+
 	public Collection<DangerousArea> getDangerous(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
@@ -4503,19 +4516,6 @@ public class Dao {
 		}
 	}
 
-	public boolean isInstagramScrapeLimitReached(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
-		if (getDailyInstagramScrapeCount(c, authUserId) < 20) {
-			return false;
-		}
-		try {
-			ensureSuperadminWriteRegion(c, setup, authUserId);
-			return false;
-		} catch (Exception e) {
-			logger.debug(e.getMessage(), e);
-			return true;
-		}
-	}
-
 	public void logInstagramScrape(Connection c, Optional<Integer> authUserId, String originalUrl, int slideCount) throws SQLException {
 		String sql = "INSERT INTO instagram_scrape_log (user_id, shortcode, original_url, slide_count) VALUES (?, ?, ?, ?)";
 		try (PreparedStatement ps = c.prepareStatement(sql)) {
@@ -5800,7 +5800,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-
+	
 	private void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
 		boolean ok = false;
 		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, sector s, problem p, user_region ur WHERE p.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND a.id=s.area_id AND s.id=p.sector_id AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1")) {
@@ -5814,7 +5814,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	private void ensureAdminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		boolean ok = false;
@@ -6051,19 +6051,6 @@ public class Dao {
 			}
 		}
 		return res;
-	}
-
-	private int getDailyInstagramScrapeCount(Connection c, Optional<Integer> authUserId) throws SQLException {
-		String sql = "SELECT COUNT(*) FROM instagram_scrape_log WHERE user_id = ? AND created_at >= NOW() - INTERVAL 1 DAY";
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
-			ps.setInt(1, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				if (rst.next()) {
-					return rst.getInt(1);
-				}
-			}
-		}
-		return 0;
 	}
 
 	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {
