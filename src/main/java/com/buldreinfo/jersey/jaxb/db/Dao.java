@@ -3331,8 +3331,10 @@ public class Dao {
 
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
-		String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
-		String searchRegexPattern = "(^|\\W)" + quotedSearch;
+		
+		String cleanSearch = search.replaceAll("[^a-zA-Z0-9]", "");
+		String wildCardSearch = "%" + cleanSearch + "%";
+		
 		List<Search> areas = new ArrayList<>();
 		List<Search> externalAreas = new ArrayList<>();
 		List<Search> sectors = new ArrayList<>();
@@ -3341,7 +3343,7 @@ public class Dao {
 		Set<Integer> areaIdsVisible = new HashSet<>();
 		String sqlStr = """
 				WITH req AS (
-				  SELECT ? auth_user_id, ? region_id, ? search_regex
+				  SELECT ? auth_user_id, ? region_id, ? search_term
 				),
 				ranked_area_media AS (
 				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
@@ -3374,7 +3376,7 @@ public class Dao {
 				 JOIN area a ON r.id=a.region_id
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE REGEXP_LIKE(a.name, req.search_regex, 'i')
+				 WHERE REPLACE(REPLACE(REPLACE(a.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
 				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
 				 GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
@@ -3387,13 +3389,13 @@ public class Dao {
 				        a_ext.locked_admin, a_ext.locked_superadmin
 				 FROM req
 				 JOIN region_type rt ON rt.region_id=req.region_id
-				 JOIN region_type rt_ext ON rt.type_id=rt_ext.type_id
+				 JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
 				 JOIN region r_ext ON rt_ext.region_id=r_ext.id AND r_ext.id != req.region_id
 				 JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
 				             LEFT JOIN ranked_area_media ma_ext ON a_ext.id=ma_ext.area_id AND ma_ext.rn=1
 				 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
 				 WHERE ur_check.region_id IS NULL
-				   AND REGEXP_LIKE(a_ext.name, req.search_regex, 'i')
+				   AND REPLACE(REPLACE(REPLACE(a_ext.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
 				 GROUP BY a_ext.id, r_ext.name, r_ext.url, ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
 				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
 
@@ -3410,7 +3412,7 @@ public class Dao {
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
 				             LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE REGEXP_LIKE(s.name, req.search_regex, 'i')
+				 WHERE REPLACE(REPLACE(REPLACE(s.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
 				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
 				 GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
 				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
@@ -3433,7 +3435,7 @@ public class Dao {
 				 LEFT JOIN ranked_problem_media mp ON p.id=mp.problem_id AND mp.rn=1
 				             LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
 				             LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE (REGEXP_LIKE(p.name, req.search_regex, 'i') OR REGEXP_LIKE(p.rock, req.search_regex, 'i'))
+				 WHERE (REPLACE(REPLACE(REPLACE(p.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term OR REPLACE(REPLACE(REPLACE(p.rock, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term)
 				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
 				 GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
 				                      mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
@@ -3448,7 +3450,7 @@ public class Dao {
 				        0 hits, NULL external_url,
 				        0 locked_admin, 0 locked_superadmin
 				 FROM req
-				 JOIN user u ON REGEXP_LIKE(CONCAT(' ', u.firstname, ' ', COALESCE(u.lastname,'')), req.search_regex, 'i')
+				 JOIN user u ON REPLACE(REPLACE(REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
 				 LEFT JOIN media m ON u.media_id=m.id
 				 LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
@@ -3456,7 +3458,7 @@ public class Dao {
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
-			ps.setString(3, searchRegexPattern);
+			ps.setString(3, wildCardSearch);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					String type = rst.getString("result_type");
@@ -3481,7 +3483,6 @@ public class Dao {
 					case "AREA" -> {
 						areaIdsVisible.add(id);
 						areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-
 					}
 					case "EXTERNAL" -> {
 						externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
@@ -3500,7 +3501,6 @@ public class Dao {
 				}
 			}
 		}
-		// Truncate logic
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
 			if (problems.size() > 5) {
 				problems.removeLast();
@@ -3515,7 +3515,6 @@ public class Dao {
 				users.removeLast();
 			}
 		}
-		// Filter External Areas
 		List<Search> filteredExternal = externalAreas.stream()
 				.filter(ea -> {
 					try {
@@ -3526,7 +3525,6 @@ public class Dao {
 						return true;
 					}
 				}).toList();
-		// Assemble and Final Sort
 		List<Search> res = new ArrayList<>();
 		res.addAll(areas);
 		res.addAll(sectors);

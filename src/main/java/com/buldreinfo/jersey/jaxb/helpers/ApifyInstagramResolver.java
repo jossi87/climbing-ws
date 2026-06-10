@@ -137,7 +137,7 @@ public class ApifyInstagramResolver {
 		if (urlString == null) {
 			throw new IllegalArgumentException("URL cannot be null");
 		}
-		java.util.regex.Matcher matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
+		var matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
 		if (!matcher.matches()) {
 			throw new IllegalArgumentException("Unauthorized or malicious media storage URL");
 		}
