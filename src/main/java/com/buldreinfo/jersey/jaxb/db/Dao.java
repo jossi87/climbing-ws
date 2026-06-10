@@ -47,6 +47,7 @@ import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
+import com.buldreinfo.jersey.jaxb.helpers.ApifyInstagramResolver;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
@@ -184,7 +185,7 @@ public class Dao {
 		}
 		return idMedia;
 	}
-
+	
 	public int addMediaVideoEmbed(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Association associations = m.ensureCorrectMediaAssociations(authUserId);
@@ -197,7 +198,7 @@ public class Dao {
 		}
 		return idMedia;
 	}
-
+	
 	public int addMediaVideoPlaceholder(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Association associations = m.ensureCorrectMediaAssociations(authUserId);
@@ -210,7 +211,7 @@ public class Dao {
 		}
 		return idMedia;
 	}
-
+	
 	public void deleteMedia(Connection c, Optional<Integer> authUserId, int idMedia) throws SQLException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
 		List<Integer> idProblems = new ArrayList<>();
@@ -291,21 +292,6 @@ public class Dao {
 				}
 			}
 		}
-	}
-
-	public void ensureSuperadminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	public void ensureUserExists(Connection c, int userId) throws SQLException {
@@ -4517,6 +4503,30 @@ public class Dao {
 		}
 	}
 
+	public boolean isInstagramScrapeLimitReached(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
+		if (getDailyInstagramScrapeCount(c, authUserId) < 20) {
+			return false;
+		}
+		try {
+			ensureSuperadminWriteRegion(c, setup, authUserId);
+			return false;
+		} catch (Exception e) {
+			logger.debug(e.getMessage(), e);
+			return true;
+		}
+	}
+
+	public void logInstagramScrape(Connection c, Optional<Integer> authUserId, String originalUrl, int slideCount) throws SQLException {
+		String sql = "INSERT INTO instagram_scrape_log (user_id, shortcode, original_url, slide_count) VALUES (?, ?, ?, ?)";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			ps.setInt(1, authUserId.orElseThrow());
+			ps.setString(2, ApifyInstagramResolver.extractInstagramShortcode(originalUrl));
+			ps.setString(3, originalUrl);
+			ps.setInt(4, slideCount);
+			ps.executeUpdate();
+		}
+	}
+
 	public void rotateMedia(Connection c, Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(c, authUserId, idMedia);
 		Rotation r = switch (degrees) {
@@ -5804,7 +5814,7 @@ public class Dao {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-
+	
 	private void ensureAdminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		boolean ok = false;
@@ -5889,6 +5899,21 @@ public class Dao {
 			}
 		}
 		throw new IllegalArgumentException("Insufficient permissions");
+	}
+
+	private void ensureSuperadminWriteRegion(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		boolean ok = false;
+		try (PreparedStatement ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	private void fillMissingElevations(Connection c) throws SQLException, InterruptedException {
@@ -6026,6 +6051,19 @@ public class Dao {
 			}
 		}
 		return res;
+	}
+
+	private int getDailyInstagramScrapeCount(Connection c, Optional<Integer> authUserId) throws SQLException {
+		String sql = "SELECT COUNT(*) FROM instagram_scrape_log WHERE user_id = ? AND created_at >= NOW() - INTERVAL 1 DAY";
+		try (PreparedStatement ps = c.prepareStatement(sql)) {
+			ps.setInt(1, authUserId.orElseThrow());
+			try (ResultSet rst = ps.executeQuery()) {
+				if (rst.next()) {
+					return rst.getInt(1);
+				}
+			}
+		}
+		return 0;
 	}
 
 	private int getExistingOrInsertUser(Connection c, String name) throws SQLException {

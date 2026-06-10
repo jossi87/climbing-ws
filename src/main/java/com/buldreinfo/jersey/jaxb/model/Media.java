@@ -35,15 +35,6 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 
 	private static final TypeAdapter<Boolean> booleanCoercionAdapter = new TypeAdapter<>() {
 		@Override
-		public void write(JsonWriter out, Boolean value) throws IOException {
-			if (value == null) {
-				out.nullValue();
-			} else {
-				out.value(value);
-			}
-		}
-
-		@Override
 		public Boolean read(JsonReader in) throws IOException {
 			JsonToken peek = in.peek();
 			if (peek == JsonToken.NUMBER) {
@@ -56,18 +47,18 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			}
 			throw new IllegalStateException("Expected BOOLEAN or NUMBER but found: " + peek);
 		}
-	};
 
-	private static final TypeAdapter<Integer> integerCoercionAdapter = new TypeAdapter<>() {
 		@Override
-		public void write(JsonWriter out, Integer value) throws IOException {
+		public void write(JsonWriter out, Boolean value) throws IOException {
 			if (value == null) {
 				out.nullValue();
 			} else {
 				out.value(value);
 			}
 		}
+	};
 
+	private static final TypeAdapter<Integer> integerCoercionAdapter = new TypeAdapter<>() {
 		@Override
 		public Integer read(JsonReader in) throws IOException {
 			JsonToken peek = in.peek();
@@ -81,6 +72,15 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				return Strings.isNullOrEmpty(str) ? 0 : Integer.parseInt(str);
 			}
 			throw new IllegalStateException("Expected NUMBER or NULL but found: " + peek);
+		}
+
+		@Override
+		public void write(JsonWriter out, Integer value) throws IOException {
+			if (value == null) {
+				out.nullValue();
+			} else {
+				out.value(value);
+			}
 		}
 	};
 

@@ -1259,7 +1259,9 @@ public class V2 {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
+			if (dao.isInstagramScrapeLimitReached(c, setup, authUserId)) {
+				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached").build();
+			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 			if (isVideo) {
 				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
@@ -1271,6 +1273,9 @@ public class V2 {
 						} catch (IOException e) {
 							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + newMediaId, e);
 							List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
+							Server.runSql((backgroundDao, backgroundConn) -> {
+								backgroundDao.logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+							});
 							ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
 									.filter(m -> m.mediaIndex() == mediaIndex)
 									.findFirst()
@@ -1296,6 +1301,7 @@ public class V2 {
 			} catch (IOException e) {
 				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
 				List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
+				dao.logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
 						.filter(m -> m.mediaIndex() == mediaIndex)
 						.findFirst()
@@ -1325,8 +1331,11 @@ public class V2 {
 	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
 		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.ensureSuperadminWriteRegion(c, setup, authUserId);
+			if (dao.isInstagramScrapeLimitReached(c, setup, authUserId)) {
+				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached").build();
+			}
 			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
+			dao.logInstagramScrape(c, authUserId, url, scrapedList.size());
 			return Response.ok().entity(scrapedList).build();
 		});
 	}

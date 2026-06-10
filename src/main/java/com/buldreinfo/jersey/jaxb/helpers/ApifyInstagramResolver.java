@@ -24,7 +24,27 @@ public class ApifyInstagramResolver {
 			.disableHtmlEscaping()
 			.create();
 
+	public static String extractInstagramShortcode(String url) {
+		String cleanUrl = url.split("\\?")[0];
+		if (cleanUrl.endsWith("/")) {
+			cleanUrl = cleanUrl.substring(0, cleanUrl.length() - 1);
+		}
+		String[] segments = cleanUrl.split("/");
+		for (int i = 0; i < segments.length - 1; i++) {
+			if ("p".equals(segments[i]) || "reel".equals(segments[i]) || "tv".equals(segments[i])) {
+				return segments[i + 1];
+			}
+		}
+		return "unknown";
+	}
+	
 	public static List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
+		if (instagramUrl != null && instagramUrl.contains("?")) {
+			instagramUrl = instagramUrl.substring(0, instagramUrl.indexOf('?'));
+		}
+		if (instagramUrl != null && instagramUrl.endsWith("/")) {
+			instagramUrl = instagramUrl.substring(0, instagramUrl.length() - 1);
+		}
 		String apiToken = com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.getConfig().getProperty(com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.PROPERTY_KEY_APIFY_API_TOKEN);
 		String url = "https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/run-sync-get-dataset-items?token=" + apiToken;
 		JsonObject inputJson = new JsonObject();
