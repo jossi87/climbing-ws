@@ -1258,11 +1258,13 @@ public class V2 {
 			Media mediaPayload) {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
+		ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			if (dao.isInstagramScrapeLimitReached(c, setup, authUserId)) {
 				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached").build();
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
+
 			if (isVideo) {
 				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
 				Server.runAsync(() -> {
@@ -1273,13 +1275,14 @@ public class V2 {
 						} catch (IOException e) {
 							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + newMediaId, e);
 							List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
-							Server.runSql((backgroundDao, backgroundConn) -> {
-								backgroundDao.logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
-							});
 							ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
 									.filter(m -> m.mediaIndex() == mediaIndex)
 									.findFirst()
 									.orElse(freshMedia.get(0));
+							ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
+							Server.runSql((backgroundDao, backgroundConn) -> {
+								backgroundDao.logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+							});
 							try (InputStream is = URI.create(target.cdnUrl()).toURL().openStream()) {
 								videoData = StorageManager.getInstance().readBoundedStream(is);
 							}
@@ -1301,11 +1304,12 @@ public class V2 {
 			} catch (IOException e) {
 				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
 				List<ApifyInstagramResolver.InstagramMedia> freshMedia = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
-				dao.logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				ApifyInstagramResolver.InstagramMedia target = freshMedia.stream()
 						.filter(m -> m.mediaIndex() == mediaIndex)
 						.findFirst()
 						.orElse(freshMedia.get(0));
+				ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
+				dao.logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				try (InputStream is = URI.create(target.cdnUrl()).toURL().openStream()) {
 					imageData = StorageManager.getInstance().readBoundedStream(is);
 				}

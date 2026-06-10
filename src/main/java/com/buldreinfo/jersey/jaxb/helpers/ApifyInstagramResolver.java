@@ -1,10 +1,5 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,6 +9,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class ApifyInstagramResolver {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
@@ -38,11 +39,26 @@ public class ApifyInstagramResolver {
 		return "unknown";
 	}
 	
+	public static void validateInstagramCdnUrl(String urlString) {
+		try {
+			URI uri = URI.create(urlString);
+			String host = uri.getHost();
+			if (host == null || (!host.endsWith(".cdninstagram.com") && !host.endsWith(".fbcdn.net"))) {
+				throw new IllegalArgumentException("Invalid media source domain");
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Malformed or unauthorized media storage URL", e);
+		}
+	}
+	
 	public static List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
-		if (instagramUrl != null && instagramUrl.contains("?")) {
+		if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {
+			throw new IllegalArgumentException("Invalid Instagram media URL format");
+		}
+		if (instagramUrl.contains("?")) {
 			instagramUrl = instagramUrl.substring(0, instagramUrl.indexOf('?'));
 		}
-		if (instagramUrl != null && instagramUrl.endsWith("/")) {
+		if (instagramUrl.endsWith("/")) {
 			instagramUrl = instagramUrl.substring(0, instagramUrl.length() - 1);
 		}
 		String apiToken = com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.getConfig().getProperty(com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.PROPERTY_KEY_APIFY_API_TOKEN);
