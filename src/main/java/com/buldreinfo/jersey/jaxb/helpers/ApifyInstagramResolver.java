@@ -45,13 +45,14 @@ public class ApifyInstagramResolver {
 		return "unknown";
 	}
 	
-	public static void validateInstagramCdnUrl(String urlString) {
+	public static URI validateInstagramCdnUrl(String urlString) {
 		try {
 			URI uri = URI.create(urlString);
 			String host = uri.getHost();
 			if (host == null || (!host.endsWith(".cdninstagram.com") && !host.endsWith(".fbcdn.net"))) {
 				throw new IllegalArgumentException("Invalid media source domain");
 			}
+			return uri;
 		} catch (Exception e) {
 			throw new IllegalArgumentException("Malformed or unauthorized media storage URL", e);
 		}
