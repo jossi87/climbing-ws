@@ -30,7 +30,7 @@ public class ApifyInstagramResolver {
 			.disableHtmlEscaping()
 			.create();
 	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
-	
+
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
 		if (cleanUrl.endsWith("/")) {
@@ -57,9 +57,8 @@ public class ApifyInstagramResolver {
 		}
 
 		String apiToken = com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.getConfig().getProperty(com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig.PROPERTY_KEY_APIFY_API_TOKEN);
-		
 		String startUrl = "https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/runs?token=" + apiToken;
-		
+
 		JsonObject inputJson = new JsonObject();
 		JsonArray urlsArray = new JsonArray();
 		urlsArray.add(instagramUrl);
@@ -79,36 +78,45 @@ public class ApifyInstagramResolver {
 		}
 
 		JsonObject runData = JsonParser.parseString(startResponse.body()).getAsJsonObject().getAsJsonObject("data");
+		String runId = runData.get("id").getAsString();
 		String defaultDatasetId = runData.get("defaultDatasetId").getAsString();
-		
-		String datasetUrl = "https://api.apify.com/v2/datasets/" + defaultDatasetId + "/items?token=" + apiToken;
-		HttpRequest datasetRequest = HttpRequest.newBuilder()
-				.uri(URI.create(datasetUrl))
-				.timeout(Duration.ofSeconds(15))
-				.GET()
-				.build();
 
-		JsonArray resultArray = null;
-		long delay = 1500; 
-		
-		for (int attempt = 1; attempt <= 5; attempt++) {
-			Thread.sleep(delay);
-			HttpResponse<String> datasetResponse = HTTP_CLIENT.send(datasetRequest, HttpResponse.BodyHandlers.ofString());
-			
-			if (datasetResponse.statusCode() == 200) {
-				JsonArray candidateArray = JsonParser.parseString(datasetResponse.body()).getAsJsonArray();
-				if (candidateArray != null && !candidateArray.isEmpty()) {
-					resultArray = candidateArray;
+		String runStatusUrl = "https://api.apify.com/v2/actor-runs/" + runId + "?token=" + apiToken;
+		HttpRequest statusRequest = HttpRequest.newBuilder().uri(URI.create(runStatusUrl)).timeout(Duration.ofSeconds(15)).GET().build();
+
+		boolean success = false;
+		for (int attempt = 1; attempt <= 20; attempt++) {
+			Thread.sleep(2500);
+			HttpResponse<String> statusResponse = HTTP_CLIENT.send(statusRequest, HttpResponse.BodyHandlers.ofString());
+			if (statusResponse.statusCode() == 200) {
+				JsonObject statusData = JsonParser.parseString(statusResponse.body()).getAsJsonObject().getAsJsonObject("data");
+				String status = statusData.get("status").getAsString();
+
+				if ("SUCCEEDED".equals(status)) {
+					success = true;
 					break;
+				} else if ("FAILED".equals(status) || "ABORTED".equals(status) || "TIMED-OUT".equals(status)) {
+					throw new IOException("Apify background execution failed with status: " + status + " for URL: " + instagramUrl);
 				}
 			}
-			
-			logger.warn("Apify dataset empty on attempt {} for URL: {}. Retrying in {}ms...", attempt, instagramUrl, delay);
-			delay += 1000; 
+			logger.warn("Apify execution active, status polling attempt {} for URL: {}", attempt, instagramUrl);
 		}
 
+		if (!success) {
+			throw new IOException("Apify runner execution tracking timed out out on backend engine for URL: " + instagramUrl);
+		}
+
+		String datasetUrl = "https://api.apify.com/v2/datasets/" + defaultDatasetId + "/items?token=" + apiToken;
+		HttpRequest datasetRequest = HttpRequest.newBuilder().uri(URI.create(datasetUrl)).timeout(Duration.ofSeconds(15)).GET().build();
+		HttpResponse<String> datasetResponse = HTTP_CLIENT.send(datasetRequest, HttpResponse.BodyHandlers.ofString());
+
+		if (datasetResponse.statusCode() != 200) {
+			throw new IOException("Failed to retrieve populated dataset items. Code: " + datasetResponse.statusCode());
+		}
+
+		JsonArray resultArray = JsonParser.parseString(datasetResponse.body()).getAsJsonArray();
 		if (resultArray == null || resultArray.isEmpty()) {
-			throw new IOException("Apify dataset failed to populate after explicit polling loops for URL: " + instagramUrl);
+			throw new IOException("Apify dataset populated empty on verified run completion for URL: " + instagramUrl);
 		}
 
 		List<InstagramMedia> mediaList = new ArrayList<>();
@@ -118,11 +126,11 @@ public class ApifyInstagramResolver {
 				String cdnUrl = entry.get("download_url").getAsString().replaceAll("&amp;", "&");
 				String mediaType = entry.has("media_type") && !entry.get("media_type").isJsonNull()
 						? entry.get("media_type").getAsString()
-						: "image";
+								: "image";
 				boolean isVideo = "video".equalsIgnoreCase(mediaType);
 				int apiMediaIndex = entry.has("media_index") && !entry.get("media_index").isJsonNull()
 						? entry.get("media_index").getAsInt()
-						: i;
+								: i;
 
 				mediaList.add(new InstagramMedia(cdnUrl, isVideo, apiMediaIndex));
 			}
@@ -132,7 +140,7 @@ public class ApifyInstagramResolver {
 		}
 		return mediaList;
 	}
-	
+
 	public static URI validateInstagramCdnUrl(String urlString) {
 		if (urlString == null) {
 			throw new IllegalArgumentException("URL cannot be null");
