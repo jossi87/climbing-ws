@@ -3332,7 +3332,7 @@ public class Dao {
 	public List<Search> getSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		
-		String cleanSearch = search.replaceAll("[^a-zA-Z0-9]", "");
+		String cleanSearch = search.replaceAll("[^\\p{L}0-9]", "");
 		String wildCardSearch = "%" + cleanSearch + "%";
 		
 		List<Search> areas = new ArrayList<>();

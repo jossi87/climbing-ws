@@ -377,7 +377,13 @@ public class V2Test {
 	@Test
 	public void testPostSearch() throws Exception {
 		V2 tester = new V2();
-		try (Response r = tester.postSearch(getRequest(Region.brattelinjer), new SearchRequest("rock'n"))) {
+		try (Response r = tester.postSearch(getRequest(Region.brattelinjer), new SearchRequest("rock'n roll"))) {
+			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
+			assertTrue(r.getEntity() instanceof List<?>);
+			List<?> res = (List<?>)r.getEntity();
+			assertTrue(!res.isEmpty());
+		}
+		try (Response r = tester.postSearch(getRequest(Region.brattelinjer), new SearchRequest("jøssingfjord"))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof List<?>);
 			List<?> res = (List<?>)r.getEntity();
