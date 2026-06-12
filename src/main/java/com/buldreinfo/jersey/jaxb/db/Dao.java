@@ -2039,16 +2039,13 @@ public class Dao {
 				ps.execute();
 			}
 		}
-		List<Integer> todoIdProblems = new ArrayList<>();
+		boolean isTodo = false;
 		if (authUserId.isPresent()) {
-			ProfileTodo todo = getProfileTodo(c, authUserId, s, authUserId.orElseThrow());
-			if (todo != null) {
-				for (ProfileTodoArea ta : todo.areas()) {
-					for (ProfileTodoSector ts : ta.sectors()) {
-						for (ProfileTodoProblem tp : ts.problems()) {
-							todoIdProblems.add(tp.id());
-						}
-					}
+			try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM todo WHERE user_id=? AND problem_id=?")) {
+				ps.setInt(1, authUserId.orElseThrow());
+				ps.setInt(2, reqId);
+				try (ResultSet rs = ps.executeQuery()) {
+					isTodo = rs.next();
 				}
 			}
 		}
@@ -2187,7 +2184,7 @@ public class Dao {
 							neighbours,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
-							media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, new ArrayList<>(), todoIdProblems.contains(id), externalLinks, pageViews,
+							media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, new ArrayList<>(), isTodo, externalLinks, pageViews,
 							null, trivia, triviaMedia, startingAltitude, aspect, descent);
 				}
 			}
