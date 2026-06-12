@@ -42,7 +42,7 @@ public class DatabaseContext {
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	private static volatile DatabaseContext server;
 
 	public static Response buildResponse(Function<Response> function) {

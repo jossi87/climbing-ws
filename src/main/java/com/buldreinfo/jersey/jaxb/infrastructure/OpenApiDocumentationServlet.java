@@ -22,7 +22,7 @@ public class OpenApiDocumentationServlet extends HttpServlet {
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
 		SwaggerConfiguration oasConfig = new SwaggerConfiguration()
-				.resourcePackages(Stream.of("com.buldreinfo.jersey.jaxb").collect(Collectors.toSet()));
+				.resourcePackages(Stream.of("com.buldreinfo.jersey.jaxb.resources").collect(Collectors.toSet()));
 		try {
 			new JaxrsOpenApiContextBuilder<>()
 	          .servletConfig(config)
