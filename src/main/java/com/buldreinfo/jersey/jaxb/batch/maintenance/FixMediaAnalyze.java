@@ -117,7 +117,7 @@ public class FixMediaAnalyze {
             var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
             Server.runSql((dao, c) -> {
                 try {
-                    dao.saveMediaAnalysis(c, t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
+                    dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
                 } catch (Exception e) {
                     warnings.add("Failed to save media id=" + t.id + ": " + e.getMessage());
                 }
@@ -126,7 +126,7 @@ public class FixMediaAnalyze {
             warnings.add("Failed to process/analyze media id=" + t.id + ": " + e.getMessage());
             Server.runSql((dao, c) -> {
                 try {
-                    dao.saveMediaAnalysis(c, t.id, t.width, t.height, null, null, null, true);
+                    dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, null, null, null, true);
                 } catch (Exception dbEx) {
                     logger.error("Could not save failure state for id=" + t.id, dbEx);
                 }

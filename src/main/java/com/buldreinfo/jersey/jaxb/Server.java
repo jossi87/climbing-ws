@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.buldreinfo.jersey.jaxb.db.Dao;
+import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.function.Consumer;
 import com.buldreinfo.jersey.jaxb.function.Function;
 import com.buldreinfo.jersey.jaxb.function.FunctionDb;
@@ -292,7 +292,7 @@ public class Server {
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
 		try (Connection c = ds.getConnection()) {
-			dao.getSetups(c).forEach(s -> {
+			dao.getRegionRepo().getSetups(c).forEach(s -> {
 				setupMap.put(s.domain().toLowerCase(), s);
 			});
 		} catch (Exception e) {

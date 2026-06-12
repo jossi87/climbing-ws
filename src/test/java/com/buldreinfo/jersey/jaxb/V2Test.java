@@ -118,14 +118,14 @@ public class V2Test {
 		Setup setup = getSetup(Region.buldreinfo);
 		Server.runSql((dao, c) -> {
 			try {
-				dao.getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
+				dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
 		Server.runSql((dao, c) -> {
-			Area a = dao.getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
+			Area a = dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
 			assertTrue(a != null);
 			assertTrue(!Strings.isNullOrEmpty(a.name()));
 		});
@@ -211,14 +211,14 @@ public class V2Test {
 		Setup setup = getSetup(Region.buldreinfo);
 		Server.runSql((dao, c) -> {
 			try {
-				dao.getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+				dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
 		Server.runSql((dao, c) -> {
-			Problem p = dao.getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+			Problem p = dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 			assertTrue(p != null);
 			assertTrue(!Strings.isNullOrEmpty(p.name()));
 		});
@@ -319,14 +319,14 @@ public class V2Test {
 		Setup setup = getSetup(Region.buldreinfo);
 		Server.runSql((dao, c) -> {
 			try {
-				dao.getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+				dao.getSectorRepo().getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
 		Server.runSql((dao, c) -> {
-			Sector s = dao.getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+			Sector s = dao.getSectorRepo().getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 			assertTrue(s != null);
 			assertTrue(!Strings.isNullOrEmpty(s.name()));
 		});

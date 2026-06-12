@@ -23,7 +23,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.db.Dao;
+import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -92,7 +92,7 @@ public class AuthHelper {
         try {
             boolean isNewToken = cache.getIfPresent(accessToken) == null;
             Auth0Profile profile = cache.get(accessToken);
-            Optional<Integer> authUserId = dao.getAuthUserId(c, profile);
+            Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(c, profile);
             if (isNewToken && authUserId.isPresent()) {
                 logLogin(c, request, setup, authUserId.get());
             }

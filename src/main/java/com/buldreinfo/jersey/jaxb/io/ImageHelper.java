@@ -13,7 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.db.Dao;
+import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
 
 public class ImageHelper {
@@ -31,7 +31,7 @@ public class ImageHelper {
 	        BufferedImage image = imageReader.getJpgBufferedImage();
 	        int width = image.getWidth();
 	        int height = image.getHeight();
-	        dao.deleteMediaAnalysis(c, idMedia);
+	        dao.getMediaRepo().deleteMediaAnalysis(c, idMedia);
 	        ImageSaver.newBuilder()
 	            .withBufferedImage(image)
 	            .withMetadata(exifReader.getOutputSet())
@@ -39,12 +39,12 @@ public class ImageHelper {
 	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 	            .save();
-	        dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
+	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] rotatedBytes = baos.toByteArray();
 	            var result = ImageClassifier.analyze(rotatedBytes);
-	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Re-Analysis failed after rotation for media {}: {}", idMedia, e.getMessage());
 	        }
@@ -61,12 +61,12 @@ public class ImageHelper {
 		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 		.save();
-		dao.setMediaMetadata(c, idMedia, width, height, null, false);
+		dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	        ImageIO.write(bufferedImage, "jpg", baos);
 	        byte[] bytes = baos.toByteArray();
 	        var result = ImageClassifier.analyze(bytes);
-	        dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
+	        dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	    } catch (Exception e) {
 	        logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	    }
@@ -88,10 +88,10 @@ public class ImageHelper {
 			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 			.save();
-			dao.setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
+			dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			try {
 	            var result = ImageClassifier.analyze(bytes);
-	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	        }
@@ -109,12 +109,12 @@ public class ImageHelper {
 	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
 	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
 	            .save();
-	        dao.setMediaMetadata(c, idMedia, width, height, null, false);
+	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);
 	            byte[] bytes = baos.toByteArray();
 	            var result = ImageClassifier.analyze(bytes);
-	            dao.saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
+	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
 	        } catch (Exception e) {
 	            logger.warn("AI Analysis failed for embed media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
 	        }

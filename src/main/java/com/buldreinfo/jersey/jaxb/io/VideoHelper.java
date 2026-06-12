@@ -14,7 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
-import com.buldreinfo.jersey.jaxb.db.Dao;
+import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.google.common.base.Stopwatch;
 
 public class VideoHelper {

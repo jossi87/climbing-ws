@@ -14,7 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.Server;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.db.Dao;
+import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSector;
 import com.buldreinfo.jersey.jaxb.model.Problem;
@@ -149,7 +149,7 @@ public class FillProblems {
 					continue;
 				}
 				int id = -1;
-				List<User> users = dao.getUserSearch(c, AUTH_USER_ID, userName);
+				List<User> users = dao.getUserRepo().getUserSearch(c, AUTH_USER_ID, userName);
 				if (!users.isEmpty()) {
 					id = users.getFirst().id();
 				}
@@ -164,28 +164,28 @@ public class FillProblems {
 	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws SQLException, InterruptedException {
 		logger.debug("insert {}", d);
 		List<User> fa = getFas(dao, c, d.getFa());
-		Type t = dao.getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
+		Type t = dao.getRegionRepo().getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
 		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, null, null, null, t, null, false, null, null, null, d.getTrivia(), null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
 			}
 		}
-		dao.setProblem(c, AUTH_USER_ID, setup, p);
+		dao.getProblemRepo().setProblem(c, AUTH_USER_ID, setup, p);
 	}
 
 	private int upsertArea(Dao dao, Connection c, Data d) throws SQLException, InterruptedException {
 		if (areaCache.containsKey(d.getArea())) {
 			return areaCache.get(d.getArea());
 		}
-		for (Area a : dao.getAreaList(c, AUTH_USER_ID, REGION_ID)) {
+		for (Area a : dao.getAreaRepo().getAreaList(c, AUTH_USER_ID, REGION_ID)) {
 			if (a.name().equals(d.getArea())) {
 				areaCache.put(d.getArea(), a.id());
 				return a.id();
 			}
 		}
 		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null, null);
-		Redirect r = dao.setArea(c, setup, AUTH_USER_ID, a);
+		Redirect r = dao.getAreaRepo().setArea(c, setup, AUTH_USER_ID, a);
 		areaCache.put(d.getArea(), r.idArea());
 		return r.idArea();
 	}
@@ -195,7 +195,7 @@ public class FillProblems {
 		if (areaSectors.containsKey(d.getSector())) {
 			return areaSectors.get(d.getSector());
 		}
-		Area a = Objects.requireNonNull(dao.getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
+		Area a = Objects.requireNonNull(dao.getAreaRepo().getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
 		for (AreaSector s : a.sectors()) {
 			if (s.name().equals(d.getSector())) {
 				areaSectors.put(d.getSector(), s.id());
@@ -203,7 +203,7 @@ public class FillProblems {
 			}
 		}
 		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null, null);
-		Redirect r = dao.setSector(c, AUTH_USER_ID, setup, s);
+		Redirect r = dao.getSectorRepo().setSector(c, AUTH_USER_ID, setup, s);
 		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();
 	}

@@ -17,7 +17,7 @@ public class FillActivity {
 				try (ResultSet rst = ps.executeQuery()) {
 					int done = 0;
 					while (rst.next()) {
-						dao.fillActivity(c, rst.getInt("id"));
+						dao.getActivityRepo().fillActivity(c, rst.getInt("id"));
 						if ((++done) % 50 == 0) {
 							logger.debug("Done with " + done + " problems");
 						}

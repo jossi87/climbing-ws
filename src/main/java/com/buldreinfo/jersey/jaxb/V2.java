@@ -130,7 +130,7 @@ public class V2 {
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
 		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.deleteMedia(c, authUserId, id);
+			dao.getMediaRepo().deleteMedia(c, authUserId, id);
 			return Response.ok().build();
 		});
 	}
@@ -154,7 +154,7 @@ public class V2 {
 			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media,
 			@Parameter(description = "Offset (see more)", required = false) @QueryParam("offset") int offset) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<Activity> res = dao.getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
+			List<Activity> res = dao.getActivityRepo().getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -168,7 +168,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAdministrators(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			List<Administrator> administrators = dao.getAdministrators(c, setup);
+			List<Administrator> administrators = dao.getUserRepo().getAdministrators(c, setup);
 			return Response.ok().entity(administrators).build();
 		});
 	}
@@ -187,8 +187,8 @@ public class V2 {
 			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			Collection<Area> areas = id > 0?
-					Collections.singleton(dao.getArea(c, setup, authUserId, id, shouldUpdateHits)) :
-						dao.getAreaList(c, authUserId, setup.idRegion());
+					Collections.singleton(dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits)) :
+						dao.getAreaRepo().getAreaList(c, authUserId, setup.idRegion());
 			return Response.ok().entity(areas).build();
 		});
 	}
@@ -206,12 +206,12 @@ public class V2 {
 	public Response getAreasPdf(@Context final HttpServletRequest request,
 			@Parameter(description = "Area id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Area area = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, area.id(), 0);
+			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits);
+			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, area.id(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.AreaSector sector : area.sectors()) {
-				Sector s = dao.getSector(c, authUserId, orderByGrade, setup, sector.id(), shouldUpdateHits);
+				Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, sector.id(), shouldUpdateHits);
 				sectors.add(s);
 			}
 			StreamingOutput stream = new StreamingOutput() {
@@ -258,7 +258,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getDangerous(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<DangerousArea> res = dao.getDangerous(c, authUserId, setup);
+			Collection<DangerousArea> res = dao.getHierarchyRepo().getDangerous(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -293,12 +293,12 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpage(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (_, _, setup, authUserId, _) -> {
-			var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageStats(c, authUserId, setup));
-			var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRandomMedia(c, setup));
-			var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageFirstAscents(c, authUserId, setup));
-			var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestAscents(c, authUserId, setup));
-			var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageNewestMedia(c, authUserId, setup));
-			var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageLastComments(c, authUserId, setup));
+			var stats = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageStats(c, authUserId, setup));
+			var randomMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageRandomMedia(c, setup));
+			var firstAscents = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageFirstAscents(c, authUserId, setup));
+			var newestComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageNewestAscents(c, authUserId, setup));
+			var newestMedia = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageNewestMedia(c, authUserId, setup));
+			var lastComments = Server.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageLastComments(c, authUserId, setup));
 			Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
 			return Response.ok().entity(res).build();
 		});
@@ -318,7 +318,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			Collection<GradeDistribution> res = dao.getGradeDistribution(c, authUserId, idArea, idSector);
+			Collection<GradeDistribution> res = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -334,7 +334,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getGraph(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<GradeDistribution> res = dao.getContentGraph(c, authUserId, setup);
+			Collection<GradeDistribution> res = dao.getHierarchyRepo().getContentGraph(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -352,7 +352,7 @@ public class V2 {
 	public Response getMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			Media res = dao.getMedia(c, authUserId, idMedia);
+			Media res = dao.getMediaRepo().getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -509,7 +509,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getPermissions(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<PermissionUser> res = dao.getPermissions(c, setup, authUserId);
+			List<PermissionUser> res = dao.getUserRepo().getPermissions(c, setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -528,7 +528,7 @@ public class V2 {
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			Problem res = dao.getProblem(c, authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
+			Problem res = dao.getProblemRepo().getProblem(c, authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
 			Response response = Response.ok().entity(res).build();
 			return response;
 		});
@@ -546,9 +546,9 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getProblemPdf(@Context final HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Problem problem = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
-			final Area area = dao.getArea(c, setup, authUserId, problem.areaId(), shouldUpdateHits);
-			final Sector sector = dao.getSector(c, authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+			final Problem problem = dao.getProblemRepo().getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
+			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, problem.areaId(), shouldUpdateHits);
+			final Sector sector = dao.getSectorRepo().getSector(c, authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -580,7 +580,7 @@ public class V2 {
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<ProblemSearchResult> res = dao.getProblemsSearch(c, authUserId, setup, value);
+			List<ProblemSearchResult> res = dao.getProblemRepo().getProblemsSearch(c, authUserId, setup, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -599,11 +599,11 @@ public class V2 {
 			@Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao1, c1, setup, _, _) -> {
 			if (reqUserId > 0) {
-				dao1.ensureUserExists(c1, reqUserId);
+				dao1.getUserRepo().ensureUserExists(c1, reqUserId);
 			}
-			var identity = Server.submitDaoTask((dao, c) -> dao.getProfileIdentity(c, setup, reqUserId));
-			var kpis = Server.submitDaoTask((dao, c) -> dao.getProfileKpis(c, reqUserId));
-			var disciplines = Server.submitDaoTask((dao, c) -> dao.getProfileDisciplines(c, setup, reqUserId));
+			var identity = Server.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileIdentity(c, setup, reqUserId));
+			var kpis = Server.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileKpis(c, reqUserId));
+			var disciplines = Server.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileDisciplines(c, setup, reqUserId));
 			Profile res = new Profile(identity.get(), kpis.get(), disciplines.get());
 			return Response.ok().entity(res).build();
 		});
@@ -621,8 +621,8 @@ public class V2 {
 	public Response getProfileAscents(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.ensureUserExists(c, id);
-			List<ProfileAscent> res = dao.getProfileAscents(c, authUserId, setup, id);
+			dao.getUserRepo().ensureUserExists(c, id);
+			List<ProfileAscent> res = dao.getUserRepo().getProfileAscents(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -642,8 +642,8 @@ public class V2 {
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.ensureUserExists(c, id);
-			List<Media> res = dao.getProfileMedia(c, authUserId, id, captured);
+			dao.getUserRepo().ensureUserExists(c, id);
+			List<Media> res = dao.getMediaRepo().getProfileMedia(c, authUserId, id, captured);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -661,8 +661,8 @@ public class V2 {
 	public Response getProfileTodo(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.ensureUserExists(c, id);
-			ProfileTodo res = dao.getProfileTodo(c, authUserId, setup, id);
+			dao.getUserRepo().ensureUserExists(c, id);
+			ProfileTodo res = dao.getUserRepo().getProfileTodo(c, authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -678,7 +678,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getRestrictions(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<RestrictionsRegion> res = dao.getRestrictions(c, authUserId, setup);
+			Collection<RestrictionsRegion> res = dao.getHierarchyRepo().getRestrictions(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -714,7 +714,7 @@ public class V2 {
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			Response response = Response.ok().entity(s).build();
 			return response;
 		});
@@ -732,9 +732,9 @@ public class V2 {
 	@Produces("application/pdf")
 	public Response getSectorsPdf(@Context final HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Sector sector = dao.getSector(c, authUserId, false, setup, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getGradeDistribution(c, authUserId, 0, id);
-			final Area area = dao.getArea(c, setup, authUserId, sector.areaId(), shouldUpdateHits);
+			final Sector sector = dao.getSectorRepo().getSector(c, authUserId, false, setup, id, shouldUpdateHits);
+			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, 0, id);
+			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, sector.areaId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -762,7 +762,7 @@ public class V2 {
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response getSitemapTxt(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			String res = dao.getSitemapTxt(c, setup);
+			String res = dao.getHierarchyRepo().getSitemapTxt(c, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -780,7 +780,7 @@ public class V2 {
 			@Parameter(description = "Page (ticks ordered descending, 0 returns first page)", required = false) @QueryParam("page") int page
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Ticks res = dao.getTicks(c, authUserId, setup, page);
+			Ticks res = dao.getTickRepo().getTicks(c, authUserId, setup, page);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -796,7 +796,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getToc(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			return Response.ok().entity(dao.getToc(c, authUserId, setup)).build();
+			return Response.ok().entity(dao.getHierarchyRepo().getToc(c, authUserId, setup)).build();
 		});
 	}
 
@@ -811,7 +811,7 @@ public class V2 {
 	@Produces(MIME_TYPE_XLSX)
 	public Response getTocXlsx(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Toc toc = dao.getToc(c, authUserId, setup);
+			Toc toc = dao.getHierarchyRepo().getToc(c, authUserId, setup);
 			byte[] bytes;
 			try (ExcelWorkbook workbook = new ExcelWorkbook()) {
 				try (ExcelSheet sheet = workbook.addSheet("TOC")) {
@@ -855,7 +855,7 @@ public class V2 {
 						}
 					}
 				}
-				List<TocPitch> pitches = dao.getTocPitches(c, authUserId, setup);
+				List<TocPitch> pitches = dao.getHierarchyRepo().getTocPitches(c, authUserId, setup);
 				if (!pitches.isEmpty()) {
 					try (ExcelSheet sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
 						for (var p : pitches) {
@@ -898,7 +898,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Todo res = dao.getTodo(c, authUserId, setup, idArea, idSector);
+			Todo res = dao.getTodoRepo().getTodo(c, authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -917,7 +917,7 @@ public class V2 {
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			Top res = dao.getTop(c, authUserId, idArea, idSector);
+			Top res = dao.getHierarchyRepo().getTop(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -933,7 +933,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTrash(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<Trash> res = dao.getTrash(c, authUserId, setup);
+			List<Trash> res = dao.getTrashRepo().getTrash(c, authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -951,7 +951,7 @@ public class V2 {
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
 			) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			List<User> res = dao.getUserSearch(c, authUserId, value);
+			List<User> res = dao.getUserRepo().getUserSearch(c, authUserId, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -967,7 +967,7 @@ public class V2 {
 	@Produces(MIME_TYPE_XLSX)
 	public Response getUsersTicks(@Context HttpServletRequest request) {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			byte[] bytes = dao.getUserTicks(c, authUserId);
+			byte[] bytes = dao.getUserRepo().getUserTicks(c, authUserId);
 			return Response.ok(bytes, MIME_TYPE_XLSX)
 					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
@@ -987,8 +987,8 @@ public class V2 {
 		return Server.buildResponseWithSql(request, (dao, c, setup, _) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			var meta = Meta.from(dao, c, setup, authUserId);
-			var stats = dao.getFrontpageStats(c, authUserId, setup);
-			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRandomMedia(c, setup).stream()
+			var stats = dao.getFrontpageRepo().getFrontpageStats(c, authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRepo().getFrontpageRandomMedia(c, setup).stream()
 					.findAny()
 					.orElse(null);
 			String description = String.format("%s - %d regions, %d areas, %d %s, %d ticks",
@@ -1021,7 +1021,7 @@ public class V2 {
 	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Area a = dao.getArea(c, setup, authUserId, id, shouldUpdateHits);
+			Area a = dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits);
 			String description = null;
 			if (setup.isBouldering()) {
 				description = String.format("Bouldering in %s", a.name());
@@ -1067,7 +1067,7 @@ public class V2 {
 			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
 		return Server.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Problem p = dao.getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
+			Problem p = dao.getProblemRepo().getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
 			String title = String.format("%s [%s] (%s / %s)", p.name(), p.grade(), p.areaName(), p.sectorName());
 			String description = p.comment();
 			if (p.fa() != null && !p.fa().isEmpty()) {
@@ -1127,7 +1127,7 @@ public class V2 {
 		return Server.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
-			Sector s = dao.getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			String title = String.format("%s (%s)", s.name(), s.areaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.isBouldering()? "Bouldering" : "Climbing"),
@@ -1167,7 +1167,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(id > 0);
 			Preconditions.checkArgument(left ^ right, "You must specify either 'left' or 'right', but not both.");
-			dao.shiftMediaPosition(c, authUserId, id, left, right);
+			dao.getMediaRepo().shiftMediaPosition(c, authUserId, id, left, right);
 			return Response.ok().build();
 		});
 	}
@@ -1186,7 +1186,7 @@ public class V2 {
 	public Response postAreas(@Context HttpServletRequest request, Area a) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Objects.requireNonNull(Strings.emptyToNull(a.name()));
-			Redirect res = dao.setArea(c, setup, authUserId, a);
+			Redirect res = dao.getAreaRepo().setArea(c, setup, authUserId, a);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1204,7 +1204,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postComments(@Context HttpServletRequest request, Comment co) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			int idGuestbook = dao.upsertComment(c, authUserId, setup, co);
+			int idGuestbook = dao.getProblemRepo().upsertComment(c, authUserId, setup, co);
 			return Response.ok(idGuestbook).build();
 		});
 	}
@@ -1232,8 +1232,8 @@ public class V2 {
 			String fileName = filePart.getContentDisposition().getFileName();
 			StorageType storageType = StorageType.fromFilename(fileName)
 					.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
-			int newMediaId = dao.addMediaImage(c, authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
-			Media res = dao.getMedia(c, authUserId, newMediaId);
+			int newMediaId = dao.getMediaRepo().addMediaImage(c, authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
+			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1260,12 +1260,12 @@ public class V2 {
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		URI validatedInitialUri = ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			if (dao.getDailyInstagramScrapeCount(c, authUserId) > 50) {
+			if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
 				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 			if (isVideo) {
-				int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
+				int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
 				Server.runAsync(() -> {
 					try {
 						byte[] videoData;
@@ -1282,7 +1282,7 @@ public class V2 {
 							URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
 							
 							Server.runSql((backgroundDao, backgroundConn) -> {
-								backgroundDao.logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+								backgroundDao.getMediaRepo().logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
 							});
 							try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 								videoData = StorageManager.getInstance().readBoundedStream(is);
@@ -1296,7 +1296,7 @@ public class V2 {
 						logger.error("Failed async instagram video save for id=" + newMediaId, e);
 					}
 				});
-				Media res = dao.getMedia(c, authUserId, newMediaId);
+				Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
 			byte[] imageData;
@@ -1310,14 +1310,14 @@ public class V2 {
 						.findFirst()
 						.orElse(freshMedia.get(0));
 				URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
-				dao.logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+				dao.getMediaRepo().logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 					imageData = StorageManager.getInstance().readBoundedStream(is);
 				}
 			}
 			final byte[] finalImageData = imageData;
-			int newMediaId = dao.addMediaImage(c, authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
-			Media res = dao.getMedia(c, authUserId, newMediaId);
+			int newMediaId = dao.getMediaRepo().addMediaImage(c, authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
+			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1336,11 +1336,11 @@ public class V2 {
 	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
 		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			if (dao.getDailyInstagramScrapeCount(c, authUserId) > 50) {
+			if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
 				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
 			}
 			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
-			dao.logInstagramScrape(c, authUserId, url, scrapedList.size());
+			dao.getMediaRepo().logInstagramScrape(c, authUserId, url, scrapedList.size());
 			return Response.ok().entity(scrapedList).build();
 		});
 	}
@@ -1357,7 +1357,7 @@ public class V2 {
 	@Path("/media/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.upsertMediaSvg(c, authUserId, setup, m);
+			dao.getMediaRepo().upsertMediaSvg(c, authUserId, setup, m);
 			return Response.ok().build();
 		});
 	}
@@ -1375,7 +1375,7 @@ public class V2 {
 	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-			Media media = dao.getMedia(c, authUserId, mediaId);
+			Media media = dao.getMediaRepo().getMedia(c, authUserId, mediaId);
 			Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
 			Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
 			Server.runAsync(() -> {
@@ -1417,7 +1417,7 @@ public class V2 {
 			} catch (Exception e) {
 				throw new IllegalArgumentException("The provided embed URL is malformed.", e);
 			}
-			int newMediaId = dao.addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
+			int newMediaId = dao.getMediaRepo().addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
 			Server.runAsync(() -> {
 				try {
 					Server.runSql((backgroundDao, backgroundConn) -> {
@@ -1427,7 +1427,7 @@ public class V2 {
 					logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
 				}
 			});
-			Media res = dao.getMedia(c, authUserId, newMediaId);
+			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1451,7 +1451,7 @@ public class V2 {
 			StorageType storageType = StorageType.fromMimeType(payload.contentType())
 					.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
 			Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
-			int newMediaId = dao.addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
+			int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
 			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
 					S3KeyGenerator.getOriginalMp4(newMediaId), 
 					storageType.getMimeType(),
@@ -1474,7 +1474,7 @@ public class V2 {
 	public Response postPermissions(@Context HttpServletRequest request, PermissionUser u) {
 		Preconditions.checkArgument(u.userId() > 0, "Invalid userId");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.upsertPermissionUser(c, setup, authUserId, u);
+			dao.getUserRepo().upsertPermissionUser(c, setup, authUserId, u);
 			return Response.ok().build();
 		});
 	}
@@ -1495,7 +1495,7 @@ public class V2 {
 			// Preconditions.checkArgument(p.getAreaId() > 1); <--ZERO! Problems don't contain areaId from react-http-post
 			Preconditions.checkArgument(p.sectorId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(p.name()));
-			Redirect res = dao.setProblem(c, authUserId, setup, p);
+			Redirect res = dao.getProblemRepo().setProblem(c, authUserId, setup, p);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1520,7 +1520,7 @@ public class V2 {
 			Preconditions.checkArgument(problemId>0, "Invalid problemId=" + problemId);
 			Preconditions.checkArgument(mediaId>0, "Invalid mediaId=" + mediaId);
 			Objects.requireNonNull(svg, "Invalid svg=" + svg);
-			dao.upsertSvg(c, authUserId, problemId, pitch, mediaId, svg);
+			dao.getMediaRepo().upsertSvg(c, authUserId, problemId, pitch, mediaId, svg);
 			return Response.ok().build();
 		});
 	}
@@ -1536,7 +1536,7 @@ public class V2 {
 	@Path("/profile/identity")
 	public Response postProfileIdentity(@Context HttpServletRequest request, ProfileIdentity profile) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.setProfile(c, authUserId, profile);
+			dao.getUserRepo().setProfile(c, authUserId, profile);
 			return Response.ok().build();
 		});
 	}
@@ -1553,7 +1553,7 @@ public class V2 {
 	public Response postProfileTheme(@Context HttpServletRequest request,
 			@Parameter(description = "Theme preference (light or dark)", required = true) @QueryParam("themePreference") String themePreference) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.setThemePreference(c, authUserId, themePreference);
+			dao.getUserRepo().setThemePreference(c, authUserId, themePreference);
 			return Response.ok().build();
 		});
 	}
@@ -1571,7 +1571,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			String search = Strings.emptyToNull(Strings.nullToEmpty(sr.value()).trim());
 			Objects.requireNonNull(search, "Invalid search: " + search);
-			List<Search> res = dao.getSearch(c, authUserId, setup, search);
+			List<Search> res = dao.getHierarchyRepo().getSearch(c, authUserId, setup, search);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1591,7 +1591,7 @@ public class V2 {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Preconditions.checkArgument(s.areaId() > 1);
 			Objects.requireNonNull(Strings.emptyToNull(s.name()));
-			Redirect res = dao.setSector(c, authUserId, setup, s);
+			Redirect res = dao.getSectorRepo().setSector(c, authUserId, setup, s);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -1608,7 +1608,7 @@ public class V2 {
 	public Response postTicks(@Context HttpServletRequest request, Tick t) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			Preconditions.checkArgument(t.idProblem() > 0);
-			dao.setTick(c, authUserId, setup, t);
+			dao.getTickRepo().setTick(c, authUserId, setup, t);
 			return Response.ok().build();
 		});
 	}
@@ -1626,7 +1626,7 @@ public class V2 {
 			@Parameter(description = "Problem id", required = true) @QueryParam("idProblem") int idProblem
 			) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.toggleTodo(c, authUserId, idProblem);
+			dao.getTodoRepo().toggleTodo(c, authUserId, idProblem);
 			return Response.ok().build();
 		});
 	}
@@ -1644,7 +1644,7 @@ public class V2 {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postTrails(@Context HttpServletRequest request, List<Trail> trails) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
-			dao.upsertTrails(connection, authUserId, trails);
+			dao.getSectorRepo().upsertTrails(connection, authUserId, trails);
 			return Response.ok().build();
 		});
 	}
@@ -1663,7 +1663,7 @@ public class V2 {
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
 			) {
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.setUserRegion(c, authUserId, regionId, delete);
+			dao.getUserRepo().setUserRegion(c, authUserId, regionId, delete);
 			return Response.ok().build();
 		});
 	}
@@ -1681,7 +1681,7 @@ public class V2 {
 	public Response putMedia(@Context HttpServletRequest request, Media m) {
 		Preconditions.checkArgument(m.identity().id() > 0, "Invalid mediaId");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.updateMedia(c, authUserId, m);
+			dao.getMediaRepo().updateMedia(c, authUserId, m);
 			return Response.ok().build();
 		});
 	}
@@ -1702,7 +1702,7 @@ public class V2 {
 			) {
 		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.rotateMedia(c, authUserId, idMedia, degrees);
+			dao.getMediaRepo().rotateMedia(c, authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}
@@ -1730,7 +1730,7 @@ public class V2 {
 				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0),
 				"Invalid arguments");
 		return Server.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
+			dao.getTrashRepo().trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
 		});
 	}
