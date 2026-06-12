@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpServlet;
  * - https://brattelinjer.no/com.buldreinfo.jersey.jaxb/openapi.json
  * - http://localhost:8080/com.buldreinfo.jersey.jaxb/openapi.json
  */
-public class SwaggerConfigurationServlet extends HttpServlet {
+public class OpenApiDocumentationServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 
 	@Override

@@ -23,7 +23,7 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public final class GsonMessageBodyHandler implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
+public final class JsonProvider implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
 	private final Gson gson = new GsonBuilder().create();
 
 	@SuppressWarnings("unused")

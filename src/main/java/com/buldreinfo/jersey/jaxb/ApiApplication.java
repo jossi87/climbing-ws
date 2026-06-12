@@ -6,8 +6,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 import jakarta.ws.rs.ApplicationPath;
 
 @ApplicationPath("/")
-public class BuldreinfoApplication extends ResourceConfig {
-	public BuldreinfoApplication() {
+public class ApiApplication extends ResourceConfig {
+	public ApiApplication() {
 		super(MultiPartFeature.class);
 		register(GlobalExceptionMapper.class);
 	}

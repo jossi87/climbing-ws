@@ -21,7 +21,7 @@ import jakarta.ws.rs.ext.Provider;
 
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
-public class CrossDomainFilter implements ContainerRequestFilter, ContainerResponseFilter {
+public class CorsFiler implements ContainerRequestFilter, ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
 	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
 
@@ -50,12 +50,11 @@ public class CrossDomainFilter implements ContainerRequestFilter, ContainerRespo
 			}
 			
 			if (LEGAL_ORIGINS.isEmpty()) {
-				for (String domain : Server.getSetups()
+				for (String domain : DatabaseContext.getSetups()
 						.stream()
 						.map(Setup::domain)
 						.collect(Collectors.toList())) {
 					LEGAL_ORIGINS.add("https://" + domain);
-					LEGAL_ORIGINS.add("https://staging." + domain);
 				}
 				LEGAL_ORIGINS.add("http://localhost:3001");
 			}

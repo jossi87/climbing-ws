@@ -32,19 +32,105 @@ import com.zaxxer.hikari.HikariDataSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Response;
 
-public class Server {
+public class DatabaseContext {
 	@FunctionalInterface
 	public interface DaoTask<T> {
 	    T run(Dao dao, Connection c) throws SQLException;
 	}
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
-	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
-	private static volatile Server server;
-	private static Logger logger = LogManager.getLogger();
-
+	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
+	private static Logger logger = LogManager.getLogger();
+	private static volatile DatabaseContext server;
+
+	public static Response buildResponse(Function<Response> function) {
+		try {
+			return function.get();
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+		}
+	}
+
+	public static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
+		DatabaseContext server = getServer();
+		Setup setup = server.getSetup(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Response res = function.get(server.dao, c, setup, shouldUpdateHits);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e; // Caught by the outer block
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return switch (e) {
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
+			};
+		}
+	}
+
+	public static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+		DatabaseContext server = getServer();
+		Setup setup = server.getSetup(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
+				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e;
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return switch (e) {
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+			};
+		}
+	}
+
+	public static Response buildResponseWithSqlAndRequiredAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+		DatabaseContext server = getServer();
+		Setup setup = server.getSetup(request);
+		boolean shouldUpdateHits = shouldUpdateHits(request);
+		try (Connection c = server.ds.getConnection()) {
+			try {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
+				if (authUserId.isEmpty()) {
+					c.rollback();
+					return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
+				}
+				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
+				c.commit();
+				return res;
+			} catch (Exception e) {
+				c.rollback();
+				throw e;
+			}
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			return switch (e) {
+			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
+			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
+			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
+			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
+			};
+		}
+	}
 
 	public static Collection<Setup> getSetups() {
 		return getServer().setupMap.values();
@@ -55,7 +141,7 @@ public class Server {
 	}
 
 	public static <T> T runParallel(FunctionDbUser<Connection, T> coordinator) {
-	    Server server = getServer();
+	    DatabaseContext server = getServer();
 	    try (Connection c = server.ds.getConnection()) {
 	        Setup setup = null;
 	        Optional<Integer> authUserId = Optional.empty();
@@ -64,9 +150,9 @@ public class Server {
 	        throw new RuntimeException(e);
 	    }
 	}
-
+	
 	public static void runSql(Consumer<Connection> action) {
-		Server server = getServer();
+		DatabaseContext server = getServer();
 		try (Connection c = server.ds.getConnection()) {
 			try {
 				action.run(server.dao, c);
@@ -86,7 +172,7 @@ public class Server {
 	}
 
 	public static <T> CompletableFuture<T> submitDaoTask(DaoTask<T> task) {
-	    Server server = getServer();
+	    DatabaseContext server = getServer();
 	    return CompletableFuture.supplyAsync(() -> {
 	        try (Connection c = server.ds.getConnection()) {
 	            T result = task.run(server.dao, c);
@@ -111,7 +197,7 @@ public class Server {
 		}
 		return "Invalid request parameters.";
 	}
-	
+
 	private static String getHitsCooldownKey(HttpServletRequest request) {
 		String ip = request.getHeader("CF-Connecting-IP");
 		if (ip == null || ip.isBlank()) {
@@ -133,10 +219,10 @@ public class Server {
 				ua == null ? "" : ua);
 	}
 
-	private static synchronized Server getServer() {
-		Server result = server;
+	private static synchronized DatabaseContext getServer() {
+		DatabaseContext result = server;
 		if (result == null) {
-			server = result = new Server();
+			server = result = new DatabaseContext();
 		}
 		return result;
 	}
@@ -176,100 +262,13 @@ public class Server {
 		return false;
 	}
 
-	protected static Response buildResponse(Function<Response> function) {
-		try {
-			return function.get();
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
-		}
-	}
-
-	protected static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
-		Server server = getServer();
-		Setup setup = server.getSetup(request);
-		boolean shouldUpdateHits = shouldUpdateHits(request);
-		try (Connection c = server.ds.getConnection()) {
-			try {
-				Response res = function.get(server.dao, c, setup, shouldUpdateHits);
-				c.commit();
-				return res;
-			} catch (Exception e) {
-				c.rollback();
-				throw e; // Caught by the outer block
-			}
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			return switch (e) {
-			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
-			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
-			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
-			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Service error").build();
-			};
-		}
-	}
-
-	protected static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
-		Server server = getServer();
-		Setup setup = server.getSetup(request);
-		boolean shouldUpdateHits = shouldUpdateHits(request);
-		try (Connection c = server.ds.getConnection()) {
-			try {
-				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
-				c.commit();
-				return res;
-			} catch (Exception e) {
-				c.rollback();
-				throw e;
-			}
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			return switch (e) {
-			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
-			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
-			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
-			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
-			};
-		}
-	}
-
-	protected static Response buildResponseWithSqlAndRequiredAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
-		Server server = getServer();
-		Setup setup = server.getSetup(request);
-		boolean shouldUpdateHits = shouldUpdateHits(request);
-		try (Connection c = server.ds.getConnection()) {
-			try {
-				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-				if (authUserId.isEmpty()) {
-					c.rollback();
-					return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
-				}
-				Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
-				c.commit();
-				return res;
-			} catch (Exception e) {
-				c.rollback();
-				throw e;
-			}
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			return switch (e) {
-			case IllegalArgumentException iae -> Response.status(Response.Status.BAD_REQUEST).entity(getBadRequestMessage(iae)).build();
-			case NoSuchElementException _ -> Response.status(Response.Status.NOT_FOUND).entity("Not found").build();
-			case SQLException _ -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Database error occurred").build();
-			default -> Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error occurred").build();
-			};
-		}
-	}
-
-	private final HikariDataSource ds;
-	private final Dao dao = new Dao();
 	private final AuthHelper auth = new AuthHelper();
-	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
+	private final Dao dao = new Dao();
+	private final HikariDataSource ds;
 	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
 	
-	private Server() {
+	private DatabaseContext() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
 		HikariConfig hikariConfig = new HikariConfig();

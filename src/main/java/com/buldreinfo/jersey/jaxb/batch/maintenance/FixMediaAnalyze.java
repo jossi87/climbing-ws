@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
 
@@ -31,7 +31,7 @@ public class FixMediaAnalyze {
 
     public void run() {
         List<Task> tasks = new ArrayList<>();
-        Server.runSql((_, c) -> {
+        DatabaseContext.runSql((_, c) -> {
             try (PreparedStatement ps = c.prepareStatement("""
                     SELECT id, width, height
                     FROM media m
@@ -68,7 +68,7 @@ public class FixMediaAnalyze {
             logger.warn(w);
         }
         logger.debug("Updating cache columns...");
-        Server.runSql((_, c) -> {
+        DatabaseContext.runSql((_, c) -> {
             try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE media_ml_analysis mla
                     JOIN media m ON mla.media_id = m.id
@@ -115,7 +115,7 @@ public class FixMediaAnalyze {
         try {
             Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
             var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
-            Server.runSql((dao, c) -> {
+            DatabaseContext.runSql((dao, c) -> {
                 try {
                     dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
                 } catch (Exception e) {
@@ -124,7 +124,7 @@ public class FixMediaAnalyze {
             });
         } catch (Exception e) {
             warnings.add("Failed to process/analyze media id=" + t.id + ": " + e.getMessage());
-            Server.runSql((dao, c) -> {
+            DatabaseContext.runSql((dao, c) -> {
                 try {
                     dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, null, null, null, true);
                 } catch (Exception dbEx) {

@@ -29,6 +29,7 @@ import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Ticks;
 import com.buldreinfo.jersey.jaxb.model.Toc;
 import com.buldreinfo.jersey.jaxb.model.Top;
+import com.buldreinfo.jersey.jaxb.resources.V2;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 
@@ -55,7 +56,7 @@ public class V2Test {
 	
 	@BeforeAll
     public static void warmUp() {
-		Server.runSql((_, c) -> {
+		DatabaseContext.runSql((_, c) -> {
 	        try (PreparedStatement ps = c.prepareStatement("SELECT 1")) {
 	            ps.executeQuery();
 	        }
@@ -116,7 +117,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			try {
 				dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
 				assertTrue(false);
@@ -124,7 +125,7 @@ public class V2Test {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			Area a = dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
 			assertTrue(a != null);
 			assertTrue(!Strings.isNullOrEmpty(a.name()));
@@ -209,7 +210,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			try {
 				dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 				assertTrue(false);
@@ -217,7 +218,7 @@ public class V2Test {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			Problem p = dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 			assertTrue(p != null);
 			assertTrue(!Strings.isNullOrEmpty(p.name()));
@@ -317,7 +318,7 @@ public class V2Test {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			try {
 				dao.getSectorRepo().getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 				assertTrue(false);
@@ -325,7 +326,7 @@ public class V2Test {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			Sector s = dao.getSectorRepo().getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 			assertTrue(s != null);
 			assertTrue(!Strings.isNullOrEmpty(s.name()));
@@ -405,7 +406,7 @@ public class V2Test {
 		EasyMock.expect(req.getHeader(HttpHeaders.AUTHORIZATION)).andReturn(null).anyTimes();
 		EasyMock.expect(req.getServerName()).andReturn(serverName).anyTimes();
 		EasyMock.expect(req.getParameter("access_token")).andReturn(null).anyTimes();
-		EasyMock.expect(req.getHeader(Server.HEADER_INTERNAL_REQUEST)).andReturn(Server.HEADER_INTERNAL_REQUEST_VALUE).anyTimes();
+		EasyMock.expect(req.getHeader(DatabaseContext.HEADER_INTERNAL_REQUEST)).andReturn(DatabaseContext.HEADER_INTERNAL_REQUEST_VALUE).anyTimes();
 		EasyMock.replay(req);
 		return req;
 	}
@@ -415,7 +416,7 @@ public class V2Test {
 		case buldreinfo -> "buldreinfo.com";
 		case brattelinjer -> "brattelinjer.no";
 		};
-		return Server.getSetups().stream()
+		return DatabaseContext.getSetups().stream()
 				.filter(s -> s.domain().equalsIgnoreCase(domain))
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException("Missing setup for domain=" + domain));

@@ -12,7 +12,7 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.model.Area;
@@ -122,14 +122,14 @@ public class FillProblems {
 
 	public FillProblems() {
 		Preconditions.checkArgument(REGION_ID > 0, "Invalid REGION_ID=" + REGION_ID);
-		this.setup = Server.getSetups().stream()
+		this.setup = DatabaseContext.getSetups().stream()
 				.filter(x -> x.idRegion() == REGION_ID)
 				.findAny()
 				.orElseThrow(() -> new RuntimeException("Invalid regionId=" + REGION_ID));
 		List<Data> data = new ArrayList<>();
 		data.add(new Data(1, "AREA", "SECTOR", "NAME", T.TRAD, "DESCRIPTION", 1, "6+", "USER_1,USER_2&USER_3", "9999-12-31", 999, null)); // TODO
 		Preconditions.checkArgument(data.size() > 1, "Invalid data");
-		Server.runSql((dao, c) -> {
+		DatabaseContext.runSql((dao, c) -> {
 			for (Data d : data) {
 				final int idArea = upsertArea(dao, c, d);
 				final int idSector = upsertSector(dao, c, idArea, d);

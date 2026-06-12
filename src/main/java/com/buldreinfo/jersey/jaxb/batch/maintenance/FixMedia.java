@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 
@@ -71,7 +71,7 @@ public class FixMedia {
 		}
 
 		if (!Files.exists(originalJpg)) {
-			Server.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
+			DatabaseContext.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
 		}
 
 		if (!Files.exists(originalJpg) && !privateEmbeddedVideosToIgnore.contains(id)) {
@@ -81,7 +81,7 @@ public class FixMedia {
 
 	protected void run() {
 		List<MediaTask> tasks = new ArrayList<>();
-		Server.runSql((_, c) -> {
+		DatabaseContext.runSql((_, c) -> {
 			String sqlStr = "SELECT id, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL";
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {

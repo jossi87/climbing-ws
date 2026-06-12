@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 
 public class AuditImages {
@@ -31,7 +31,7 @@ public class AuditImages {
 	private final AtomicInteger zeroByteCount = new AtomicInteger(0);
 
 	public void runSanityCheck() {
-		Server.runSql((_, c) -> {
+		DatabaseContext.runSql((_, c) -> {
 			String sql = "SELECT id, suffix FROM media WHERE is_movie=0";
 			try (PreparedStatement ps = c.prepareStatement(sql);
 					ResultSet rst = ps.executeQuery()) {

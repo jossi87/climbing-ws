@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import com.buldreinfo.jersey.jaxb.Server;
+import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;
@@ -14,8 +14,8 @@ import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 
 public class WritePdf {
 	public static void main(String[] args) {
-		Server.runSql((dao, c) -> {
-			var setup = Server.getSetups().stream()
+		DatabaseContext.runSql((dao, c) -> {
+			var setup = DatabaseContext.getSetups().stream()
 					.filter(x -> x.idRegion() == 4)
 					.findAny()
 					.orElseThrow();
