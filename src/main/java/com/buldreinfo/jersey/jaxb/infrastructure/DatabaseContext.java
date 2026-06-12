@@ -140,17 +140,6 @@ public class DatabaseContext {
 		getServer().executor.submit(action);
 	}
 
-	public static <T> T runParallel(FunctionDbUser<Connection, T> coordinator) {
-	    DatabaseContext server = getServer();
-	    try (Connection c = server.ds.getConnection()) {
-	        Setup setup = null;
-	        Optional<Integer> authUserId = Optional.empty();
-	        return coordinator.get(server.dao, c, setup, authUserId, false);
-	    } catch (Exception e) {
-	        throw new RuntimeException(e);
-	    }
-	}
-	
 	public static void runSql(Consumer<Connection> action) {
 		DatabaseContext server = getServer();
 		try (Connection c = server.ds.getConnection()) {

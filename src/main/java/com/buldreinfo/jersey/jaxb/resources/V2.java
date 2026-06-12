@@ -301,7 +301,7 @@ public class V2 {
 			var newestComments = DatabaseContext.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageNewestAscents(c, authUserId, setup));
 			var newestMedia = DatabaseContext.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageNewestMedia(c, authUserId, setup));
 			var lastComments = DatabaseContext.submitDaoTask((dao, c) -> dao.getFrontpageRepo().getFrontpageLastComments(c, authUserId, setup));
-			Frontpage res = new Frontpage(stats.get(), randomMedia.get(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
+			Frontpage res = new Frontpage(stats.join(), randomMedia.join(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -606,7 +606,7 @@ public class V2 {
 			var identity = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileIdentity(c, setup, reqUserId));
 			var kpis = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileKpis(c, reqUserId));
 			var disciplines = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileDisciplines(c, setup, reqUserId));
-			Profile res = new Profile(identity.get(), kpis.get(), disciplines.get());
+			Profile res = new Profile(identity.join(), kpis.join(), disciplines.join());
 			return Response.ok().entity(res).build();
 		});
 	}
