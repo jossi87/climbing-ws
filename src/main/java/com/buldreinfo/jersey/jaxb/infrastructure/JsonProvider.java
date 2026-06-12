@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.infrastructure;
 
 import java.io.IOException;
 import java.io.InputStream;

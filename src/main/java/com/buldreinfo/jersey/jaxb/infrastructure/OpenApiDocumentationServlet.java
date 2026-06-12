@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.infrastructure;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

@@ -12,9 +12,9 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.dao.Dao;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSector;
 import com.buldreinfo.jersey.jaxb.model.Problem;

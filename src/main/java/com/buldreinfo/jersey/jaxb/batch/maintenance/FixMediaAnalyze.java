@@ -14,9 +14,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
 public class FixMediaAnalyze {
     private final Path localBucketRoot;

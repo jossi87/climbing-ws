@@ -16,14 +16,14 @@
         </init-param>
         <init-param>
             <param-name>jakarta.ws.rs.core.Application</param-name>
-            <param-value>com.buldreinfo.jersey.jaxb.ApiApplication</param-value>
+            <param-value>com.buldreinfo.jersey.jaxb.infrastructure.ApiApplication</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
     </servlet>
     
     <servlet>
         <servlet-name>SwaggerConfigServlet</servlet-name>
-        <servlet-class>com.buldreinfo.jersey.jaxb.OpenApiDocumentationServlet</servlet-class>
+        <servlet-class>com.buldreinfo.jersey.jaxb.infrastructure.OpenApiDocumentationServlet</servlet-class>
         <load-on-startup>2</load-on-startup>
     </servlet>
     

@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.infrastructure;
 
 public final class OpenApiConstants {
 	public static final String BAD_REQUEST_CODE = "400";

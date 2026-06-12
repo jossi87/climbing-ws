@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.Sector;

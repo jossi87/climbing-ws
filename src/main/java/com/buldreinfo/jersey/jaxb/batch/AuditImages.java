@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
 public class AuditImages {
 	private static final Logger logger = LogManager.getLogger();

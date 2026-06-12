@@ -22,8 +22,6 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.imgscalr.Scalr;
 
-import com.buldreinfo.jersey.jaxb.OpenApiConstants;
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
@@ -32,6 +30,8 @@ import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.ApifyInstagramResolver;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageSaver;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;

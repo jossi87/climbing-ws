@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb;
+package com.buldreinfo.jersey.jaxb.infrastructure;
 
 import java.io.IOException;
 import java.util.Set;
@@ -21,7 +21,7 @@ import jakarta.ws.rs.ext.Provider;
 
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
-public class CorsFiler implements ContainerRequestFilter, ContainerResponseFilter {
+public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
 	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
 

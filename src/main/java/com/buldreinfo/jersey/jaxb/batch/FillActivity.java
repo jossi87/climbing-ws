@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
 public class FillActivity {
 	private static Logger logger = LogManager.getLogger();
