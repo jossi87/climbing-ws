@@ -50,21 +50,19 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-@Tag(name = "/media/")
-@Path("/media/")
-public class MediaResource {
+@Tag(name = "Media")
+@Path("/media")
+public class MediaResource extends BaseResource {
 	private static Logger logger = LogManager.getLogger();
 
-	public MediaResource() {
-	}
-
 	@Operation(summary = "Move media to trash", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -72,9 +70,11 @@ public class MediaResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
-	@Path("/")
+	@Path("")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
-		Preconditions.checkArgument(id > 0, "Invalid id=" + id);
+		if (id <= 0) {
+	        return createBadRequestResponse("Invalid id=" + id);
+	    }
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.getMediaRepo().deleteMedia(c, authUserId, id);
 			return Response.ok().build();
@@ -82,14 +82,14 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Get Media by id", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
-			@ApiResponse(responseCode = "404", description = "Media not found"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("/")
+	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
@@ -97,11 +97,11 @@ public class MediaResource {
 			Media res = dao.getMediaRepo().getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
-	} 
+	}
 
 	@Operation(summary = "Get media file by id", responses = {
-			@ApiResponse(responseCode = "302", description = "Redirects to the public object storage URL"),
-			@ApiResponse(responseCode = "404", description = "Media file not found"),
+			@ApiResponse(responseCode = OpenApiConstants.FOUND_CODE, description = OpenApiConstants.FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
@@ -122,7 +122,7 @@ public class MediaResource {
 		if (isMovie) {
 			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
 			if (!storage.exists(finalObjectKey)) {
-				return createNotFoundResponse("Media file not found");
+				return createNotFoundResponse();
 			}
 			return createRedirect(finalObjectKey, versionStamp);
 		}
@@ -132,7 +132,7 @@ public class MediaResource {
 		if (original) {
 			finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
 			if (!storage.exists(finalObjectKey)) {
-				return createNotFoundResponse("Media file not found");
+				return createNotFoundResponse();
 			}
 		} 
 		else if (targetWidth > 0 || minDimension > 0) {
@@ -145,11 +145,11 @@ public class MediaResource {
 						sourceKey = S3KeyGenerator.getOriginalJpg(id);
 					}
 					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					BufferedImage b = storage.downloadImage(sourceKey);
 					if (b == null) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					if (targetWidth > 0 && targetWidth < b.getWidth()) {
 						b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
@@ -161,7 +161,7 @@ public class MediaResource {
 					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
 					b.flush();
 					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
@@ -173,11 +173,11 @@ public class MediaResource {
 				return DatabaseContext.buildResponse(() -> {
 					String sourceKey = S3KeyGenerator.getOriginalJpg(id);
 					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					BufferedImage b = storage.downloadImage(sourceKey);
 					if (b == null) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
 						b = Scalr.crop(b, x, y, width, height);
@@ -185,7 +185,7 @@ public class MediaResource {
 					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
 					b.flush();
 					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
@@ -200,11 +200,11 @@ public class MediaResource {
 						sourceKey = S3KeyGenerator.getOriginalJpg(id);
 					}
 					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					BufferedImage b = storage.downloadImage(sourceKey);
 					if (b == null) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
 						b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
@@ -212,20 +212,20 @@ public class MediaResource {
 					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
 					b.flush();
 					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse("Media file not found");
+						return createNotFoundResponse();
 					}
 					return createRedirect(finalObjectKey, versionStamp);
 				});
 			}
 		}
 		if (!storage.exists(finalObjectKey)) {
-			return createNotFoundResponse("Media file not found");
+			return createNotFoundResponse();
 		}
 		return createRedirect(finalObjectKey, versionStamp);
 	}
-
+	
 	@Operation(summary = "Reorder media", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -239,16 +239,20 @@ public class MediaResource {
 			@Parameter(description = "Move left", required = false) @QueryParam("left") boolean left,
 			@Parameter(description = "Move right", required = false) @QueryParam("right") boolean right
 			) {
+		if (id <= 0) {
+		    return createBadRequestResponse("Invalid id=" + id);
+		}
+		if (!(left ^ right)) {
+		    return createBadRequestResponse("You must specify either 'left' or 'right', but not both.");
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(id > 0);
-			Preconditions.checkArgument(left ^ right, "You must specify either 'left' or 'right', but not both.");
 			dao.getMediaRepo().shiftMediaPosition(c, authUserId, id, left, right);
 			return Response.ok().build();
 		});
 	}
 
 	@Operation(summary = "Add single image media item", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Media.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -277,7 +281,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Commit verified Instagram media to application storage", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Media.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -299,7 +303,11 @@ public class MediaResource {
 		URI validatedInitialUri = ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
-				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
+				throw new WebApplicationException(
+					Response.status(Response.Status.TOO_MANY_REQUESTS)
+							.entity("Daily Instagram import limit reached (max 50 per day)")
+							.build()
+				);
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 			if (isVideo) {
@@ -361,7 +369,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -372,19 +380,25 @@ public class MediaResource {
 	@Path("/instagram-scrape")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
-		Preconditions.checkArgument(url != null && !url.isBlank(), "Instagram URL is required");
+		if (url == null || url.isBlank()) {
+		    return createBadRequestResponse("Instagram URL is required");
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
-				return Response.status(Response.Status.TOO_MANY_REQUESTS).entity("Daily Instagram import limit reached (max 50 per day)").build();
-			}
-			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
-			dao.getMediaRepo().logInstagramScrape(c, authUserId, url, scrapedList.size());
-			return Response.ok().entity(scrapedList).build();
+		    if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
+		        throw new WebApplicationException(
+		            Response.status(Response.Status.TOO_MANY_REQUESTS)
+		                    .entity("Daily Instagram import limit reached (max 50 per day)")
+		                    .build()
+		        );
+		    }
+		    List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
+		    dao.getMediaRepo().logInstagramScrape(c, authUserId, url, scrapedList.size());
+		    return Response.ok().entity(scrapedList).build();
 		});
 	}
 
 	@Operation(summary = "Update Media SVG", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -401,7 +415,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Signal direct video upload completion and trigger async background processing", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -430,7 +444,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Media.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -471,7 +485,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
-			@ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = VideoInitResponse.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = VideoInitResponse.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -500,7 +514,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Update media", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -508,9 +522,11 @@ public class MediaResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
-	@Path("/")
+	@Path("")
 	public Response putMedia(@Context HttpServletRequest request, Media m) {
-		Preconditions.checkArgument(m.identity().id() > 0, "Invalid mediaId");
+		if (m == null || m.identity() == null || m.identity().id() <= 0) {
+		    return createBadRequestResponse("Invalid mediaId");
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.getMediaRepo().updateMedia(c, authUserId, m);
 			return Response.ok().build();
@@ -518,7 +534,7 @@ public class MediaResource {
 	}
 
 	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
-			@ApiResponse(responseCode = "200"),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -531,15 +547,16 @@ public class MediaResource {
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia,
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
 			) {
-		Preconditions.checkArgument(idMedia > 0, "Invalid idMedia");
+		if (idMedia <= 0) {
+		    return createBadRequestResponse("Invalid idMedia");
+		}
+		if (degrees != 90 && degrees != 180 && degrees != 270) {
+		    return createBadRequestResponse("Invalid rotation degrees. Must be 90, 180, or 270.");
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
 			dao.getMediaRepo().rotateMedia(c, authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
-	}
-
-	private Response createNotFoundResponse(String message) {
-		return Response.status(Response.Status.NOT_FOUND).entity(message).build();
 	}
 
 	private Response createRedirect(String key, int version) {

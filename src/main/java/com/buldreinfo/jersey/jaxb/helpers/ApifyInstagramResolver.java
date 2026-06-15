@@ -20,6 +20,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import jakarta.ws.rs.core.MediaType;
+
 public class ApifyInstagramResolver {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
 	private static final Logger logger = LoggerFactory.getLogger(ApifyInstagramResolver.class);
@@ -67,7 +69,7 @@ public class ApifyInstagramResolver {
 
 		HttpRequest startRequest = HttpRequest.newBuilder()
 				.uri(URI.create(startUrl))
-				.header("Content-Type", "application/json")
+				.header("Content-Type", MediaType.APPLICATION_JSON)
 				.timeout(Duration.ofSeconds(30))
 				.POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(inputJson), StandardCharsets.UTF_8))
 				.build();

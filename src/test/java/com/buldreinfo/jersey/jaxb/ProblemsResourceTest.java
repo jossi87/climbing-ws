@@ -24,7 +24,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 	@Test
 	public void testGetProblem() throws Exception {
 		var tester = new ProblemsResource();
-		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), BULDREINFO_PROBLEM_ID_VISIBLE, false)) {
+		try (Response r = tester.getProblems(getRequest(Region.buldreinfo), BULDREINFO_PROBLEM_ID_VISIBLE, false)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
@@ -36,7 +36,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 	@Test
 	public void testGetProblemDifferentRegion() throws Exception {
 		var tester = new ProblemsResource();
-		try (Response r = tester.getProblem(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false)) {
+		try (Response r = tester.getProblems(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Problem);
 			Problem p = (Problem)r.getEntity();
@@ -48,7 +48,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 	@Test
 	public void testGetProblemHidden() throws Exception {
 		var tester = new ProblemsResource();
-		try (Response r = tester.getProblem(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_PROBLEM_ID, false)) {
+		try (Response r = tester.getProblems(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_PROBLEM_ID, false)) {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
@@ -70,7 +70,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 	@Test
 	public void testGetProblemPdf() throws Exception {
 		var tester = new ProblemsResource();
-		try (Response r = tester.getProblemPdf(getRequest(Region.brattelinjer), BRATTELINJER_PROBLEM_ID_PDF)) {
+		try (Response r = tester.getProblemsPdf(getRequest(Region.brattelinjer), BRATTELINJER_PROBLEM_ID_PDF)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof StreamingOutput);
 			var streamingOutput = (StreamingOutput)r.getEntity();
