@@ -287,8 +287,8 @@ public class InteractionResource extends BaseResource {
 			return createBadRequestResponse("Trails collection payload is missing or empty");
 		}
 		for (Trail t : trails) {
-			if (t == null || t.id() <= 0) {
-				return createBadRequestResponse("Each trail must have a valid id");
+			if (t == null) {
+				return createBadRequestResponse("Trail cannot be null");
 			}
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
