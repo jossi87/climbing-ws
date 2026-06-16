@@ -176,6 +176,7 @@ public record SectorRepository(Dao dao) {
 		dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(c, allCoordinates);
 
 		if (s.id() > 0) {
+			ensureAdminWriteSector(c, authUserId, s.id());
 			Sector currSector = getSector(c, authUserId, false, setup, s.id(), false);
 			setPermissionRecursive = currSector.lockedAdmin() != isLockedAdmin || currSector.lockedSuperadmin() != s.lockedSuperadmin();
 			try (PreparedStatement ps = c.prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {

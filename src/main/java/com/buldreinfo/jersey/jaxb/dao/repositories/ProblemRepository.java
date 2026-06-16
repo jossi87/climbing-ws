@@ -492,6 +492,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		dao.getSectorRepo().tryFixSectorOrdering(c, p.sectorId(), p.id(), p.nr());
 		int gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
 		if (p.id() > 0) {
+			ensureAdminWriteProblem(c, authUserId, p.id());
 			try (PreparedStatement ps = c.prepareStatement("""
 					UPDATE problem p
 					JOIN sector s ON p.sector_id=s.id
@@ -527,7 +528,9 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			}
 			idProblem = p.id();
 			updateProblemConsensusGrade(c, idProblem);
-		} else {
+		}
+		else {
+			dao.getSectorRepo().ensureAdminWriteSector(c, authUserId, p.sectorId());
 			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, p.sectorId());
 				ps.setString(2, GlobalFunctions.stripString(p.name()));
@@ -610,6 +613,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		} else {
 			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
+				ps.execute();
 			}
 		}
 		try (PreparedStatement ps = c.prepareStatement("DELETE FROM problem_section WHERE problem_id=?")) {
