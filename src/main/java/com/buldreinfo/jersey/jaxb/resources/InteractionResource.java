@@ -288,7 +288,7 @@ public class InteractionResource extends BaseResource {
 		}
 		for (Trail t : trails) {
 			if (t == null || t.id() <= 0) {
-				return createBadRequestResponse("Each trail must have a valid trailId");
+				return createBadRequestResponse("Each trail must have a valid id");
 			}
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {

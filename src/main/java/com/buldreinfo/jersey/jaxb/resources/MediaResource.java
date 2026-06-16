@@ -373,8 +373,10 @@ public class MediaResource extends BaseResource {
 	@POST
 	@Path("/video/{id}/complete")
 	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) {
+		if (mediaId <= 0) {
+			return createBadRequestResponse("Invalid mediaId=" + mediaId);
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 			Media media = dao.getMediaRepo().getMedia(c, authUserId, mediaId);
 			Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
 			Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");

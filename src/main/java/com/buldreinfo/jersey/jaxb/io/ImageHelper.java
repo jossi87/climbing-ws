@@ -19,6 +19,16 @@ import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
 public class ImageHelper {
 	private static final Logger logger = LogManager.getLogger();
 	
+	private static void analyzeAndSave(Dao dao, Connection c, int idMedia, BufferedImage image, int width, int height, String logPrefix) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			ImageIO.write(image, "jpg", baos);
+			var result = ImageClassifier.analyze(baos.toByteArray());
+			dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
+		} catch (Exception e) {
+			logger.warn("AI Analysis failed{} for media {}: {}", logPrefix, idMedia, e.getMessage());
+		}
+	}
+	
 	public static void rotateImage(Dao dao, Connection c, int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
 	    StorageManager storage = StorageManager.getInstance();
 	    String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
@@ -34,14 +44,7 @@ public class ImageHelper {
 	        dao.getMediaRepo().deleteMediaAnalysis(c, idMedia);
 	        ImageSaver.save(image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
-	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-	            ImageIO.write(image, "jpg", baos);
-	            byte[] rotatedBytes = baos.toByteArray();
-	            var result = ImageClassifier.analyze(rotatedBytes);
-	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
-	        } catch (Exception e) {
-	            logger.warn("AI Re-Analysis failed after rotation for media {}: {}", idMedia, e.getMessage());
-	        }
+	        analyzeAndSave(dao, c, idMedia, image, width, height, " after rotation");
 	    }
 	    S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
 	}
@@ -51,14 +54,7 @@ public class ImageHelper {
 	    int height = bufferedImage.getHeight();
 		ImageSaver.save(bufferedImage, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 		dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-	        ImageIO.write(bufferedImage, "jpg", baos);
-	        byte[] bytes = baos.toByteArray();
-	        var result = ImageClassifier.analyze(bytes);
-	        dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
-	    } catch (Exception e) {
-	        logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
-	    }
+		analyzeAndSave(dao, c, idMedia, bufferedImage, width, height, "");
 	}
 
 	public static void saveImage(Dao dao, Connection c, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
@@ -72,12 +68,7 @@ public class ImageHelper {
 		    int height = image.getHeight();
 			ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 			dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
-			try {
-	            var result = ImageClassifier.analyze(bytes);
-	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
-	        } catch (Exception e) {
-	            logger.warn("AI Analysis failed for media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
-	        }
+			analyzeAndSave(dao, c, idMedia, image, width, height, "");
 		}
 	}
 
@@ -88,14 +79,7 @@ public class ImageHelper {
 	        int height = image.getHeight();
 	        ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
-	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-	            ImageIO.write(image, "jpg", baos);
-	            byte[] bytes = baos.toByteArray();
-	            var result = ImageClassifier.analyze(bytes);
-	            dao.getMediaRepo().saveMediaAnalysis(c, idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);
-	        } catch (Exception e) {
-	            logger.warn("AI Analysis failed for embed media {}: {}. Batch script will pick this up later.", idMedia, e.getMessage());
-	        }
+	        analyzeAndSave(dao, c, idMedia, image, width, height, "");
 	    }
 	}
 }
