@@ -54,6 +54,9 @@ public class AreasResource extends BaseResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAreas(@Context HttpServletRequest request,
 			@Parameter(description = "Area id", required = false) @QueryParam("id") int id) {
+		if (id < 0) {
+			return createBadRequestResponse("Invalid id=" + id);
+		}
 		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
 			Collection<Area> areas = id > 0 ?
 					Collections.singleton(dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits)) :

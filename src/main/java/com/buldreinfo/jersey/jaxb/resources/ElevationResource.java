@@ -36,8 +36,14 @@ public class ElevationResource extends BaseResource {
 	public Response getElevation(@Context HttpServletRequest request,
 			@QueryParam("latitude") double latitude,
 			@QueryParam("longitude") double longitude) {
+		if (latitude < -90 || latitude > 90) {
+			return createBadRequestResponse("Invalid latitude: must be between -90 and 90");
+		}
+		if (longitude < -180 || longitude > 180) {
+			return createBadRequestResponse("Invalid longitude: must be between -180 and 180");
+		}
 		if (latitude == 0.0 && longitude == 0.0) {
-			return createBadRequestResponse("Invalid coordinates");
+			return createBadRequestResponse("Invalid coordinates (0,0)");
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (_, _, _, _, _) -> {
 			int elevation = GeoHelper.getElevation(latitude, longitude);

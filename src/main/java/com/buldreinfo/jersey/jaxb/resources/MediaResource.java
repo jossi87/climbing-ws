@@ -98,6 +98,9 @@ public class MediaResource extends BaseResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
+		if (idMedia <= 0) {
+			return createBadRequestResponse("Invalid idMedia=" + idMedia);
+		}
 		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
 			Media res = dao.getMediaRepo().getMedia(c, authUserId, idMedia);
 			return Response.ok().entity(res).build();
@@ -350,6 +353,9 @@ public class MediaResource extends BaseResource {
 	@POST
 	@Path("/svg")
 	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
+		if (m == null || m.identity() == null || m.identity().id() <= 0) {
+			return createBadRequestResponse("Invalid media payload");
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
 			dao.getMediaRepo().upsertMediaSvg(c, authUserId, setup, m);
 			return Response.ok().build();

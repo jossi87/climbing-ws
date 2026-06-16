@@ -78,6 +78,9 @@ public class MetaResource extends BaseResource {
 		if (idArea < 0 || idSector < 0) {
 			return createBadRequestResponse("IDs cannot be negative");
 		}
+		if (idArea == 0 && idSector == 0) {
+			return createBadRequestResponse("Either idArea or idSector must be greater than 0");
+		}
 		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
 			Collection<GradeDistribution> res = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
