@@ -32,13 +32,7 @@ public class ImageHelper {
 	        int width = image.getWidth();
 	        int height = image.getHeight();
 	        dao.getMediaRepo().deleteMediaAnalysis(c, idMedia);
-	        ImageSaver.newBuilder()
-	            .withBufferedImage(image)
-	            .withMetadata(exifReader.getOutputSet())
-	            .withKeyOriginalJpg(originalKey)
-	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-	            .save();
+	        ImageSaver.save(image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);
@@ -55,12 +49,7 @@ public class ImageHelper {
 	public static void saveImage(Dao dao, Connection c, int idMedia, BufferedImage bufferedImage) throws SQLException {
 		int width = bufferedImage.getWidth();
 	    int height = bufferedImage.getHeight();
-		ImageSaver.newBuilder()
-		.withBufferedImage(bufferedImage)
-		.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
-		.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-		.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-		.save();
+		ImageSaver.save(bufferedImage, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 		dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	        ImageIO.write(bufferedImage, "jpg", baos);
@@ -81,13 +70,7 @@ public class ImageHelper {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 		    int height = image.getHeight();
-			ImageSaver.newBuilder()
-			.withBufferedImage(image)
-			.withMetadata(exifReader.getOutputSet())
-			.withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
-			.withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-			.withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-			.save();
+			ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 			dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			try {
 	            var result = ImageClassifier.analyze(bytes);
@@ -103,12 +86,7 @@ public class ImageHelper {
 	        BufferedImage image = imageReader.getJpgBufferedImage();
 	        int width = image.getWidth();
 	        int height = image.getHeight();
-	        ImageSaver.newBuilder()
-	            .withBufferedImage(image)
-	            .withKeyOriginalJpg(S3KeyGenerator.getOriginalJpg(idMedia))
-	            .withKeyWebJpg(S3KeyGenerator.getWebJpg(idMedia))
-	            .withKeyWebWebP(S3KeyGenerator.getWebWebp(idMedia))
-	            .save();
+	        ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 	        dao.getMediaRepo().setMediaMetadata(c, idMedia, width, height, null, false);
 	        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 	            ImageIO.write(image, "jpg", baos);

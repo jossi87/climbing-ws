@@ -18,59 +18,26 @@ public class ImageSaver {
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 
+	public static void save(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, null).execute();
+	}
+
+	public static void save(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, metadata).execute();
+	}
+
 	private final BufferedImage bufferedImage;
 	private final String keyOriginalJpg;
 	private final String keyWebJpg;
 	private final String keyWebWebP;
 	private final TiffOutputSet metadata;
 
-	protected static class ImageSaverBuilder {
-		private BufferedImage bufferedImage;
-		private String keyOriginalJpg;
-		private String keyWebJpg;
-		private String keyWebWebP;
-		private TiffOutputSet metadata;
-
-		protected void save() {
-			new ImageSaver(this).execute();
-		}
-
-		protected ImageSaverBuilder withBufferedImage(BufferedImage bufferedImage) {
-			this.bufferedImage = bufferedImage;
-			return this;
-		}
-
-		protected ImageSaverBuilder withMetadata(TiffOutputSet metadata) {
-			this.metadata = metadata;
-			return this;
-		}
-
-		protected ImageSaverBuilder withKeyOriginalJpg(String keyOriginalJpg) {
-			this.keyOriginalJpg = keyOriginalJpg;
-			return this;
-		}
-
-		protected ImageSaverBuilder withKeyWebJpg(String keyWebJpg) {
-			this.keyWebJpg = keyWebJpg;
-			return this;
-		}
-
-		protected ImageSaverBuilder withKeyWebWebP(String keyWebWebP) {
-			this.keyWebWebP = keyWebWebP;
-			return this;
-		}
-	}
-
-	protected static ImageSaverBuilder newBuilder() {
-		return new ImageSaverBuilder();
-	}
-
-	private ImageSaver(ImageSaverBuilder builder) {
-		this.bufferedImage = Objects.requireNonNull(builder.bufferedImage, "BufferedImage cannot be null");
-		this.keyOriginalJpg = Objects.requireNonNull(builder.keyOriginalJpg, "Original JPG key is required");
-		this.keyWebJpg = Objects.requireNonNull(builder.keyWebJpg, "Web JPG key is required");
-		this.keyWebWebP = Objects.requireNonNull(builder.keyWebWebP, "Web WebP key is required");
-		this.metadata = builder.metadata;
+	private ImageSaver(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
+		this.bufferedImage = Objects.requireNonNull(bufferedImage, "BufferedImage cannot be null");
+		this.keyOriginalJpg = Objects.requireNonNull(keyOriginalJpg, "Original JPG key is required");
+		this.keyWebJpg = Objects.requireNonNull(keyWebJpg, "Web JPG key is required");
+		this.keyWebWebP = Objects.requireNonNull(keyWebWebP, "Web WebP key is required");
+		this.metadata = metadata;
 	}
 
 	private void execute() {

@@ -589,6 +589,8 @@ public record MediaRepository(Dao dao) {
 		logger.debug("setMediaMetadata(idMedia={}, width={}, height={}, dateTaken={}, is360={}) - success", idMedia, width, height, dateTaken, is360);
 	}
 	
+	private record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
+
 	public void shiftMediaPosition(Connection c, Optional<Integer> authUserId, int id, boolean left, boolean right) throws SQLException {
 		boolean ok = false;
 		int areaId = 0;
@@ -628,41 +630,31 @@ public record MediaRepository(Dao dao) {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 
-		String table = null;
-		String column = null;
-		String extraOrder = "";
-		int columnId = 0;
+		MediaAssociation assoc;
 		if (areaId > 0) {
-			table = "media_area";
-			column = "area_id";
-			columnId = areaId;
+			assoc = new MediaAssociation("media_area", "area_id", areaId, false);
 		}
 		else if (sectorId > 0) {
-			table = "media_sector";
-			column = "sector_id";
-			columnId = sectorId;
+			assoc = new MediaAssociation("media_sector", "sector_id", sectorId, false);
 		}
 		else if (trailId > 0) {
-			table = "media_trail";
-			column = "trail_id";
-			columnId = trailId;
+			assoc = new MediaAssociation("media_trail", "trail_id", trailId, false);
 		}
 		else if (problemId > 0) {
-			table = "media_problem";
-			column = "problem_id";
-			columnId = problemId;
-			extraOrder = "IFNULL(pitch,0), ";
+			assoc = new MediaAssociation("media_problem", "problem_id", problemId, true);
 		}
 		else {
 			throw new UnsupportedOperationException("Could not find media association for left/right move.");
 		}
+
+		String orderClause = assoc.hasPitch() ? "IFNULL(x.pitch,0), " : "";
 		List<Integer> idMediaList = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("SELECT m.id FROM " + table + " x, media m WHERE x." + column + "=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY " + extraOrder + " -x.sorting DESC, m.id")) {
-			ps.setInt(1, columnId);
+		String selectSql = "SELECT m.id FROM %s x, media m WHERE x.%s=? AND x.media_id=m.id AND m.deleted_user_id IS NULL AND m.is_movie=0 ORDER BY %s -x.sorting DESC, m.id".formatted(assoc.table(), assoc.column(), orderClause);
+		try (PreparedStatement ps = c.prepareStatement(selectSql)) {
+			ps.setInt(1, assoc.columnId());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int idMedia = rst.getInt("id");
-					idMediaList.add(idMedia);
+					idMediaList.add(rst.getInt("id"));
 				}
 			}
 		}
@@ -686,19 +678,20 @@ public record MediaRepository(Dao dao) {
 		else {
 			throw new UnsupportedOperationException("left=false and right=false");
 		}
-		try (PreparedStatement ps = c.prepareStatement("UPDATE " + table + " SET sorting=? WHERE " + column + "=? AND media_id=?")) {
+		String updateSql = "UPDATE %s SET sorting=? WHERE %s=? AND media_id=?".formatted(assoc.table(), assoc.column());
+		try (PreparedStatement ps = c.prepareStatement(updateSql)) {
 			int sorting = 0;
 			for (int idMedia : idMediaList) {
 				ps.setInt(1, ++sorting);
-				ps.setInt(2, columnId);
+				ps.setInt(2, assoc.columnId());
 				ps.setInt(3, idMedia);
 				ps.addBatch();
 			}
 			ps.executeBatch();
 		}
 
-		if (problemId > 0) {
-			dao.getActivityRepo().fillActivity(c, problemId);
+		if (assoc.hasPitch()) {
+			dao.getActivityRepo().fillActivity(c, assoc.columnId());
 		}
 	}
 
@@ -899,12 +892,12 @@ public record MediaRepository(Dao dao) {
 	private void saveMediaContext(Connection c, int mediaId, Association associations, Media m, boolean isUpdate) throws SQLException {
 		// If this is an update, cleanly wipe out all previous entity and user associations first
 		if (isUpdate) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_area WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_sector WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_problem WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_trail WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_guestbook WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM media_user WHERE media_id=?")) { ps.setInt(1, mediaId); ps.execute(); }
+			for (String table : List.of("media_area", "media_sector", "media_problem", "media_trail", "media_guestbook", "media_user")) {
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM " + table + " WHERE media_id=?")) {
+					ps.setInt(1, mediaId);
+					ps.execute();
+				}
+			}
 		}
 
 		// 1. Sync the Primary Exclusive Association

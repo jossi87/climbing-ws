@@ -19,31 +19,45 @@ import com.google.protobuf.ByteString;
 public class ImageClassifier {
 	public record AnalysisResult(String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects) {}
 	
+	private static volatile ImageAnnotatorClient cachedClient;
+	
+	private static ImageAnnotatorClient getClient() throws Exception {
+		ImageAnnotatorClient result = cachedClient;
+		if (result == null) {
+			synchronized (ImageClassifier.class) {
+				result = cachedClient;
+				if (result == null) {
+					String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
+					ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+							.setCredentialsProvider(FixedCredentialsProvider.create(null))
+							.setHeaderProvider(() -> Collections.singletonMap("X-Goog-Api-Key", apiKey))
+							.build();
+					cachedClient = result = ImageAnnotatorClient.create(settings);
+				}
+			}
+		}
+		return result;
+	}
+	
 	public static AnalysisResult analyze(byte[] imgBytesArray) throws Exception {
-	    String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
-	    ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
-	            .setCredentialsProvider(FixedCredentialsProvider.create(null))
-	            .setHeaderProvider(() -> Collections.singletonMap("X-Goog-Api-Key", apiKey))
-	            .build();
-	    try (ImageAnnotatorClient client = ImageAnnotatorClient.create(settings)) {
-	        ByteString imgBytes = ByteString.copyFrom(imgBytesArray);
-	        Image img = Image.newBuilder().setContent(imgBytes).build();
-	        Feature labelsF = Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build();
-	        Feature objectsF = Feature.newBuilder().setType(Feature.Type.OBJECT_LOCALIZATION).build();
-	        Feature propsF = Feature.newBuilder().setType(Feature.Type.IMAGE_PROPERTIES).build();
-	        AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
-	                .addFeatures(labelsF).addFeatures(objectsF).addFeatures(propsF)
-	                .setImage(img).build();
-	        AnnotateImageResponse res = client.batchAnnotateImages(List.of(request)).getResponsesList().get(0);
-	        if (res.hasError()) {
-	        	throw new Exception(res.getError().getMessage());
-	        }
-	        String hexColor = "#000000";
-	        if (res.hasImagePropertiesAnnotation() && !res.getImagePropertiesAnnotation().getDominantColors().getColorsList().isEmpty()) {
-	            ColorInfo color = res.getImagePropertiesAnnotation().getDominantColors().getColors(0);
-	            hexColor = String.format("#%02x%02x%02x", (int)color.getColor().getRed(), (int)color.getColor().getGreen(), (int)color.getColor().getBlue());
-	        }
-	        return new AnalysisResult(hexColor, res.getLabelAnnotationsList(), res.getLocalizedObjectAnnotationsList());
-	    }
+		ImageAnnotatorClient client = getClient();
+		ByteString imgBytes = ByteString.copyFrom(imgBytesArray);
+		Image img = Image.newBuilder().setContent(imgBytes).build();
+		Feature labelsF = Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build();
+		Feature objectsF = Feature.newBuilder().setType(Feature.Type.OBJECT_LOCALIZATION).build();
+		Feature propsF = Feature.newBuilder().setType(Feature.Type.IMAGE_PROPERTIES).build();
+		AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
+				.addFeatures(labelsF).addFeatures(objectsF).addFeatures(propsF)
+				.setImage(img).build();
+		AnnotateImageResponse res = client.batchAnnotateImages(List.of(request)).getResponsesList().get(0);
+		if (res.hasError()) {
+			throw new Exception(res.getError().getMessage());
+		}
+		String hexColor = "#000000";
+		if (res.hasImagePropertiesAnnotation() && !res.getImagePropertiesAnnotation().getDominantColors().getColorsList().isEmpty()) {
+			ColorInfo color = res.getImagePropertiesAnnotation().getDominantColors().getColors(0);
+			hexColor = String.format("#%02x%02x%02x", (int)color.getColor().getRed(), (int)color.getColor().getGreen(), (int)color.getColor().getBlue());
+		}
+		return new AnalysisResult(hexColor, res.getLabelAnnotationsList(), res.getLocalizedObjectAnnotationsList());
 	}
 }
