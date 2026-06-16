@@ -212,13 +212,13 @@ public class MediaResource extends BaseResource {
 		FormDataBodyPart jsonPart = multiPart.getField("json");
 		Preconditions.checkArgument(jsonPart != null);
 		Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
+		Preconditions.checkArgument(m != null, "Media payload is required");
+		FormDataBodyPart filePart = multiPart.getField("file");
+		Preconditions.checkNotNull(filePart, "File part is required");
+		String fileName = filePart.getContentDisposition().getFileName();
+		StorageType storageType = StorageType.fromFilename(fileName)
+				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(m != null);
-			FormDataBodyPart filePart = multiPart.getField("file");
-			Preconditions.checkNotNull(filePart, "File part is required");
-			String fileName = filePart.getContentDisposition().getFileName();
-			StorageType storageType = StorageType.fromFilename(fileName)
-					.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
 			int newMediaId = dao.getMediaRepo().addMediaImage(c, authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
 			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
 			return Response.ok().entity(res).build();
@@ -404,19 +404,19 @@ public class MediaResource extends BaseResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaVideoEmbed(@Context HttpServletRequest request, Media media) {
+		Preconditions.checkArgument(media != null, "Media payload is missing");
+		Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
+		String lowerUrl = media.embedUrl().toLowerCase();
+		boolean isValidProvider = lowerUrl.contains("youtube.com") 
+				|| lowerUrl.contains("youtu.be") 
+				|| lowerUrl.contains("vimeo.com");
+		Preconditions.checkArgument(isValidProvider, "Unsupported video provider. Only YouTube and Vimeo links are allowed.");
+		try {
+			URI.create(media.embedUrl()).toURL();
+		} catch (Exception e) {
+			throw new IllegalArgumentException("The provided embed URL is malformed.", e);
+		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(media != null, "Media payload is missing");
-			Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
-			String lowerUrl = media.embedUrl().toLowerCase();
-			boolean isValidProvider = lowerUrl.contains("youtube.com") 
-					|| lowerUrl.contains("youtu.be") 
-					|| lowerUrl.contains("vimeo.com");
-			Preconditions.checkArgument(isValidProvider, "Unsupported video provider. Only YouTube and Vimeo links are allowed.");
-			try {
-				URI.create(media.embedUrl()).toURL();
-			} catch (Exception e) {
-				throw new IllegalArgumentException("The provided embed URL is malformed.", e);
-			}
 			int newMediaId = dao.getMediaRepo().addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
 			DatabaseContext.runAsync(() -> {
 				try {
@@ -445,12 +445,12 @@ public class MediaResource extends BaseResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postMediaVideoInitiate(@Context HttpServletRequest request, VideoInitPayload payload) {
+		Preconditions.checkArgument(payload != null && payload.media() != null, "Video payload or media is missing");
+		Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size (max " + StorageManager.MAX_VIDEO_UPLOAD_BYTES + " bytes)");
+		StorageType storageType = StorageType.fromMimeType(payload.contentType())
+				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
+		Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Preconditions.checkArgument(payload != null && payload.media() != null);
-			Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size (max " + StorageManager.MAX_VIDEO_UPLOAD_BYTES + " bytes)");
-			StorageType storageType = StorageType.fromMimeType(payload.contentType())
-					.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
-			Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
 			int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
 			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
 					S3KeyGenerator.getOriginalMp4(newMediaId), 

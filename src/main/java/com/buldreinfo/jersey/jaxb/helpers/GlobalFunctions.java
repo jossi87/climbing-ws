@@ -39,8 +39,30 @@ public class GlobalFunctions {
 	}
 
 	public static boolean requestAcceptsWebp(HttpServletRequest request) {
-		final String acceptHeader = request.getHeader("Accept");
-		return acceptHeader != null && acceptHeader.contains("image/webp");
+		String acceptHeader = request.getHeader("Accept");
+		if (acceptHeader != null && acceptHeader.contains("image/webp")) {
+			return true;
+		}
+		// Safari 14+ supports WebP but may not advertise it in Accept header
+		// Detect Safari (not Chrome) and assume WebP support for recent versions
+		String userAgent = request.getHeader("User-Agent");
+		if (userAgent != null && userAgent.contains("Safari") && !userAgent.contains("Chrome")) {
+			// Safari 14+ on macOS/iOS supports WebP; Safari on older OS versions may not
+			// Version detection: "Version/14" or higher
+			int idx = userAgent.indexOf("Version/");
+			if (idx >= 0) {
+				String versionPart = userAgent.substring(idx + 8);
+				int dotIdx = versionPart.indexOf('.');
+				String majorStr = dotIdx >= 0 ? versionPart.substring(0, dotIdx) : versionPart;
+				try {
+					int majorVersion = Integer.parseInt(majorStr);
+					return majorVersion >= 14;
+				} catch (NumberFormatException _) {
+					return false;
+				}
+			}
+		}
+		return false;
 	}
 
 	public static String stripString(String str) {

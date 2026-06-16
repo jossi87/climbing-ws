@@ -53,15 +53,10 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.gson.Gson;
 
-public record MediaRepository(Dao dao, Gson gson) {
+public record MediaRepository(Dao dao) {
 	private static Logger logger = LogManager.getLogger();
 
-	public MediaRepository(Dao dao) {
-        this(dao, new Gson());
-    }
-	
 	public int addMediaImage(Connection c, Optional<Integer> authUserId, Media m, StorageType storageType, Supplier<InputStream> inputStreamSupplier) throws Exception {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkNotNull(storageType, "StorageType is required");
@@ -283,7 +278,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 			ps.setInt(idx++, id);
 			try (ResultSet rst = ps.executeQuery()) {
 				if (rst.next()) {
-					return Media.fromResultSet(rst, currentAuthUserId, gson);
+					return Media.fromResultSet(rst, currentAuthUserId);
 				}
 			}
 		}
@@ -450,7 +445,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 			ps.setInt(2, currentAuthUserId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.add(Media.fromResultSet(rst, currentAuthUserId, gson));
+					res.add(Media.fromResultSet(rst, currentAuthUserId));
 				}
 			}
 		}
@@ -1132,7 +1127,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 					if (inherited && trivia) {
 						continue; 
 					}
-					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
+					Media m = Media.fromResultSet(rst, currentAuthUserId);
 					res.add(new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -1278,7 +1273,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.add(Media.fromResultSet(rst, currentAuthUserId, gson));
+					res.add(Media.fromResultSet(rst, currentAuthUserId));
 				}
 			}
 		}
@@ -1435,7 +1430,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 							embedUrl += "#t=" + seconds + "s";
 						}
 					}
-					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
+					Media m = Media.fromResultSet(rst, currentAuthUserId);
 					m = new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -1597,7 +1592,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 					boolean trivia = rst.getBoolean("trivia");
 					if (inherited && trivia) continue; 
 
-					Media m = Media.fromResultSet(rst, currentAuthUserId, gson);
+					Media m = Media.fromResultSet(rst, currentAuthUserId);
 
 					initialList.add(new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
@@ -1767,7 +1762,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int trailId = rst.getInt("trail_id");
-					res.put(trailId, Media.fromResultSet(rst, currentAuthUserId, gson));
+					res.put(trailId, Media.fromResultSet(rst, currentAuthUserId));
 				}
 			}
 		}

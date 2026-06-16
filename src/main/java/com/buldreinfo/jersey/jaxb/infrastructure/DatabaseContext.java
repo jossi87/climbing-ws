@@ -279,7 +279,7 @@ public class DatabaseContext {
 				.replace("staging.", "");
 		Setup setup = setupMap.get(serverName);
 		if (setup == null) {
-			throw new RuntimeException("Invalid serverName=" + serverName);
+			throw new NoSuchElementException("Invalid serverName=" + serverName);
 		}
 		return setup;
 	}

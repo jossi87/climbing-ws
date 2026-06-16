@@ -84,13 +84,16 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		}
 	};
 
-	public static Media fromResultSet(ResultSet rst, int currentAuthUserId, Gson baseGson) throws SQLException {
-		Gson localGson = baseGson.newBuilder()
-				.registerTypeAdapter(boolean.class, booleanCoercionAdapter)
-				.registerTypeAdapter(Boolean.class, booleanCoercionAdapter)
-				.registerTypeAdapter(int.class, integerCoercionAdapter)
-				.registerTypeAdapter(Integer.class, integerCoercionAdapter)
-				.create();
+	private static final Gson MEDIA_GSON = new Gson()
+			.newBuilder()
+			.registerTypeAdapter(boolean.class, booleanCoercionAdapter)
+			.registerTypeAdapter(Boolean.class, booleanCoercionAdapter)
+			.registerTypeAdapter(int.class, integerCoercionAdapter)
+			.registerTypeAdapter(Integer.class, integerCoercionAdapter)
+			.create();
+
+	public static Media fromResultSet(ResultSet rst, int currentAuthUserId) throws SQLException {
+		Gson localGson = MEDIA_GSON;
 
 		MediaIdentity identity = new MediaIdentity(
 				rst.getInt("id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), 

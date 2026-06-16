@@ -2,6 +2,7 @@ package com.buldreinfo.jersey.jaxb.infrastructure;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,9 +23,14 @@ import jakarta.ws.rs.ext.Provider;
 @Priority(Priorities.HEADER_DECORATOR)
 public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
-	private static final Set<String> LEGAL_ORIGINS = initLegalOrigins();
-	private static Set<String> initLegalOrigins() {
-		Set<String> origins = Sets.newHashSet();
+	private static final AtomicReference<Set<String>> legalOriginsRef = new AtomicReference<>(null);
+	
+	private static Set<String> getLegalOrigins() {
+		Set<String> origins = legalOriginsRef.get();
+		if (origins != null) {
+			return origins;
+		}
+		origins = Sets.newHashSet();
 		origins.add("http://localhost:3001");
 		try {
 			DatabaseContext.getSetups().stream()
@@ -34,7 +40,9 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 		} catch (Exception e) {
 			logger.warn("Could not initialize legal origins from setups: {}", e.getMessage());
 		}
-		return Set.copyOf(origins);
+		Set<String> initialized = Set.copyOf(origins);
+		legalOriginsRef.compareAndSet(null, initialized);
+		return legalOriginsRef.get();
 	}
 
 	@Override
@@ -61,7 +69,7 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 				from = "https://" + from;
 			}
 			
-			if (LEGAL_ORIGINS.contains(from)) {
+			if (getLegalOrigins().contains(from)) {
 				cres.getHeaders().add("Access-Control-Allow-Origin", from);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
 				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
@@ -71,7 +79,7 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 				cres.getHeaders().add("Vary", "Cookie");
 			}
 			else {
-				logger.warn("Invalid from: " + from + ", LEGAL_ORIGINS=" + LEGAL_ORIGINS);
+				logger.warn("Invalid from: " + from + ", legalOrigins=" + getLegalOrigins());
 			}
 		}
 	}

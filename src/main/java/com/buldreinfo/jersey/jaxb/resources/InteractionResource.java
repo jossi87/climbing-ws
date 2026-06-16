@@ -283,8 +283,13 @@ public class InteractionResource extends BaseResource {
 	@Path("/trails")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postTrails(@Context HttpServletRequest request, List<Trail> trails) {
-		if (trails == null) {
-			return createBadRequestResponse("Trails collection payload is missing");
+		if (trails == null || trails.isEmpty()) {
+			return createBadRequestResponse("Trails collection payload is missing or empty");
+		}
+		for (Trail t : trails) {
+			if (t == null || t.id() <= 0) {
+				return createBadRequestResponse("Each trail must have a valid trailId");
+			}
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
 			dao.getSectorRepo().upsertTrails(connection, authUserId, trails);
