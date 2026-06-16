@@ -46,7 +46,7 @@ public record TodoRepository() {
 				JOIN area a ON r.id=a.region_id
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
-				JOIN grade g ON p.grade_id=g.id
+				JOIN grade g ON p.consensus_grade_id=g.id
 				JOIN todo t ON p.id=t.problem_id
 				JOIN user u ON t.user_id=u.id
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?

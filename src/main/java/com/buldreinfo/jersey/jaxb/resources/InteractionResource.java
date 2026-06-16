@@ -101,8 +101,8 @@ public class InteractionResource extends BaseResource {
 	public Response getTicks(@Context HttpServletRequest request,
 			@Parameter(description = "Page (ticks ordered descending, 0 returns first page)", required = false) @QueryParam("page") int page
 			) {
-		if (page < 0) {
-			return createBadRequestResponse("Invalid page index");
+		if (page < 1) {
+			return createBadRequestResponse("Invalid page index (must be >= 1)");
 		}
 		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
 			Ticks res = dao.getTickRepo().getTicks(c, authUserId, setup, page);

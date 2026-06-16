@@ -119,10 +119,15 @@ public class DatabaseContext {
 	    DatabaseContext server = getServer();
 	    return CompletableFuture.supplyAsync(() -> {
 	        try (Connection c = server.ds.getConnection()) {
-	            T result = task.run(server.dao, c);
-	            c.commit();
-	            return result;
-	        } catch (SQLException e) {
+	            try {
+	                T result = task.run(server.dao, c);
+	                c.commit();
+	                return result;
+	            } catch (Exception e) {
+	                c.rollback();
+	                throw e;
+	            }
+	        } catch (Exception e) {
 	            throw new CompletionException(e);
 	        }
 	    }, server.executor);
@@ -216,9 +221,11 @@ public class DatabaseContext {
 			return true;
 		}
 		if (now - previous >= HITS_COOLDOWN_MILLIS) {
-			hitsCooldownMap.put(key, now);
-			cleanupHitsCooldownMap(now);
-			return true;
+		    if (hitsCooldownMap.replace(key, previous, now)) {
+		        runAsync(() -> cleanupHitsCooldownMap(now));
+		        return true;
+		    }
+		    return false;
 		}
 		return false;
 	}
@@ -256,7 +263,7 @@ public class DatabaseContext {
 		hikariConfig.setMaximumPoolSize(25); 
 		hikariConfig.setMinimumIdle(10);
 		hikariConfig.setConnectionTimeout(10000);
-		hikariConfig.setLeakDetectionThreshold(4000);
+		hikariConfig.setLeakDetectionThreshold(0);
 		// GROUP_CONCAT has a max length 1024 characters by default (getActivity needs more characters)
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);

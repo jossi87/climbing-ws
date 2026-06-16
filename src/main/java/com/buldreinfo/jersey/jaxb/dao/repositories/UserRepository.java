@@ -167,43 +167,57 @@ public record UserRepository(Dao dao) {
 	    return Optional.empty();
 	}
 	
-	public synchronized Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
-		Optional<Integer> authUserId = Optional.empty();
-		boolean hasAvatar = false;
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
-				FROM user_email e
-				JOIN user u ON e.user_id=u.id
-				LEFT JOIN media m ON u.media_id=m.id
-				WHERE lower(e.email)=?
-				""")) {
-			ps.setString(1, profile.email().toLowerCase());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					authUserId = Optional.of(rst.getInt("user_id"));
-					hasAvatar = rst.getBoolean("has_avatar");
-				}
-			}
-		}
-		if (authUserId.isEmpty()) {
-			authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
-		}
-		final Optional<Integer> finalUserId = authUserId;
-		if (!hasAvatar && profile.picture() != null) {
-			try {
-				byte[] avatarBytes;
-				try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
-					avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
-				}
-				User photographer = User.from(USER_ID_UNKNOWN, null);
-				Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
-				dao.getMediaRepo().addMediaImage(c, finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
-			} catch (Exception e) {
-				logger.error("Failed to cleanly download and apply login avatar profile image", e);
-			}
-		}
-		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
-		return authUserId;
+	public Optional<Integer> getAuthUserId(Connection c, Auth0Profile profile) throws SQLException {
+	    Optional<Integer> authUserId = Optional.empty();
+	    boolean hasAvatar = false;
+	    try (PreparedStatement ps = c.prepareStatement("""
+	            SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
+	            FROM user_email e
+	            JOIN user u ON e.user_id=u.id
+	            LEFT JOIN media m ON u.media_id=m.id
+	            WHERE lower(e.email)=?
+	            """)) {
+	        ps.setString(1, profile.email().toLowerCase());
+	        try (ResultSet rst = ps.executeQuery()) {
+	            while (rst.next()) {
+	                authUserId = Optional.of(rst.getInt("user_id"));
+	                hasAvatar = rst.getBoolean("has_avatar");
+	            }
+	        }
+	    }
+	    if (authUserId.isEmpty()) {
+	        authUserId = Optional.of(addUser(c, profile.email(), profile.firstname(), profile.lastname()));
+	        try (PreparedStatement ps = c.prepareStatement("""
+	                SELECT CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
+	                FROM user_email e
+	                JOIN user u ON e.user_id=u.id
+	                LEFT JOIN media m ON u.media_id=m.id
+	                WHERE lower(e.email)=?
+	                """)) {
+	            ps.setString(1, profile.email().toLowerCase());
+	            try (ResultSet rst = ps.executeQuery()) {
+	                if (rst.next()) {
+	                    hasAvatar = rst.getBoolean("has_avatar");
+	                }
+	            }
+	        }
+	    }
+	    final Optional<Integer> finalUserId = authUserId;
+	    if (!hasAvatar && profile.picture() != null) {
+	        try {
+	            byte[] avatarBytes;
+	            try (InputStream remoteStream = URI.create(profile.picture()).toURL().openStream()) {
+	                avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
+	            }
+	            User photographer = User.from(USER_ID_UNKNOWN, null);
+	            Media m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
+	            dao.getMediaRepo().addMediaImage(c, finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
+	        } catch (Exception e) {
+	            logger.error("Failed to cleanly download and apply login avatar profile image", e);
+	        }
+	    }
+	    logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
+	    return authUserId;
 	}
 
 	public List<PermissionUser> getPermissions(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
@@ -1232,27 +1246,36 @@ public record UserRepository(Dao dao) {
 	}
 	
 	protected int addUser(Connection c, String email, String firstname, String lastname) throws SQLException {
-		int id = -1;
-		try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-			ps.setString(1, firstname);
-			ps.setString(2, lastname);
-			ps.executeUpdate();
-			try (ResultSet rst = ps.getGeneratedKeys()) {
-				if (rst != null && rst.next()) {
-					id = rst.getInt(1);
-					logger.debug("addUser(email={}, firstname={}, lastname={}) - getInt(1)={}", email, firstname, lastname, id);
-				}
-			}
-		}
-		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
-		if (!Strings.isNullOrEmpty(email)) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO user_email (user_id, email) VALUES (?, ?)")) {
-				ps.setInt(1, id);
-				ps.setString(2, email.toLowerCase());
-				ps.execute();
-			}
-		}
-		return id;
+	    int id = -1;
+	    try (PreparedStatement ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+	        ps.setString(1, firstname);
+	        ps.setString(2, lastname);
+	        ps.executeUpdate();
+	        try (ResultSet rst = ps.getGeneratedKeys()) {
+	            if (rst != null && rst.next()) {
+	                id = rst.getInt(1);
+	                logger.debug("addUser(email={}, firstname={}, lastname={}) - getInt(1)={}", email, firstname, lastname, id);
+	            }
+	        }
+	    }
+	    Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
+	    if (!Strings.isNullOrEmpty(email)) {
+	        try (PreparedStatement ps = c.prepareStatement("""
+	                INSERT INTO user_email (user_id, email) 
+	                VALUES (?, ?) 
+	                ON DUPLICATE KEY UPDATE user_id=LAST_INSERT_ID(user_id)
+	                """, Statement.RETURN_GENERATED_KEYS)) {
+	            ps.setInt(1, id);
+	            ps.setString(2, email.toLowerCase());
+	            ps.executeUpdate();
+	            try (ResultSet rst = ps.getGeneratedKeys()) {
+	                if (rst != null && rst.next()) {
+	                    id = rst.getInt(1);
+	                }
+	            }
+	        }
+	    }
+	    return id;
 	}
 	
 	protected int getExistingOrInsertUser(Connection c, String name) throws SQLException {

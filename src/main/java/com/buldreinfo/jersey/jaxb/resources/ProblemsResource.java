@@ -136,7 +136,7 @@ public class ProblemsResource extends BaseResource {
 		if (p == null || p.name() == null || p.name().strip().isEmpty()) {
 			return createBadRequestResponse("Problem name is missing or invalid");
 		}
-		if (p.sectorId() <= 1) {
+		if (p.sectorId() <= 0) {
 			return createBadRequestResponse("Invalid sectorId=" + p.sectorId());
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {

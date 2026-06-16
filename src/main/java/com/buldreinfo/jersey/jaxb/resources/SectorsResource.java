@@ -114,7 +114,7 @@ public class SectorsResource extends BaseResource {
 		if (s == null || s.name() == null || s.name().strip().isEmpty()) {
 			return createBadRequestResponse("Sector name is missing or invalid");
 		}
-		if (s.areaId() <= 1) {
+		if (s.areaId() <= 0) {
 			return createBadRequestResponse("Invalid areaId=" + s.areaId());
 		}
 		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {

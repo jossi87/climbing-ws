@@ -81,7 +81,7 @@ public class AuthHelper {
         else {
             accessToken = request.getParameter("access_token");
         }
-        if (Strings.isNullOrEmpty(accessToken)) {
+        if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
             return Optional.empty();
         }
         return getAuthUserId(dao, c, request, setup, accessToken);
