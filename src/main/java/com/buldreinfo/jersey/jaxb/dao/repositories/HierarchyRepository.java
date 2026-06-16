@@ -129,7 +129,7 @@ public record HierarchyRepository(Dao dao) {
 				  LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
 				  WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				    AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
-				    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				    AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				  GROUP BY r.id, r.name, g.label_major, ty.subtype
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
@@ -180,7 +180,7 @@ public record HierarchyRepository(Dao dao) {
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour,
 				         s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, s.sun_from_hour, s.sun_to_hour,
 				         p.id, p.broken, p.nr, gr.grade, p.name, p.locked_admin, p.locked_superadmin,
@@ -261,7 +261,7 @@ public record HierarchyRepository(Dao dao) {
 				  JOIN grade g ON p.consensus_grade_id = g.id
 				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
 				  LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id 
-				  WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				  WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				  GROUP BY s.sorting, s.id, s.name, g.label_major, ty.subtype
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.sector_id, x.sector, x.t, COALESCE(x.num, 0) num
@@ -313,8 +313,8 @@ public record HierarchyRepository(Dao dao) {
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				  AND (s.id IS NULL OR is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1)
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND (s.id IS NULL OR s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)))
 				  AND (a.access_info IS NOT NULL OR a.access_closed IS NOT NULL OR s.access_info IS NOT NULL OR s.access_closed IS NOT NULL)
 				GROUP BY r.id, r.name, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_closed, a.access_info, a.last_updated, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_closed, s.access_info, s.last_updated
 				ORDER BY r.name, a.name, s.name
@@ -408,7 +408,7 @@ public record HierarchyRepository(Dao dao) {
 				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
 				 WHERE REPLACE(REPLACE(REPLACE(a.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				   AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				   AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				 GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
 				 ORDER BY a.hits DESC, a.name LIMIT 8)
 
@@ -444,7 +444,7 @@ public record HierarchyRepository(Dao dao) {
 				 LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
 				             LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
 				 WHERE REPLACE(REPLACE(REPLACE(s.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				   AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				   AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				 GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
 				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
 				                      ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
@@ -467,7 +467,7 @@ public record HierarchyRepository(Dao dao) {
 				             LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
 				             LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
 				 WHERE (REPLACE(REPLACE(REPLACE(p.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term OR REPLACE(REPLACE(REPLACE(p.rock, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term)
-				   AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				   AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				 GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
 				                      mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
 				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
@@ -642,9 +642,9 @@ public record HierarchyRepository(Dao dao) {
 				    JOIN problem p ON s.id = p.sector_id AND rt.type_id = p.type_id
 				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				    WHERE (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
-				      AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1
-				      AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1
-				      AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				      AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				      AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				),
 				tick_agg AS (
 				    SELECT t.problem_id,
@@ -814,9 +814,9 @@ public record HierarchyRepository(Dao dao) {
 				JOIN type ty ON p.type_id=ty.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
 				WHERE (a.region_id=? OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0)) 
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, g.grade, ps.description
 				ORDER BY r.name, a.name, s.sorting, s.name, p.nr, ps.nr
 				""";

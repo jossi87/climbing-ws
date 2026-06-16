@@ -280,8 +280,8 @@ public record ActivityRepository() {
 				),
 				x AS (
 				  SELECT a1.id, a1.type, a1.activity_timestamp, a1.problem_id 
-				  FROM activity a1
-				  JOIN req ON 1=1
+				  FROM req
+				  CROSS JOIN activity a1
 				  JOIN problem p1 ON a1.problem_id = p1.id
 				  JOIN sector s1 ON p1.sector_id = s1.id
 				  JOIN area ar1 ON s1.area_id = ar1.id
@@ -311,17 +311,17 @@ public record ActivityRepository() {
 				    ty.subtype problem_subtype,
 				    g.grade,
 				    GROUP_CONCAT(DISTINCT concat(x.id,'-',x.type) SEPARATOR ',') activities 
-				FROM x
-				JOIN req ON 1=1
+				FROM req
+				CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
 				JOIN type ty ON p.type_id = ty.id 
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
 				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY 
 				    x.activity_timestamp, a.id, s.id, x.problem_id, p.name, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC

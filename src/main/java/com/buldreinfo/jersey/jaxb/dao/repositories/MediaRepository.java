@@ -201,7 +201,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g ON p.consensus_grade_id = g.id
 				           LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				             AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				       ) problems_json,
 				       (
 						    SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -268,7 +268,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
@@ -340,7 +340,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g ON p2.consensus_grade_id = g.id
 				           LEFT JOIN user_region ur ON a4.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp2.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -407,7 +407,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
@@ -436,10 +436,10 @@ public record MediaRepository(Dao dao, Gson gson) {
 				LEFT JOIN area a_tr ON s_tr.area_id = a_tr.id
 				LEFT JOIN user_region urt ON a_tr.region_id = urt.region_id AND urt.user_id = req.auth_user_id
 
-				WHERE (mp.media_id IS NULL OR is_readable(urp.admin_read, urp.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1)
-				  AND (ms.media_id IS NULL OR is_readable(urs.admin_read, urs.superadmin_read, ss.locked_admin, ss.locked_superadmin, ss.trash) = 1)
-				  AND (ma.media_id IS NULL OR is_readable(ura.admin_read, ura.superadmin_read, am.locked_admin, am.locked_superadmin, am.trash) = 1)
-				  AND (mt.media_id IS NULL OR is_readable(urt.admin_read, urt.superadmin_read, s_tr.locked_admin, a_tr.locked_superadmin, s_tr.trash) = 1)
+				WHERE (mp.media_id IS NULL OR (p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (urp.superadmin_read=1) OR (urp.admin_read=1 AND p.locked_superadmin=0))))
+				  AND (ms.media_id IS NULL OR (ss.trash IS NULL AND ((ss.locked_admin=0 AND ss.locked_superadmin=0) OR (urs.superadmin_read=1) OR (urs.admin_read=1 AND ss.locked_superadmin=0))))
+				  AND (ma.media_id IS NULL OR (am.trash IS NULL AND ((am.locked_admin=0 AND am.locked_superadmin=0) OR (ura.superadmin_read=1) OR (ura.admin_read=1 AND am.locked_superadmin=0))))
+				  AND (mt.media_id IS NULL OR (s_tr.trash IS NULL AND ((s_tr.locked_admin=0 AND a_tr.locked_superadmin=0) OR (urt.superadmin_read=1) OR (urt.admin_read=1 AND a_tr.locked_superadmin=0))))
 
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.id DESC
@@ -1041,7 +1041,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g ON p2.consensus_grade_id = g.id
 				           LEFT JOIN user_region ur ON a4.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp2.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -1108,7 +1108,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
@@ -1189,7 +1189,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g2 ON p2.consensus_grade_id = g2.id
 				           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -1256,7 +1256,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       mg.guestbook_id
 				FROM req
@@ -1338,7 +1338,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g ON p2.consensus_grade_id = g.id
 				           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp2.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -1405,7 +1405,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
@@ -1507,7 +1507,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           JOIN grade g ON p2.consensus_grade_id = g.id
 				           LEFT JOIN user_region ur ON a4.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				           WHERE mp2.media_id = m.id
-				             AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 				       ) problems_json,
 				       (
 				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -1574,7 +1574,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 				           WHERE s3.media_id = m.id
-				             AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 				       ) svgs_table_json,
 				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req
@@ -1678,7 +1678,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 						   JOIN grade g ON p2.consensus_grade_id = g.id
 						   LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 						   WHERE mp.media_id = m.id
-							 AND is_readable(ur.admin_read, ur.superadmin_read, p2.locked_admin, p2.locked_superadmin, p2.trash) = 1
+							 AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
 					   ) problems_json,
 					   (
 						   SELECT JSON_ARRAYAGG(JSON_OBJECT(
@@ -1745,7 +1745,7 @@ public record MediaRepository(Dao dao, Gson gson) {
 						   LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
 						   LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
 						   WHERE s3.media_id = m.id
-							 AND is_readable(ur3.admin_read, ur3.superadmin_read, p3.locked_admin, p3.locked_superadmin, p3.trash) = 1
+							 AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
 					   ) svgs_table_json,
 					   COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
 				FROM req

@@ -56,9 +56,9 @@ public record TickRepository(Dao dao) {
 				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY a.id, s.id, p.id, t.id, u.id, t.date, p.name, u.firstname, u.lastname
 				ORDER BY t.date DESC, p.name, name
 				LIMIT ? OFFSET ?

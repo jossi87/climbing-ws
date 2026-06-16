@@ -46,9 +46,15 @@ public record AreaRepository(Dao dao) {
 	
 	protected void ensureAdminWriteArea(Connection c, Optional<Integer> authUserId, int areaId) throws SQLException {
 		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM area a, user_region ur WHERE a.id=? AND a.region_id=ur.region_id AND ur.user_id=? AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1")) {
-			ps.setInt(1, areaId);
-			ps.setInt(2, authUserId.orElseThrow());
+		try (PreparedStatement ps = c.prepareStatement("""
+				SELECT ur.admin_write, ur.superadmin_write
+				FROM area a
+				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE a.id=?
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				""")) {
+			ps.setInt(1, authUserId.orElseThrow());
+			ps.setInt(2, areaId);
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
@@ -81,7 +87,7 @@ public record AreaRepository(Dao dao) {
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
 				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY r.name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				""")) {
@@ -203,7 +209,7 @@ public record AreaRepository(Dao dao) {
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
 				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				ORDER BY r.name, replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')
@@ -365,7 +371,7 @@ public record AreaRepository(Dao dao) {
 				  JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
 				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				  LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
-				  WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				)
 				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour,
 				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual,
@@ -376,7 +382,7 @@ public record AreaRepository(Dao dao) {
 				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
 				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
 				LEFT JOIN ranked_media rm ON s.id=rm.sector_id AND rm.rn=1
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1
+				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				ORDER BY s.sorting, s.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
@@ -466,7 +472,7 @@ public record AreaRepository(Dao dao) {
 				        AND g_p.label_compact = al.label_compact 
 				        AND g_p.grade_system_id = al.grade_system_id
 				    )
-				    AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				    AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY s.id, al.label_compact, al.hex_code, al.sort_weight
 				ORDER BY s.id, al.sort_weight
 				""";

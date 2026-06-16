@@ -29,39 +29,47 @@ import com.google.gson.reflect.TypeToken;
 
 public record FrontpageRepository(Gson gson) {
 	private static Logger logger = LogManager.getLogger();
-	
+
 	public FrontpageRepository() {
-        this(new Gson());
-    }
-	
+		this(new Gson());
+	}
+
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageFirstAscent> res = new ArrayList<>();
 		String sqlStr = """
-				WITH x AS (
-				    SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
-				    FROM problem p1
-				    JOIN sector s1 ON p1.sector_id = s1.id
-				    JOIN area ar1 ON s1.area_id = ar1.id
-				    WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
-				      AND ar1.region_id IN (
-				        SELECT r.id FROM region r 
-				        JOIN region_type rt ON r.id = rt.region_id 
-				        LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = ?)
-				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = ?)
-				          AND (r.id = ? OR ur.user_id IS NOT NULL)
-				    )
-				    ORDER BY p1.fa_date DESC, p1.id DESC LIMIT 8
+				WITH req AS (
+					SELECT ? auth_user_id, ? region_id
+				),
+				x AS (
+					SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
+					FROM req
+					CROSS JOIN problem p1
+					JOIN sector s1 ON p1.sector_id = s1.id
+					JOIN area ar1 ON s1.area_id = ar1.id
+					LEFT JOIN user_region ur1 ON (ar1.region_id = ur1.region_id AND ur1.user_id = req.auth_user_id)
+					WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
+					  AND (ar1.region_id = req.region_id OR ur1.user_id IS NOT NULL)
+					  AND ar1.region_id IN (
+						SELECT r.id FROM region r 
+						JOIN region_type rt ON r.id = rt.region_id 
+						WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
+					)
+					  AND ar1.trash IS NULL AND ((ar1.locked_admin=0 AND ar1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND ar1.locked_superadmin=0))
+					  AND s1.trash IS NULL AND ((s1.locked_admin=0 AND s1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND s1.locked_superadmin=0))
+					  AND p1.trash IS NULL AND ((p1.locked_admin=0 AND p1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND p1.locked_superadmin=0))
+					ORDER BY p1.fa_date DESC, p1.id DESC LIMIT 8
 				)
 				SELECT 
-				    x.activity_timestamp, a.id area_id, a.name area_name,
-				    p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
-				    g.grade grade,
-				    GROUP_CONCAT(
-				        DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) 
-				        ORDER BY u.firstname ASC, COALESCE(u.lastname,'') ASC 
-				        SEPARATOR '|'
-				    ) user_data
-				FROM x
+					x.activity_timestamp, a.id area_id, a.name area_name,
+					p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
+					g.grade grade,
+					GROUP_CONCAT(
+						DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) 
+						ORDER BY u.firstname ASC, COALESCE(u.lastname,'') ASC 
+						SEPARATOR '|'
+					) user_data
+				FROM req
+				CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
 				JOIN type ty ON p.type_id = ty.id 
 				JOIN sector s ON p.sector_id = s.id 
@@ -71,19 +79,16 @@ public record FrontpageRepository(Gson gson) {
 				LEFT JOIN user u ON fa.user_id = u.id
 				LEFT JOIN media m ON u.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = ?)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
+				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, p.id DESC
 				         """;
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 1;
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, authUserId.orElse(0));
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
@@ -111,36 +116,37 @@ public record FrontpageRepository(Gson gson) {
 	public List<FrontpageLastComment> getFrontpageLastComments(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
 		final List<FrontpageLastComment> res = new ArrayList<>();
 		String sqlStr = """
+				WITH req AS (
+				    SELECT ? auth_user_id, ? region_id
+				)
 				SELECT g.post_time AS activity_timestamp, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-				FROM guestbook g
+				FROM req
+				CROSS JOIN guestbook g
 				JOIN user u ON g.user_id=u.id
 				LEFT JOIN media m ON u.media_id=m.id
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				JOIN problem p ON g.problem_id=p.id
 				JOIN sector s ON p.sector_id=s.id 
 				JOIN area a ON s.area_id=a.id 
-				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=?)
+				LEFT JOIN user_region ur ON (a.region_id=ur.region_id AND ur.user_id=req.auth_user_id)
 				WHERE a.region_id IN (
 				    SELECT r.id FROM region r 
 				    JOIN region_type rt ON r.id=rt.region_id 
-				    LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=?)
-				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				      AND (r.id=? OR ur2.user_id IS NOT NULL)
+				    LEFT JOIN user_region ur2 ON (r.id=ur2.region_id AND ur2.user_id=req.auth_user_id)
+				    WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+				      AND (r.id=req.region_id OR ur2.user_id IS NOT NULL)
 				)
-				AND is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash)=1 
-				AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash)=1 
-				AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY g.id DESC LIMIT 4
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 1;
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
-			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
@@ -160,13 +166,14 @@ public record FrontpageRepository(Gson gson) {
 		final List<FrontpageRecentAscent> res = new ArrayList<>();
 		String sqlStr = """
 				WITH req AS (
-				    SELECT ? AS auth_user_id, ? AS region_id
+				    SELECT ? auth_user_id, ? region_id
 				),
 				recent_activity AS (
 				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date,
 				           GREATEST(COALESCE(t.date, '1000-01-01'), COALESCE(tr.date, '1000-01-01')) AS activity_timestamp,
 				           IF(tr.date IS NOT NULL AND (t.date IS NULL OR tr.date > t.date), 1, 0) AS is_repeat
-				    FROM req, tick t
+				    FROM req
+				    CROSS JOIN tick t
 				    LEFT JOIN (
 				        SELECT tick_id, MAX(date) AS date
 				        FROM tick_repeat
@@ -175,6 +182,7 @@ public record FrontpageRepository(Gson gson) {
 				    JOIN problem p ON t.problem_id = p.id
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
+				    LEFT JOIN user_region ur1 ON (a.region_id = ur1.region_id AND ur1.user_id = req.auth_user_id)
 				    WHERE a.region_id IN (
 				        SELECT r.id FROM region r 
 				        JOIN region_type rt ON r.id = rt.region_id 
@@ -182,6 +190,9 @@ public record FrontpageRepository(Gson gson) {
 				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				          AND (r.id = req.region_id OR ur2.user_id IS NOT NULL)
 				    )
+				      AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND a.locked_superadmin=0))
+				      AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND s.locked_superadmin=0))
+				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND p.locked_superadmin=0))
 				    ORDER BY activity_timestamp DESC, t.id DESC
 				    LIMIT 8
 				)
@@ -189,8 +200,8 @@ public record FrontpageRepository(Gson gson) {
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
 				       g.grade tick_grade, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
-				FROM recent_activity ra
-				JOIN req ON 1=1
+				FROM req
+				CROSS JOIN recent_activity ra
 				JOIN problem p ON ra.problem_id = p.id
 				JOIN user u ON ra.user_id = u.id
 				LEFT JOIN grade g ON ra.grade_id = g.id
@@ -200,15 +211,14 @@ public record FrontpageRepository(Gson gson) {
 				JOIN sector s ON p.sector_id = s.id 
 				JOIN area a ON s.area_id = a.id 
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY ra.activity_timestamp DESC, ra.tick_id DESC
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 1;
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					LocalDateTime ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
@@ -237,7 +247,8 @@ public record FrontpageRepository(Gson gson) {
 				),
 				m_list AS (
 				  SELECT m.id AS media_id, mp.problem_id
-				  FROM req, media m
+				  FROM req
+				  CROSS JOIN media m
 				  JOIN media_problem mp ON m.id = mp.media_id AND mp.trivia = 0
 				  JOIN problem p1 ON mp.problem_id = p1.id
 				  JOIN sector s1 ON p1.sector_id = s1.id
@@ -246,19 +257,19 @@ public record FrontpageRepository(Gson gson) {
 				    AND ar1.region_id IN (
 				        SELECT r.id FROM region r 
 				        JOIN region_type rt ON r.id = rt.region_id 
-				        LEFT JOIN user_region ur ON (r.id = ur.region_id AND ur.user_id = req.auth_user_id)
+				        LEFT JOIN user_region ur2 ON (r.id = ur2.region_id AND ur2.user_id = req.auth_user_id)
 				        WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
-				          AND (r.id = req.region_id OR ur.user_id IS NOT NULL)
+				          AND (r.id = req.region_id OR ur2.user_id IS NOT NULL)
 				    )
 				  ORDER BY m.id DESC
-				  LIMIT 12
+				  LIMIT 50
 				)
 				SELECT 
 				    ml.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360,
 				    p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				    g.grade
-				FROM m_list ml
-				JOIN req ON 1=1
+				FROM req
+				CROSS JOIN m_list ml
 				JOIN media m ON ml.media_id = m.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				JOIN problem p ON ml.problem_id = p.id
@@ -266,15 +277,15 @@ public record FrontpageRepository(Gson gson) {
 				JOIN area a ON s.area_id = a.id 
 				JOIN grade g ON p.consensus_grade_id = g.id
 				LEFT JOIN user_region ur ON (a.region_id = ur.region_id AND ur.user_id = req.auth_user_id)
-				WHERE is_readable(ur.admin_read, ur.superadmin_read, a.locked_admin, a.locked_superadmin, a.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, s.locked_admin, s.locked_superadmin, s.trash) = 1 
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY ml.media_id DESC
+				LIMIT 12
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 1;
-			ps.setInt(ix++, authUserId.orElse(0));
-			ps.setInt(ix++, setup.idRegion());
+			ps.setInt(1, authUserId.orElse(0));
+			ps.setInt(2, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					MediaIdentity mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
@@ -289,36 +300,35 @@ public record FrontpageRepository(Gson gson) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		List<FrontpageRandomMedia> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				WITH random_id AS (
+				WITH req AS (
+				    SELECT ? region_id
+				),
+				random_id AS (
 				    SELECT id FROM (
-				        SELECT m_sub.id, 
-				               AVG(t_sub.stars) as sub_avg,
+				        SELECT m_sub.id,
 				               mma_sub.is_action_shot,
 				               ROW_NUMBER() OVER (ORDER BY 
-				                   IFNULL(mma_sub.is_action_shot, 0) DESC, 
-				                   (AVG(t_sub.stars) >= 2) DESC, 
+				                   IFNULL(mma_sub.is_action_shot, 0) DESC,
 				                   RAND()
 				               ) as random_rank
-				        FROM media m_sub
+				        FROM req
+				        CROSS JOIN media m_sub
 				        JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
 				        JOIN problem p_sub ON mp_sub.problem_id=p_sub.id
 				        JOIN sector s_sub ON p_sub.sector_id=s_sub.id
 				        JOIN area a_sub ON s_sub.area_id=a_sub.id
-				        JOIN region r_sub ON a_sub.region_id=r_sub.id
-				        LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
 				        LEFT JOIN media_ml_analysis mma_sub ON m_sub.id = mma_sub.media_id
-				        WHERE r_sub.id=?
+				        WHERE a_sub.region_id=req.region_id
 				          AND m_sub.deleted_user_id IS NULL
 				          AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
 				          AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
 				          AND m_sub.is_movie=0 AND m_sub.is_360=0
 				          AND mp_sub.trivia=0
-				          AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
-				          AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
 				          AND a_sub.locked_admin=0 AND a_sub.locked_superadmin=0
-				        GROUP BY m_sub.id
+				          AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
+				          AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
 				    ) ranked_pool
-				    WHERE (sub_avg>=2 AND is_action_shot=1) OR random_rank<=500
+				    WHERE random_rank<=500
 				    ORDER BY RAND()
 				    LIMIT 20
 				)
@@ -406,22 +416,25 @@ public record FrontpageRepository(Gson gson) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		FrontpageStats res = null;
 		try (PreparedStatement ps = c.prepareStatement("""
+				WITH req AS (
+				    SELECT ? auth_user_id, ? region_id
+				)
 				SELECT COUNT(DISTINCT a.id) areas,
 				       COUNT(DISTINCT p.id) problems,
 				       COUNT(DISTINCT t.id) ticks
-				FROM region_type rt
+				FROM req
+				CROSS JOIN region_type rt
 				JOIN region r ON rt.region_id=r.id
-				LEFT JOIN area a ON r.id=a.region_id AND a.trash IS NULL
-				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL
-				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL
+				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				LEFT JOIN area a ON r.id=a.region_id AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				LEFT JOIN sector s ON a.id=s.area_id AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				LEFT JOIN problem p ON s.id=p.sector_id AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=req.region_id)
+				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areas = rst.getInt("areas");

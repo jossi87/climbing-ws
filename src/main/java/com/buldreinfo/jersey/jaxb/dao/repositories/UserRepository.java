@@ -312,7 +312,7 @@ public record UserRepository(Dao dao) {
 				LEFT JOIN fa f ON (p.id=f.problem_id AND f.user_id=?)
 				WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
 				  AND rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, p.description, p.fa_date, t.date, t.stars, g.grade, gt.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -376,7 +376,7 @@ public record UserRepository(Dao dao) {
 				JOIN tick_repeat tr ON t.id=tr.tick_id
 				LEFT JOIN problem_section ps ON p.id=ps.problem_id
 				LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY s.id, a.name, a.locked_admin, a.locked_superadmin, s.id, s.name, s.locked_admin, s.locked_superadmin, t.id, tr.id, ty.subtype, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, tr.comment, tr.date, t.stars, g.weight, g.grade
 				""";
 		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
@@ -435,7 +435,7 @@ public record UserRepository(Dao dao) {
 					JOIN fa_aid_user aid_u ON (p.id=aid_u.problem_id AND aid_u.user_id=?)
 					LEFT JOIN problem_section ps ON p.id=ps.problem_id
 					LEFT JOIN user_region ur ON (r.id=ur.region_id AND ur.user_id=?)
-					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash)=1
+					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?) AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
 					""")) {
 				ps.setInt(1, reqId);
@@ -838,7 +838,7 @@ public record UserRepository(Dao dao) {
 				LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
 				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
 				  AND (a.region_id = req.region_id OR ur.user_id IS NOT NULL)
-				  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY p.id, t.id
 				ORDER BY a.name, s.name, p.nr
 				""";
@@ -963,7 +963,7 @@ public record UserRepository(Dao dao) {
 					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id 
 					    AND g.id = IF(t.id IS NOT NULL, t.grade_id, p.grade_id)
 					WHERE (t.user_id IS NOT NULL OR f.user_id IS NOT NULL)
-					  AND is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 					GROUP BY p.id, t.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, t.comment, p.description, t.date, p.fa_date, t.stars, f.user_id, g.grade
 					ORDER BY ty.type, a.name, s.name, p.name
 					         """;
@@ -997,7 +997,7 @@ public record UserRepository(Dao dao) {
 					LEFT JOIN problem_section ps ON p.id = ps.problem_id
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
 					LEFT JOIN grade g ON g.grade_system_id = tgs.grade_system_id AND g.id = t.grade_id
-					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 					GROUP BY tr.id, p.id, ty.type, pt.subtype, r.url, a.name, s.name, p.name, tr.comment, tr.date, t.stars, g.grade
 					ORDER BY ty.type, a.name, s.name, p.name, tr.date
 					         """;
@@ -1023,7 +1023,7 @@ public record UserRepository(Dao dao) {
 					JOIN fa_aid aid ON p.id = aid.problem_id
 					JOIN fa_aid_user aid_u ON p.id = aid_u.problem_id AND aid_u.user_id = ?
 					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = ?
-					WHERE is_readable(ur.admin_read, ur.superadmin_read, p.locked_admin, p.locked_superadmin, p.trash) = 1
+					WHERE p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 					GROUP BY p.id, r.url, a.name, s.name, p.name, aid.aid_description, aid.aid_date
 					ORDER BY a.name, s.name, p.name
 					         """;
