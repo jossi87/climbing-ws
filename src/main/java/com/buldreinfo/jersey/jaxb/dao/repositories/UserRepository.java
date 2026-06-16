@@ -567,8 +567,8 @@ public record UserRepository(Dao dao) {
 				
 					SELECT 
 						ty.group AS discipline,
-						g.grade, 
-						clr.hex_code color, 
+						COALESCE(g.grade,'No personal grade') grade, 
+						COALESCE(clr.hex_code,'#CCCCCC') color, 
 						g.weight, 
 						0 is_fa, 
 						1 is_tick,
@@ -577,8 +577,8 @@ public record UserRepository(Dao dao) {
 					JOIN tick t ON t.user_id = req.user_id
 					JOIN problem p ON t.problem_id = p.id
 					JOIN type ty ON p.type_id = ty.id
-					JOIN grade g ON COALESCE(t.grade_id, p.consensus_grade_id) = g.id
-					JOIN grade_color clr ON g.grade_color_id = clr.id
+					LEFT JOIN grade g ON t.grade_id = g.id
+					LEFT JOIN grade_color clr ON g.grade_color_id = clr.id
 					LEFT JOIN pitch_counts pc ON p.id = pc.problem_id
 					WHERE NOT EXISTS (
 						SELECT 1 
