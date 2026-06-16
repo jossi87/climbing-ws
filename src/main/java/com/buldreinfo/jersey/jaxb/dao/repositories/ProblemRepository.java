@@ -645,7 +645,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				FaAid faAid = p.faAid();
 				final LocalDate aidDt = Strings.isNullOrEmpty(faAid.date())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				try (PreparedStatement ps = c.prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
-					ps.setInt(1, faAid.problemId());
+					ps.setInt(1, idProblem);
 					ps.setObject(2, aidDt);
 					ps.setString(3, GlobalFunctions.stripString(faAid.description()));
 					ps.execute();
@@ -658,7 +658,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 								idUser = dao.getUserRepo().addUser(c, null, u.name(), null);
 							}
 							Preconditions.checkArgument(idUser > 0);
-							ps.setInt(1, faAid.problemId());
+							ps.setInt(1, idProblem);
 							ps.setInt(2, idUser);
 							ps.addBatch();
 						}
