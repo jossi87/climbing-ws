@@ -59,6 +59,11 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Media")
 @Path("/media")
 public class MediaResource extends BaseResource {
+	@FunctionalInterface
+	private interface ImageTask {
+		void execute(StorageManager storage) throws Exception;
+	}
+
 	private static Logger logger = LogManager.getLogger();
 
 	@Operation(summary = "Move media to trash", responses = {
@@ -118,7 +123,6 @@ public class MediaResource extends BaseResource {
 			@Parameter(description = "Region Width", required = false) @QueryParam("width") int width,
 			@Parameter(description = "Region Height", required = false) @QueryParam("height") int height) {
 		StorageManager storage = StorageManager.getInstance();
-		// Movie
 		if (isMovie) {
 			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
 			if (!storage.exists(finalObjectKey)) {
@@ -126,104 +130,42 @@ public class MediaResource extends BaseResource {
 			}
 			return createRedirect(finalObjectKey, versionStamp);
 		}
-		// Image
-		String finalObjectKey;
+
 		boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+		StorageType outputType = webP ? StorageType.WEBP : StorageType.JPG;
+		String finalObjectKey;
+
 		if (original) {
 			finalObjectKey = S3KeyGenerator.getOriginalJpg(id);
 			if (!storage.exists(finalObjectKey)) {
 				return createNotFoundResponse();
 			}
+			return createRedirect(finalObjectKey, versionStamp);
 		} 
-		else if (targetWidth > 0 || minDimension > 0) {
+		
+		if (targetWidth > 0 || minDimension > 0) {
 			finalObjectKey = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
-			if (!storage.exists(finalObjectKey)) {
-				return DatabaseContext.buildResponse(() -> {
-					boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
-					String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-					if (useWebSource && !storage.exists(sourceKey)) {
-						sourceKey = S3KeyGenerator.getOriginalJpg(id);
-					}
-					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse();
-					}
-					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b == null) {
-						return createNotFoundResponse();
-					}
-					if (targetWidth > 0 && targetWidth < b.getWidth()) {
-						b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-					}
-					else if (minDimension > 0) {
-						Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-						b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
-					}
-					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-					b.flush();
-					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse();
-					}
-					return createRedirect(finalObjectKey, versionStamp);
-				});
+			if (storage.exists(finalObjectKey)) {
+				return createRedirect(finalObjectKey, versionStamp);
 			}
+			return executeGenerationPipeline(storage, finalObjectKey, versionStamp, s -> processResize(s, id, targetWidth, minDimension, finalObjectKey, outputType));
 		} 
-		else if (width > 0 && height > 0) {
+		
+		if (width > 0 && height > 0) {
 			finalObjectKey = webP ? S3KeyGenerator.getWebWebpRegion(id, x, y, width, height) : S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
-			if (!storage.exists(finalObjectKey)) {
-				return DatabaseContext.buildResponse(() -> {
-					String sourceKey = S3KeyGenerator.getOriginalJpg(id);
-					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse();
-					}
-					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b == null) {
-						return createNotFoundResponse();
-					}
-					if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
-						b = Scalr.crop(b, x, y, width, height);
-					}
-					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-					b.flush();
-					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse();
-					}
-					return createRedirect(finalObjectKey, versionStamp);
-				});
+			if (storage.exists(finalObjectKey)) {
+				return createRedirect(finalObjectKey, versionStamp);
 			}
+			return executeGenerationPipeline(storage, finalObjectKey, versionStamp, s -> processCrop(s, id, x, y, width, height, finalObjectKey, outputType));
 		}
-		else {
-			finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
-			if (!storage.exists(finalObjectKey)) {
-				return DatabaseContext.buildResponse(() -> {
-					String sourceKey = S3KeyGenerator.getWebJpg(id);
-					if (!storage.exists(sourceKey)) {
-						sourceKey = S3KeyGenerator.getOriginalJpg(id);
-					}
-					if (!storage.exists(sourceKey)) {
-						return createNotFoundResponse();
-					}
-					BufferedImage b = storage.downloadImage(sourceKey);
-					if (b == null) {
-						return createNotFoundResponse();
-					}
-					if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
-						b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
-					}
-					storage.uploadImage(finalObjectKey, b, webP ? StorageType.WEBP : StorageType.JPG);
-					b.flush();
-					if (!storage.exists(finalObjectKey)) {
-						return createNotFoundResponse();
-					}
-					return createRedirect(finalObjectKey, versionStamp);
-				});
-			}
+
+		finalObjectKey = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
+		if (storage.exists(finalObjectKey)) {
+			return createRedirect(finalObjectKey, versionStamp);
 		}
-		if (!storage.exists(finalObjectKey)) {
-			return createNotFoundResponse();
-		}
-		return createRedirect(finalObjectKey, versionStamp);
+		return executeGenerationPipeline(storage, finalObjectKey, versionStamp, s -> processStandard(s, id, finalObjectKey, outputType));
 	}
-	
+
 	@Operation(summary = "Reorder media", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -396,7 +338,7 @@ public class MediaResource extends BaseResource {
 		    return Response.ok().entity(scrapedList).build();
 		});
 	}
-
+	
 	@Operation(summary = "Update Media SVG", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -567,5 +509,82 @@ public class MediaResource extends BaseResource {
 		return Response.status(Response.Status.FOUND)
 				.header("Location", localProxyPath)
 				.cacheControl(cc).build();
+	}
+
+	private Response executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) {
+		return DatabaseContext.buildResponse(() -> {
+			task.execute(storage);
+			if (!storage.exists(key)) {
+				return createNotFoundResponse();
+			}
+			return createRedirect(key, version);
+		});
+	}
+
+	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) throws IOException {
+		String sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		if (!storage.exists(sourceKey)) {
+			return;
+		}
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) {
+			return;
+		}
+		try {
+			if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
+				b = Scalr.crop(b, x, y, width, height);
+			}
+			storage.uploadImage(key, b, type);
+		} finally {
+			b.flush();
+		}
+	}
+
+	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) throws IOException {
+		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
+		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+		if (useWebSource && !storage.exists(sourceKey)) {
+			sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		}
+		if (!storage.exists(sourceKey)) {
+			return;
+		}
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) {
+			return;
+		}
+		try {
+			if (targetWidth > 0 && targetWidth < b.getWidth()) {
+				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+			} else if (minDimension > 0) {
+				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+			}
+			storage.uploadImage(key, b, type);
+		} finally {
+			b.flush();
+		}
+	}
+
+	private void processStandard(StorageManager storage, int id, String key, StorageType type) throws IOException {
+		String sourceKey = S3KeyGenerator.getWebJpg(id);
+		if (!storage.exists(sourceKey)) {
+			sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		}
+		if (!storage.exists(sourceKey)) {
+			return;
+		}
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) {
+			return;
+		}
+		try {
+			if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
+				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
+			}
+			storage.uploadImage(key, b, type);
+		} finally {
+			b.flush();
+		}
 	}
 }

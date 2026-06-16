@@ -103,51 +103,25 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			photographer = User.from(photographerId, rst.getString("photographer_name"));
 		}
 
-		String taggedJson = rst.getString("tagged_json");
-		List<User> taggedUsers = Strings.isNullOrEmpty(taggedJson) ? List.of() : localGson.fromJson(taggedJson, new TypeToken<List<User>>(){}.getType());
-		if (!taggedUsers.isEmpty()) {
-			taggedUsers = taggedUsers.stream()
-					.sorted(Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())))
-					.toList();
-		}
+		List<User> taggedUsers = parseAndSortJsonArray(rst, "tagged_json", localGson, new TypeToken<List<User>>(){}.getType(),
+				Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())));
 
-		String areasJson = rst.getString("areas_json");
-		List<MediaArea> areas = Strings.isNullOrEmpty(areasJson) ? List.of() : localGson.fromJson(areasJson, new TypeToken<List<MediaArea>>(){}.getType());
-		if (!areas.isEmpty()) {
-			areas = areas.stream()
-					.sorted(Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())))
-					.toList();
-		}
+		List<MediaArea> areas = parseAndSortJsonArray(rst, "areas_json", localGson, new TypeToken<List<MediaArea>>(){}.getType(),
+				Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())));
 
-		String sectorsJson = rst.getString("sectors_json");
-		List<MediaSector> sectors = Strings.isNullOrEmpty(sectorsJson) ? List.of() : localGson.fromJson(sectorsJson, new TypeToken<List<MediaSector>>(){}.getType());
-		if (!sectors.isEmpty()) {
-			sectors = sectors.stream()
-					.sorted(Comparator.comparing(MediaSector::sectorName, Comparator.nullsLast(Comparator.naturalOrder())))
-					.toList();
-		}
+		List<MediaSector> sectors = parseAndSortJsonArray(rst, "sectors_json", localGson, new TypeToken<List<MediaSector>>(){}.getType(),
+				Comparator.comparing(MediaSector::sectorName, Comparator.nullsLast(Comparator.naturalOrder())));
 
-		String problemsJson = rst.getString("problems_json");
-		List<MediaProblem> problems = Strings.isNullOrEmpty(problemsJson) ? List.of() : localGson.fromJson(problemsJson, new TypeToken<List<MediaProblem>>(){}.getType());
-		if (!problems.isEmpty()) {
-			problems = problems.stream()
-					.sorted(Comparator.comparingLong(MediaProblem::milliseconds)
-							.thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())))
-					.toList();
-		}
-		
-		String trailsJson = rst.getString("trails_json");
-		List<MediaTrail> trails = Strings.isNullOrEmpty(trailsJson) ? List.of() : localGson.fromJson(trailsJson, new TypeToken<List<MediaTrail>>(){}.getType());
-		if (!trails.isEmpty()) {
-			trails = trails.stream()
-					.sorted(Comparator.comparingInt(MediaTrail::trailId))
-					.toList();
-		}
+		List<MediaProblem> problems = parseAndSortJsonArray(rst, "problems_json", localGson, new TypeToken<List<MediaProblem>>(){}.getType(),
+				Comparator.comparingLong(MediaProblem::milliseconds)
+						.thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())));
+
+		List<MediaTrail> trails = parseAndSortJsonArray(rst, "trails_json", localGson, new TypeToken<List<MediaTrail>>(){}.getType(),
+				Comparator.comparingInt(MediaTrail::trailId));
 
 		List<MediaSvgElement> svgElements = parseSvgElements(rst.getString("svgs_json"), localGson);
 
-		String svgsTableJson = rst.getString("svgs_table_json");
-		List<Svg> svgsList = Strings.isNullOrEmpty(svgsTableJson) ? List.of() : localGson.fromJson(svgsTableJson, new TypeToken<List<Svg>>(){}.getType());
+		List<Svg> svgsList = parseAndSortJsonArray(rst, "svgs_table_json", localGson, new TypeToken<List<Svg>>(){}.getType(), null);
 
 		return new Media(
 				identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
@@ -157,6 +131,20 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				svgElements, 0, svgsList, rst.getString("embed_url"), rst.getInt("thumbnail_seconds"), 
 				false, areas, sectors, problems, trails, rst.getInt("guestbook_id"), 0
 				);
+	}
+
+	private static <T> List<T> parseAndSortJsonArray(ResultSet rst, String column, Gson gson, java.lang.reflect.Type type, Comparator<? super T> comparator) throws SQLException {
+		String json = rst.getString(column);
+		if (Strings.isNullOrEmpty(json)) {
+			return List.of();
+		}
+		List<T> result = gson.fromJson(json, type);
+		if (result != null && !result.isEmpty() && comparator != null) {
+			result = result.stream()
+					.sorted(comparator)
+					.toList();
+		}
+		return result;
 	}
 	
 	public Association ensureCorrectMediaAssociations(Optional<Integer> authUserId) {
