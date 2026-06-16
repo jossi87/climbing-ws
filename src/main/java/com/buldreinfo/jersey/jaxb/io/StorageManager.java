@@ -1,4 +1,5 @@
 package com.buldreinfo.jersey.jaxb.io;
+
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -9,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -21,6 +25,7 @@ import javax.imageio.stream.ImageOutputStream;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -42,11 +47,15 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 public final class StorageManager {
-	private static final StorageManager INSTANCE = new StorageManager();
+	private record CacheEntry(boolean exists, long timestamp) {}
 	public static final String BUCKET_NAME = "climbing-web";
+	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
+	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; 
+	private static final long CACHE_TTL_MS = Duration.ofMinutes(15).toMillis(); 
+	private static final StorageManager INSTANCE = new StorageManager();
+	private static final int MAX_CACHE_SIZE = 50000;
+
 	private static final String PROXY_PATH = "/media-proxy/";
-	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L; // 100MB limit
-	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; // 800MB limit
 
 	public static String getDirectStorageUrl(String objectKey) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
@@ -66,6 +75,15 @@ public final class StorageManager {
 		return url.toString();
 	}
 	
+	private final Map<String, CacheEntry> existsCache = Collections.synchronizedMap(
+			new LinkedHashMap<>(64, 0.75f, true) {
+				@Override
+				@SuppressWarnings("unused")
+				protected boolean removeEldestEntry(Map.Entry<String, CacheEntry> eldest) {
+					return size() > MAX_CACHE_SIZE;
+				}
+			}
+	);
 	private final S3Client s3Client;
 	private final S3Presigner s3Presigner;
 
@@ -74,7 +92,7 @@ public final class StorageManager {
 		AwsBasicCredentials credentials = AwsBasicCredentials.create(
 				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_ACCESS_KEY), 
 				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_SECRET_KEY)
-				);
+		);
 
 		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
 		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
@@ -86,7 +104,7 @@ public final class StorageManager {
 				.httpClientBuilder(ApacheHttpClient.builder()
 						.maxConnections(100)
 						.connectionMaxIdleTime(Duration.ofSeconds(30))
-						)
+				)
 				.build();
 		this.s3Presigner = S3Presigner.builder()
 				.credentialsProvider(credentialsProvider)
@@ -94,6 +112,7 @@ public final class StorageManager {
 				.region(region)
 				.build();
 	}
+
 	public byte[] downloadBytes(String objectKey) throws IOException {
 		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
 			return response.readAllBytes();
@@ -114,13 +133,23 @@ public final class StorageManager {
 	}
 
 	public boolean exists(String objectKey) {
+		if (objectKey == null) {
+			return false;
+		}
+		long now = System.currentTimeMillis();
+		CacheEntry entry = existsCache.get(objectKey);
+		if (entry != null && (now - entry.timestamp() < CACHE_TTL_MS)) {
+			return entry.exists();
+		}
 		try {
 			s3Client.headObject(HeadObjectRequest.builder()
 					.bucket(BUCKET_NAME)
 					.key(objectKey)
 					.build());
+			existsCache.put(objectKey, new CacheEntry(true, now));
 			return true;
 		} catch (NoSuchKeyException _) {
+			existsCache.put(objectKey, new CacheEntry(false, now));
 			return false;
 		}
 	}
@@ -139,6 +168,7 @@ public final class StorageManager {
 				.putObjectRequest(putObjectRequest)
 				.build();
 
+		existsCache.remove(objectKey);
 		return s3Presigner.presignPutObject(presignRequest).url().toString();
 	}
 
@@ -159,32 +189,38 @@ public final class StorageManager {
 			if (!page.hasContents()) {
 				continue;
 			}
-			List<ObjectIdentifier> toDelete = page.contents().stream()
-					.map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
+			List<ObjectIdentifier> allIdentifiers = page.contents().stream()
+					.map(s3Object -> {
+						existsCache.remove(s3Object.key());
+						return ObjectIdentifier.builder().key(s3Object.key()).build();
+					})
 					.toList();
-			s3Client.deleteObjects(DeleteObjectsRequest.builder()
-					.bucket(BUCKET_NAME)
-					.delete(Delete.builder().objects(toDelete).build())
-					.build());
+			
+			for (List<ObjectIdentifier> chunk : Lists.partition(allIdentifiers, 1000)) {
+				s3Client.deleteObjects(DeleteObjectsRequest.builder()
+						.bucket(BUCKET_NAME)
+						.delete(Delete.builder().objects(chunk).build())
+						.build());
+			}
 		}
 	}
 
 	public byte[] readBoundedStream(InputStream is) throws IOException {
-	    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-	        byte[] buffer = new byte[16 * 1024];
-	        long total = 0;
-	        int read;
-	        while ((read = is.read(buffer)) != -1) {
-	            total += read;
-	            Preconditions.checkArgument(
-	                total <= MAX_IMAGE_UPLOAD_BYTES, 
-	                "File too large (max %s bytes)", 
-	                MAX_IMAGE_UPLOAD_BYTES
-	            );
-	            os.write(buffer, 0, read);
-	        }
-	        return os.toByteArray();
-	    }
+		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+			byte[] buffer = new byte[16 * 1024];
+			long total = 0;
+			int read;
+			while ((read = is.read(buffer)) != -1) {
+				total += read;
+				Preconditions.checkArgument(
+						total <= MAX_IMAGE_UPLOAD_BYTES, 
+						"File too large (max %s bytes)", 
+						MAX_IMAGE_UPLOAD_BYTES
+				);
+				os.write(buffer, 0, read);
+			}
+			return os.toByteArray();
+		}
 	}
 
 	public void uploadBytes(String objectKey, byte[] data, StorageType type) {
@@ -225,8 +261,7 @@ public final class StorageManager {
 						}
 					}
 					param.setCompressionQuality(0.75f); 
-				}
-				else {
+				} else {
 					String[] types = param.getCompressionTypes();
 					if (types != null && types.length > 0) {
 						param.setCompressionType(types[0]); 
@@ -256,6 +291,7 @@ public final class StorageManager {
 				.contentType(type.getMimeType())
 				.acl(ObjectCannedACL.PUBLIC_READ)
 				.build();
+		existsCache.remove(objectKey);
 		s3Client.putObject(putRequest, body);
 	}
 }

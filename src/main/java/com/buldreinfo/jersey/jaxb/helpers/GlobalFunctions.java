@@ -19,23 +19,18 @@ public class GlobalFunctions {
 	}
 
 	public static boolean requestAcceptsWebm(HttpServletRequest request) {
-	    String acceptHeader = request.getHeader("Accept");
-	    String userAgent = request.getHeader("User-Agent");
-	    // 1. Explicit Support: Browser says "I want Webm"
-	    if (acceptHeader != null && acceptHeader.contains("video/webm")) {
-	        return true;
-	    }
-	    // 2. Implicit Support: If it's Chrome, Firefox, or Edge, 
-	    // we know they've supported Webm for a decade, even if they send */*
-	    if (userAgent != null) {
-	        if (userAgent.contains("Chrome") || userAgent.contains("Firefox") || userAgent.contains("Edg/")) {
-	            // Check to exclude iPhones/iPads if you want to be 100% safe, 
-	            // as they often report "Chrome" but use the WebKit engine.
-	            return !userAgent.contains("Like Mac OS X");
-	        }
-	    }
-	    // 3. Fallback: Default to MP4 for everything else (Safari, unknown, etc.)
-	    return false;
+		String acceptHeader = request.getHeader("Accept");
+		if (acceptHeader != null && acceptHeader.contains("video/webm")) {
+			return true;
+		}
+		
+		String userAgent = request.getHeader("User-Agent");
+		if (userAgent != null) {
+			if (userAgent.contains("Chrome") || userAgent.contains("Firefox") || userAgent.contains("Edg/")) {
+				return !userAgent.contains("Like Mac OS X");
+			}
+		}
+		return false;
 	}
 
 	public static boolean requestAcceptsWebp(HttpServletRequest request) {
@@ -43,20 +38,22 @@ public class GlobalFunctions {
 		if (acceptHeader != null && acceptHeader.contains("image/webp")) {
 			return true;
 		}
-		// Safari 14+ supports WebP but may not advertise it in Accept header
-		// Detect Safari (not Chrome) and assume WebP support for recent versions
+
 		String userAgent = request.getHeader("User-Agent");
 		if (userAgent != null && userAgent.contains("Safari") && !userAgent.contains("Chrome")) {
-			// Safari 14+ on macOS/iOS supports WebP; Safari on older OS versions may not
-			// Version detection: "Version/14" or higher
 			int idx = userAgent.indexOf("Version/");
-			if (idx >= 0) {
+			if (idx >= 0 && idx + 8 < userAgent.length()) {
 				String versionPart = userAgent.substring(idx + 8);
+				
+				int spaceIdx = versionPart.indexOf(' ');
+				if (spaceIdx >= 0) {
+					versionPart = versionPart.substring(0, spaceIdx);
+				}
+				
 				int dotIdx = versionPart.indexOf('.');
 				String majorStr = dotIdx >= 0 ? versionPart.substring(0, dotIdx) : versionPart;
 				try {
-					int majorVersion = Integer.parseInt(majorStr);
-					return majorVersion >= 14;
+					return Integer.parseInt(majorStr) >= 14;
 				} catch (NumberFormatException _) {
 					return false;
 				}
@@ -73,13 +70,11 @@ public class GlobalFunctions {
 	}
 	
 	private static String removeIllegalCharacters(String str) {
-		if (str == null) return "";
-	    
-	    // 1. Remove OS-illegal characters (the ones you had before)
-	    String cleaned = str.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
-	    
-	    // 2. Remove Emojis and high-range characters
-	    // This targets characters outside the standard Unicode plane
-	    return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "").strip();
+		if (str == null) {
+			return "";
+		}
+		
+		String cleaned = str.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+		return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "").strip();
 	}
 }

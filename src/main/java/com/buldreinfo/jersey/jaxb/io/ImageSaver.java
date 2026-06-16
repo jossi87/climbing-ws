@@ -1,5 +1,7 @@
 package com.buldreinfo.jersey.jaxb.io;
 
+import java.awt.Graphics2D;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Objects;
@@ -33,11 +35,27 @@ public class ImageSaver {
 	private final TiffOutputSet metadata;
 
 	private ImageSaver(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
-		this.bufferedImage = Objects.requireNonNull(bufferedImage, "BufferedImage cannot be null");
+		this.bufferedImage = prepareImageForJpg(Objects.requireNonNull(bufferedImage, "BufferedImage cannot be null"));
 		this.keyOriginalJpg = Objects.requireNonNull(keyOriginalJpg, "Original JPG key is required");
 		this.keyWebJpg = Objects.requireNonNull(keyWebJpg, "Web JPG key is required");
 		this.keyWebWebP = Objects.requireNonNull(keyWebWebP, "Web WebP key is required");
 		this.metadata = metadata;
+	}
+
+	private BufferedImage prepareImageForJpg(BufferedImage src) {
+		if (src.getType() == BufferedImage.TYPE_INT_RGB) {
+			return src;
+		}
+		BufferedImage rgbImage = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = rgbImage.createGraphics();
+		try {
+			g.setColor(Color.WHITE);
+			g.fillRect(0, 0, src.getWidth(), src.getHeight());
+			g.drawImage(src, 0, 0, null);
+		} finally {
+			g.dispose();
+		}
+		return rgbImage;
 	}
 
 	private void execute() {

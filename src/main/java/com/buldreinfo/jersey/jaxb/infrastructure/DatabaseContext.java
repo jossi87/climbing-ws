@@ -35,19 +35,21 @@ import jakarta.ws.rs.core.Response;
 public class DatabaseContext {
 	@FunctionalInterface
 	public interface DaoTask<T> {
-	    T run(Dao dao, Connection c) throws SQLException;
+		T run(Dao dao, Connection c) throws SQLException;
 	}
 	private interface ConnectionTask {
 		Response run(DatabaseContext server, Connection c, Setup setup, boolean shouldUpdateHits) throws Exception;
+	}
+	private static class InstanceHolder {
+		private static final DatabaseContext INSTANCE = new DatabaseContext();
 	}
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
-	private static final Logger logger = LogManager.getLogger();
 
-	private static volatile DatabaseContext server;
+	private static final Logger logger = LogManager.getLogger();
 
 	public static Response buildResponse(Function<Response> function) {
 		try {
@@ -78,7 +80,6 @@ public class DatabaseContext {
 		return executeWithConnection(request, (server, c, setup, shouldUpdateHits) -> {
 			Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
 			if (authUserId.isEmpty()) {
-				c.rollback();
 				return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
 			}
 			Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
@@ -98,14 +99,21 @@ public class DatabaseContext {
 	public static void runSql(Consumer<Connection> action) {
 		DatabaseContext server = getServer();
 		try (Connection c = server.ds.getConnection()) {
+			boolean initialAutoCommit = c.getAutoCommit();
+			boolean isCommitted = false;
 			try {
 				action.run(server.dao, c);
-				if (!c.getAutoCommit()) {
+				if (!initialAutoCommit) {
 					c.commit();
+					isCommitted = true;
 				}
 			} catch (Exception e) {
-				if (!c.getAutoCommit()) {
-					c.rollback();
+				if (!initialAutoCommit && !isCommitted) {
+					try {
+						c.rollback();
+					} catch (SQLException ex) {
+						logger.error("Rollback failed during runSql exception handling", ex);
+					}
 				}
 				throw e;
 			}
@@ -116,28 +124,39 @@ public class DatabaseContext {
 	}
 
 	public static <T> CompletableFuture<T> submitDaoTask(DaoTask<T> task) {
-	    DatabaseContext server = getServer();
-	    return CompletableFuture.supplyAsync(() -> {
-	        try (Connection c = server.ds.getConnection()) {
-	            try {
-	                T result = task.run(server.dao, c);
-	                c.commit();
-	                return result;
-	            } catch (Exception e) {
-	                c.rollback();
-	                throw e;
-	            }
-	        } catch (Exception e) {
-	            throw new CompletionException(e);
-	        }
-	    }, server.executor);
+		DatabaseContext server = getServer();
+		return CompletableFuture.supplyAsync(() -> {
+			try (Connection c = server.ds.getConnection()) {
+				boolean isCommitted = false;
+				try {
+					T result = task.run(server.dao, c);
+					c.commit();
+					isCommitted = true;
+					return result;
+				} catch (Exception e) {
+					if (!isCommitted) {
+						try {
+							c.rollback();
+						} catch (SQLException ex) {
+							logger.error("Rollback failed during submitDaoTask exception handling", ex);
+						}
+					}
+					throw e;
+				}
+			} catch (Exception e) {
+				throw new CompletionException(e);
+			}
+		}, server.executor);
 	}
 
-	private static void cleanupHitsCooldownMap(long now) {
+	private static synchronized void cleanupHitsCooldownMap(long now) {
 		if (hitsCooldownMap.size() < HITS_COOLDOWN_CACHE_MAX_SIZE) {
 			return;
 		}
 		hitsCooldownMap.entrySet().removeIf(e -> now - e.getValue() >= HITS_COOLDOWN_MILLIS);
+		if (hitsCooldownMap.size() >= HITS_COOLDOWN_CACHE_MAX_SIZE) {
+			hitsCooldownMap.clear();
+		}
 	}
 
 	private static Response executeWithConnection(HttpServletRequest request, ConnectionTask task) {
@@ -145,10 +164,17 @@ public class DatabaseContext {
 		Setup setup = server.getSetup(request);
 		boolean shouldUpdateHits = shouldUpdateHits(request);
 		try (Connection c = server.ds.getConnection()) {
+			boolean initialAutoCommit = c.getAutoCommit();
 			try {
 				return task.run(server, c, setup, shouldUpdateHits);
 			} catch (Exception e) {
-				c.rollback();
+				if (!initialAutoCommit) {
+					try {
+						c.rollback();
+					} catch (SQLException ex) {
+						logger.error("Rollback failed during executeWithConnection exception handling", ex);
+					}
+				}
 				throw e;
 			}
 		} catch (Exception e) {
@@ -185,12 +211,8 @@ public class DatabaseContext {
 				ua == null ? "" : ua);
 	}
 
-	private static synchronized DatabaseContext getServer() {
-		DatabaseContext result = server;
-		if (result == null) {
-			server = result = new DatabaseContext();
-		}
-		return result;
+	private static DatabaseContext getServer() {
+		return InstanceHolder.INSTANCE;
 	}
 
 	private static boolean isBotRequest(HttpServletRequest request) {
@@ -217,15 +239,17 @@ public class DatabaseContext {
 		String key = getHitsCooldownKey(request);
 		Long previous = hitsCooldownMap.putIfAbsent(key, now);
 		if (previous == null) {
-			cleanupHitsCooldownMap(now);
+			if (hitsCooldownMap.size() >= HITS_COOLDOWN_CACHE_MAX_SIZE) {
+				runAsync(() -> cleanupHitsCooldownMap(now));
+			}
 			return true;
 		}
 		if (now - previous >= HITS_COOLDOWN_MILLIS) {
-		    if (hitsCooldownMap.replace(key, previous, now)) {
-		        runAsync(() -> cleanupHitsCooldownMap(now));
-		        return true;
-		    }
-		    return false;
+			if (hitsCooldownMap.replace(key, previous, now)) {
+				runAsync(() -> cleanupHitsCooldownMap(now));
+				return true;
+			}
+			return false;
 		}
 		return false;
 	}
@@ -264,7 +288,6 @@ public class DatabaseContext {
 		hikariConfig.setMinimumIdle(10);
 		hikariConfig.setConnectionTimeout(10000);
 		hikariConfig.setLeakDetectionThreshold(0);
-		// GROUP_CONCAT has a max length 1024 characters by default (getActivity needs more characters)
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
 		try (Connection c = ds.getConnection()) {

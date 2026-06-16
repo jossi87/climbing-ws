@@ -22,8 +22,10 @@ import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr.Rotation;
 
 public class ExifReader {
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	private static final String EXIF_DATE_PATTERN = "yyyy:MM:dd HH:mm:ss";
+	private static final byte[] EQUIRECTANGULAR_BYTES = "equirectangular".getBytes(StandardCharsets.ISO_8859_1);
+	
 	private final Rotation rotation;
 	private final TiffOutputSet outputSet;
 	private final LocalDateTime dateTaken;
@@ -33,12 +35,14 @@ public class ExifReader {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
 			this.rotation = getExifOrientation(imageMetadata);
-			TiffOutputSet outputSet = imageMetadata.getOutputSet();
-			outputSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
-			this.outputSet = outputSet;
+			TiffOutputSet parsedSet = imageMetadata.getOutputSet();
+			if (parsedSet == null) {
+				parsedSet = new TiffOutputSet();
+			}
+			parsedSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
+			this.outputSet = parsedSet;
 			this.dateTaken = getExifDateValue(imageMetadata, ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL);
-		}
-		else {
+		} else {
 			this.rotation = null;
 			this.outputSet = null;
 			this.dateTaken = null;
@@ -49,10 +53,7 @@ public class ExifReader {
 	private boolean checkIs360(byte[] bytes) {
 		try {
 			Dimension dimension = Imaging.getImageSize(bytes);
-			int width = dimension.width;
-			int height = dimension.height;
-
-			if (width == height * 2) {
+			if (dimension.width == dimension.height * 2) {
 				return true;
 			}
 
@@ -61,12 +62,25 @@ public class ExifReader {
 				return true;
 			}
 
-			String rawString = new String(bytes, 0, Math.min(bytes.length, 65536), StandardCharsets.ISO_8859_1);
-			if (rawString.contains("equirectangular")) {
-				return true;
-			}
+			return containsSequence(bytes, EQUIRECTANGULAR_BYTES);
 		} catch (Exception e) {
-			logger.warn("Failed to check if image is 360 panorama: " + e.getMessage(), e);
+			logger.warn("Failed to check if image is 360 panorama: {}", e.getMessage(), e);
+		}
+		return false;
+	}
+
+	private boolean containsSequence(byte[] source, byte[] target) {
+		if (target.length == 0) return false;
+		int limit = Math.min(source.length, 128 * 1024) - target.length;
+		for (int i = 0; i <= limit; i++) {
+			boolean match = true;
+			for (int j = 0; j < target.length; j++) {
+				if (source[i + j] != target[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) return true;
 		}
 		return false;
 	}
@@ -82,7 +96,7 @@ public class ExifReader {
 		try {
 			return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
 		} catch (DateTimeParseException e) {
-			logger.warn(e.getMessage(), e);
+			logger.warn("Failed to parse EXIF date string '{}': {}", exifDateStr, e.getMessage());
 			return null;
 		}
 	}
@@ -93,17 +107,13 @@ public class ExifReader {
 			int value = field.getIntValue();
 			if (value == 0 || value == 256 || value == TiffTagConstants.ORIENTATION_VALUE_HORIZONTAL_NORMAL || value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL) {
 				return null;
-			}
-			else if (value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_180 || value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_VERTICAL) {
+			} else if (value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_180 || value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_VERTICAL) {
 				return Rotation.CW_180;
-			}
-			else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_270_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_270_CW) {
+			} else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_270_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_270_CW) {
 				return Rotation.CW_270;
-			}
-			else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_90_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_90_CW) {
+			} else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_90_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_90_CW) {
 				return Rotation.CW_90;
-			}
-			else {
+			} else {
 				throw new RuntimeException("Invalid exif orientation: " + value);
 			}
 		}
@@ -115,17 +125,25 @@ public class ExifReader {
 		if (field == null) {
 			return null;
 		}
+		
 		String exifStr = null;
 		try {
 			exifStr = field.getStringValue();
-		} catch (ImagingException _) {
-			exifStr = ((String[])field.getValue())[0];
+		} catch (Exception _) {
+			Object val = field.getValue();
+			if (val instanceof String[] arr && arr.length > 0) {
+				exifStr = arr[0];
+			} else if (val != null) {
+				exifStr = val.toString();
+			}
 		}
+		
 		if (exifStr != null) {
 			int nullIdx = exifStr.indexOf('\u0000');
 			if (nullIdx != -1) {
 				exifStr = exifStr.substring(0, nullIdx);
 			}
+			exifStr = exifStr.trim();
 		}
 		return exifStr;
 	}
@@ -153,8 +171,8 @@ public class ExifReader {
 			} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
 				return tiffMetadata;
 			}
-		} catch (IOException e) {
-			logger.warn(e.getMessage(), e);
+		} catch (Exception e) {
+			logger.warn("Failed to retrieve image TIFF metadata properties: {}", e.getMessage());
 		}
 		return null;
 	}

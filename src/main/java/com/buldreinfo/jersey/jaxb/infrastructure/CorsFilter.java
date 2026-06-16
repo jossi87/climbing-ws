@@ -22,65 +22,87 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
 public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilter {
-	private static Logger logger = LogManager.getLogger();
-	private static final AtomicReference<Set<String>> legalOriginsRef = new AtomicReference<>(null);
+	private static final Logger logger = LogManager.getLogger();
+	private static final long CACHE_TTL_MS = 60_000L;
+
+	private record CacheState(Set<String> origins, long lastRefresh) {}
+	private static final AtomicReference<CacheState> cacheStateRef = new AtomicReference<>(new CacheState(Set.of(), 0L));
 	
 	private static Set<String> getLegalOrigins() {
-		Set<String> origins = legalOriginsRef.get();
-		if (origins != null) {
-			return origins;
+		long now = System.currentTimeMillis();
+		CacheState currentState = cacheStateRef.get();
+		
+		if (now - currentState.lastRefresh() < CACHE_TTL_MS && !currentState.origins().isEmpty()) {
+			return currentState.origins();
 		}
-		origins = Sets.newHashSet();
-		origins.add("http://localhost:3001");
-		try {
-			DatabaseContext.getSetups().stream()
-					.map(Setup::domain)
-					.map(domain -> "https://" + domain)
-					.forEach(origins::add);
-		} catch (Exception e) {
-			logger.warn("Could not initialize legal origins from setups: {}", e.getMessage());
+		
+		synchronized (CorsFilter.class) {
+			currentState = cacheStateRef.get();
+			if (now - currentState.lastRefresh() < CACHE_TTL_MS && !currentState.origins().isEmpty()) {
+				return currentState.origins();
+			}
+
+			Set<String> newOrigins = Sets.newHashSet();
+			newOrigins.add("http://localhost:3001");
+			try {
+				DatabaseContext.getSetups().stream()
+						.map(Setup::domain)
+						.map(domain -> "https://" + domain)
+						.forEach(newOrigins::add);
+			} catch (Exception e) {
+				logger.warn("Could not initialize legal origins from setups: {}", e.getMessage());
+				if (!currentState.origins().isEmpty()) {
+					return currentState.origins();
+				}
+			}
+			
+			Set<String> initialized = Set.copyOf(newOrigins);
+			cacheStateRef.set(new CacheState(initialized, now));
+			return initialized;
 		}
-		Set<String> initialized = Set.copyOf(origins);
-		legalOriginsRef.compareAndSet(null, initialized);
-		return legalOriginsRef.get();
 	}
 
 	@Override
 	public void filter(ContainerRequestContext creq) throws IOException {
-		if (creq.getMethod().equals("OPTIONS")) {
-			creq.abortWith(Response.ok().build());
+		if (creq.getMethod().equalsIgnoreCase("OPTIONS")) {
+			String origin = creq.getHeaderString("Origin");
+			if (origin != null && getLegalOrigins().contains(origin)) {
+				Response preflightResponse = Response.ok()
+						.header("Access-Control-Allow-Origin", origin)
+						.header("Access-Control-Allow-Headers", "origin, content-type, accept, authorization")
+						.header("Access-Control-Expose-Headers", "Content-Disposition")
+						.header("Access-Control-Allow-Credentials", "true")
+						.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
+						.header("Access-Control-Max-Age", "1209600")
+						.header("Vary", "Origin, Cookie")
+						.build();
+				creq.abortWith(preflightResponse);
+			} else {
+				creq.abortWith(Response.status(Response.Status.FORBIDDEN).build());
+			}
 		}
 	}
 
 	@Override
 	public void filter(ContainerRequestContext creq, ContainerResponseContext cres) {
-		String from = creq.getHeaderString("origin");
-		if (from == null) {
-			from = creq.getHeaderString("host");
+		if (creq.getMethod().equalsIgnoreCase("OPTIONS")) {
+			return;
 		}
-		if (from == null) {
-			logger.warn("from is null, creq.getHeaders().keySet()=" + creq.getHeaders().keySet());
+
+		String origin = creq.getHeaderString("Origin");
+		if (origin == null) {
+			return;
 		}
-		else {
-			if (from.equals("localhost:3001")) {
-				from = "http://localhost:3001";
-			}
-			if (!from.startsWith("http")) {
-				from = "https://" + from;
-			}
-			
-			if (getLegalOrigins().contains(from)) {
-				cres.getHeaders().add("Access-Control-Allow-Origin", from);
-				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
-				cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
-				cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
-				cres.getHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-				cres.getHeaders().add("Access-Control-Max-Age", "1209600");
-				cres.getHeaders().add("Vary", "Cookie");
-			}
-			else {
-				logger.warn("Invalid from: " + from + ", legalOrigins=" + getLegalOrigins());
-			}
+
+		if (getLegalOrigins().contains(origin)) {
+			cres.getHeaders().add("Access-Control-Allow-Origin", origin);
+			cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
+			cres.getHeaders().add("Access-Control-Expose-Headers", "Content-Disposition");
+			cres.getHeaders().add("Access-Control-Allow-Credentials", "true");
+			cres.getHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+			cres.getHeaders().add("Vary", "Origin, Cookie");
+		} else {
+			logger.warn("Unauthorized CORS origin request attempted: {}", origin);
 		}
 	}
 }

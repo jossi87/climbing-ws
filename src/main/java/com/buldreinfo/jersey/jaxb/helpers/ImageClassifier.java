@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
-import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.ColorInfo;
@@ -29,7 +29,7 @@ public class ImageClassifier {
 				if (result == null) {
 					String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
 					ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
-							.setCredentialsProvider(FixedCredentialsProvider.create(null))
+							.setCredentialsProvider(NoCredentialsProvider.create())
 							.setHeaderProvider(() -> Collections.singletonMap("X-Goog-Api-Key", apiKey))
 							.build();
 					cachedClient = result = ImageAnnotatorClient.create(settings);

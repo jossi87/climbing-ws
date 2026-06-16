@@ -4,13 +4,15 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -24,21 +26,29 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 public class ImageReader implements AutoCloseable {
+
+	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
+	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
+
 	public static class ImageReaderBuilder {
 		private byte[] bytes;
 		private String embedVideoUrl;
 		private Rotation rotation;
+
 		protected ImageReader build() throws IOException, InterruptedException {
 			return new ImageReader(this);
 		}
+
 		protected ImageReaderBuilder withBytes(byte[] bytes) {
 			this.bytes = bytes;
 			return this;
 		}
+
 		protected ImageReaderBuilder withEmbedVideoUrl(String embedVideoUrl) {
 			this.embedVideoUrl = embedVideoUrl;
 			return this;
 		}
+
 		protected ImageReaderBuilder withRotation(Rotation rotation) {
 			this.rotation = rotation;
 			return this;
@@ -57,14 +67,14 @@ public class ImageReader implements AutoCloseable {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(builder.bytes)) {
 				bufferedImage = ImageIO.read(stream);
 			}
-		} 
-		else if (builder.embedVideoUrl != null) {
+		} else if (builder.embedVideoUrl != null) {
 			bufferedImage = generateEmbedVideoImage(builder.embedVideoUrl);
+		} else {
+			throw new RuntimeException("Invalid builder configuration");
 		}
-		else {
-			throw new RuntimeException("Invalid builder");
-		}
+
 		Objects.requireNonNull(bufferedImage, "BufferedImage could not be read");
+
 		if (builder.rotation != null) {
 			BufferedImage rotated = Scalr.rotate(bufferedImage, builder.rotation, Scalr.OP_ANTIALIAS);
 			if (rotated != bufferedImage) {
@@ -88,42 +98,62 @@ public class ImageReader implements AutoCloseable {
 	}
 
 	private BufferedImage convertToJpg(BufferedImage b) {
-	    BufferedImage newImage = new BufferedImage(b.getWidth(), b.getHeight(), BufferedImage.TYPE_INT_RGB);
-	    var g = newImage.createGraphics();
-	    try {
-	        g.drawImage(b, 0, 0, Color.WHITE, null); 
-	    } finally {
-	        g.dispose();
-	    }
-	    b.flush();
-	    return newImage;
+		BufferedImage newImage = new BufferedImage(b.getWidth(), b.getHeight(), BufferedImage.TYPE_INT_RGB);
+		var g = newImage.createGraphics();
+		try {
+			g.drawImage(b, 0, 0, Color.WHITE, null); 
+		} finally {
+			g.dispose();
+		}
+		b.flush();
+		return newImage;
 	}
 
 	private BufferedImage generateEmbedVideoImage(String embedUrl) throws IOException, InterruptedException {
 		String imgUrl = null;
-		if (embedUrl.startsWith("https://www.youtube.com/embed/")) {
-			String id = embedUrl.replace("https://www.youtube.com/embed/", "");
-			if (id.matches("^[a-zA-Z0-9_-]+$")) {
-				imgUrl = "https://img.youtube.com/vi/" + id + "/0.jpg";
-			}
+		Matcher ytMatcher = YT_PATTERN.matcher(embedUrl);
+		Matcher vimeoMatcher = VIMEO_PATTERN.matcher(embedUrl);
+
+		if (ytMatcher.find()) {
+			String id = ytMatcher.group(1);
+			imgUrl = "https://img.youtube.com/vi/" + id + "/0.jpg";
+		} else if (vimeoMatcher.find()) {
+			String id = vimeoMatcher.group(1);
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
+					.timeout(Duration.ofSeconds(10))
+					.GET()
+					.build();
+			HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
+			Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error status: " + response.statusCode());
+			
+			JsonArray arr = new Gson().fromJson(response.body(), JsonArray.class);
+			JsonObject obj = arr.get(0).getAsJsonObject();
+			imgUrl = obj.get("thumbnail_large").getAsString();
 		}
-		else if (embedUrl.startsWith("https://player.vimeo.com/video/")) {
-			String id = embedUrl.replace("https://player.vimeo.com/video/", "");
-			if (id.matches("^[0-9]+$")) {
-				HttpRequest request = HttpRequest.newBuilder()
-						.uri(URI.create("https://vimeo.com/api/v2/video/" + id + ".json"))
-						.GET()
-						.build();
-				HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
-				Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error: " + response.statusCode());
-				JsonArray arr = new Gson().fromJson(response.body(), JsonArray.class);
-				JsonObject obj = arr.get(0).getAsJsonObject();
-				imgUrl = obj.get("thumbnail_large").getAsString();
-			}
-		}
-		Preconditions.checkArgument(imgUrl != null, "Could not determine thumbnail URL for: " + embedUrl);
-		try (InputStream is = URI.create(imgUrl).toURL().openStream()) {
-			return ImageIO.read(is);
+
+		Preconditions.checkArgument(imgUrl != null, "Could not extract video ID or determine thumbnail URL for: " + embedUrl);
+		
+		URI targetUri = URI.create(imgUrl);
+		String host = targetUri.getHost().toLowerCase();
+		Preconditions.checkArgument(
+			host.endsWith(".youtube.com") || host.equals("youtube.com") ||
+			host.endsWith(".vimeo.com") || host.equals("vimeo.com") ||
+			host.endsWith(".vimeocdn.com") || host.equals("vimeocdn.com"),
+			"Untrusted thumbnail URL origin detected: " + host
+		);
+
+		HttpRequest imgRequest = HttpRequest.newBuilder()
+				.uri(targetUri)
+				.timeout(Duration.ofSeconds(15))
+				.GET()
+				.build();
+
+		HttpResponse<byte[]> imgResponse = GlobalFunctions.HTTP_CLIENT.send(imgRequest, BodyHandlers.ofByteArray());
+		Preconditions.checkArgument(imgResponse.statusCode() == HttpURLConnection.HTTP_OK, "Failed downloading image content stream");
+		
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(imgResponse.body())) {
+			return ImageIO.read(bais);
 		}
 	}
 }
