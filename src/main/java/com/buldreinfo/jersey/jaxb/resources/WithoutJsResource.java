@@ -44,7 +44,7 @@ public class WithoutJsResource extends BaseResource {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
-	@Path("/without-js")
+	@Path("")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJs(@Context HttpServletRequest request) {
 		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, _) -> {

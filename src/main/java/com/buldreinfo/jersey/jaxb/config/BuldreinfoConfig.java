@@ -55,7 +55,7 @@ public class BuldreinfoConfig {
 		}
 		String value = prop.getProperty(key);
 		if (value == null || value.trim().isEmpty()) {
-			throw new NullPointerException("Could not find property with key=" + key);
+			throw new IllegalStateException("Could not find property with key=" + key);
 		}
 		return value;
 	}

@@ -2,7 +2,6 @@ package com.buldreinfo.jersey.jaxb.infrastructure;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +22,20 @@ import jakarta.ws.rs.ext.Provider;
 @Priority(Priorities.HEADER_DECORATOR)
 public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilter {
 	private static Logger logger = LogManager.getLogger();
-	private static Set<String> LEGAL_ORIGINS = Sets.newHashSet();
+	private static final Set<String> LEGAL_ORIGINS = initLegalOrigins();
+	private static Set<String> initLegalOrigins() {
+		Set<String> origins = Sets.newHashSet();
+		origins.add("http://localhost:3001");
+		try {
+			DatabaseContext.getSetups().stream()
+					.map(Setup::domain)
+					.map(domain -> "https://" + domain)
+					.forEach(origins::add);
+		} catch (Exception e) {
+			logger.warn("Could not initialize legal origins from setups: {}", e.getMessage());
+		}
+		return Set.copyOf(origins);
+	}
 
 	@Override
 	public void filter(ContainerRequestContext creq) throws IOException {
@@ -49,15 +61,6 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 				from = "https://" + from;
 			}
 			
-			if (LEGAL_ORIGINS.isEmpty()) {
-				for (String domain : DatabaseContext.getSetups()
-						.stream()
-						.map(Setup::domain)
-						.collect(Collectors.toList())) {
-					LEGAL_ORIGINS.add("https://" + domain);
-				}
-				LEGAL_ORIGINS.add("http://localhost:3001");
-			}
 			if (LEGAL_ORIGINS.contains(from)) {
 				cres.getHeaders().add("Access-Control-Allow-Origin", from);
 				cres.getHeaders().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
