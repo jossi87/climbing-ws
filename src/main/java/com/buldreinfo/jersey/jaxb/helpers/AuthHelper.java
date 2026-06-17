@@ -2,7 +2,6 @@ package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.security.interfaces.RSAPublicKey;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.time.Duration;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -94,7 +93,8 @@ public class AuthHelper {
             Auth0Profile profile = cache.get(accessToken);
             Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(c, profile);
             if (isNewToken && authUserId.isPresent()) {
-                logLogin(c, request, setup, authUserId.get());
+                String headers = new Gson().toJson(getHeaders(request));
+            	dao.getUserRepo().upsertUserLogin(c, setup, authUserId.get(), headers);
             }
             logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
             return authUserId;
@@ -124,16 +124,5 @@ public class AuthHelper {
             map.put(HttpHeaders.AUTHORIZATION, "[REDACTED]");
         }
         return map;
-    }
-
-    private void logLogin(Connection c, HttpServletRequest request, Setup setup, int userId) throws Exception {
-        Gson gson = new Gson();
-        String headers = gson.toJson(getHeaders(request));
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO user_login (user_id, region_id, headers) VALUES (?, ?, ?)")) {
-            ps.setInt(1, userId);
-            ps.setInt(2, setup.idRegion());
-            ps.setString(3, headers);
-            ps.execute();
-        }
     }
 }

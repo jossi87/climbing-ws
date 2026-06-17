@@ -219,6 +219,20 @@ public record UserRepository(Dao dao) {
 	    logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
 	    return authUserId;
 	}
+	
+	public void upsertUserLogin(Connection c, Setup setup, int userId, String headers) throws Exception {
+	    String sqlStr = """
+	            INSERT INTO user_login (user_id, region_id, headers) 
+	            VALUES (?, ?, ?) AS new_rows
+	            ON DUPLICATE KEY UPDATE `when` = CURRENT_TIMESTAMP, headers = new_rows.headers
+	            """;
+	    try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+	        ps.setInt(1, userId);
+	        ps.setInt(2, setup.idRegion());
+	        ps.setString(3, headers);
+	        ps.execute();
+	    }
+	}
 
 	public List<PermissionUser> getPermissions(Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
 		dao.getRegionRepo().ensureSuperadminWriteRegion(c, setup, authUserId);
