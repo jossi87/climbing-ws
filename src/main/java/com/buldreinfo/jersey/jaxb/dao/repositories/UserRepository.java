@@ -81,21 +81,26 @@ public record UserRepository(Dao dao) {
 		List<Administrator> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
 				SELECT u.id,
-				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
-				       CASE WHEN u.email_visible_to_all=1 THEN (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') FROM user_email e WHERE e.user_id=u.id AND e.email NOT LIKE '%@missing-email.com') END emails,
-				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				       DATE_FORMAT(l_agg.last_login_raw, '%Y.%m.%d') last_login
-				FROM (SELECT l.user_id, MAX(l.when) last_login_raw
-				      FROM user_login l
-				      JOIN user_region ur ON l.user_id=ur.user_id AND l.region_id=ur.region_id
-				      WHERE l.region_id=?
-				        AND (ur.admin_write=1 OR ur.superadmin_write=1)
-				      GROUP BY user_id
-				) l_agg
-				JOIN user u ON u.id=l_agg.user_id
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				ORDER BY name
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) AS name,
+				       CASE WHEN u.email_visible_to_all = 1 THEN 
+				            (SELECT GROUP_CONCAT(DISTINCT e.email ORDER BY e.email SEPARATOR ';') 
+				             FROM user_email e 
+				             WHERE e.user_id = u.id AND e.email NOT LIKE '%@missing-email.com') 
+				       END AS emails,
+				       m.id AS media_id, 
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp, 
+				       mma.focus_x AS media_focus_x, 
+				       mma.focus_y AS media_focus_y, 
+				       mma.primary_color_hex AS media_primary_color_hex,
+				       DATE_FORMAT(l.when, '%Y.%m.%d') AS last_login
+				FROM user_region ur
+				JOIN user_login l ON l.user_id = ur.user_id AND l.region_id = ur.region_id
+				JOIN user u ON u.id = ur.user_id
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				WHERE ur.region_id = ?
+				  AND (ur.admin_write = 1 OR ur.superadmin_write = 1)
+				ORDER BY name;
 				""")) {
 			ps.setInt(1, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
@@ -238,50 +243,32 @@ public record UserRepository(Dao dao) {
 		dao.getRegionRepo().ensureSuperadminWriteRegion(c, setup, authUserId);
 		List<PermissionUser> res = new ArrayList<>();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT x.id, x.name,
-				       x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y, x.media_primary_color_hex,
-				       DATE_FORMAT(MAX(x.last_login),'%Y.%m.%d') last_login, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				FROM (
-				  SELECT u.id, 
-				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				         l_agg.last_login,
-				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM (SELECT user_id, MAX(`when`) last_login
-				        FROM user_login
-				        WHERE region_id=?
-				        GROUP BY user_id
-				  ) l_agg
-				  JOIN user u ON u.id=l_agg.user_id
-				  LEFT JOIN media m ON u.media_id=m.id
-				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				  LEFT JOIN user_region ur ON u.id=ur.user_id AND ur.region_id=?
-
-				  UNION
-
-				  SELECT u.id, 
-				         TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) name,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				         l_agg.last_login,
-				         ur.admin_read, ur.admin_write, ur.superadmin_read, ur.superadmin_write
-				  FROM user_region ur
-				  JOIN user u ON ur.user_id=u.id
-				  LEFT JOIN media m ON u.media_id=m.id
-				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				  JOIN (SELECT user_id, MAX(`when`) last_login
-				        FROM user_login
-				        WHERE region_id=?
-				        GROUP BY user_id
-				  ) l_agg ON u.id=l_agg.user_id
-				  WHERE ur.region_id=?
-				) x
-				GROUP BY x.id, x.name, x.media_id, x.media_version_stamp, x.media_focus_x, x.media_focus_y, x.media_primary_color_hex, x.admin_read, x.admin_write, x.superadmin_read, x.superadmin_write
-				ORDER BY COALESCE(x.superadmin_write,0) DESC, COALESCE(x.superadmin_read,0) DESC, COALESCE(x.admin_write,0) DESC, COALESCE(x.admin_read,0) DESC, x.name
+				SELECT u.id,
+				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
+				       m.id AS media_id,
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,
+				       mma.focus_x AS media_focus_x,
+				       mma.focus_y AS media_focus_y,
+				       mma.primary_color_hex AS media_primary_color_hex,
+				       DATE_FORMAT(l.when, '%Y.%m.%d') AS last_login,
+				       COALESCE(ur.admin_read, 0) AS admin_read,
+				       COALESCE(ur.admin_write, 0) AS admin_write,
+				       COALESCE(ur.superadmin_read, 0) AS superadmin_read,
+				       COALESCE(ur.superadmin_write, 0) AS superadmin_write
+				FROM user u
+				LEFT JOIN user_region ur ON u.id = ur.user_id AND ur.region_id = ?
+				LEFT JOIN user_login l ON u.id = l.user_id AND l.region_id = ?
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				WHERE ur.user_id IS NOT NULL OR l.user_id IS NOT NULL
+				ORDER BY COALESCE(ur.superadmin_write, 0) DESC,
+				         COALESCE(ur.superadmin_read, 0) DESC,
+				         COALESCE(ur.admin_write, 0) DESC,
+				         COALESCE(ur.admin_read, 0) DESC,
+				         name
 				         """)) {
 			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			ps.setInt(4, setup.idRegion());
 			try (ResultSet rst = ps.executeQuery()) {
 				final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 				while (rst.next()) {
@@ -733,27 +720,32 @@ public record UserRepository(Dao dao) {
 	public ProfileIdentity getProfileIdentity(Connection c, Setup setup, int userId) throws SQLException {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT u.firstname, u.lastname, u.email_visible_to_all, u.theme_preference,
-				       m.id media_id,  UNIX_TIMESTAMP(m.updated_at) media_version_stamp,  mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				       e.emails, l.last_login
+				SELECT u.firstname, 
+				       u.lastname, 
+				       u.email_visible_to_all, 
+				       u.theme_preference,
+				       m.id AS media_id,  
+				       UNIX_TIMESTAMP(m.updated_at) AS media_version_stamp,  
+				       mma.focus_x AS media_focus_x, 
+				       mma.focus_y AS media_focus_y, 
+				       mma.primary_color_hex AS media_primary_color_hex,
+				       e.emails, 
+				       l.last_login
 				FROM user u
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				LEFT JOIN LATERAL (
-				    SELECT GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') emails
+				LEFT JOIN media m ON u.media_id = m.id
+				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+				LEFT JOIN (
+				    SELECT user_id, GROUP_CONCAT(DISTINCT email ORDER BY email SEPARATOR ';') AS emails
 				    FROM user_email
-				    WHERE user_id=u.id
-				      AND email NOT LIKE '%@missing-email.com'
-				      AND u.email_visible_to_all=1
-				) e ON TRUE
-				LEFT JOIN LATERAL (
-				    SELECT `when` last_login
+				    WHERE email NOT LIKE '%@missing-email.com'
+				    GROUP BY user_id
+				) e ON e.user_id = u.id AND u.email_visible_to_all = 1
+				LEFT JOIN (
+				    SELECT user_id, MAX(`when`) AS last_login
 				    FROM user_login
-				    WHERE user_id=u.id
-				    ORDER BY `when` DESC
-				    LIMIT 1
-				) l ON TRUE
-				WHERE u.id=?
+				    GROUP BY user_id
+				) l ON l.user_id = u.id
+				WHERE u.id = ?
 				""")) {
 			ps.setInt(1, userId);
 			try (ResultSet rst = ps.executeQuery()) {
