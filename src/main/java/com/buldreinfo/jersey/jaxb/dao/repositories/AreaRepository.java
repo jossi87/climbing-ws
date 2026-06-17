@@ -212,7 +212,7 @@ public record AreaRepository(Dao dao) {
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				GROUP BY r.name, a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
-				ORDER BY r.name, replace(replace(replace(lower(a.name),'æ','zx'),'ø','zy'),'å','zz')
+				ORDER BY r.name, a.name
 				""")) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, reqIdRegion);
