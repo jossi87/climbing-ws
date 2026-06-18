@@ -57,7 +57,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = DatabaseContext.getConnection();
-		
+
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
@@ -75,8 +75,6 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			}
 		}
 
-		var outlineFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutline(reqId));
-		var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(reqId)).get(reqId));
 		var linksFuture = DatabaseContext.submitDaoTask(d -> d.getExternalLinksRepo().getExternalLinks(0, 0, reqId));
 
 		Problem p = null;
@@ -155,6 +153,12 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			ps.setInt(3, reqId);
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
+					var sectorId = rst.getInt("sector_id");
+					var rock = rst.getString("rock");
+					var outlineFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutline(sectorId));
+					var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(sectorId)).get(sectorId));
+					var neighboursFuture = DatabaseContext.submitDaoTask(_ -> getProblemNeighbours(authUserId, sectorId, reqId, rock));
+
 					var areaId = rst.getInt("area_id");
 					var areaLockedAdmin = rst.getBoolean("area_locked_admin");
 					var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
@@ -164,7 +168,6 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					var areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
 					var areaSunFromHour = rst.getInt("area_sun_from_hour");
 					var areaSunToHour = rst.getInt("area_sun_to_hour");
-					var sectorId = rst.getInt("sector_id");
 					var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 					var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 					var sectorName = rst.getString("sector_name");
@@ -173,10 +176,8 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					var sectorSunFromHour = rst.getInt("sector_sun_from_hour");
 					var sectorSunToHour = rst.getInt("sector_sun_to_hour");
 					var parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-					var sectorParking = parkingidCoordinates == 0? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
+					var sectorParking = parkingidCoordinates == 0 ? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
 					
-					var neighboursFuture = DatabaseContext.submitDaoTask(_ -> getProblemNeighbours(authUserId, sectorId, reqId, rst.getString("rock")));
-
 					var sectorOutline = outlineFuture.join();
 					var sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
 					var sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
@@ -194,13 +195,12 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					var faDate = rst.getString("fa_date");
 					var faDateHr = rst.getString("fa_date_hr");
 					var name = rst.getString("name");
-					var rock = rst.getString("rock");
 					var comment = rst.getString("description");
 					var faStr = rst.getString("fa");
 					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
 					var lengthMeter = rst.getInt("length_meter");
 					var idCoordinates = rst.getInt("coordinates_id");
-					var coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					var numTicks = rst.getInt("num_ticks");
 					var stars = rst.getDouble("stars");
 					var ticked = rst.getBoolean("ticked");
@@ -255,7 +255,6 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			} catch (NoSuchElementException _) {
 			}
 		}
-
 		if (p == null) {
 			throw new NoSuchElementException("Could not find problem with id=" + reqId);
 		}
