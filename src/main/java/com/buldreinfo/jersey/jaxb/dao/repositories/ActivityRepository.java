@@ -71,7 +71,7 @@ public record ActivityRepository() {
 				}
 			}
 		}
-		try (var psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?).")) {
+		try (var psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
 			if (hasFa) {
 				psAddActivity.setObject(1, problemActivityTimestamp != null ? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 				psAddActivity.setString(2, ACTIVITY_TYPE_FA);
