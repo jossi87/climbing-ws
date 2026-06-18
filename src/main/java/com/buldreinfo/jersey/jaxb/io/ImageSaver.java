@@ -1,12 +1,12 @@
 package com.buldreinfo.jersey.jaxb.io;
 
-import java.awt.Graphics2D;
 import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 
 import javax.imageio.ImageIO;
 
@@ -15,6 +15,7 @@ import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
 public class ImageSaver {
 	public static final int IMAGE_WEB_WIDTH = 2560;
@@ -60,46 +61,45 @@ public class ImageSaver {
 
 	private void execute() {
 		StorageManager storage = StorageManager.getInstance();
+		Executor executor = DatabaseContext.getExecutor();
 
-		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-			var originalFuture = CompletableFuture.runAsync(() -> {
-				try {
-					if (metadata == null) {
-						storage.uploadImage(keyOriginalJpg, bufferedImage, StorageType.JPG);
-					} else {
-						try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							 ByteArrayOutputStream finalOs = new ByteArrayOutputStream()) {
-							ImageIO.write(bufferedImage, "jpg", baos);
-							new ExifRewriter().updateExifMetadataLossless(baos.toByteArray(), finalOs, metadata);
-							storage.uploadBytes(keyOriginalJpg, finalOs.toByteArray(), StorageType.JPG);
-						}
+		var originalFuture = CompletableFuture.runAsync(() -> {
+			try {
+				if (metadata == null) {
+					storage.uploadImage(keyOriginalJpg, bufferedImage, StorageType.JPG);
+				} else {
+					try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+							ByteArrayOutputStream finalOs = new ByteArrayOutputStream()) {
+						ImageIO.write(bufferedImage, "jpg", baos);
+						new ExifRewriter().updateExifMetadataLossless(baos.toByteArray(), finalOs, metadata);
+						storage.uploadBytes(keyOriginalJpg, finalOs.toByteArray(), StorageType.JPG);
 					}
-				} catch (Exception e) {
-					throw new RuntimeException("Original upload failed: " + e.getMessage(), e);
 				}
-			}, executor);
+			} catch (Exception e) {
+				throw new RuntimeException("Original upload failed: " + e.getMessage(), e);
+			}
+		}, executor);
 
-			var webFuture = CompletableFuture.runAsync(() -> {
-				try {
-					BufferedImage webImage = bufferedImage;
-					if (bufferedImage.getWidth() > IMAGE_WEB_WIDTH || bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
-						webImage = Scalr.resize(bufferedImage, Scalr.Method.ULTRA_QUALITY, 
-								Scalr.Mode.AUTOMATIC, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
-					}
-					try {
-						storage.uploadImage(keyWebJpg, webImage, StorageType.JPG);
-						storage.uploadImage(keyWebWebP, webImage, StorageType.WEBP);
-					} finally {
-						if (webImage != bufferedImage) {
-							webImage.flush();
-						}
-					}
-				} catch (Exception e) {
-					throw new RuntimeException("Web upload failed: " + e.getMessage(), e);
+		var webFuture = CompletableFuture.runAsync(() -> {
+			try {
+				BufferedImage webImage = bufferedImage;
+				if (bufferedImage.getWidth() > IMAGE_WEB_WIDTH || bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
+					webImage = Scalr.resize(bufferedImage, Scalr.Method.ULTRA_QUALITY, 
+							Scalr.Mode.AUTOMATIC, IMAGE_WEB_WIDTH, IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
 				}
-			}, executor);
+				try {
+					storage.uploadImage(keyWebJpg, webImage, StorageType.JPG);
+					storage.uploadImage(keyWebWebP, webImage, StorageType.WEBP);
+				} finally {
+					if (webImage != bufferedImage) {
+						webImage.flush();
+					}
+				}
+			} catch (Exception e) {
+				throw new RuntimeException("Web upload failed: " + e.getMessage(), e);
+			}
+		}, executor);
 
-			CompletableFuture.allOf(originalFuture, webFuture).join();
-		}
+		CompletableFuture.allOf(originalFuture, webFuture).join();
 	}
 }

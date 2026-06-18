@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -34,7 +35,7 @@ public class DatabaseContext {
 	public interface AuthenticatedDatabaseTransactionAction<R> {
 		R execute(Dao dao, Setup setup, Optional<Integer> authUserId, boolean shouldUpdateHits) throws Exception;
 	}
-	
+
 	@FunctionalInterface
 	public interface DaoTask<T> {
 		T run(Dao dao) throws Exception;
@@ -47,7 +48,7 @@ public class DatabaseContext {
 
 	@FunctionalInterface
 	public interface ThrowingSupplier<T> {
-	    T get() throws Exception;
+		T get() throws Exception;
 	}
 
 	private interface ConnectionTask {
@@ -57,7 +58,7 @@ public class DatabaseContext {
 	private static class InstanceHolder {
 		private static final DatabaseContext INSTANCE = new DatabaseContext();
 	}
-	
+
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
 	private static final ScopedValue<Connection> ACTIVE_CONNECTION = ScopedValue.newInstance();
@@ -117,25 +118,29 @@ public class DatabaseContext {
 		return ACTIVE_CONNECTION.get();
 	}
 
+	public static Executor getExecutor() {
+		return getServer().executor;
+	}
+
 	public static Collection<Setup> getSetups() {
-	    DatabaseContext server = getServer();
-	    if (!server.initialized) {
-	        synchronized (server) {
-	            if (!server.initialized) {
-	                runSql(dao -> {
-	                    try {
-	                        dao.getRegionRepo().getSetups().forEach(s -> {
-	                            server.setupMap.put(s.domain().toLowerCase(), s);
-	                        });
-	                    } catch (SQLException e) {
-	                        throw new RuntimeException("Failed to load setups", e);
-	                    }
-	                });
-	                server.initialized = true;
-	            }
-	        }
-	    }
-	    return server.setupMap.values();
+		DatabaseContext server = getServer();
+		if (!server.initialized) {
+			synchronized (server) {
+				if (!server.initialized) {
+					runSql(dao -> {
+						try {
+							dao.getRegionRepo().getSetups().forEach(s -> {
+								server.setupMap.put(s.domain().toLowerCase(), s);
+							});
+						} catch (SQLException e) {
+							throw new RuntimeException("Failed to load setups", e);
+						}
+					});
+					server.initialized = true;
+				}
+			}
+		}
+		return server.setupMap.values();
 	}
 
 	public static void runAsync(Runnable action) {
@@ -247,9 +252,9 @@ public class DatabaseContext {
 		String ua = request.getHeader("User-Agent");
 		return String.join("|",
 				uri == null ? "" : uri,
-				query == null ? "" : query,
-				ip == null ? "" : ip,
-				ua == null ? "" : ua);
+						query == null ? "" : query,
+								ip == null ? "" : ip,
+										ua == null ? "" : ua);
 	}
 
 	private static DatabaseContext getServer() {
@@ -310,7 +315,7 @@ public class DatabaseContext {
 	private final ExecutorService executor;
 	private boolean initialized = false;
 	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
-	
+
 	private DatabaseContext() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
@@ -333,7 +338,7 @@ public class DatabaseContext {
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
 		var threadFactory = Thread.ofVirtual().name("climbing-ws-", 0).factory();
-	    this.executor = Executors.newThreadPerTaskExecutor(threadFactory);
+		this.executor = Executors.newThreadPerTaskExecutor(threadFactory);
 		logger.info("Server initialized in {}", stopwatch);
 	}
 
