@@ -33,95 +33,96 @@ import com.google.gson.Gson;
 import jakarta.servlet.http.HttpServletRequest;
 
 public class AuthHelper {
-    private static final Logger logger = LogManager.getLogger();
-    private static final String DOMAIN = "climbing.eu.auth0.com";
-    private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of(
-            "user-agent",
-            "x-forwarded-for",
-            "x-real-ip",
-            "cf-connecting-ip",
-            "accept-language",
-            "origin",
-            "referer"
-    );
-    private static final Set<String> REDACTED_HEADER_NAMES = Set.of(
-            "authorization",
-            "cookie",
-            "set-cookie",
-            "x-api-key"
-    );
-    private static final JwkProvider jwkProvider = new UrlJwkProvider("https://" + DOMAIN + "/");
-    private static final LoadingCache<String, Auth0Profile> cache = CacheBuilder.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(Duration.ofHours(12))
-            .build(new CacheLoader<String, Auth0Profile>() {
-                @Override
-                public Auth0Profile load(String accessToken) throws Exception {
-                    DecodedJWT jwt = JWT.decode(accessToken);
-                    RSAPublicKey publicKey = (RSAPublicKey) jwkProvider.get(jwt.getKeyId()).getPublicKey();
-                    Algorithm algorithm = Algorithm.RSA256(publicKey, null);
-                    JWTVerifier verifier = JWT.require(algorithm)
-                            .withIssuer("https://" + DOMAIN + "/")
-                            .withAudience("https://buldreinfo.com")
-                            .acceptLeeway(5)
-                            .build();
-                    DecodedJWT verifiedJwt = verifier.verify(accessToken);
-                    return Auth0Profile.from(verifiedJwt);
-                }
-            });
+	private static final Logger logger = LogManager.getLogger();
+	private static final String DOMAIN = "climbing.eu.auth0.com";
+	private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of(
+			"user-agent",
+			"x-forwarded-for",
+			"x-real-ip",
+			"cf-connecting-ip",
+			"accept-language",
+			"origin",
+			"referer"
+			);
+	private static final Set<String> REDACTED_HEADER_NAMES = Set.of(
+			"authorization",
+			"cookie",
+			"set-cookie",
+			"x-api-key"
+			);
+	private static final Gson gson = new Gson();
+	private static final JwkProvider jwkProvider = new UrlJwkProvider("https://" + DOMAIN + "/");
+	private static final LoadingCache<String, Auth0Profile> cache = CacheBuilder.newBuilder()
+			.maximumSize(1000)
+			.expireAfterWrite(Duration.ofHours(12))
+			.build(new CacheLoader<String, Auth0Profile>() {
+				@Override
+				public Auth0Profile load(String accessToken) throws Exception {
+					DecodedJWT jwt = JWT.decode(accessToken);
+					RSAPublicKey publicKey = (RSAPublicKey) jwkProvider.get(jwt.getKeyId()).getPublicKey();
+					Algorithm algorithm = Algorithm.RSA256(publicKey, null);
+					JWTVerifier verifier = JWT.require(algorithm)
+							.withIssuer("https://" + DOMAIN + "/")
+							.withAudience("https://buldreinfo.com")
+							.acceptLeeway(5)
+							.build();
+					DecodedJWT verifiedJwt = verifier.verify(accessToken);
+					return Auth0Profile.from(verifiedJwt);
+				}
+			});
 
-    public Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup) {
-        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        String accessToken = null;
-        if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
-            accessToken = authHeader.substring(7);
-        } 
-        else {
-            accessToken = request.getParameter("access_token");
-        }
-        if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
-            return Optional.empty();
-        }
-        return getAuthUserId(dao, request, setup, accessToken);
-    }
+	public Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup) {
+		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+		String accessToken = null;
+		if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
+			accessToken = authHeader.substring(7);
+		} 
+		else {
+			accessToken = request.getParameter("access_token");
+		}
+		if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
+			return Optional.empty();
+		}
+		return getAuthUserId(dao, request, setup, accessToken);
+	}
 
-    private Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup, String accessToken) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        try {
-            boolean isNewToken = cache.getIfPresent(accessToken) == null;
-            Auth0Profile profile = cache.get(accessToken);
-            Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(profile);
-            if (isNewToken && authUserId.isPresent()) {
-                String headers = new Gson().toJson(getHeaders(request));
-            	dao.getUserRepo().upsertUserLogin(setup, authUserId.get(), headers);
-            }
-            logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
-            return authUserId;
-        } catch (Exception e) {
-            logger.warn("getAuthUserId() - Auth failed or email missing: {} - duration={}", e.getMessage(), stopwatch);
-            return Optional.empty();
-        }
-    }
+	private Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup, String accessToken) {
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		try {
+			boolean isNewToken = cache.getIfPresent(accessToken) == null;
+			Auth0Profile profile = cache.get(accessToken);
+			Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(profile);
+			if (isNewToken && authUserId.isPresent()) {
+				String headers = gson.toJson(getHeaders(request));
+				dao.getUserRepo().upsertUserLogin(setup, authUserId.get(), headers);
+			}
+			logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
+			return authUserId;
+		} catch (Exception e) {
+			logger.warn("getAuthUserId() - Auth failed or email missing: {} - duration={}", e.getMessage(), stopwatch);
+			return Optional.empty();
+		}
+	}
 
-    private Map<String, String> getHeaders(HttpServletRequest request) {
-        Map<String, String> map = new HashMap<>();
-        Set<String> seen = new HashSet<>();
-        Enumeration<String> names = request.getHeaderNames();
-        while (names.hasMoreElements()) {
-            String name = names.nextElement();
-            String lower = name.toLowerCase(Locale.ROOT);
-            if (REDACTED_HEADER_NAMES.contains(lower)) {
-                map.put(name, "[REDACTED]");
-                seen.add(lower);
-            }
-            else if (LOGGED_HEADER_ALLOWLIST.contains(lower)) {
-                map.put(name, request.getHeader(name));
-                seen.add(lower);
-            }
-        }
-        if (!seen.contains("authorization") && request.getHeader(HttpHeaders.AUTHORIZATION) != null) {
-            map.put(HttpHeaders.AUTHORIZATION, "[REDACTED]");
-        }
-        return map;
-    }
+	private Map<String, String> getHeaders(HttpServletRequest request) {
+		Map<String, String> map = new HashMap<>();
+		Set<String> seen = new HashSet<>();
+		Enumeration<String> names = request.getHeaderNames();
+		while (names.hasMoreElements()) {
+			String name = names.nextElement();
+			String lower = name.toLowerCase(Locale.ROOT);
+			if (REDACTED_HEADER_NAMES.contains(lower)) {
+				map.put(name, "[REDACTED]");
+				seen.add(lower);
+			}
+			else if (LOGGED_HEADER_ALLOWLIST.contains(lower)) {
+				map.put(name, request.getHeader(name));
+				seen.add(lower);
+			}
+		}
+		if (!seen.contains("authorization") && request.getHeader(HttpHeaders.AUTHORIZATION) != null) {
+			map.put(HttpHeaders.AUTHORIZATION, "[REDACTED]");
+		}
+		return map;
+	}
 }

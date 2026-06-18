@@ -18,9 +18,18 @@ import com.google.protobuf.ByteString;
 
 public class ImageClassifier {
 	public record AnalysisResult(String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects) {}
-	
+
 	private static volatile ImageAnnotatorClient cachedClient;
-	
+
+	static {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			ImageAnnotatorClient client = cachedClient;
+			if (client != null) {
+				client.close();
+			}
+		}));
+	}
+
 	private static ImageAnnotatorClient getClient() throws Exception {
 		ImageAnnotatorClient result = cachedClient;
 		if (result == null) {
@@ -38,7 +47,7 @@ public class ImageClassifier {
 		}
 		return result;
 	}
-	
+
 	public static AnalysisResult analyze(byte[] imgBytesArray) throws Exception {
 		ImageAnnotatorClient client = getClient();
 		ByteString imgBytes = ByteString.copyFrom(imgBytesArray);

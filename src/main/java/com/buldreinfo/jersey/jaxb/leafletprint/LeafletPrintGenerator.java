@@ -23,6 +23,7 @@ import com.google.gson.Gson;
  */
 public class LeafletPrintGenerator {
 	private static final Logger logger = LogManager.getLogger();
+	private static final Gson gson = new Gson();
 
 	// Internal Docker DNS uses the service name from docker-compose.yml
 	private static final String RENDERER_URL = "http://climbing-leaflet-renderer:3000/render";
@@ -77,7 +78,6 @@ public class LeafletPrintGenerator {
 	 */
 	public static Optional<byte[]> takeSnapshot(Leaflet leaflet) {
 		try {
-			Gson gson = new Gson();
 			String json = gson.toJson(leaflet);
 
 			HttpRequest request = HttpRequest.newBuilder()

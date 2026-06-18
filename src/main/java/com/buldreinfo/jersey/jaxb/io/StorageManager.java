@@ -20,6 +20,9 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.google.common.base.Preconditions;
@@ -46,12 +49,41 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-public final class StorageManager {
+public final class StorageManager implements AutoCloseable {
+	private static final Logger logger = LogManager.getLogger();
 	public static final String BUCKET_NAME = "climbing-web";
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; 
 	private static final StorageManager INSTANCE = new StorageManager();
 	private static final String PROXY_PATH = "/media-proxy/";
+
+	static {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			try {
+				INSTANCE.close();
+			} catch (Exception e) {
+				logger.error("Failed to close StorageManager resources", e);
+			}
+		}));
+	}
+
+	@Override
+	public void close() {
+		try {
+			if (s3Client != null) {
+				s3Client.close();
+			}
+		} catch (Exception e) {
+			logger.error("Failed to close S3Client", e);
+		}
+		try {
+			if (s3Presigner != null) {
+				s3Presigner.close();
+			}
+		} catch (Exception e) {
+			logger.error("Failed to close S3Presigner", e);
+		}
+	}
 
 	public static String getDirectStorageUrl(String objectKey) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
