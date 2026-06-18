@@ -44,8 +44,8 @@ public class UsersResource extends BaseResource {
 		if (value == null || value.isBlank()) {
 			return createBadRequestResponse("Search keyword is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			List<User> res = dao.getUserRepo().getUserSearch(c, authUserId, value);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
+			List<User> res = dao.getUserRepo().getUserSearch(authUserId, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -60,8 +60,8 @@ public class UsersResource extends BaseResource {
 	@Path("/ticks")
 	@Produces(OpenApiConstants.APPLICATION_XLSX)
 	public Response getUsersTicks(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			byte[] bytes = dao.getUserRepo().getUserTicks(c, authUserId);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
+			byte[] bytes = dao.getUserRepo().getUserTicks(authUserId);
 			return Response.ok(bytes, OpenApiConstants.APPLICATION_XLSX)
 					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
@@ -86,8 +86,8 @@ public class UsersResource extends BaseResource {
 		if (regionId <= 0) {
 			return createBadRequestResponse("Invalid regionId=" + regionId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getUserRepo().setUserRegion(c, authUserId, regionId, delete);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getUserRepo().setUserRegion(authUserId, regionId, delete);
 			return Response.ok().build();
 		});
 	}

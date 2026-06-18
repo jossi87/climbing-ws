@@ -1,7 +1,6 @@
 package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.security.interfaces.RSAPublicKey;
-import java.sql.Connection;
 import java.time.Duration;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -71,7 +70,7 @@ public class AuthHelper {
                 }
             });
 
-    public Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup) {
+    public Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup) {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         String accessToken = null;
         if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
@@ -83,18 +82,18 @@ public class AuthHelper {
         if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
             return Optional.empty();
         }
-        return getAuthUserId(dao, c, request, setup, accessToken);
+        return getAuthUserId(dao, request, setup, accessToken);
     }
 
-    private Optional<Integer> getAuthUserId(Dao dao, Connection c, HttpServletRequest request, Setup setup, String accessToken) {
+    private Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup, String accessToken) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         try {
             boolean isNewToken = cache.getIfPresent(accessToken) == null;
             Auth0Profile profile = cache.get(accessToken);
-            Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(c, profile);
+            Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(profile);
             if (isNewToken && authUserId.isPresent()) {
                 String headers = new Gson().toJson(getHeaders(request));
-            	dao.getUserRepo().upsertUserLogin(c, setup, authUserId.get(), headers);
+            	dao.getUserRepo().upsertUserLogin(setup, authUserId.get(), headers);
             }
             logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
             return authUserId;

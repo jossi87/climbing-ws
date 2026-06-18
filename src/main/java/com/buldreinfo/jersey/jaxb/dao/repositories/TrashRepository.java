@@ -1,8 +1,5 @@
 package com.buldreinfo.jersey.jaxb.dao.repositories;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,13 +7,15 @@ import java.util.Optional;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.dao.Dao;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 
 public record TrashRepository(Dao dao) {
-	public List<Trash> getTrash(Connection c, Optional<Integer> authUserId, Setup setup) throws SQLException {
-		dao.getRegionRepo().ensureAdminWriteRegion(c, setup, authUserId);
-		List<Trash> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement("""
+	public List<Trash> getTrash(Optional<Integer> authUserId, Setup setup) throws SQLException {
+		dao.getRegionRepo().ensureAdminWriteRegion(setup, authUserId);
+		var res = new ArrayList<Trash>();
+		var c = DatabaseContext.getConnection();
+		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
 				)
@@ -130,18 +129,19 @@ public record TrashRepository(Dao dao) {
 				GROUP BY area_id, sector_id, problem_id, media_id, name, trash, trash_by
 
 				ORDER BY trash DESC
-				""")) {
+				""";
+		try (var ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, setup.idRegion());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int areaId = rst.getInt("area_id");
 					int sectorId = rst.getInt("sector_id");
 					int problemId = rst.getInt("problem_id");
 					int mediaId = rst.getInt("media_id");
-					String name = rst.getString("name");
-					String when = rst.getString("trash");
-					String by = rst.getString("trash_by");
+					var name = rst.getString("name");
+					var when = rst.getString("trash");
+					var by = rst.getString("trash_by");
 					res.add(new Trash(areaId, sectorId, problemId, mediaId, name, when, by));
 				}
 			}
@@ -149,11 +149,11 @@ public record TrashRepository(Dao dao) {
 		return res;
 	}
 	
-	public void trashRecover(Connection c, Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
-		dao.getRegionRepo().ensureSuperadminWriteRegion(c, setup, authUserId);
+	public void trashRecover(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
+		dao.getRegionRepo().ensureSuperadminWriteRegion(setup, authUserId);
+		var c = DatabaseContext.getConnection();
 		String sqlStr = null;
 		int id = 0;
-		// Important to check media first. A media in trash always has idArea, idSector or idProblem!
 		if (idMedia > 0) {
 			sqlStr = "UPDATE media SET deleted_user_id=NULL, deleted_timestamp=NULL WHERE id=?";
 			id = idMedia;
@@ -170,7 +170,7 @@ public record TrashRepository(Dao dao) {
 			sqlStr = "UPDATE problem SET trash=NULL, trash_by=NULL WHERE id=?";
 			id = idProblem;
 		}
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+		try (var ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, id);
 			ps.execute();
 		}

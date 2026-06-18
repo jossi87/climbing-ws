@@ -24,7 +24,8 @@ public class FixImageWithouitInPhoto {
 	private static final int MIN_MEDIA_ID = 25254; // TODO
 
 	public static void main(String[] args) {
-		DatabaseContext.runSql((_, c) -> {
+		DatabaseContext.runSql(_ -> {
+			var c = DatabaseContext.getConnection();
 			String sqlQuery = """
 				SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a 
 				WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id 
@@ -32,7 +33,6 @@ public class FixImageWithouitInPhoto {
 				AND m.id NOT IN (SELECT media_id FROM media_user) 
 				AND deleted_user_id is null AND uploader_user_id!=1 AND m.id>=? ORDER BY m.id
 				""";
-				
 			try (PreparedStatement ps = c.prepareStatement(sqlQuery)) {
 				ps.setInt(1, MIN_MEDIA_ID);
 				try (ResultSet rst = ps.executeQuery();

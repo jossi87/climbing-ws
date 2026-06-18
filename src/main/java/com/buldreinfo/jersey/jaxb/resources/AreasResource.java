@@ -57,10 +57,10 @@ public class AreasResource extends BaseResource {
 		if (id < 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
 			Collection<Area> areas = id > 0 ?
-					Collections.singleton(dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits)) :
-						dao.getAreaRepo().getAreaList(c, authUserId, setup.idRegion());
+					Collections.singleton(dao.getAreaRepo().getArea(setup, authUserId, id, shouldUpdateHits)) :
+						dao.getAreaRepo().getAreaList(authUserId, setup.idRegion());
 			return Response.ok().entity(areas).build();
 		});
 	}
@@ -80,13 +80,13 @@ public class AreasResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid area id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, area.id(), 0);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
+			final Area area = dao.getAreaRepo().getArea(setup, authUserId, id, shouldUpdateHits);
+			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(authUserId, area.id(), 0);
 			final List<Sector> sectors = new ArrayList<>();
 			final boolean orderByGrade = false;
 			for (Area.AreaSector sector : area.sectors()) {
-				Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, sector.id(), shouldUpdateHits);
+				Sector s = dao.getSectorRepo().getSector(authUserId, orderByGrade, setup, sector.id(), shouldUpdateHits);
 				sectors.add(s);
 			}
 			StreamingOutput stream = new StreamingOutput() {
@@ -123,8 +123,8 @@ public class AreasResource extends BaseResource {
 		if (a == null || a.name() == null || a.name().strip().isEmpty()) {
 			return createBadRequestResponse("Area name is missing or invalid");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			Redirect res = dao.getAreaRepo().setArea(c, setup, authUserId, a);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			Redirect res = dao.getAreaRepo().setArea(setup, authUserId, a);
 			return Response.ok().entity(res).build();
 		});
 	}

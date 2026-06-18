@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -31,51 +32,56 @@ public class AuditImages {
 	private final AtomicInteger zeroByteCount = new AtomicInteger(0);
 
 	public void runSanityCheck() {
-		DatabaseContext.runSql((_, c) -> {
-			String sql = "SELECT id, suffix FROM media WHERE is_movie=0";
-			try (PreparedStatement ps = c.prepareStatement(sql);
-					ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					final int id = rst.getInt("id");
-					final String suffix = rst.getString("suffix");
-					executor.submit(() -> {
-						totalChecked.incrementAndGet();
-						String objectKey = S3KeyGenerator.getOriginalJpg(id);
-						if (suffix.equals("png")) {
-							objectKey = objectKey.replace(".jpg", ".png");
-						}
-						Path originalJpg = getLocalPath(objectKey);
-						try {
-							if (!Files.exists(originalJpg)) {
-								missingCount.incrementAndGet();
-								logger.error("MISSING: id={} at {}", id, originalJpg);
-							}
-							else if (Files.size(originalJpg) == 0) {
-								zeroByteCount.incrementAndGet();
-								logger.error("ZERO-BYTE: id={} at {}", id, originalJpg);
-							}
-						} catch (IOException e) {
-							logger.error("IO Error for id={}: {}", id, e.getMessage());
-						}
-					});
-				}
-			}
-			executor.shutdown();
+		DatabaseContext.runSql(_ -> {
 			try {
-				executor.awaitTermination(1, TimeUnit.HOURS);
-			} catch (InterruptedException e) {
-				logger.error("Audit interrupted: " + e.getMessage());
-			}
-			logger.info("--- Image Audit Results ---");
-			logger.info("Total Images Checked: {}", totalChecked.get());
-			logger.info("Missing Files:        {}", missingCount.get());
-			logger.info("Zero-byte Files:      {}", zeroByteCount.get());
-			logger.info("Healthy Files:        {}", (totalChecked.get() - missingCount.get() - zeroByteCount.get()));
-			if (missingCount.get() > 0 || zeroByteCount.get() > 0) {
-				logger.warn("Audit complete. Found issues that need attention.");
-			}
-			else {
-				logger.info("Audit complete. All image files are healthy!");
+				var c = DatabaseContext.getConnection();
+				String sql = "SELECT id, suffix FROM media WHERE is_movie=0";
+				try (PreparedStatement ps = c.prepareStatement(sql);
+						ResultSet rst = ps.executeQuery()) {
+					while (rst.next()) {
+						final int id = rst.getInt("id");
+						final String suffix = rst.getString("suffix");
+						executor.submit(() -> {
+							totalChecked.incrementAndGet();
+							String objectKey = S3KeyGenerator.getOriginalJpg(id);
+							if (suffix.equals("png")) {
+								objectKey = objectKey.replace(".jpg", ".png");
+							}
+							Path originalJpg = getLocalPath(objectKey);
+							try {
+								if (!Files.exists(originalJpg)) {
+									missingCount.incrementAndGet();
+									logger.error("MISSING: id={} at {}", id, originalJpg);
+								}
+								else if (Files.size(originalJpg) == 0) {
+									zeroByteCount.incrementAndGet();
+									logger.error("ZERO-BYTE: id={} at {}", id, originalJpg);
+								}
+							} catch (IOException e) {
+								logger.error("IO Error for id={}: {}", id, e.getMessage());
+							}
+						});
+					}
+				}
+				executor.shutdown();
+				try {
+					executor.awaitTermination(1, TimeUnit.HOURS);
+				} catch (InterruptedException e) {
+					logger.error("Audit interrupted: " + e.getMessage());
+				}
+				logger.info("--- Image Audit Results ---");
+				logger.info("Total Images Checked: {}", totalChecked.get());
+				logger.info("Missing Files:        {}", missingCount.get());
+				logger.info("Zero-byte Files:      {}", zeroByteCount.get());
+				logger.info("Healthy Files:        {}", (totalChecked.get() - missingCount.get() - zeroByteCount.get()));
+				if (missingCount.get() > 0 || zeroByteCount.get() > 0) {
+					logger.warn("Audit complete. Found issues that need attention.");
+				}
+				else {
+					logger.info("Audit complete. All image files are healthy!");
+				}
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
 			}
 		});
 	}

@@ -55,9 +55,9 @@ public class SectorsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			Sector s = dao.getSectorRepo().getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			return Response.ok().entity(s).build();
 		});
 	}
@@ -76,10 +76,10 @@ public class SectorsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Sector sector = dao.getSectorRepo().getSector(c, authUserId, false, setup, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(c, authUserId, 0, id);
-			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, sector.areaId(), shouldUpdateHits);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
+			final Sector sector = dao.getSectorRepo().getSector(authUserId, false, setup, id, shouldUpdateHits);
+			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(authUserId, 0, id);
+			final Area area = dao.getAreaRepo().getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -117,8 +117,8 @@ public class SectorsResource extends BaseResource {
 		if (s.areaId() <= 0) {
 			return createBadRequestResponse("Invalid areaId=" + s.areaId());
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			Redirect res = dao.getSectorRepo().setSector(c, authUserId, setup, s);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			Redirect res = dao.getSectorRepo().setSector(authUserId, setup, s);
 			return Response.ok().entity(res).build();
 		});
 	}

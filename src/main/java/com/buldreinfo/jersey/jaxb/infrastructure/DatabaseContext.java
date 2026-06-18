@@ -13,6 +13,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,10 +21,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.function.Consumer;
 import com.buldreinfo.jersey.jaxb.function.Function;
-import com.buldreinfo.jersey.jaxb.function.FunctionDb;
-import com.buldreinfo.jersey.jaxb.function.FunctionDbUser;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
@@ -34,17 +32,31 @@ import jakarta.ws.rs.core.Response;
 
 public class DatabaseContext {
 	@FunctionalInterface
-	public interface DaoTask<T> {
-		T run(Dao dao, Connection c) throws SQLException;
+	public interface AuthenticatedDatabaseTransactionAction<R> {
+		R execute(Dao dao, Setup setup, Optional<Integer> authUserId, boolean shouldUpdateHits) throws Exception;
 	}
+
+	@FunctionalInterface
+	public interface DaoTask<T> {
+		T run(Dao dao) throws Exception;
+	}
+
+	@FunctionalInterface
+	public interface DatabaseTransactionAction<R> {
+		R execute(Dao dao, Setup setup, boolean shouldUpdateHits) throws Exception;
+	}
+
 	private interface ConnectionTask {
 		Response run(DatabaseContext server, Connection c, Setup setup, boolean shouldUpdateHits) throws Exception;
 	}
+
 	private static class InstanceHolder {
 		private static final DatabaseContext INSTANCE = new DatabaseContext();
 	}
+	
 	public static final String HEADER_INTERNAL_REQUEST = "X-Internal-Request";
 	public static final String HEADER_INTERNAL_REQUEST_VALUE = "true";
+	private static final ScopedValue<Connection> ACTIVE_CONNECTION = ScopedValue.newInstance();
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
@@ -60,61 +72,85 @@ public class DatabaseContext {
 		}
 	}
 
-	public static Response buildResponseWithSql(HttpServletRequest request, FunctionDb<Connection, Response> function) {
+	public static Response buildResponseWithSql(HttpServletRequest request, DatabaseTransactionAction<Response> action) {
 		return executeWithConnection(request, (server, c, setup, shouldUpdateHits) -> {
-			Response res = function.get(server.dao, c, setup, shouldUpdateHits);
-			c.commit();
-			return res;
+			return ScopedValue.where(ACTIVE_CONNECTION, c).call(() -> {
+				Response res = action.execute(server.dao, setup, shouldUpdateHits);
+				c.commit();
+				return res;
+			});
 		});
 	}
 
-	public static Response buildResponseWithSqlAndAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+	public static Response buildResponseWithSqlAndAuth(HttpServletRequest request, AuthenticatedDatabaseTransactionAction<Response> action) {
 		return executeWithConnection(request, (server, c, setup, shouldUpdateHits) -> {
-			Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-			Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
-			c.commit();
-			return res;
+			return ScopedValue.where(ACTIVE_CONNECTION, c).call(() -> {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, request, setup);
+				Response res = action.execute(server.dao, setup, authUserId, shouldUpdateHits);
+				c.commit();
+				return res;
+			});
 		});
 	}
-	public static Response buildResponseWithSqlAndRequiredAuth(HttpServletRequest request, FunctionDbUser<Connection, Response> function) {
+
+	public static Response buildResponseWithSqlAndRequiredAuth(HttpServletRequest request, AuthenticatedDatabaseTransactionAction<Response> action) {
 		return executeWithConnection(request, (server, c, setup, shouldUpdateHits) -> {
-			Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, c, request, setup);
-			if (authUserId.isEmpty()) {
-				return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
-			}
-			Response res = function.get(server.dao, c, setup, authUserId, shouldUpdateHits);
-			c.commit();
-			return res;
+			return ScopedValue.where(ACTIVE_CONNECTION, c).call(() -> {
+				Optional<Integer> authUserId = server.auth.getAuthUserId(server.dao, request, setup);
+				if (authUserId.isEmpty()) {
+					return Response.status(Response.Status.UNAUTHORIZED).entity("Authentication required.").build();
+				}
+				Response res = action.execute(server.dao, setup, authUserId, shouldUpdateHits);
+				c.commit();
+				return res;
+			});
 		});
+	}
+
+	public static Connection getConnection() {
+		if (!ACTIVE_CONNECTION.isBound()) {
+			throw new IllegalStateException("No active database transaction bound to the current thread context.");
+		}
+		return ACTIVE_CONNECTION.get();
 	}
 
 	public static Collection<Setup> getSetups() {
-		return getServer().setupMap.values();
+	    DatabaseContext server = getServer();
+	    if (!server.initialized) {
+	        synchronized (server) {
+	            if (!server.initialized) {
+	                runSql(dao -> {
+	                    try {
+	                        dao.getRegionRepo().getSetups().forEach(s -> {
+	                            server.setupMap.put(s.domain().toLowerCase(), s);
+	                        });
+	                    } catch (SQLException e) {
+	                        throw new RuntimeException("Failed to load setups", e);
+	                    }
+	                });
+	                server.initialized = true;
+	            }
+	        }
+	    }
+	    return server.setupMap.values();
 	}
 
 	public static void runAsync(Runnable action) {
 		getServer().executor.submit(action);
 	}
 
-	public static void runSql(Consumer<Connection> action) {
+	public static void runSql(Consumer<Dao> action) {
 		DatabaseContext server = getServer();
 		try (Connection c = server.ds.getConnection()) {
 			boolean initialAutoCommit = c.getAutoCommit();
-			boolean isCommitted = false;
 			try {
-				action.run(server.dao, c);
-				if (!initialAutoCommit) {
-					c.commit();
-					isCommitted = true;
-				}
+				ScopedValue.where(ACTIVE_CONNECTION, c).call(() -> {
+					action.accept(server.dao);
+					return null;
+				});
+				if (!initialAutoCommit) c.commit();
 			} catch (Exception e) {
-				if (!initialAutoCommit && !isCommitted) {
-					try {
-						c.rollback();
-					} catch (SQLException ex) {
-						logger.error("Rollback failed during runSql exception handling", ex);
-					}
-				}
+				if (!initialAutoCommit) c.rollback();
 				throw e;
 			}
 		} catch (Exception e) {
@@ -127,22 +163,24 @@ public class DatabaseContext {
 		DatabaseContext server = getServer();
 		return CompletableFuture.supplyAsync(() -> {
 			try (Connection c = server.ds.getConnection()) {
-				boolean isCommitted = false;
-				try {
-					T result = task.run(server.dao, c);
-					c.commit();
-					isCommitted = true;
-					return result;
-				} catch (Exception e) {
-					if (!isCommitted) {
-						try {
-							c.rollback();
-						} catch (SQLException ex) {
-							logger.error("Rollback failed during submitDaoTask exception handling", ex);
+				return ScopedValue.where(ACTIVE_CONNECTION, c).call(() -> {
+					boolean isCommitted = false;
+					try {
+						T result = task.run(server.dao);
+						c.commit();
+						isCommitted = true;
+						return result;
+					} catch (Exception e) {
+						if (!isCommitted) {
+							try {
+								c.rollback();
+							} catch (SQLException ex) {
+								logger.error("Rollback failed during submitDaoTask exception handling", ex);
+							}
 						}
+						throw e;
 					}
-					throw e;
-				}
+				});
 			} catch (Exception e) {
 				throw new CompletionException(e);
 			}
@@ -268,6 +306,7 @@ public class DatabaseContext {
 	private final HikariDataSource ds;
 	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
+	private boolean initialized = false;
 	
 	private DatabaseContext() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
@@ -290,14 +329,6 @@ public class DatabaseContext {
 		hikariConfig.setLeakDetectionThreshold(0);
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
-		try (Connection c = ds.getConnection()) {
-			dao.getRegionRepo().getSetups(c).forEach(s -> {
-				setupMap.put(s.domain().toLowerCase(), s);
-			});
-		} catch (Exception e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e.getMessage(), e);
-		}
 		logger.info("Server initialized in {}", stopwatch);
 	}
 
@@ -307,10 +338,10 @@ public class DatabaseContext {
 		final String serverName = request.getServerName().toLowerCase()
 				.replace("www.", "")
 				.replace("staging.", "");
-		Setup setup = setupMap.get(serverName);
-		if (setup == null) {
-			throw new NoSuchElementException("Invalid serverName=" + serverName);
-		}
+		Setup setup = getSetups().stream()
+				.filter(s -> s.domain().equalsIgnoreCase(serverName))
+				.findFirst()
+				.orElseThrow(() -> new NoSuchElementException("Invalid serverName=" + serverName));
 		return setup;
 	}
 }

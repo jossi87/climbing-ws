@@ -1,13 +1,16 @@
 package com.buldreinfo.jersey.jaxb;
 
-import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeAll;
+
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.google.common.net.HttpHeaders;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 public abstract class BaseResourceTest {
@@ -29,9 +32,11 @@ public abstract class BaseResourceTest {
 
     @BeforeAll
     public static void warmUp() {
-        DatabaseContext.runSql((_, c) -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT 1")) {
+    	DatabaseContext.runSql(_ -> {
+            try (var ps = DatabaseContext.getConnection().prepareStatement("SELECT 1")) {
                 ps.executeQuery();
+            } catch (SQLException e) {
+                throw new RuntimeException("Database warmup failed", e);
             }
         });
         logger.debug("Database pool and initial connection warmed up.");

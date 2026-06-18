@@ -1,7 +1,9 @@
 package com.buldreinfo.jersey.jaxb;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -49,18 +51,22 @@ public class SectorsResourceTest extends BaseResourceTest {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		DatabaseContext.runSql((dao, c) -> {
+		DatabaseContext.runSql(dao -> {
 			try {
-				dao.getSectorRepo().getSector(c, Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+				dao.getSectorRepo().getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		DatabaseContext.runSql((dao, c) -> {
-			Sector s = dao.getSectorRepo().getSector(c, Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+		DatabaseContext.runSql(dao -> {
+			try {
+			Sector s = dao.getSectorRepo().getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 			assertTrue(s != null);
-			assertTrue(!Strings.isNullOrEmpty(s.name()));
+			assertFalse(Strings.isNullOrEmpty(s.name()));
+			} catch (SQLException e) {
+		        throw new RuntimeException(e);
+		    }
 		});
 	}
 }

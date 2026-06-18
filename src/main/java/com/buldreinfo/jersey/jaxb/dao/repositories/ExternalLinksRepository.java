@@ -1,8 +1,5 @@
 package com.buldreinfo.jersey.jaxb.dao.repositories;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,16 +7,18 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.google.common.base.Stopwatch;
 
 public record ExternalLinksRepository() {
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	
-	protected List<ExternalLink> getExternalLinks(Connection c, int areaId, int sectorId, int problemId) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<ExternalLink> res = new ArrayList<>();
-		String sql = """
+	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
+		var c = DatabaseContext.getConnection();
+		var res = new ArrayList<ExternalLink>();
+		var sql = """
 				WITH req AS (
 				    SELECT ? AS req_area_id, ? AS req_sector_id, ? AS req_problem_id
 				),
@@ -62,11 +61,11 @@ public record ExternalLinksRepository() {
 				CROSS JOIN req r
 				ORDER BY u.title
 				""";
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
+		try (var ps = c.prepareStatement(sql)) {
 			ps.setInt(1, areaId);
 			ps.setInt(2, sectorId);
 			ps.setInt(3, problemId);
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					res.add(new ExternalLink(rst.getInt("id"), rst.getString("url"), rst.getString("title"), rst.getBoolean("is_inherited")));
 				}
@@ -76,18 +75,19 @@ public record ExternalLinksRepository() {
 		return res;
 	}
 	
-	protected void upsertExternalLinks(Connection c, List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
+	protected void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
 		if (areaId <= 0 && sectorId <= 0 && problemId <= 0) {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}
-		List<ExternalLink> previousLinks = getExternalLinks(c, areaId, sectorId, problemId).stream()
+		var c = DatabaseContext.getConnection();
+		var previousLinks = getExternalLinks(areaId, sectorId, problemId).stream()
 				.filter(x -> !x.inherited())
 				.toList();
 		var toRemove = previousLinks.stream()
 				.filter(l -> newLinks == null || newLinks.stream().filter(x -> x.id() == l.id()).findAny().isEmpty())
 				.toList();
 		if (!toRemove.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
+			try (var ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
 				for (var link : toRemove) {
 					ps.setInt(1, link.id());
 					ps.addBatch();
@@ -103,7 +103,7 @@ public record ExternalLinksRepository() {
 					.filter(l -> !l.inherited() && l.id() == 0)
 					.toList();
 			if (!newLinksUpdate.isEmpty()) {
-				try (PreparedStatement ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
+				try (var ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
 					for (var l : newLinksUpdate) {
 						ps.setString(1, l.url());
 						ps.setString(2, l.title());
@@ -126,17 +126,17 @@ public record ExternalLinksRepository() {
 					junctionSql = "INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)";
 					targetId = problemId;
 				}
-				try (PreparedStatement ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS);
-						PreparedStatement psJunction = c.prepareStatement(junctionSql)) {
+				try (var ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS);
+						var psJunction = c.prepareStatement(junctionSql)) {
 					for (var l : newLinksCreate) {
 						ps.setString(1, l.url());
 						ps.setString(2, l.title());
 						ps.addBatch();
 					}
 					ps.executeBatch();
-					try (ResultSet rst = ps.getGeneratedKeys()) {
+					try (var rst = ps.getGeneratedKeys()) {
 						while (rst != null && rst.next()) {
-							int externalLinkId = rst.getInt(1);
+							var externalLinkId = rst.getInt(1);
 							psJunction.setInt(1, externalLinkId);
 							psJunction.setInt(2, targetId);
 							psJunction.addBatch();

@@ -1,9 +1,11 @@
 package com.buldreinfo.jersey.jaxb.batch.maintenance;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -59,11 +61,11 @@ public class FixMedia {
 						"-o", originalMp4.toString()
 				};
 				int exitCode = new ProcessBuilder()
-					.command(commands)
-					.redirectErrorStream(true)
-					.redirectOutput(ProcessBuilder.Redirect.INHERIT)
-					.start()
-					.waitFor();
+						.command(commands)
+						.redirectErrorStream(true)
+						.redirectOutput(ProcessBuilder.Redirect.INHERIT)
+						.start()
+						.waitFor();
 				if (exitCode != 0 || !Files.exists(originalMp4)) {
 					warnings.add("Failed to download embedded video with id=" + id + " (exit code: " + exitCode + ") to originalMp4=" + originalMp4 + " from " + embedUrl);
 				}
@@ -71,7 +73,13 @@ public class FixMedia {
 		}
 
 		if (!Files.exists(originalJpg)) {
-			DatabaseContext.runSql((dao, c) -> ImageHelper.saveImageFromEmbedVideo(dao, c, id, embedUrl));
+			DatabaseContext.runSql(dao -> {
+				try {
+					ImageHelper.saveImageFromEmbedVideo(dao, id, embedUrl);
+				} catch (IOException | InterruptedException | SQLException e) {
+					throw new RuntimeException(e.getMessage(), e);
+				}
+			});
 		}
 
 		if (!Files.exists(originalJpg) && !privateEmbeddedVideosToIgnore.contains(id)) {
@@ -81,13 +89,16 @@ public class FixMedia {
 
 	protected void run() {
 		List<MediaTask> tasks = new ArrayList<>();
-		DatabaseContext.runSql((_, c) -> {
+		DatabaseContext.runSql(_ -> {
 			String sqlStr = "SELECT id, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL";
+			var c = DatabaseContext.getConnection();
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {
 					tasks.add(new MediaTask(rst.getInt("id"), rst.getString("embed_url")));
 				}
+			} catch (SQLException e) {
+				throw new RuntimeException(e.getMessage(), e);
 			}
 		});
 		for (MediaTask task : tasks) {

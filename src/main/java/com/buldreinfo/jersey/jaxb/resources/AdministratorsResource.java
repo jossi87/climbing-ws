@@ -32,8 +32,8 @@ public class AdministratorsResource extends BaseResource {
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAdministrators(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, _) -> {
-			List<Administrator> administrators = dao.getUserRepo().getAdministrators(c, setup);
+		return DatabaseContext.buildResponseWithSql(request, (dao, setup, _) -> {
+			List<Administrator> administrators = dao.getUserRepo().getAdministrators(setup);
 			return Response.ok().entity(administrators).build();
 		});
 	}

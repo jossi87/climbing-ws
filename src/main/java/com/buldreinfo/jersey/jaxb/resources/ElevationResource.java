@@ -45,7 +45,7 @@ public class ElevationResource extends BaseResource {
 		if (latitude == 0.0 && longitude == 0.0) {
 			return createBadRequestResponse("Invalid coordinates (0,0)");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (_, _, _, _, _) -> {
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (_, _, _, _) -> {
 			int elevation = GeoHelper.getElevation(latitude, longitude);
 			return Response.ok().entity(elevation).build();
 		});

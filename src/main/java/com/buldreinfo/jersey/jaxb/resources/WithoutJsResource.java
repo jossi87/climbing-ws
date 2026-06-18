@@ -47,11 +47,11 @@ public class WithoutJsResource extends BaseResource {
 	@Path("")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJs(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, _) -> {
+		return DatabaseContext.buildResponseWithSql(request, (dao, setup, _) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			var meta = Meta.from(dao, c, setup, authUserId);
-			var stats = dao.getFrontpageRepo().getFrontpageStats(c, authUserId, setup);
-			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRepo().getFrontpageRandomMedia(c, setup).stream()
+			var meta = Meta.from(setup, authUserId);
+			var stats = dao.getFrontpageRepo().getFrontpageStats(authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRepo().getFrontpageRandomMedia(setup).stream()
 					.findAny()
 					.orElse(null);
 			String description = String.format("%s - %d regions, %d areas, %d %s, %d ticks",
@@ -85,9 +85,9 @@ public class WithoutJsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
+		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Area a = dao.getAreaRepo().getArea(c, setup, authUserId, id, shouldUpdateHits);
+			Area a = dao.getAreaRepo().getArea(setup, authUserId, id, shouldUpdateHits);
 			String description = setup.isBouldering() ? "Bouldering in " + a.name() : "Climbing in " + a.name();
 			Media m = a.media() != null && !a.media().isEmpty()? a.media().getFirst() : null;
 			String html = getHtml(setup,
@@ -134,9 +134,9 @@ public class WithoutJsResource extends BaseResource {
 		if (mediaId < 0) {
 			return createBadRequestResponse("Invalid mediaId=" + mediaId);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
+		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Problem p = dao.getProblemRepo().getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
+			Problem p = dao.getProblemRepo().getProblem(authUserId, setup, id, false, shouldUpdateHits);
 			String title = String.format("%s [%s] (%s / %s)", p.name(), p.grade(), p.areaName(), p.sectorName());
 			String description = p.comment();
 			if (p.fa() != null && !p.fa().isEmpty()) {
@@ -202,10 +202,10 @@ public class WithoutJsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, c, setup, shouldUpdateHits) -> {
+		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
-			Sector s = dao.getSectorRepo().getSector(c, authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			Sector s = dao.getSectorRepo().getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			String title = String.format("%s (%s)", s.name(), s.areaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.isBouldering()? "Bouldering" : "Climbing"),

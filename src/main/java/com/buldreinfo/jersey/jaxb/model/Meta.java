@@ -1,12 +1,12 @@
 package com.buldreinfo.jersey.jaxb.model;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
 public record Meta(String title,
 		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
@@ -16,28 +16,33 @@ public record Meta(String title,
 		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
 		List<Type> types, List<Region> regions, List<CompassDirection> compassDirections) {
 	
-	public static Meta from(Dao dao, Connection c, Setup setup, Optional<Integer> authUserId) throws SQLException {
-		var authUser = dao.getUserRepo().getAuthenticatedUser(c, setup, authUserId);
-		return new Meta(
-				setup.title(),
-				authUser.map(AuthenticatedUser::isAuthenticated).orElse(false),
-				authUser.map(AuthenticatedUser::isAdmin).orElse(false),
-				authUser.map(AuthenticatedUser::isSuperAdmin).orElse(false),
-				authUser.map(AuthenticatedUser::userId).orElse(0),
-				authUser.map(AuthenticatedUser::authenticatedName).orElse(null),
-				authUser.map(AuthenticatedUser::themePreference).orElse(null),
-				authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
-				setup.gradeConverter().getGrades(),
-				dao.getRegionRepo().getFaYears(c, setup.idRegion()),
-				setup.defaultZoom(),
-				setup.defaultCenter(),
-				setup.isBouldering(),
-				setup.isClimbing(),
-				setup.isIce(),
-				setup.url(),
-				dao.getRegionRepo().getTypes(c, setup.idRegion()),
-				dao.getRegionRepo().getRegions(c, setup.idRegion()),
-				setup.compassDirections()
-		);
+	public static Meta from(Setup setup, Optional<Integer> authUserId) throws InterruptedException, ExecutionException {
+	    var authUserFuture = DatabaseContext.submitDaoTask(d -> d.getUserRepo().getAuthenticatedUser(setup, authUserId));
+	    var faYearsFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getFaYears(setup.idRegion()));
+	    var typesFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getTypes(setup.idRegion()));
+	    var regionsFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getRegions(setup.idRegion()));
+	    CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture).join();
+	    var authUser = authUserFuture.get();
+	    return new Meta(
+	            setup.title(),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isAuthenticated).orElse(false),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isAdmin).orElse(false),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isSuperAdmin).orElse(false),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::userId).orElse(0),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::authenticatedName).orElse(null),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::themePreference).orElse(null),
+	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::mediaIdentity).orElse(null),
+	            setup.gradeConverter().getGrades(),
+	            faYearsFuture.get(),
+	            setup.defaultZoom(),
+	            setup.defaultCenter(),
+	            setup.isBouldering(),
+	            setup.isClimbing(),
+	            setup.isIce(),
+	            setup.url(),
+	            typesFuture.get(),
+	            regionsFuture.get(),
+	            setup.compassDirections()
+	    );
 	}
 }

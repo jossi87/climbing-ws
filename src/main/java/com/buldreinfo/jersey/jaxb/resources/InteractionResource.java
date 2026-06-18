@@ -51,8 +51,8 @@ public class InteractionResource extends BaseResource {
 	@Path("/dangerous")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getDangerous(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<DangerousArea> res = dao.getHierarchyRepo().getDangerous(c, authUserId, setup);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			Collection<DangerousArea> res = dao.getHierarchyRepo().getDangerous(setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -67,8 +67,8 @@ public class InteractionResource extends BaseResource {
 	@Path("/permissions")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getPermissions(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<PermissionUser> res = dao.getUserRepo().getPermissions(c, setup, authUserId);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			List<PermissionUser> res = dao.getUserRepo().getPermissions(setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -83,8 +83,8 @@ public class InteractionResource extends BaseResource {
 	@Path("/restrictions")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getRestrictions(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Collection<RestrictionsRegion> res = dao.getHierarchyRepo().getRestrictions(c, authUserId, setup);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			Collection<RestrictionsRegion> res = dao.getHierarchyRepo().getRestrictions(setup, authUserId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -104,8 +104,8 @@ public class InteractionResource extends BaseResource {
 		if (page < 1) {
 			return createBadRequestResponse("Invalid page index (must be >= 1)");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Ticks res = dao.getTickRepo().getTicks(c, authUserId, setup, page);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			Ticks res = dao.getTickRepo().getTicks(authUserId, setup, page);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -126,8 +126,8 @@ public class InteractionResource extends BaseResource {
 		if (idArea < 0 || idSector < 0) {
 			return createBadRequestResponse("IDs cannot be negative");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			Todo res = dao.getTodoRepo().getTodo(c, authUserId, setup, idArea, idSector);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			Todo res = dao.getTodoRepo().getTodo(authUserId, setup, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -148,8 +148,8 @@ public class InteractionResource extends BaseResource {
 		if (idArea < 0 || idSector < 0) {
 			return createBadRequestResponse("IDs cannot be negative");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			Top res = dao.getHierarchyRepo().getTop(c, authUserId, idArea, idSector);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
+			Top res = dao.getHierarchyRepo().getTop(authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -164,8 +164,8 @@ public class InteractionResource extends BaseResource {
 	@Path("/trash")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getTrash(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<Trash> res = dao.getTrashRepo().getTrash(c, authUserId, setup);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			List<Trash> res = dao.getTrashRepo().getTrash(authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -185,8 +185,8 @@ public class InteractionResource extends BaseResource {
 		if (co == null || co.idProblem() <= 0 || co.comment() == null || co.comment().strip().isEmpty()) {
 			return createBadRequestResponse("Comment payload contains invalid fields or empty body");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			int idGuestbook = dao.getProblemRepo().upsertComment(c, authUserId, setup, co);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			int idGuestbook = dao.getProblemRepo().upsertComment(authUserId, setup, co);
 			return Response.ok(idGuestbook).build();
 		});
 	}
@@ -205,8 +205,8 @@ public class InteractionResource extends BaseResource {
 		if (u == null || u.userId() <= 0) {
 			return createBadRequestResponse("Invalid or missing userId payload");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getUserRepo().upsertPermissionUser(c, setup, authUserId, u);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getUserRepo().upsertPermissionUser(setup, authUserId, u);
 			return Response.ok().build();
 		});
 	}
@@ -224,9 +224,9 @@ public class InteractionResource extends BaseResource {
 		if (sr == null || sr.value() == null || sr.value().strip().isEmpty()) {
 			return createBadRequestResponse("Search criteria keyword is missing");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
 			String search = sr.value().trim();
-			List<Search> res = dao.getHierarchyRepo().getSearch(c, authUserId, setup, search);
+			List<Search> res = dao.getHierarchyRepo().getSearch(setup, authUserId, search);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -244,8 +244,8 @@ public class InteractionResource extends BaseResource {
 		if (t == null || t.idProblem() <= 0) {
 			return createBadRequestResponse("Invalid or missing idProblem payload");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getTickRepo().setTick(c, authUserId, setup, t);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getTickRepo().setTick(setup, authUserId, t);
 			return Response.ok().build();
 		});
 	}
@@ -265,8 +265,8 @@ public class InteractionResource extends BaseResource {
 		if (idProblem <= 0) {
 			return createBadRequestResponse("Invalid idProblem=" + idProblem);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getTodoRepo().toggleTodo(c, authUserId, idProblem);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getTodoRepo().toggleTodo(authUserId, idProblem);
 			return Response.ok().build();
 		});
 	}
@@ -291,8 +291,8 @@ public class InteractionResource extends BaseResource {
 				return createBadRequestResponse("Trail cannot be null");
 			}
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, connection, _, authUserId, _) -> {
-			dao.getSectorRepo().upsertTrails(connection, authUserId, trails);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getSectorRepo().upsertTrails(authUserId, trails);
 			return Response.ok().build();
 		});
 	}
@@ -320,8 +320,8 @@ public class InteractionResource extends BaseResource {
 		if (!isValidSelection) {
 			return createBadRequestResponse("Invalid arguments. Exactly one operational identifier target greater than zero must be specified.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getTrashRepo().trashRecover(c, setup, authUserId, idArea, idSector, idProblem, idMedia);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getTrashRepo().trashRecover(setup, authUserId, idArea, idSector, idProblem, idMedia);
 			return Response.ok().build();
 		});
 	}

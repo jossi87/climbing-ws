@@ -92,7 +92,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			.registerTypeAdapter(Integer.class, integerCoercionAdapter)
 			.create();
 
-	public static Media fromResultSet(ResultSet rst, int currentAuthUserId) throws SQLException {
+	public static Media fromResultSet(ResultSet rst, Optional<Integer> authUserId) throws SQLException {
 		Gson localGson = MEDIA_GSON;
 
 		MediaIdentity identity = new MediaIdentity(
@@ -127,7 +127,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		List<Svg> svgsList = parseAndSortJsonArray(rst, "svgs_table_json", localGson, new TypeToken<List<Svg>>(){}.getType(), null);
 
 		return new Media(
-				identity, rst.getInt("uploader_user_id") == currentAuthUserId, 
+				identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), 
 				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), rst.getBoolean("is_360"),
 				rst.getString("date_created"), rst.getString("date_taken"), 
 				photographer, taggedUsers, rst.getString("description"),

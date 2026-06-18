@@ -47,11 +47,11 @@ public class ProfilesResource extends BaseResource {
 		if (reqUserId <= 0) {
 			return createBadRequestResponse("Invalid user id=" + reqUserId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao1, c1, setup, _, _) -> {
-			dao1.getUserRepo().ensureUserExists(c1, reqUserId);
-			var identity = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileIdentity(c, setup, reqUserId));
-			var kpis = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileKpis(c, reqUserId));
-			var disciplines = DatabaseContext.submitDaoTask((dao, c) -> dao.getUserRepo().getProfileDisciplines(c, setup, reqUserId));
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao1, setup, _, _) -> {
+			dao1.getUserRepo().ensureUserExists(reqUserId);
+			var identity = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileIdentity(setup, reqUserId));
+			var kpis = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileKpis(reqUserId));
+			var disciplines = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileDisciplines(setup, reqUserId));
 			Profile res = new Profile(identity.join(), kpis.join(), disciplines.join());
 			return Response.ok().entity(res).build();
 		});
@@ -71,9 +71,9 @@ public class ProfilesResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(c, id);
-			List<ProfileAscent> res = dao.getUserRepo().getProfileAscents(c, authUserId, setup, id);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getUserRepo().ensureUserExists(id);
+			List<ProfileAscent> res = dao.getUserRepo().getProfileAscents(authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -95,9 +95,9 @@ public class ProfilesResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(c, id);
-			List<Media> res = dao.getMediaRepo().getProfileMedia(c, authUserId, id, captured);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
+			dao.getUserRepo().ensureUserExists(id);
+			List<Media> res = dao.getMediaRepo().getProfileMedia(authUserId, id, captured);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -117,9 +117,9 @@ public class ProfilesResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(c, id);
-			ProfileTodo res = dao.getUserRepo().getProfileTodo(c, authUserId, setup, id);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getUserRepo().ensureUserExists(id);
+			ProfileTodo res = dao.getUserRepo().getProfileTodo(authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -137,8 +137,8 @@ public class ProfilesResource extends BaseResource {
 		if (profile == null) {
 			return createBadRequestResponse("Profile identity payload is missing");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getUserRepo().setProfile(c, authUserId, profile);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getUserRepo().setProfile(authUserId, profile);
 			return Response.ok().build();
 		});
 	}
@@ -157,8 +157,8 @@ public class ProfilesResource extends BaseResource {
 		if (themePreference == null || (!themePreference.equals("light") && !themePreference.equals("dark"))) {
 			return createBadRequestResponse("Invalid theme preference. Must be 'light' or 'dark'.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getUserRepo().setThemePreference(c, authUserId, themePreference);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getUserRepo().setThemePreference(authUserId, themePreference);
 			return Response.ok().build();
 		});
 	}

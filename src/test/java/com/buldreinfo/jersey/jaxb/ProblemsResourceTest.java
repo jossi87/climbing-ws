@@ -1,10 +1,12 @@
 package com.buldreinfo.jersey.jaxb;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -20,7 +22,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 
 public class ProblemsResourceTest extends BaseResourceTest {
-	
+
 	@Test
 	public void testGetProblem() throws Exception {
 		var tester = new ProblemsResource();
@@ -32,7 +34,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 			assertTrue(p.redirectUrl() == null);
 		}
 	}
-	
+
 	@Test
 	public void testGetProblemDifferentRegion() throws Exception {
 		var tester = new ProblemsResource();
@@ -44,7 +46,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 			assertTrue(p.redirectUrl() != null);
 		}
 	}
-	
+
 	@Test
 	public void testGetProblemHidden() throws Exception {
 		var tester = new ProblemsResource();
@@ -52,18 +54,22 @@ public class ProblemsResourceTest extends BaseResourceTest {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		DatabaseContext.runSql((dao, c) -> {
+		DatabaseContext.runSql(dao -> {
 			try {
-				dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+				dao.getProblemRepo().getProblem(Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		DatabaseContext.runSql((dao, c) -> {
-			Problem p = dao.getProblemRepo().getProblem(c, Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
-			assertTrue(p != null);
-			assertTrue(!Strings.isNullOrEmpty(p.name()));
+		DatabaseContext.runSql(dao -> {
+			try {
+				Problem p = dao.getProblemRepo().getProblem(Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
+				assertTrue(p != null);
+				assertFalse(Strings.isNullOrEmpty(p.name()));
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
+			}
 		});
 	}
 
@@ -76,8 +82,8 @@ public class ProblemsResourceTest extends BaseResourceTest {
 			var streamingOutput = (StreamingOutput)r.getEntity();
 			Path p = Files.createTempFile("problemPdf", ".pdf");
 			try (var fos = new FileOutputStream(p.toFile())) {
-                streamingOutput.write(fos);
-            }
+				streamingOutput.write(fos);
+			}
 			Files.deleteIfExists(p);
 		}
 	}

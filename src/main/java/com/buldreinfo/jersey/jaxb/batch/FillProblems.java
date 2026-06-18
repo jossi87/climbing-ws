@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -129,16 +128,20 @@ public class FillProblems {
 		List<Data> data = new ArrayList<>();
 		data.add(new Data(1, "AREA", "SECTOR", "NAME", T.TRAD, "DESCRIPTION", 1, "6+", "USER_1,USER_2&USER_3", "9999-12-31", 999, null)); // TODO
 		Preconditions.checkArgument(data.size() > 1, "Invalid data");
-		DatabaseContext.runSql((dao, c) -> {
-			for (Data d : data) {
-				final int idArea = upsertArea(dao, c, d);
-				final int idSector = upsertSector(dao, c, idArea, d);
-				insertProblem(dao, c, idArea, idSector, d);
+		DatabaseContext.runSql(dao -> {
+			try {
+				for (Data d : data) {
+					final int idArea = upsertArea(dao, d);
+					final int idSector = upsertSector(dao, idArea, d);
+					insertProblem(dao, idArea, idSector, d);
+				}
+			} catch (SQLException | InterruptedException e) {
+				throw new RuntimeException(e);
 			}
 		});
 	}
 
-	private List<User> getFas(Dao dao, Connection c, String fa) throws SQLException {
+	private List<User> getFas(Dao dao, String fa) throws SQLException {
 		List<User> res = new ArrayList<>();
 		if (!Strings.isNullOrEmpty(fa)) {
 			String splitter = fa.contains("&")? "&" : ",";
@@ -149,7 +152,7 @@ public class FillProblems {
 					continue;
 				}
 				int id = -1;
-				List<User> users = dao.getUserRepo().getUserSearch(c, AUTH_USER_ID, userName);
+				List<User> users = dao.getUserRepo().getUserSearch(AUTH_USER_ID, userName);
 				if (!users.isEmpty()) {
 					id = users.getFirst().id();
 				}
@@ -161,41 +164,41 @@ public class FillProblems {
 		return res;
 	}
 
-	private void insertProblem(Dao dao, Connection c, int idArea, int idSector, Data d) throws SQLException, InterruptedException {
+	private void insertProblem(Dao dao, int idArea, int idSector, Data d) throws SQLException, InterruptedException {
 		logger.debug("insert {}", d);
-		List<User> fa = getFas(dao, c, d.getFa());
-		Type t = dao.getRegionRepo().getTypes(c, REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
+		List<User> fa = getFas(dao, d.getFa());
+		Type t = dao.getRegionRepo().getTypes(REGION_ID).stream().filter(x -> x.id() == d.getTypeId()).findFirst().get();
 		Problem p = new Problem(null, idArea, false, false, null, null, null, false, -1, -1, idSector, false, false, null, null, null, -1, -1, null, null, null, null, null, null, -1, null, false, false, false, d.getNr(), d.getProblem(), null, d.getComment(), null, d.getGrade().replaceAll(" ", ""), d.getFaDate(), null, fa, d.getLengthMeter(), null, null, -1, 0, false, null, null, null, t, null, false, null, null, null, d.getTrivia(), null, null, null, null);
 		if (d.getNumPitches() > 1) {
 			for (int nr = 1; nr <= d.getNumPitches(); nr++) {
 				p.addSection(-1, nr, null, "n/a", new ArrayList<>());
 			}
 		}
-		dao.getProblemRepo().setProblem(c, AUTH_USER_ID, setup, p);
+		dao.getProblemRepo().setProblem(AUTH_USER_ID, setup, p);
 	}
 
-	private int upsertArea(Dao dao, Connection c, Data d) throws SQLException, InterruptedException {
+	private int upsertArea(Dao dao, Data d) throws SQLException, InterruptedException {
 		if (areaCache.containsKey(d.getArea())) {
 			return areaCache.get(d.getArea());
 		}
-		for (Area a : dao.getAreaRepo().getAreaList(c, AUTH_USER_ID, REGION_ID)) {
+		for (Area a : dao.getAreaRepo().getAreaList(AUTH_USER_ID, REGION_ID)) {
 			if (a.name().equals(d.getArea())) {
 				areaCache.put(d.getArea(), a.id());
 				return a.id();
 			}
 		}
 		Area a = new Area(null, null, -1, false, false, false, false, null, null, false, 0, 0, d.getArea(), null, null, 0, 0, null, null, null, null, null, null);
-		Redirect r = dao.getAreaRepo().setArea(c, setup, AUTH_USER_ID, a);
+		Redirect r = dao.getAreaRepo().setArea(setup, AUTH_USER_ID, a);
 		areaCache.put(d.getArea(), r.idArea());
 		return r.idArea();
 	}
 
-	private int upsertSector(Dao dao, Connection c, int idArea, Data d) throws SQLException, InterruptedException {
+	private int upsertSector(Dao dao, int idArea, Data d) throws SQLException, InterruptedException {
 		Map<String, Integer> areaSectors = sectorCache.computeIfAbsent(idArea, _ -> new HashMap<>());
 		if (areaSectors.containsKey(d.getSector())) {
 			return areaSectors.get(d.getSector());
 		}
-		Area a = Objects.requireNonNull(dao.getAreaRepo().getArea(c, setup, AUTH_USER_ID, idArea, shouldUpdateHits));
+		Area a = Objects.requireNonNull(dao.getAreaRepo().getArea(setup, AUTH_USER_ID, idArea, shouldUpdateHits));
 		for (AreaSector s : a.sectors()) {
 			if (s.name().equals(d.getSector())) {
 				areaSectors.put(d.getSector(), s.id());
@@ -203,7 +206,7 @@ public class FillProblems {
 			}
 		}
 		Sector s = new Sector(null, false, idArea, false, false, null, null, false, -1, -1, null, -1, false, false, false, d.getSector(), null, null, null, -1, -1, null, null, null, null, null, null, null, null, null, null, null, null);
-		Redirect r = dao.getSectorRepo().setSector(c, AUTH_USER_ID, setup, s);
+		Redirect r = dao.getSectorRepo().setSector(AUTH_USER_ID, setup, s);
 		areaSectors.put(d.getSector(), r.idSector());
 		return r.idSector();
 	}

@@ -1,7 +1,10 @@
 package com.buldreinfo.jersey.jaxb;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -53,18 +56,22 @@ public class AreasResourceTest extends BaseResourceTest {
 			assertTrue(r.getStatus() == Response.Status.NOT_FOUND.getStatusCode());
 		}
 		Setup setup = getSetup(Region.buldreinfo);
-		DatabaseContext.runSql((dao, c) -> {
+		DatabaseContext.runSql(dao -> {
 			try {
-				dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
+				dao.getAreaRepo().getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false);
 				assertTrue(false);
 			} catch (Exception e) {
 				assertTrue(e instanceof NoSuchElementException);
 			}
 		});
-		DatabaseContext.runSql((dao, c) -> {
-			Area a = dao.getAreaRepo().getArea(c, setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
-			assertTrue(a != null);
-			assertTrue(!Strings.isNullOrEmpty(a.name()));
+		DatabaseContext.runSql(dao -> {
+			try {
+		        Area a = dao.getAreaRepo().getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
+		        assertNotNull(a);
+		        assertFalse(Strings.isNullOrEmpty(a.name()));
+		    } catch (SQLException e) {
+		        throw new RuntimeException(e);
+		    }
 		});
 	}
 

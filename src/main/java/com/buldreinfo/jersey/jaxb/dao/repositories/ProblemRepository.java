@@ -1,14 +1,10 @@
 package com.buldreinfo.jersey.jaxb.dao.repositories;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,7 +14,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -30,8 +25,8 @@ import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.dao.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Comment;
-import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -43,7 +38,6 @@ import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.ProblemSection;
 import com.buldreinfo.jersey.jaxb.model.ProblemTick;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
-import com.buldreinfo.jersey.jaxb.model.Trail;
 import com.buldreinfo.jersey.jaxb.model.Type;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
@@ -54,32 +48,39 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 public record ProblemRepository(Dao dao, Gson gson) {
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
 	public ProblemRepository(Dao dao) {
-        this(dao, new Gson());
-    }
+		this(dao, new Gson());
+	}
 	
-	public Problem getProblem(Connection c, Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
+	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
+		var c = DatabaseContext.getConnection();
+		
 		if (shouldUpdateHits) {
-			try (PreparedStatement ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
+			try (var ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
 				ps.execute();
 			}
 		}
-		boolean isTodo = false;
+		var isTodo = false;
 		if (authUserId.isPresent()) {
-			try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM todo WHERE user_id=? AND problem_id=?")) {
+			try (var ps = c.prepareStatement("SELECT 1 FROM todo WHERE user_id=? AND problem_id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
 				ps.setInt(2, reqId);
-				try (ResultSet rs = ps.executeQuery()) {
+				try (var rs = ps.executeQuery()) {
 					isTodo = rs.next();
 				}
 			}
 		}
+
+		var outlineFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutline(reqId));
+		var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(reqId)).get(reqId));
+		var linksFuture = DatabaseContext.submitDaoTask(d -> d.getExternalLinksRepo().getExternalLinks(0, 0, reqId));
+
 		Problem p = null;
-		try (PreparedStatement ps = c.prepareStatement("""
+		try (var ps = c.prepareStatement("""
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id, ? problem_id
 				),
@@ -115,7 +116,16 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				       sc_data.num_ticks, sc_data.stars,
 				       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
 				       ty.id type_id, ty.type, ty.subtype,
-				       p.trivia, p.starting_altitude, p.aspect, p.descent
+				       p.trivia, p.starting_altitude, p.aspect, p.descent,
+				       (
+				           SELECT GROUP_CONCAT(
+				               CONCAT('{"id":', ps_sub.id, ',"nr":', ps_sub.nr, ',"description":"', COALESCE(REPLACE(ps_sub.description, '"', '\\\\u0022'), ''), '","grade":"', g_sub.grade, '"}')
+				               ORDER BY ps_sub.nr SEPARATOR ','
+				           )
+				           FROM problem_section ps_sub
+				           JOIN grade g_sub ON ps_sub.grade_id = g_sub.id
+				           WHERE ps_sub.problem_id = p.id
+				       ) compiled_sections
 				FROM req
 				JOIN problem p ON p.id = req.problem_id
 				JOIN stars_count sc_data ON p.id = sc_data.pid
@@ -143,52 +153,58 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, s.idRegion());
 			ps.setInt(3, reqId);
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					String areaName = rst.getString("area_name");
-					String areaAccessInfo = rst.getString("area_access_info");
-					String areaAccessClosed = rst.getString("area_access_closed");
-					boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
-					int areaSunFromHour = rst.getInt("area_sun_from_hour");
-					int areaSunToHour = rst.getInt("area_sun_to_hour");
-					int sectorId = rst.getInt("sector_id");
-					boolean sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-					boolean sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-					String sectorName = rst.getString("sector_name");
-					String sectorAccessInfo = rst.getString("sector_access_info");
-					String sectorAccessClosed = rst.getString("sector_access_closed");
-					int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
-					int sectorSunToHour = rst.getInt("sector_sun_to_hour");
-					int parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-					Coordinates sectorParking = parkingidCoordinates == 0? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-					List<Coordinates> sectorOutline = dao.getSectorRepo().getSectorOutline(c, sectorId);
-					CompassDirection sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
-					CompassDirection sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
-					Collection<Trail> trails = dao.getSectorRepo().getSectorTrails(c, authUserId, Collections.singleton(sectorId)).get(sectorId);
+					var areaId = rst.getInt("area_id");
+					var areaLockedAdmin = rst.getBoolean("area_locked_admin");
+					var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+					var areaName = rst.getString("area_name");
+					var areaAccessInfo = rst.getString("area_access_info");
+					var areaAccessClosed = rst.getString("area_access_closed");
+					var areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
+					var areaSunFromHour = rst.getInt("area_sun_from_hour");
+					var areaSunToHour = rst.getInt("area_sun_to_hour");
+					var sectorId = rst.getInt("sector_id");
+					var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
+					var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+					var sectorName = rst.getString("sector_name");
+					var sectorAccessInfo = rst.getString("sector_access_info");
+					var sectorAccessClosed = rst.getString("sector_access_closed");
+					var sectorSunFromHour = rst.getInt("sector_sun_from_hour");
+					var sectorSunToHour = rst.getInt("sector_sun_to_hour");
+					var parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+					var sectorParking = parkingidCoordinates == 0? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
+					
+					var neighboursFuture = DatabaseContext.submitDaoTask(_ -> getProblemNeighbours(authUserId, sectorId, reqId, rst.getString("rock")));
+
+					var sectorOutline = outlineFuture.join();
+					var sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
+					var sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
+					var trails = trailsFuture.join();
+					var neighbours = neighboursFuture.join();
+					var externalLinks = linksFuture.join();
+					
 					int id = rst.getInt("id");
-					String broken = rst.getString("broken");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					String grade = rst.getString("grade");
-					String originalGrade = rst.getString("original_grade");
-					String faDate = rst.getString("fa_date");
-					String faDateHr = rst.getString("fa_date_hr");
-					String name = rst.getString("name");
-					String rock = rst.getString("rock");
-					String comment = rst.getString("description");
-					String faStr = rst.getString("fa");
+					var broken = rst.getString("broken");
+					var lockedAdmin = rst.getBoolean("locked_admin");
+					var lockedSuperadmin = rst.getBoolean("locked_superadmin");
+					var nr = rst.getInt("nr");
+					var grade = rst.getString("grade");
+					var originalGrade = rst.getString("original_grade");
+					var faDate = rst.getString("fa_date");
+					var faDateHr = rst.getString("fa_date_hr");
+					var name = rst.getString("name");
+					var rock = rst.getString("rock");
+					var comment = rst.getString("description");
+					var faStr = rst.getString("fa");
 					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
-					int lengthMeter = rst.getInt("length_meter");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					boolean ticked = rst.getBoolean("ticked");
-					List<Media> allMedia = dao.getMediaRepo().getMediaProblem(c, s, authUserId, areaId, sectorId, id, showHiddenMedia);
+					var lengthMeter = rst.getInt("length_meter");
+					var idCoordinates = rst.getInt("coordinates_id");
+					var coordinates = idCoordinates == 0? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+					var numTicks = rst.getInt("num_ticks");
+					var stars = rst.getDouble("stars");
+					var ticked = rst.getBoolean("ticked");
+					var allMedia = dao.getMediaRepo().getMediaProblem(s, authUserId, areaId, sectorId, id, showHiddenMedia);
 					Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
 							.orElse(List.of())
 							.stream()
@@ -196,16 +212,28 @@ public record ProblemRepository(Dao dao, Gson gson) {
 									x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)
 									));
 
-					List<Media> triviaMedia = partitioned.get(true);
-					List<Media> media = partitioned.get(false);
-					Type t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					String trivia = rst.getString("trivia");
-					String startingAltitude = rst.getString("starting_altitude");
-					String aspect = rst.getString("aspect");
-					String descent = rst.getString("descent");
-					var neighbours = getProblemNeighbours(c, authUserId, sectorId, reqId, rock);
-					var externalLinks = dao.getExternalLinksRepo().getExternalLinks(c, 0, 0, reqId);
+					var triviaMedia = partitioned.get(true);
+					var media = partitioned.get(false);
+					var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+					var pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					var trivia = rst.getString("trivia");
+					var startingAltitude = rst.getString("starting_altitude");
+					var aspect = rst.getString("aspect");
+					var descent = rst.getString("descent");
+
+					var sectionsStr = rst.getString("compiled_sections");
+					List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(gson.fromJson("[" + sectionsStr + "]", new TypeToken<List<ProblemSection>>(){}));
+					
+					if (media != null && !sections.isEmpty()) {
+						for (var section : sections) {
+							var sectionMedia = media.stream()
+									.filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
+									.toList();
+							media.removeAll(sectionMedia);
+							sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
+						}
+					}
+
 					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
 							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
 							sectorSunFromHour, sectorSunToHour,
@@ -213,14 +241,14 @@ public record ProblemRepository(Dao dao, Gson gson) {
 							neighbours,
 							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
 							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
-							media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, new ArrayList<>(), isTodo, externalLinks, pageViews,
+							media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, sections, isTodo, externalLinks, pageViews,
 							null, trivia, triviaMedia, startingAltitude, aspect, descent);
 				}
 			}
 		}
 		if (p == null) {
 			try {
-				Redirect res = dao.getHierarchyRepo().getCanonicalUrl(c, s, 0, 0, reqId);
+				var res = dao.getHierarchyRepo().getCanonicalUrl(s, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
 				}
@@ -231,8 +259,8 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		if (p == null) {
 			throw new NoSuchElementException("Could not find problem with id=" + reqId);
 		}
-		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
-		try (PreparedStatement ps = c.prepareStatement("""
+		var tickLookup = new HashMap<Integer, ProblemTick>();
+		try (var ps = c.prepareStatement("""
 				SELECT t.id id_tick, u.id id_user,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CAST(t.date AS char) date, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, t.comment, t.stars, g.grade
@@ -245,49 +273,49 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ORDER BY t.date DESC, t.id DESC
 				""")) {
 			ps.setInt(1, p.id());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int id = rst.getInt("id_tick");
-					int idUser = rst.getInt("id_user");
-					int mediaId = rst.getInt("media_id");
+					var id = rst.getInt("id_tick");
+					var idUser = rst.getInt("id_user");
+					var mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						var mediaVersionStamp = rst.getLong("media_version_stamp");
+						var mediaFocusX = rst.getInt("media_focus_x");
+						var mediaFocusY = rst.getInt("media_focus_y");
+						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
-					String date = rst.getString("date");
-					String name = rst.getString("name");
-					String comment = rst.getString("comment");
-					double stars = rst.getDouble("stars");
-					String grade = rst.getString("grade");
-					boolean noPersonalGrade = grade == null;
-					boolean writable = idUser == authUserId.orElse(0);
-					ProblemTick t = p.addTick(id, idUser, mediaIdentity, date, name, grade, noPersonalGrade, comment, stars, writable);
+					var date = rst.getString("date");
+					var name = rst.getString("name");
+					var comment = rst.getString("comment");
+					var stars = rst.getDouble("stars");
+					var grade = rst.getString("grade");
+					var noPersonalGrade = grade == null;
+					var writable = idUser == authUserId.orElse(0);
+					var t = p.addTick(id, idUser, mediaIdentity, date, name, grade, noPersonalGrade, comment, stars, writable);
 					tickLookup.put(id, t);
 				}
 			}
 		}
-		try (PreparedStatement ps = c.prepareStatement("""
+		try (var ps = c.prepareStatement("""
 				SELECT r.id, r.tick_id, r.date, r.comment
 				FROM tick t, tick_repeat r
 				WHERE t.problem_id=? AND t.id=r.tick_id
 				ORDER BY r.tick_id, r.date, r.id
 				""")) {
 			ps.setInt(1, p.id());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int id = rst.getInt("id");
-					int tickId = rst.getInt("tick_id");
-					String date = rst.getString("date");
-					String comment = rst.getString("comment");
+					var id = rst.getInt("id");
+					var tickId = rst.getInt("tick_id");
+					var date = rst.getString("date");
+					var comment = rst.getString("comment");
 					tickLookup.get(tickId).addRepeat(id, tickId, date, comment);
 				}
 			}
 		}
-		try (PreparedStatement ps = c.prepareStatement("""
+		try (var ps = c.prepareStatement("""
 				SELECT u.id,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name
@@ -299,24 +327,24 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ORDER BY u.firstname, u.lastname
 				""")) {
 			ps.setInt(1, p.id());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int idUser = rst.getInt("id");
-					int mediaId = rst.getInt("media_id");
+					var idUser = rst.getInt("id");
+					var mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						var mediaVersionStamp = rst.getLong("media_version_stamp");
+						var mediaFocusX = rst.getInt("media_focus_x");
+						var mediaFocusY = rst.getInt("media_focus_y");
+						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
-					String name = rst.getString("name");
+					var name = rst.getString("name");
 					p.addTodo(idUser, mediaIdentity, name);
 				}
 			}
 		}
-		try (PreparedStatement ps = c.prepareStatement("""
+		try (var ps = c.prepareStatement("""
 				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id,
 				       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
@@ -328,63 +356,37 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ORDER BY g.post_time DESC
 				""")) {
 			ps.setInt(1, p.id());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int id = rst.getInt("id");
-					String date = rst.getString("date");
-					int idUser = rst.getInt("user_id");
-					int mediaId = rst.getInt("media_id");
+					var id = rst.getInt("id");
+					var date = rst.getString("date");
+					var idUser = rst.getInt("user_id");
+					var mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+						var mediaVersionStamp = rst.getLong("media_version_stamp");
+						var mediaFocusX = rst.getInt("media_focus_x");
+						var mediaFocusY = rst.getInt("media_focus_y");
+						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
-					String name = rst.getString("name");
-					String message = rst.getString("message");
-					boolean danger = rst.getBoolean("danger");
-					boolean resolved = rst.getBoolean("resolved");
-					List<Media> media = dao.getMediaRepo().getMediaGuestbook(c, authUserId, id);
+					var name = rst.getString("name");
+					var message = rst.getString("message");
+					var danger = rst.getBoolean("danger");
+					var resolved = rst.getBoolean("resolved");
+					var media = dao.getMediaRepo().getMediaGuestbook(authUserId, id);
 					p.addComment(id, date, idUser, mediaIdentity, name, message, danger, resolved, media);
 				}
 				if (p.comments() != null && !p.comments().isEmpty()) {
-					Optional<ProblemComment> lastComment = p.comments().stream().max(Comparator.comparing(ProblemComment::getId));
+					var lastComment = p.comments().stream().max(Comparator.comparing(ProblemComment::getId));
 					if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId.orElse(0)) {
 						lastComment.get().setEditable(true);
 					}
 				}
 			}
 		}
-		try (PreparedStatement ps = c.prepareStatement("""
-				SELECT ps.id, ps.nr, ps.description, g.grade
-				FROM problem_section ps
-				JOIN grade g ON ps.grade_id=g.id
-				WHERE ps.problem_id=?
-				ORDER BY ps.nr
-				""")) {
-			ps.setInt(1, p.id());
-			try (ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					int nr = rst.getInt("nr");
-					String description = rst.getString("description");
-					String grade = rst.getString("grade");
-					List<Media> sectionMedia = null;
-					if (p.media() != null) {
-						sectionMedia = p.media()
-								.stream()
-								.filter(x -> x.problems().stream().filter(y -> y.problemId() == reqId && y.problemPitch() == nr).findAny().isPresent())
-								.toList();
-						p.media().removeAll(sectionMedia);
-					}
-					p.addSection(id, nr, description, grade, sectionMedia);
-				}
-			}
-		}
 		if (!s.isBouldering()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT DATE_FORMAT(a.aid_date,'%Y-%m-%d') aid_date, DATE_FORMAT(a.aid_date,'%d/%m-%y') aid_date_hr, a.aid_description, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM fa_aid a
@@ -395,29 +397,29 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					WHERE a.problem_id=?
 					""")) {
 				ps.setInt(1, p.id());
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						String aidDate = rst.getString("aid_date");
-						String aidDateHr = rst.getString("aid_date_hr");
-						String aidDescription = rst.getString("aid_description");
-						FaAid faAid = p.faAid();
+						var aidDate = rst.getString("aid_date");
+						var aidDateHr = rst.getString("aid_date_hr");
+						var aidDescription = rst.getString("aid_description");
+						var faAid = p.faAid();
 						if (faAid == null) {
 							faAid = new FaAid(p.id(), aidDate, aidDateHr, aidDescription, new ArrayList<>());
 							p = p.withFaAid(faAid);
 						}
-						int userId = rst.getInt("id");
+						var userId = rst.getInt("id");
 						if (userId != 0) {
-							String userName = rst.getString("name");
-							int mediaId = rst.getInt("media_id");
+							var userName = rst.getString("name");
+							var mediaId = rst.getInt("media_id");
 							MediaIdentity mediaIdentity = null;
 							if (mediaId > 0) {
-								long mediaVersionStamp = rst.getLong("media_version_stamp");
-								int mediaFocusX = rst.getInt("media_focus_x");
-								int mediaFocusY = rst.getInt("media_focus_y");
-								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								var mediaVersionStamp = rst.getLong("media_version_stamp");
+								var mediaFocusX = rst.getInt("media_focus_x");
+								var mediaFocusY = rst.getInt("media_focus_y");
+								var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 								mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 							}
-							User user = User.from(userId, userName, mediaIdentity);
+							var user = User.from(userId, userName, mediaIdentity);
 							faAid.users().add(user);
 						}
 					}
@@ -428,14 +430,14 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		return p;
 	}
 	
-	public List<ProblemSearchResult> getProblemsSearch(Connection c, Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
+	public List<ProblemSearchResult> getProblemsSearch(Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
 		if (search == null || search.strip().isEmpty()) {
 			return List.of();
 		}
-		String quotedSearch = Pattern.quote(search); // Quote the literal search string to escape special characters like '('
-		String searchRegexPattern = "(^|\\W)" + quotedSearch;
-		String sql = """
+		var c = DatabaseContext.getConnection();
+		var searchRegexPattern = "(^|\\W)" + Pattern.quote(search);
+		var sql = """
 				WITH req AS (
 				    SELECT ? AS auth_user_id, ? AS region_id, ? AS search_regex
 				)
@@ -458,14 +460,14 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ORDER BY p.name, s.name, a.name
 				LIMIT 50
 				""";
-		List<ProblemSearchResult> res = new ArrayList<>();
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
+		var res = new ArrayList<ProblemSearchResult>();
+		try (var ps = c.prepareStatement(sql)) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, setup.idRegion());
 			ps.setString(3, searchRegexPattern);
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					int numPitches = rst.getInt("num_pitches");
+					var numPitches = rst.getInt("num_pitches");
 					if (numPitches == 0) {
 						numPitches = 1;
 					}
@@ -476,24 +478,25 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		return res;
 	}
 	
-	public Redirect setProblem(Connection c, Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
-		final boolean orderByGrade = s.isBouldering();
-		final LocalDate dt = Strings.isNullOrEmpty(p.faDate())? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-		int idProblem = -1;
-		final boolean isLockedAdmin = p.lockedSuperadmin()? false : p.lockedAdmin();
+	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
+		var c = DatabaseContext.getConnection();
+		final var orderByGrade = s.isBouldering();
+		final var dt = Strings.isNullOrEmpty(p.faDate())? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+		var idProblem = -1;
+		final var isLockedAdmin = p.lockedSuperadmin()? false : p.lockedAdmin();
 		if (p.coordinates() != null) {
 			if (p.coordinates().getLatitude() == 0 || p.coordinates().getLongitude() == 0) {
 				p = p.withCoordinates(null);
 			}
 			else {
-				dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(c, Lists.newArrayList(p.coordinates()));
+				dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.coordinates()));
 			}
 		}
-		dao.getSectorRepo().tryFixSectorOrdering(c, p.sectorId(), p.id(), p.nr());
-		int gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
+		dao.getSectorRepo().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
+		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
 		if (p.id() > 0) {
-			ensureAdminWriteProblem(c, authUserId, p.id());
-			try (PreparedStatement ps = c.prepareStatement("""
+			ensureAdminWriteProblem(authUserId, p.id());
+			try (var ps = c.prepareStatement("""
 					UPDATE problem p
 					JOIN sector s ON p.sector_id=s.id
 					JOIN area a ON s.area_id=a.id
@@ -521,17 +524,17 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ps.setBoolean(18, p.trash());
 				ps.setInt(19, p.trash()? authUserId.orElseThrow() : 0);
 				ps.setInt(20, p.id());
-				int res = ps.executeUpdate();
+				var res = ps.executeUpdate();
 				if (res != 1) {
 					throw new SQLException("Insufficient credentials");
 				}
 			}
 			idProblem = p.id();
-			updateProblemConsensusGrade(c, idProblem);
+			updateProblemConsensusGrade(idProblem);
 		}
 		else {
-			dao.getSectorRepo().ensureAdminWriteSector(c, authUserId, p.sectorId());
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			dao.getSectorRepo().ensureAdminWriteSector(authUserId, p.sectorId());
+			try (var ps = c.prepareStatement("INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, p.sectorId());
 				ps.setString(2, GlobalFunctions.stripString(p.name()));
 				ps.setString(3, GlobalFunctions.stripString(p.rock()));
@@ -543,7 +546,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ps.setString(9, GlobalFunctions.stripString(p.broken()));
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.lockedSuperadmin());
-				ps.setInt(12, p.nr() == 0 ? dao.getSectorRepo().getSector(c, authUserId, orderByGrade, s, p.sectorId(), false).problems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.nr());
+				ps.setInt(12, p.nr() == 0 ? dao.getSectorRepo().getSector(authUserId, orderByGrade, s, p.sectorId(), false).problems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.nr());
 				ps.setInt(13, p.t().id());
 				ps.setString(14, GlobalFunctions.stripString(p.trivia()));
 				ps.setString(15, GlobalFunctions.stripString(p.startingAltitude()));
@@ -551,7 +554,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				JdbcUtils.setNullablePositiveInteger(ps, 17, p.lengthMeter());
 				ps.setString(18, GlobalFunctions.stripString(p.descent()));
 				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
+				try (var rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
 						idProblem = rst.getInt(1);
 					}
@@ -561,39 +564,39 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		if (idProblem == -1) {
 			throw new SQLException("idProblem == -1");
 		}
-		String sqlStr = "UPDATE problem p, sector s, area a SET p.last_updated=now(), s.last_updated=now(), a.last_updated=now() WHERE p.id=? AND p.sector_id=s.id AND s.area_id=a.id";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
+		var sqlStr = "UPDATE problem p, sector s, area a SET p.last_updated=now(), s.last_updated=now(), a.last_updated=now() WHERE p.id=? AND p.sector_id=s.id AND s.area_id=a.id";
+		try (var ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, idProblem);
-			int res = ps.executeUpdate();
+			var res = ps.executeUpdate();
 			if (res == 0) {
 				throw new SQLException("Insufficient credentials");
 			}
 		}
 		if (p.fa() != null) {
-			Set<Integer> fas = new HashSet<>();
-			try (PreparedStatement ps = c.prepareStatement("SELECT user_id FROM fa WHERE problem_id=?")) {
+			var fas = new HashSet<Integer>();
+			try (var ps = c.prepareStatement("SELECT user_id FROM fa WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						fas.add(rst.getInt("user_id"));
 					}
 				}
 			}
-			for (User x : p.fa()) {
+			for (var x : p.fa()) {
 				Preconditions.checkArgument(x.id() != 0);
 				if (x.id() > 0) {
-					boolean exists = fas.remove(x.id());
+					var exists = fas.remove(x.id());
 					if (!exists) {
-						try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
+						try (var ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 							ps2.setInt(1, idProblem);
 							ps2.setInt(2, x.id());
 							ps2.execute();
 						}
 					}
 				} else {
-					int idUser = dao.getUserRepo().addUser(c, null, x.name(), null);
+					var idUser = dao.getUserRepo().addUser(null, x.name(), null);
 					Preconditions.checkArgument(idUser > 0);
-					try (PreparedStatement ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
+					try (var ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
 						ps2.setInt(2, idUser);
 						ps2.execute();
@@ -601,8 +604,8 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 			if (!fas.isEmpty()) {
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa WHERE problem_id=? AND user_id=?")) {
-					for (int x : fas) {
+				try (var ps = c.prepareStatement("DELETE FROM fa WHERE problem_id=? AND user_id=?")) {
+					for (var x : fas) {
 						ps.setInt(1, idProblem);
 						ps.setInt(2, x);
 						ps.addBatch();
@@ -611,18 +614,18 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 		} else {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa WHERE problem_id=?")) {
+			try (var ps = c.prepareStatement("DELETE FROM fa WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
 				ps.execute();
 			}
 		}
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM problem_section WHERE problem_id=?")) {
+		try (var ps = c.prepareStatement("DELETE FROM problem_section WHERE problem_id=?")) {
 			ps.setInt(1, idProblem);
 			ps.execute();
 		}
 		if (p.sections() != null && p.sections().size() > 1) {
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)")) {
-				for (ProblemSection section : p.sections()) {
+			try (var ps = c.prepareStatement("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)")) {
+				for (var section : p.sections()) {
 					ps.setInt(1, idProblem);
 					ps.setInt(2, section.nr());
 					ps.setString(3, GlobalFunctions.stripString(section.description()));
@@ -633,29 +636,29 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			}
 		}
 		if (!s.isBouldering()) {
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa_aid WHERE problem_id=?")) {
+			try (var ps = c.prepareStatement("DELETE FROM fa_aid WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
 				ps.execute();
 			}
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM fa_aid_user WHERE problem_id=?")) {
+			try (var ps = c.prepareStatement("DELETE FROM fa_aid_user WHERE problem_id=?")) {
 				ps.setInt(1, idProblem);
 				ps.execute();
 			}
 			if (p.faAid() != null) {
-				FaAid faAid = p.faAid();
-				final LocalDate aidDt = Strings.isNullOrEmpty(faAid.date())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-				try (PreparedStatement ps = c.prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
+				var faAid = p.faAid();
+				final var aidDt = Strings.isNullOrEmpty(faAid.date())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+				try (var ps = c.prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
 					ps.setInt(1, idProblem);
 					ps.setObject(2, aidDt);
 					ps.setString(3, GlobalFunctions.stripString(faAid.description()));
 					ps.execute();
 				}
 				if (!faAid.users().isEmpty()) {
-					try (PreparedStatement ps = c.prepareStatement("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)")) {
-						for (User u : faAid.users()) {
-							int idUser = u.id();
+					try (var ps = c.prepareStatement("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)")) {
+						for (var u : faAid.users()) {
+							var idUser = u.id();
 							if (idUser <= 0) {
-								idUser = dao.getUserRepo().addUser(c, null, u.name(), null);
+								idUser = dao.getUserRepo().addUser(null, u.name(), null);
 							}
 							Preconditions.checkArgument(idUser > 0);
 							ps.setInt(1, idProblem);
@@ -667,31 +670,32 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 		}
-		dao.getExternalLinksRepo().upsertExternalLinks(c, p.externalLinks(), 0, 0, idProblem);
-		dao.getActivityRepo().fillActivity(c, idProblem);
+		dao.getExternalLinksRepo().upsertExternalLinks(p.externalLinks(), 0, 0, idProblem);
+		dao.getActivityRepo().fillActivity(idProblem);
 		if (p.trash()) {
 			return Redirect.fromIdSector(p.sectorId());
 		}
 		return Redirect.fromIdProblem(idProblem);
 	}
 	
-	public int upsertComment(Connection c, Optional<Integer> authUserId, Setup s, Comment co) throws SQLException {
+	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		int idGuestbook = co.id();
+		var c = DatabaseContext.getConnection();
+		var idGuestbook = co.id();
 		if (idGuestbook > 0) {
-			List<ProblemComment> comments = getProblem(c, authUserId, s, co.idProblem(), false, false).comments();
+			var comments = getProblem(authUserId, s, co.idProblem(), false, false).comments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
-			ProblemComment comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
+			var comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
 			if (comment.isEditable()) {
 				if (co.delete()) {
-					try (PreparedStatement ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
+					try (var ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
 						ps.setInt(1, co.id());
 						ps.execute();
 						idGuestbook = 0;
 					}
 				}
 				else {
-					try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
+					try (var ps = c.prepareStatement("UPDATE guestbook SET message=?, danger=?, resolved=? WHERE id=?")) {
 						ps.setString(1, GlobalFunctions.stripString(co.comment()));
 						ps.setBoolean(2, co.danger());
 						ps.setBoolean(3, co.resolved());
@@ -701,7 +705,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 			else if (!comment.isDanger() && !comment.isResolved() && co.danger()) {
-				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET danger=? WHERE id=?")) {
+				try (var ps = c.prepareStatement("UPDATE guestbook SET danger=? WHERE id=?")) {
 					ps.setBoolean(1, co.danger());
 					ps.setInt(2, co.id());
 					ps.execute();
@@ -713,17 +717,17 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		}
 		else {
 			Objects.requireNonNull(GlobalFunctions.stripString(co.comment()));
-			int parentId = 0;
-			try (PreparedStatement ps = c.prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
+			var parentId = 0;
+			try (var ps = c.prepareStatement("SELECT MIN(id) FROM guestbook WHERE problem_id=?")) {
 				ps.setInt(1, co.idProblem());
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						parentId = rst.getInt(1);
 					}
 				}
 			}
 
-			try (PreparedStatement ps = c.prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+			try (var ps = c.prepareStatement("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setString(1, GlobalFunctions.stripString(co.comment()));
 				ps.setInt(2, co.idProblem());
 				ps.setInt(3, authUserId.orElseThrow());
@@ -731,22 +735,23 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ps.setBoolean(5, co.danger());
 				ps.setBoolean(6, co.resolved());
 				ps.executeUpdate();
-				try (ResultSet rst = ps.getGeneratedKeys()) {
+				try (var rst = ps.getGeneratedKeys()) {
 					if (rst != null && rst.next()) {
 						idGuestbook = rst.getInt(1);
 					}
 				}
 			}
 		}
-		dao.getActivityRepo().fillActivity(c, co.idProblem());
+		dao.getActivityRepo().fillActivity(co.idProblem());
 		return idGuestbook;
 	}
 	
-	private List<Neighbour> getProblemNeighbours(Connection c, Optional<Integer> authUserId, int sectorId, int problemId, String rock) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		List<Neighbour> res = new ArrayList<>();
+	private List<Neighbour> getProblemNeighbours(Optional<Integer> authUserId, int sectorId, int problemId, String rock) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
+		var c = DatabaseContext.getConnection();
+		var res = new ArrayList<Neighbour>();
 		if (rock == null) {
-			String sql = """
+			var sql = """
 					WITH req AS (
 					    SELECT ? user_id, ? sector_id, ? problem_id
 					)
@@ -798,25 +803,24 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					WHERE sub.id = req.problem_id AND n_id != req.problem_id
 					""";
 
-			try (PreparedStatement ps = c.prepareStatement(sql)) {
+			try (var ps = c.prepareStatement(sql)) {
 				ps.setInt(1, authUserId.orElse(0));
 				ps.setInt(2, sectorId);
 				ps.setInt(3, problemId);
 
-				try (ResultSet rst = ps.executeQuery()) {
-					Set<Integer> seenIds = new HashSet<>();
+				try (var rst = ps.executeQuery()) {
+					var seenIds = new HashSet<Integer>();
 					while (rst.next()) {
-						int neighborId = rst.getInt("n_id");
+						var neighborId = rst.getInt("n_id");
 						if (neighborId > 0 && seenIds.add(neighborId)) {
-							res.add(new Neighbour(neighborId, rst.getInt("n_nr"), rst.getString("n_name"), rst.getString("n_grade"), rst.getBoolean("n_tick"), rst.getBoolean("n_todo")
-									));
+							res.add(new Neighbour(neighborId, rst.getInt("n_nr"), rst.getString("n_name"), rst.getString("n_grade"), rst.getBoolean("n_tick"), rst.getBoolean("n_todo")));
 						}
 					}
 				}
 			}
 		}
 		else {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					WITH req AS (
 						SELECT ? user_id, ? sector_id, ? problem_id, ? rock
 					)
@@ -838,7 +842,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ps.setInt(2, sectorId);
 				ps.setInt(3, problemId);
 				ps.setString(4, rock);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						res.add(new Neighbour(rst.getInt("id"), rst.getInt("nr"), rst.getString("name"), rst.getString("grade"), rst.getBoolean("tick"), rst.getBoolean("todo")));
 					}
@@ -849,9 +853,10 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		return res;
 	}
 
-	protected void ensureAdminWriteProblem(Connection c, Optional<Integer> authUserId, int problemId) throws SQLException {
-		boolean ok = false;
-		try (PreparedStatement ps = c.prepareStatement("""
+	protected void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) throws SQLException {
+		var c = DatabaseContext.getConnection();
+		var ok = false;
+		try (var ps = c.prepareStatement("""
 				SELECT ur.admin_write, ur.superadmin_write 
 				FROM problem p
 				JOIN sector s ON p.sector_id=s.id
@@ -865,7 +870,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				""")) {
 			ps.setInt(1, problemId);
 			ps.setInt(2, authUserId.orElseThrow());
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
 				}
@@ -874,8 +879,9 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 	
-	protected void updateProblemConsensusGrade(Connection c, int problemId) throws SQLException {
-		String sql = """
+	protected void updateProblemConsensusGrade(int problemId) throws SQLException {
+		var c = DatabaseContext.getConnection();
+		var sql = """
 				UPDATE problem p
 				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
 				LEFT JOIN (
@@ -906,7 +912,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
 				WHERE p.id = ?
 				""";
-		try (PreparedStatement ps = c.prepareStatement(sql)) {
+		try (var ps = c.prepareStatement(sql)) {
 			ps.setInt(1, problemId);
 			ps.setInt(2, problemId);
 			ps.setInt(3, problemId);

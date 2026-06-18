@@ -1,19 +1,14 @@
 package com.buldreinfo.jersey.jaxb.resources;
 
-import java.io.OutputStream;
-import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
-import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
-import com.buldreinfo.jersey.jaxb.model.Sector;
 import com.buldreinfo.jersey.jaxb.model.Svg;
 import com.buldreinfo.jersey.jaxb.pdf.PdfGenerator;
 
@@ -39,7 +34,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 @Tag(name = "Problems")
 @Path("/problems")
 public class ProblemsResource extends BaseResource {
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
 	@Operation(summary = "Get problem by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Problem.class))}),
@@ -57,8 +52,8 @@ public class ProblemsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			Problem res = dao.getProblemRepo().getProblem(c, authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
+			var res = dao.getProblemRepo().getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -77,19 +72,17 @@ public class ProblemsResource extends BaseResource {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, shouldUpdateHits) -> {
-			final Problem problem = dao.getProblemRepo().getProblem(c, authUserId, setup, id, false, shouldUpdateHits);
-			final Area area = dao.getAreaRepo().getArea(c, setup, authUserId, problem.areaId(), shouldUpdateHits);
-			final Sector sector = dao.getSectorRepo().getSector(c, authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
-			StreamingOutput stream = new StreamingOutput() {
-				@Override
-				public void write(OutputStream output) {
-					try (PdfGenerator generator = new PdfGenerator(output)) {
-						generator.writeProblem(setup, area, sector, problem);
-					} catch (Exception e) {
-						logger.error(e.getMessage(), e);
-						throw new RuntimeException(e.getMessage(), e);
-					}
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
+			final var problem = dao.getProblemRepo().getProblem(authUserId, setup, id, false, shouldUpdateHits);
+			final var area = dao.getAreaRepo().getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
+			final var sector = dao.getSectorRepo().getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+			
+			StreamingOutput stream = output -> {
+				try (var generator = new PdfGenerator(output)) {
+					generator.writeProblem(setup, area, sector, problem);
+				} catch (Exception e) {
+					logger.error(e.getMessage(), e);
+					throw new RuntimeException(e.getMessage(), e);
 				}
 			};
 			return Response.ok(stream)
@@ -115,8 +108,8 @@ public class ProblemsResource extends BaseResource {
 		if (value == null || value.isBlank()) {
 			return createBadRequestResponse("Search keyword is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<ProblemSearchResult> res = dao.getProblemRepo().getProblemsSearch(c, authUserId, setup, value);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			var res = dao.getProblemRepo().getProblemsSearch(authUserId, setup, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -139,8 +132,8 @@ public class ProblemsResource extends BaseResource {
 		if (p.sectorId() <= 0) {
 			return createBadRequestResponse("Invalid sectorId=" + p.sectorId());
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			Redirect res = dao.getProblemRepo().setProblem(c, authUserId, setup, p);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			var res = dao.getProblemRepo().setProblem(authUserId, setup, p);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -170,8 +163,8 @@ public class ProblemsResource extends BaseResource {
 		if (svg == null) {
 			return createBadRequestResponse("Svg payload is missing");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getMediaRepo().upsertSvg(c, authUserId, problemId, pitch, mediaId, svg);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getMediaRepo().upsertSvg(authUserId, problemId, pitch, mediaId, svg);
 			return Response.ok().build();
 		});
 	}

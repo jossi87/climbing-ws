@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -80,8 +81,8 @@ public class MediaResource extends BaseResource {
 		if (id <= 0) {
 	        return createBadRequestResponse("Invalid id=" + id);
 	    }
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getMediaRepo().deleteMedia(c, authUserId, id);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getMediaRepo().deleteMedia(authUserId, id);
 			return Response.ok().build();
 		});
 	}
@@ -101,8 +102,8 @@ public class MediaResource extends BaseResource {
 		if (idMedia <= 0) {
 			return createBadRequestResponse("Invalid idMedia=" + idMedia);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, _, authUserId, _) -> {
-			Media res = dao.getMediaRepo().getMedia(c, authUserId, idMedia);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
+			Media res = dao.getMediaRepo().getMedia(authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -190,8 +191,8 @@ public class MediaResource extends BaseResource {
 		if (!(left ^ right)) {
 		    return createBadRequestResponse("You must specify either 'left' or 'right', but not both.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getMediaRepo().shiftMediaPosition(c, authUserId, id, left, right);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getMediaRepo().shiftMediaPosition(authUserId, id, left, right);
 			return Response.ok().build();
 		});
 	}
@@ -218,9 +219,9 @@ public class MediaResource extends BaseResource {
 		String fileName = filePart.getContentDisposition().getFileName();
 		StorageType storageType = StorageType.fromFilename(fileName)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			int newMediaId = dao.getMediaRepo().addMediaImage(c, authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
-			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			int newMediaId = dao.getMediaRepo().addMediaImage(authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
+			Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -246,8 +247,8 @@ public class MediaResource extends BaseResource {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		URI validatedInitialUri = ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			if (dao.getMediaRepo().getDailyInstagramScrapeCount(authUserId) > 50) {
 				throw new WebApplicationException(
 					Response.status(Response.Status.TOO_MANY_REQUESTS)
 							.entity("Daily Instagram import limit reached (max 50 per day)")
@@ -256,7 +257,7 @@ public class MediaResource extends BaseResource {
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 			if (isVideo) {
-				int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(c, authUserId, mediaPayload, StorageType.MP4);
+				int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(authUserId, mediaPayload, StorageType.MP4);
 				DatabaseContext.runAsync(() -> {
 					try {
 						byte[] videoData;
@@ -272,22 +273,29 @@ public class MediaResource extends BaseResource {
 
 							URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
 
-							DatabaseContext.runSql((backgroundDao, backgroundConn) -> {
-								backgroundDao.getMediaRepo().logInstagramScrape(backgroundConn, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+							DatabaseContext.submitDaoTask(dao2 -> {
+							    dao2.getMediaRepo().logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
+							    return null;
 							});
 							try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 								videoData = StorageManager.getInstance().readBoundedStream(is);
 							}
 						}
 						StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(newMediaId), videoData, StorageType.MP4);
-						DatabaseContext.runSql((backgroundDao, backgroundConn) -> {
-							VideoHelper.processVideo(backgroundConn, backgroundDao, newMediaId, mediaPayload.thumbnailSeconds());
+						DatabaseContext.submitDaoTask(backgroundDao -> {
+						    try {
+						        VideoHelper.processVideo(backgroundDao, newMediaId, mediaPayload.thumbnailSeconds());
+						    } catch (Exception e) {
+						        logger.error("Async video processing failed for media " + newMediaId, e);
+						        throw new SQLException("Video processing failed", e);
+						    }
+						    return null;
 						});
 					} catch (Exception e) {
 						logger.error("Failed async instagram video save for id=" + newMediaId, e);
 					}
 				});
-				Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
+				Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
 			byte[] imageData;
@@ -301,14 +309,14 @@ public class MediaResource extends BaseResource {
 						.findFirst()
 						.orElse(freshMedia.get(0));
 				URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
-				dao.getMediaRepo().logInstagramScrape(c, authUserId, mediaPayload.embedUrl(), freshMedia.size());
+				dao.getMediaRepo().logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 					imageData = StorageManager.getInstance().readBoundedStream(is);
 				}
 			}
 			final byte[] finalImageData = imageData;
-			int newMediaId = dao.getMediaRepo().addMediaImage(c, authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
-			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
+			int newMediaId = dao.getMediaRepo().addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
+			Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -328,8 +336,8 @@ public class MediaResource extends BaseResource {
 		if (url == null || url.isBlank()) {
 		    return createBadRequestResponse("Instagram URL is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-		    if (dao.getMediaRepo().getDailyInstagramScrapeCount(c, authUserId) > 50) {
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+		    if (dao.getMediaRepo().getDailyInstagramScrapeCount(authUserId) > 50) {
 		        throw new WebApplicationException(
 		            Response.status(Response.Status.TOO_MANY_REQUESTS)
 		                    .entity("Daily Instagram import limit reached (max 50 per day)")
@@ -337,7 +345,7 @@ public class MediaResource extends BaseResource {
 		        );
 		    }
 		    List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
-		    dao.getMediaRepo().logInstagramScrape(c, authUserId, url, scrapedList.size());
+		    dao.getMediaRepo().logInstagramScrape(authUserId, url, scrapedList.size());
 		    return Response.ok().entity(scrapedList).build();
 		});
 	}
@@ -356,8 +364,8 @@ public class MediaResource extends BaseResource {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
 			return createBadRequestResponse("Invalid media payload");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, setup, authUserId, _) -> {
-			dao.getMediaRepo().upsertMediaSvg(c, authUserId, setup, m);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
+			dao.getMediaRepo().upsertMediaSvg(setup, authUserId, m);
 			return Response.ok().build();
 		});
 	}
@@ -376,18 +384,19 @@ public class MediaResource extends BaseResource {
 		if (mediaId <= 0) {
 			return createBadRequestResponse("Invalid mediaId=" + mediaId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			Media media = dao.getMediaRepo().getMedia(c, authUserId, mediaId);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			Media media = dao.getMediaRepo().getMedia(authUserId, mediaId);
 			Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
 			Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
 			DatabaseContext.runAsync(() -> {
-				try {
-					DatabaseContext.runSql((backgroundDao, backgroundConn) -> {
-						VideoHelper.processVideo(backgroundConn, backgroundDao, mediaId, media.thumbnailSeconds());
-					});
-				} catch (Exception e) {
-					logger.error("Failed async video processing for id=" + mediaId, e);
-				}
+				DatabaseContext.submitDaoTask(backgroundDao -> {
+					try {
+						VideoHelper.processVideo(backgroundDao, mediaId, media.thumbnailSeconds());
+					} catch (Exception e) {
+						logger.error("Failed async video processing for id=" + mediaId, e);
+					}
+					return null;
+				});
 			});
 			return Response.ok().build();
 		});
@@ -418,19 +427,20 @@ public class MediaResource extends BaseResource {
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The provided embed URL is malformed.", e);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			int newMediaId = dao.getMediaRepo().addMediaVideoEmbed(c, authUserId, media, StorageType.MP4);
-			DatabaseContext.runAsync(() -> {
-				try {
-					DatabaseContext.runSql((backgroundDao, backgroundConn) -> {
-						ImageHelper.saveImageFromEmbedVideo(backgroundDao, backgroundConn, newMediaId, media.embedUrl());
-					});
-				} catch (Exception e) {
-					logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
-				}
-			});
-			Media res = dao.getMediaRepo().getMedia(c, authUserId, newMediaId);
-			return Response.ok().entity(res).build();
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+		    int newMediaId = dao.getMediaRepo().addMediaVideoEmbed(authUserId, media, StorageType.MP4);
+		    DatabaseContext.runAsync(() -> {
+		        DatabaseContext.submitDaoTask(backgroundDao -> {
+		            try {
+		                ImageHelper.saveImageFromEmbedVideo(backgroundDao, newMediaId, media.embedUrl());
+		            } catch (Exception e) {
+		                logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
+		            }
+		            return null;
+		        });
+		    });
+		    Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
+		    return Response.ok().entity(res).build();
 		});
 	}
 
@@ -452,8 +462,8 @@ public class MediaResource extends BaseResource {
 		StorageType storageType = StorageType.fromMimeType(payload.contentType())
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
 		Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(c, authUserId, payload.media(), storageType);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
 			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
 					S3KeyGenerator.getOriginalMp4(newMediaId), 
 					storageType.getMimeType(),
@@ -477,8 +487,8 @@ public class MediaResource extends BaseResource {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
 		    return createBadRequestResponse("Invalid mediaId");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getMediaRepo().updateMedia(c, authUserId, m);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getMediaRepo().updateMedia(authUserId, m);
 			return Response.ok().build();
 		});
 	}
@@ -503,8 +513,8 @@ public class MediaResource extends BaseResource {
 		if (degrees != 90 && degrees != 180 && degrees != 270) {
 		    return createBadRequestResponse("Invalid rotation degrees. Must be 90, 180, or 270.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, c, _, authUserId, _) -> {
-			dao.getMediaRepo().rotateMedia(c, authUserId, idMedia, degrees);
+		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
+			dao.getMediaRepo().rotateMedia(authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}

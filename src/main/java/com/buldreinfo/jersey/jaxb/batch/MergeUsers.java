@@ -1,6 +1,7 @@
 package com.buldreinfo.jersey.jaxb.batch;
 
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 
@@ -26,69 +27,74 @@ public class MergeUsers {
 	private final static int USER_ID_KEEP = -2;
 
 	public static void main(String[] args) {
-		DatabaseContext.runSql((_, c) -> {
-			// guestbook
-			try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// media
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// media_user
-			try (PreparedStatement ps = c.prepareStatement("UPDATE media_user SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// fa
-			try (PreparedStatement ps = c.prepareStatement("UPDATE fa SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// fa_aid_user
-			try (PreparedStatement ps = c.prepareStatement("UPDATE fa_aid_user SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// tick
-			try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// user_email
-			try (PreparedStatement ps = c.prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// user_login
-			try (PreparedStatement ps = c.prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?")) {
-				ps.setInt(1, USER_ID_KEEP);
-				ps.setInt(2, USER_ID_DELETE);
-				ps.execute();
-			}
-			// user
-			try (PreparedStatement ps = c.prepareStatement("DELETE FROM user WHERE id=?")) {
-				ps.setInt(1, USER_ID_DELETE);
-				ps.execute();
+		DatabaseContext.runSql(_ -> {
+			try {
+				var c = DatabaseContext.getConnection();
+				// guestbook
+				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// media
+				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// media_user
+				try (PreparedStatement ps = c.prepareStatement("UPDATE media_user SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// fa
+				try (PreparedStatement ps = c.prepareStatement("UPDATE fa SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// fa_aid_user
+				try (PreparedStatement ps = c.prepareStatement("UPDATE fa_aid_user SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// tick
+				try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// user_email
+				try (PreparedStatement ps = c.prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// user_login
+				try (PreparedStatement ps = c.prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?")) {
+					ps.setInt(1, USER_ID_KEEP);
+					ps.setInt(2, USER_ID_DELETE);
+					ps.execute();
+				}
+				// user
+				try (PreparedStatement ps = c.prepareStatement("DELETE FROM user WHERE id=?")) {
+					ps.setInt(1, USER_ID_DELETE);
+					ps.execute();
+				}
+			} catch (SQLException e) {
+				throw new RuntimeException(e.getMessage(), e);
 			}
 		});
 	}

@@ -1,8 +1,5 @@
 package com.buldreinfo.jersey.jaxb.dao.repositories;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
@@ -12,9 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,35 +18,31 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
+import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.MediaIdentity;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 
 public record ActivityRepository() {
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	private static final String ACTIVITY_TYPE_FA = "FA";
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 	
-	public void fillActivity(Connection c, int idProblem) throws SQLException {
-		/**
-		 * Delete existing activities on problem
-		 */
-		try (PreparedStatement ps = c.prepareStatement("DELETE FROM activity WHERE problem_id=?")) {
+	public void fillActivity(int idProblem) throws SQLException {
+		var c = DatabaseContext.getConnection();
+		try (var ps = c.prepareStatement("DELETE FROM activity WHERE problem_id=?")) {
 			ps.setInt(1, idProblem);
 			ps.execute();
 		}
 
-		/**
-		 * FA
-		 */
 		LocalDateTime problemActivityTimestamp = null;
-		List<Integer> faUserIds = new ArrayList<>();
-		boolean hasFa = false;
-		try (PreparedStatement ps = c.prepareStatement("""
+		var faUserIds = new ArrayList<Integer>();
+		var hasFa = false;
+		try (var ps = c.prepareStatement("""
 				SELECT p.fa_date, p.last_updated, f.user_id
 				FROM problem p
 				JOIN grade g ON p.grade_id=g.id
@@ -60,12 +51,12 @@ public record ActivityRepository() {
 				  AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
 				""")) {
 			ps.setInt(1, idProblem);
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					if (!hasFa) {
 						hasFa = true;
-						LocalDate faDate = rst.getObject("fa_date", LocalDate.class);
-						LocalDateTime lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
+						var faDate = rst.getObject("fa_date", LocalDate.class);
+						var lastUpdated = rst.getObject("last_updated", LocalDateTime.class);
 						if (faDate != null && lastUpdated != null) {
 							problemActivityTimestamp = faDate.atTime(lastUpdated.getHour(), lastUpdated.getMinute(), lastUpdated.getSecond());
 						}
@@ -80,9 +71,9 @@ public record ActivityRepository() {
 				}
 			}
 		}
-		try (PreparedStatement psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+		try (var psAddActivity = c.prepareStatement("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?).")) {
 			if (hasFa) {
-				psAddActivity.setObject(1, problemActivityTimestamp != null? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
+				psAddActivity.setObject(1, problemActivityTimestamp != null ? problemActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 				psAddActivity.setString(2, ACTIVITY_TYPE_FA);
 				psAddActivity.setInt(3, idProblem);
 				psAddActivity.setNull(4, Types.INTEGER);
@@ -92,10 +83,7 @@ public record ActivityRepository() {
 				psAddActivity.addBatch();
 			}
 
-			/**
-			 * Media
-			 */
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT m.id, m.date_created
 					FROM media_problem mp
 					JOIN media m ON mp.media_id = m.id
@@ -103,14 +91,14 @@ public record ActivityRepository() {
 					ORDER BY m.date_created ASC
 					""")) {
 				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					record MediaItem(int id) {}
-					List<MediaItem> buffer = new ArrayList<>();
-					LocalDateTime groupAnchor = problemActivityTimestamp; 
-					LocalDateTime latestInGroup = problemActivityTimestamp;
+					var buffer = new ArrayList<MediaItem>();
+					var groupAnchor = problemActivityTimestamp; 
+					var latestInGroup = problemActivityTimestamp;
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						LocalDateTime current = rst.getObject("date_created", LocalDateTime.class);
+						var current = rst.getObject("date_created", LocalDateTime.class);
 						boolean inFA = groupAnchor != null && groupAnchor == problemActivityTimestamp && current != null && Math.abs(ChronoUnit.DAYS.between(groupAnchor, current)) <= 7;
 						boolean inRolling = groupAnchor != null && groupAnchor != problemActivityTimestamp && current != null && Math.abs(ChronoUnit.HOURS.between(groupAnchor, current)) <= 24;
 						if (groupAnchor != null && !inFA && !inRolling) {
@@ -146,10 +134,7 @@ public record ActivityRepository() {
 				}
 			}
 
-			/**
-			 * Tick
-			 */
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT t.user_id, t.date, t.created,
 					       ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix_on_created_date
 					FROM tick t
@@ -157,7 +142,7 @@ public record ActivityRepository() {
 					ORDER BY t.date, t.created
 					""")) {
 				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int userId = rst.getInt("user_id");
 						LocalDateTime tickActivityTimestamp = null;
@@ -165,16 +150,14 @@ public record ActivityRepository() {
 							tickActivityTimestamp = problemActivityTimestamp;
 						}
 						else {
-							LocalDate tickDate = rst.getObject("date", LocalDate.class);
-							LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
+							var tickDate = rst.getObject("date", LocalDate.class);
+							var tickCreated = rst.getObject("created", LocalDateTime.class);
 							if (tickDate != null && tickCreated != null) {
 								if (tickCreated.toLocalDate().isAfter(tickDate)) {
-									// Tick created on different date, use end of day in activity order
 									int ixOnCreatedDate = rst.getInt("ix_on_created_date");
 									tickActivityTimestamp = tickDate.atTime(23, 59, Math.min(ixOnCreatedDate, 59));
 								}
 								else {
-									// Tick created on same date as FA, use HHMMSS in activity order
 									tickActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
 								}
 							}
@@ -182,7 +165,7 @@ public record ActivityRepository() {
 								tickActivityTimestamp = tickDate.atStartOfDay();
 							}
 						}
-						psAddActivity.setObject(1, tickActivityTimestamp != null? tickActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
+						psAddActivity.setObject(1, tickActivityTimestamp != null ? tickActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -194,10 +177,7 @@ public record ActivityRepository() {
 				}
 			}
 
-			/**
-			 * Tick repeat
-			 */
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT r.id, t.user_id, r.date, r.created
 					FROM tick t
 					JOIN tick_repeat r ON t.id=r.tick_id
@@ -205,12 +185,12 @@ public record ActivityRepository() {
 					ORDER BY r.tick_id, r.date, r.id
 					""")) {
 				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
 						int userId = rst.getInt("user_id");
-						LocalDate tickDate = rst.getObject("date", LocalDate.class);
-						LocalDateTime tickCreated = rst.getObject("created", LocalDateTime.class);
+						var tickDate = rst.getObject("date", LocalDate.class);
+						var tickCreated = rst.getObject("created", LocalDateTime.class);
 						LocalDateTime tickRepeatActivityTimestamp = null;
 						if (tickDate != null && tickCreated != null) {
 							tickRepeatActivityTimestamp = tickDate.atTime(tickCreated.getHour(), tickCreated.getMinute(), tickCreated.getSecond());
@@ -218,7 +198,7 @@ public record ActivityRepository() {
 						else if (tickDate != null) {
 							tickRepeatActivityTimestamp = tickDate.atStartOfDay();
 						}
-						psAddActivity.setObject(1, tickRepeatActivityTimestamp != null? tickRepeatActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
+						psAddActivity.setObject(1, tickRepeatActivityTimestamp != null ? tickRepeatActivityTimestamp : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_TICK_REPEAT);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -230,21 +210,18 @@ public record ActivityRepository() {
 				}
 			}
 
-			/**
-			 * Guestbook
-			 */
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT g.id, g.post_time
 					FROM guestbook g
 					WHERE g.problem_id=?
 					ORDER BY g.post_time
 					""")) {
 				ps.setInt(1, idProblem);
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						int id = rst.getInt("id");
-						LocalDateTime postTime = rst.getObject("post_time", LocalDateTime.class);
-						psAddActivity.setObject(1, postTime != null? postTime : LocalDate.EPOCH.atStartOfDay());
+						var postTime = rst.getObject("post_time", LocalDateTime.class);
+						psAddActivity.setObject(1, postTime != null ? postTime : LocalDate.EPOCH.atStartOfDay());
 						psAddActivity.setString(2, ACTIVITY_TYPE_GUESTBOOK);
 						psAddActivity.setInt(3, idProblem);
 						psAddActivity.setNull(4, Types.INTEGER);
@@ -256,23 +233,21 @@ public record ActivityRepository() {
 				}
 			}
 
-			/**
-			 * Execute psAddActivity
-			 */
 			psAddActivity.executeBatch();
 		}
 	}
 
-	public List<Activity> getActivity(Connection c, Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		final List<Activity> res = new ArrayList<>();
-		final Set<Integer> faIds = new HashSet<>();
-		final Set<Integer> tickIds = new HashSet<>();
-		final Set<Integer> repeatIds = new HashSet<>();
-		final Set<Integer> mediaIds = new HashSet<>();
-		final Set<Integer> gbIds = new HashSet<>();
-		boolean showAllTime = offset > 0 ||lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
-		String sqlStr = """
+	public List<Activity> getActivity(Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
+		var res = new ArrayList<Activity>();
+		var faIds = new HashSet<Integer>();
+		var tickIds = new HashSet<Integer>();
+		var repeatIds = new HashSet<Integer>();
+		var mediaIds = new HashSet<Integer>();
+		var gbIds = new HashSet<Integer>();
+		var showAllTime = offset > 0 || lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
+		var c = DatabaseContext.getConnection();
+		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,
 				         ? hide_fa, ? hide_guestbook, ? hide_ticks, ? hide_media, ? min_grade_weight,
@@ -326,8 +301,8 @@ public record ActivityRepository() {
 				    x.activity_timestamp, a.id, s.id, x.problem_id, p.name, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, x.problem_id DESC
 				""";
-		try (PreparedStatement ps = c.prepareStatement(sqlStr)) {
-			int ix = 1;
+		try (var ps = c.prepareStatement(sqlStr)) {
+			var ix = 1;
 			ps.setInt(ix++, authUserId.orElse(0));
 			ps.setInt(ix++, setup.idRegion());
 			ps.setBoolean(ix++, showAllTime);
@@ -339,16 +314,16 @@ public record ActivityRepository() {
 			ps.setInt(ix++, idArea);
 			ps.setInt(ix++, idSector);
 			ps.setInt(ix++, offset);
-			try (ResultSet rst = ps.executeQuery()) {
+			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					LocalDateTime ts = rst.getObject("activity_timestamp", LocalDateTime.class);
-					Set<Integer> currentActivityIds = new HashSet<>();
-					String raw = rst.getString("activities");
+					var ts = rst.getObject("activity_timestamp", LocalDateTime.class);
+					var currentActivityIds = new HashSet<Integer>();
+					var raw = rst.getString("activities");
 					if (raw != null) {
-						for (String entry : raw.split(",")) {
-							String[] parts = entry.split("-");
+						for (var entry : raw.split(",")) {
+							var parts = entry.split("-");
 							int id = Integer.parseInt(parts[0]);
-							String type = parts[1];
+							var type = parts[1];
 							currentActivityIds.add(id);
 							switch (type) {
 							case "FA" -> faIds.add(id);
@@ -367,14 +342,14 @@ public record ActivityRepository() {
 				}
 			}
 		}
-		Map<Integer, Activity> activityLookup = new HashMap<>();
-		for (Activity act : res) {
-			for (Integer id : act.getActivityIds()) {
+		var activityLookup = new HashMap<Integer, Activity>();
+		for (var act : res) {
+			for (var id : act.getActivityIds()) {
 				activityLookup.put(id, act);
 			}
 		}
 		if (!tickIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 					       t.comment description, t.stars, g.grade
@@ -387,13 +362,13 @@ public record ActivityRepository() {
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(tickIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						Activity a = activityLookup.get(rst.getInt("id"));
+						var a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							int userId = rst.getInt("user_id");
-							String name = rst.getString("name");
-							String grade = rst.getString("grade");
+							var name = rst.getString("name");
+							var grade = rst.getString("grade");
 							if (grade == null) {
 								grade = GradeConverter.NO_PERSONAL_GRADE;
 							}
@@ -403,7 +378,7 @@ public record ActivityRepository() {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 						}
@@ -412,7 +387,7 @@ public record ActivityRepository() {
 			}
 		}
 		if (!repeatIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 					       r.comment description, t.stars, g.grade
@@ -426,13 +401,13 @@ public record ActivityRepository() {
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
 								""".formatted(Joiner.on(",").join(repeatIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						Activity a = activityLookup.get(rst.getInt("id"));
+						var a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							int userId = rst.getInt("user_id");
-							String name = rst.getString("name");
-							String grade = rst.getString("grade");
+							var name = rst.getString("name");
+							var grade = rst.getString("grade");
 							if (grade == null) {
 								grade = GradeConverter.NO_PERSONAL_GRADE;
 							}
@@ -442,7 +417,7 @@ public record ActivityRepository() {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 						}
@@ -451,7 +426,7 @@ public record ActivityRepository() {
 			}
 		}
 		if (!gbIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex,
 					       g.message,
@@ -467,19 +442,19 @@ public record ActivityRepository() {
 					WHERE a.id IN (%s)
 					  AND m.deleted_user_id IS NULL
 					""".formatted(Joiner.on(",").join(gbIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						Activity a = activityLookup.get(rst.getInt("id"));
+						var a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							int userId = rst.getInt("user_id");
-							String name = rst.getString("name");
+							var name = rst.getString("name");
 							a.setGuestbook(userId, name, rst.getString("message"));
 							int mediaId = rst.getInt("media_id");
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 								a.addMedia(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getString("embed_url"));
 							}
 							int avatarMediaId = rst.getInt("avatar_media_id");
@@ -487,7 +462,7 @@ public record ActivityRepository() {
 								long avatarMediaVersionStamp = rst.getLong("avatar_version_stamp");
 								int avatarFocusX = rst.getInt("avatar_focus_x");
 								int avatarFocusY = rst.getInt("avatar_focus_y");
-								String avatarPrimaryColorHex = rst.getString("avatar_primary_color_hex");
+								var avatarPrimaryColorHex = rst.getString("avatar_primary_color_hex");
 								a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, avatarMediaVersionStamp, avatarFocusX, avatarFocusY, avatarPrimaryColorHex), userId, name);
 							}
 						}
@@ -496,7 +471,7 @@ public record ActivityRepository() {
 			}
 		}
 		if (!faIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex
 					FROM activity a
@@ -508,11 +483,11 @@ public record ActivityRepository() {
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
 					""".formatted(Joiner.on(",").join(faIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						Activity a = activityLookup.get(rst.getInt("id"));
+						var a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
-							String description = rst.getString("description");
+							var description = rst.getString("description");
 							if (description != null) {
 								if (a.getDescription() == null) {
 									a.setDescription(description);
@@ -522,14 +497,14 @@ public record ActivityRepository() {
 								}
 							}
 							int userId = rst.getInt("user_id");
-							String name = rst.getString("name");
+							var name = rst.getString("name");
 							int mediaId = rst.getInt("media_id");
 							MediaIdentity mediaIdentity = null;
 							if (mediaId > 0) {
 								long mediaVersionStamp = rst.getLong("media_version_stamp");
 								int mediaFocusX = rst.getInt("media_focus_x");
 								int mediaFocusY = rst.getInt("media_focus_y");
-								String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+								var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 								a.appendActivityThumbnail(new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex), userId, name);
 							}
 							a.addUser(userId, name, mediaIdentity);
@@ -538,12 +513,12 @@ public record ActivityRepository() {
 				}
 			}
 			if (!media) {
-				Set<Integer> problemIds = res.stream()
+				var problemIds = res.stream()
 						.filter(a -> a.getActivityIds().stream().anyMatch(faIds::contains))
 						.map(Activity::getProblemId)
 						.collect(Collectors.toSet());
 				if (!problemIds.isEmpty()) {
-					try (PreparedStatement ps = c.prepareStatement("""
+					try (var ps = c.prepareStatement("""
 							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, 
 							       mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url
 							FROM media_problem mp
@@ -552,7 +527,7 @@ public record ActivityRepository() {
 							WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL
 							ORDER BY mp.sorting
 							""".formatted(Joiner.on(",").join(problemIds)))) {
-						try (ResultSet rst = ps.executeQuery()) {
+						try (var rst = ps.executeQuery()) {
 							while (rst.next()) {
 								int pId = rst.getInt("problem_id");
 								var activities = res.stream()
@@ -569,9 +544,9 @@ public record ActivityRepository() {
 			}
 		}
 		if (!mediaIds.isEmpty()) {
-			try (PreparedStatement ps = c.prepareStatement("""
+			try (var ps = c.prepareStatement("""
 					SELECT a.id,
-						   u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
+					       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name,
 					       m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
 					       m.is_movie, m.is_360, m.embed_url,
 					       COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp
@@ -585,14 +560,13 @@ public record ActivityRepository() {
 					LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id
 					WHERE a.id IN (%s)
 					""".formatted(Joiner.on(",").join(mediaIds)))) {
-				try (ResultSet rst = ps.executeQuery()) {
+				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
-						Activity a = activityLookup.get(rst.getInt("id"));
+						var a = activityLookup.get(rst.getInt("id"));
 						if (a != null) {
 							var mediaIdentity = new MediaIdentity(rst.getInt("media_id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
 							a.addMedia(mediaIdentity, rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getString("embed_url"));
 							if (a.getUsers() == null || a.getUsers().isEmpty()) {
-								// Don't append activity thumbnail if this is a new problem, only show FA users
 								a.appendActivityThumbnail(new MediaIdentity(rst.getInt("photographer_media_id"), rst.getLong("photographer_version_stamp"), 0, 0, null), rst.getInt("user_id"), rst.getString("name"));
 							}
 						}

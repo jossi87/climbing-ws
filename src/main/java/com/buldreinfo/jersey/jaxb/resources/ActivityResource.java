@@ -54,8 +54,8 @@ public class ActivityResource extends BaseResource {
 		if (offset < 0) {
 			return createBadRequestResponse("offset cannot be negative");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, c, setup, authUserId, _) -> {
-			List<Activity> res = dao.getActivityRepo().getActivity(c, authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
+		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
+			List<Activity> res = dao.getActivityRepo().getActivity(authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
 			return Response.ok().entity(res).build();
 		});
 	}

@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +32,8 @@ public class FixMediaAnalyze {
 
     public void run() {
         List<Task> tasks = new ArrayList<>();
-        DatabaseContext.runSql((_, c) -> {
+        DatabaseContext.runSql(_ -> {
+        	var c = DatabaseContext.getConnection();
             try (PreparedStatement ps = c.prepareStatement("""
                     SELECT id, width, height
                     FROM media m
@@ -45,6 +47,8 @@ public class FixMediaAnalyze {
                     int height = rst.getInt("height");
                     tasks.add(new Task(id, width, height));
                 }
+            } catch (SQLException e) {
+            	throw new RuntimeException(e.getMessage(), e);
             }
         });
         logger.debug("Run MediaAnalyze on {} items", tasks.size());
@@ -68,7 +72,8 @@ public class FixMediaAnalyze {
             logger.warn(w);
         }
         logger.debug("Updating cache columns...");
-        DatabaseContext.runSql((_, c) -> {
+        DatabaseContext.runSql(_ -> {
+        	var c = DatabaseContext.getConnection();
             try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE media_ml_analysis mla
                     JOIN media m ON mla.media_id = m.id
@@ -106,6 +111,8 @@ public class FixMediaAnalyze {
                     WHERE mla.media_id > 0;
                     """)) {
                 ps.execute();
+            } catch (SQLException e) {
+            	throw new RuntimeException(e.getMessage(), e);
             }
         });
         logger.debug("Done");
@@ -115,18 +122,18 @@ public class FixMediaAnalyze {
         try {
             Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
             var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
-            DatabaseContext.runSql((dao, c) -> {
+            DatabaseContext.runSql(dao -> {
                 try {
-                    dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
+                    dao.getMediaRepo().saveMediaAnalysis(t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
                 } catch (Exception e) {
                     warnings.add("Failed to save media id=" + t.id + ": " + e.getMessage());
                 }
             });
         } catch (Exception e) {
             warnings.add("Failed to process/analyze media id=" + t.id + ": " + e.getMessage());
-            DatabaseContext.runSql((dao, c) -> {
+            DatabaseContext.runSql(dao -> {
                 try {
-                    dao.getMediaRepo().saveMediaAnalysis(c, t.id, t.width, t.height, null, null, null, true);
+                    dao.getMediaRepo().saveMediaAnalysis(t.id, t.width, t.height, null, null, null, true);
                 } catch (Exception dbEx) {
                     logger.error("Could not save failure state for id=" + t.id, dbEx);
                 }

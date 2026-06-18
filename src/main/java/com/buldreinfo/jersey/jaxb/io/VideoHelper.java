@@ -4,7 +4,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
 import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
@@ -21,7 +20,7 @@ public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
-	public static void extractThumbnail(Connection c, Dao dao, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	public static void extractThumbnail(Dao dao, int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
@@ -33,7 +32,7 @@ public class VideoHelper {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
 				if (b != null) {
 					try {
-						ImageHelper.saveImage(dao, c, idMedia, b);
+						ImageHelper.saveImage(dao, idMedia, b);
 					} finally {
 						b.flush();
 					}
@@ -45,7 +44,7 @@ public class VideoHelper {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
 	}
 
-	public static void processVideo(Connection c, Dao dao, int idMedia, int thumbnailSeconds) throws Exception {
+	public static void processVideo(Dao dao, int idMedia, int thumbnailSeconds) throws Exception {
 		StorageManager storage = StorageManager.getInstance();
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
@@ -80,7 +79,7 @@ public class VideoHelper {
 				}
 			}
 			if (needsThumb) {
-				extractThumbnail(c, dao, idMedia, tempOriginal, thumbnailSeconds);
+				extractThumbnail(dao, idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {
 			Files.deleteIfExists(tempOriginal);
