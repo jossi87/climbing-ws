@@ -21,7 +21,6 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.config.BuldreinfoConfig;
 import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.function.Function;
 import com.buldreinfo.jersey.jaxb.helpers.AuthHelper;
 import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
@@ -35,7 +34,7 @@ public class DatabaseContext {
 	public interface AuthenticatedDatabaseTransactionAction<R> {
 		R execute(Dao dao, Setup setup, Optional<Integer> authUserId, boolean shouldUpdateHits) throws Exception;
 	}
-
+	
 	@FunctionalInterface
 	public interface DaoTask<T> {
 		T run(Dao dao) throws Exception;
@@ -44,6 +43,11 @@ public class DatabaseContext {
 	@FunctionalInterface
 	public interface DatabaseTransactionAction<R> {
 		R execute(Dao dao, Setup setup, boolean shouldUpdateHits) throws Exception;
+	}
+
+	@FunctionalInterface
+	public interface ThrowingSupplier<T> {
+	    T get() throws Exception;
 	}
 
 	private interface ConnectionTask {
@@ -60,10 +64,9 @@ public class DatabaseContext {
 	private static final int HITS_COOLDOWN_CACHE_MAX_SIZE = 200000;
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
 	private static final Map<String, Long> hitsCooldownMap = new ConcurrentHashMap<>();
-
 	private static final Logger logger = LogManager.getLogger();
 
-	public static Response buildResponse(Function<Response> function) {
+	public static Response buildResponse(ThrowingSupplier<Response> function) {
 		try {
 			return function.get();
 		} catch (Exception e) {
@@ -305,8 +308,8 @@ public class DatabaseContext {
 	private final Dao dao = new Dao();
 	private final HikariDataSource ds;
 	private final ExecutorService executor;
-	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
 	private boolean initialized = false;
+	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
 	
 	private DatabaseContext() {
 		Stopwatch stopwatch = Stopwatch.createStarted();
