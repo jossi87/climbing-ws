@@ -58,6 +58,13 @@ public record SectorRepository(Dao dao) {
 				ps.execute();
 			}
 		}
+
+		var outlineFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorOutline(reqId));
+		var trailsFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(reqId)));
+		var mediaFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getMediaRepo().getMediaSector(setup, authUserId, reqId, 0, false, 0, 0, 0, false));
+		var linksFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getExternalLinksRepo().getExternalLinks(0, reqId, 0));
+		var problemsFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorProblems(setup, authUserId, 0, reqId));
+
 		Sector s = null;
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
@@ -100,13 +107,12 @@ public record SectorRepository(Dao dao) {
 					int sunToHour = rst.getInt("sun_to_hour");
 					int idCoordinates = rst.getInt("coordinates_id");
 					Coordinates parking = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					List<Coordinates> sectorOutline = getSectorOutline(reqId);
-					Collection<Trail> trails = getSectorTrails(authUserId, Collections.singleton(reqId)).get(reqId);
 					CompassDirection wallDirectionCalculated = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
 					CompassDirection wallDirectionManual = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
 					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					List<Media> allMedia = dao.getMediaRepo().getMediaSector(setup, authUserId, reqId, 0, false, areaId, 0, 0, false);
-					Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
+					
+					var allMedia = mediaFuture.join();
+					var partitioned = Optional.ofNullable(allMedia)
 							.orElse(List.of())
 							.stream()
 							.collect(Collectors.partitioningBy(
@@ -114,9 +120,8 @@ public record SectorRepository(Dao dao) {
 									));
 					List<Media> triviaMedia = partitioned.get(true);
 					List<Media> media = partitioned.get(false);
-					var externalLinks = dao.getExternalLinksRepo().getExternalLinks(0, reqId, 0);
-
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, sectorOutline, wallDirectionCalculated, wallDirectionManual, trails, media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), externalLinks, pageViews);
+					
+					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outlineFuture.join(), wallDirectionCalculated, wallDirectionManual, trailsFuture.join().get(reqId), media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksFuture.join(), pageViews);
 				}
 			}
 		}
@@ -129,7 +134,6 @@ public record SectorRepository(Dao dao) {
 			} catch (NoSuchElementException _) {
 			}
 		}
-
 		if (s == null) {
 			throw new NoSuchElementException("Could not find sector with id=" + reqId);
 		}
@@ -145,9 +149,13 @@ public record SectorRepository(Dao dao) {
 		if (s.sectors() != null) {
 			s.sectors().sort((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
 		}
-		for (SectorProblem sp : getSectorProblems(setup, authUserId, 0, reqId).get(reqId)) {
-			s.problems().add(sp);
-			s.problemOrder().add(new Sector.SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
+		var problemsMap = problemsFuture.join();
+		var sectorProblems = problemsMap.get(reqId);
+		if (sectorProblems != null) {
+			for (SectorProblem sp : sectorProblems) {
+				s.problems().add(sp);
+				s.problemOrder().add(new Sector.SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
+			}
 		}
 		if (!s.problems().isEmpty() && orderByGrade) {
 			Collections.sort(s.problems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());

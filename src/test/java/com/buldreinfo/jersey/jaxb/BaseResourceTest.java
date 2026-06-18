@@ -1,7 +1,5 @@
 package com.buldreinfo.jersey.jaxb;
 
-import java.sql.SQLException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.easymock.EasyMock;
@@ -33,11 +31,7 @@ public abstract class BaseResourceTest {
     @BeforeAll
     public static void warmUp() {
     	DatabaseContext.runSql(_ -> {
-            try (var ps = DatabaseContext.getConnection().prepareStatement("SELECT 1")) {
-                ps.executeQuery();
-            } catch (SQLException e) {
-                throw new RuntimeException("Database warmup failed", e);
-            }
+    		DatabaseContext.getSetups();
         });
         logger.debug("Database pool and initial connection warmed up.");
     }

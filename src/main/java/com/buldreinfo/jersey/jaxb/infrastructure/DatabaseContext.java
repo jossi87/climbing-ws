@@ -304,7 +304,7 @@ public class DatabaseContext {
 	private final AuthHelper auth = new AuthHelper();
 	private final Dao dao = new Dao();
 	private final HikariDataSource ds;
-	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+	private final ExecutorService executor;
 	private final Map<String, Setup> setupMap = new ConcurrentHashMap<>();
 	private boolean initialized = false;
 	
@@ -329,6 +329,8 @@ public class DatabaseContext {
 		hikariConfig.setLeakDetectionThreshold(0);
 		hikariConfig.setConnectionInitSql("SET SESSION group_concat_max_len = 1000000");
 		this.ds = new HikariDataSource(hikariConfig);
+		var threadFactory = Thread.ofVirtual().name("climbing-ws-", 0).factory();
+	    this.executor = Executors.newThreadPerTaskExecutor(threadFactory);
 		logger.info("Server initialized in {}", stopwatch);
 	}
 

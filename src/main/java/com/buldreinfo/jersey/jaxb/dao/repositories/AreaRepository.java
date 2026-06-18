@@ -39,27 +39,6 @@ import com.google.common.collect.Lists;
 public record AreaRepository(Dao dao) {
 	private static final Logger logger = LogManager.getLogger();
 	
-	protected void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) throws SQLException {
-		var c = DatabaseContext.getConnection();
-		var ok = false;
-		try (var ps = c.prepareStatement("""
-				SELECT ur.admin_write, ur.superadmin_write
-				FROM area a
-				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE a.id=?
-				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				""")) {
-			ps.setInt(1, authUserId.orElseThrow());
-			ps.setInt(2, areaId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-	
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = DatabaseContext.getConnection();
@@ -136,7 +115,11 @@ public record AreaRepository(Dao dao) {
 		}
 		var sectorLookup = getAreaSectors(setup, authUserId, a.id(), a.name());
 		if (!sectorLookup.isEmpty()) {
-			var sectorProblems = dao.getSectorRepo().getSectorProblems(setup, authUserId, reqId, 0);
+			var problemsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorProblems(setup, authUserId, reqId, 0));
+			var outlinesFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutlines(sectorLookup.keySet()));
+			var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, sectorLookup.keySet()));
+
+			var sectorProblems = problemsFuture.join();
 			for (var sectorId : sectorProblems.keySet()) {
 				var sector = sectorLookup.get(sectorId);
 				if (sector != null) {
@@ -161,14 +144,14 @@ public record AreaRepository(Dao dao) {
 					}
 				}
 			}
-			var idSectorOutline = dao.getSectorRepo().getSectorOutlines(sectorLookup.keySet());
+			var idSectorOutline = outlinesFuture.join();
 			for (var idSector : idSectorOutline.keySet()) {
 				var sector = sectorLookup.get(idSector);
 				if (sector != null) {
 					sector.outline().addAll(idSectorOutline.get(idSector));
 				}
 			}
-			var sectorTrailsMultimap = dao.getSectorRepo().getSectorTrails(authUserId, sectorLookup.keySet());
+			var sectorTrailsMultimap = trailsFuture.join();
 			for (var idSector : sectorTrailsMultimap.keySet()) {
 				var sector = sectorLookup.get(idSector);
 				if (sector != null) {
@@ -486,5 +469,26 @@ public record AreaRepository(Dao dao) {
 			}
 		}
 		logger.debug("loadSimplifiedGradeCounts(areaId={}, sectorLookup.size()={}) - duration={}", areaId, sectorLookup.size(), stopwatch);
+	}
+	
+	protected void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) throws SQLException {
+		var c = DatabaseContext.getConnection();
+		var ok = false;
+		try (var ps = c.prepareStatement("""
+				SELECT ur.admin_write, ur.superadmin_write
+				FROM area a
+				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE a.id=?
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				""")) {
+			ps.setInt(1, authUserId.orElseThrow());
+			ps.setInt(2, areaId);
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 }

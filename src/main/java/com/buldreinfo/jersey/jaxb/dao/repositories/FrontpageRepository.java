@@ -32,6 +32,7 @@ public record FrontpageRepository(Gson gson) {
 	}
 
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageFirstAscent>();
 		var c = DatabaseContext.getConnection();
 		var sqlStr = """
@@ -108,10 +109,12 @@ public record FrontpageRepository(Gson gson) {
 				}
 			}
 		}
+		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 
 	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageLastComment>();
 		var c = DatabaseContext.getConnection();
 		var sqlStr = """
@@ -158,10 +161,12 @@ public record FrontpageRepository(Gson gson) {
 				}
 			}
 		}
+		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageRecentAscent>();
 		var c = DatabaseContext.getConnection();
 		var sqlStr = """
@@ -236,10 +241,12 @@ public record FrontpageRepository(Gson gson) {
 				}
 			}
 		}
+		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageNewestMedia>();
 		var c = DatabaseContext.getConnection();
 		var sqlStr = """
@@ -294,6 +301,7 @@ public record FrontpageRepository(Gson gson) {
 				}
 			}
 		}
+		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
 		return res;
 	}
 

@@ -29,51 +29,6 @@ import com.google.common.base.Strings;
 public record TickRepository(Dao dao) {
 	private static final Logger logger = LogManager.getLogger();
 	
-	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) throws SQLException {
-		var c = DatabaseContext.getConnection();
-		var idsToKeep = repeats == null ? List.<Integer>of() : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).toList();
-		if (idsToKeep.isEmpty()) {
-			try (var ps = c.prepareStatement("DELETE FROM tick_repeat WHERE tick_id=?")) {
-				ps.setInt(1, idTick);
-				ps.execute();
-			}
-		} else {
-			var placeholders = String.join(",", Collections.nCopies(idsToKeep.size(), "?"));
-			var sqlStr = "DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + placeholders + ")";
-			try (var ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, idTick);
-				for (var i = 0; i < idsToKeep.size(); i++) {
-					ps.setInt(i + 2, idsToKeep.get(i));
-				}
-				ps.execute();
-			}
-		}
-		if (repeats != null && !repeats.isEmpty()) {
-			for (var r : repeats) {
-				final var dt = Strings.isNullOrEmpty(r.date()) ? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-				if (r.id() > 0) {
-					try (var ps = c.prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
-						ps.setObject(1, dt);
-						ps.setString(2, GlobalFunctions.stripString(r.comment()));
-						ps.setInt(3, r.id());
-						var res = ps.executeUpdate();
-						if (res != 1) {
-							throw new SQLException("Invalid repeat=" + r);
-						}
-					}
-				}
-				else {
-					try (var ps = c.prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
-						ps.setInt(1, idTick);
-						ps.setObject(2, dt);
-						ps.setString(3, GlobalFunctions.stripString(r.comment()));
-						ps.execute();
-					}
-				}
-			}
-		}
-	}
-	
 	public Ticks getTicks(Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		final var take = 200;
@@ -210,5 +165,50 @@ public record TickRepository(Dao dao) {
 		}
 		dao.getActivityRepo().fillActivity(t.idProblem());
 		dao.getProblemRepo().updateProblemConsensusGrade(t.idProblem());
+	}
+	
+	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) throws SQLException {
+		var c = DatabaseContext.getConnection();
+		var idsToKeep = repeats == null ? List.<Integer>of() : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).toList();
+		if (idsToKeep.isEmpty()) {
+			try (var ps = c.prepareStatement("DELETE FROM tick_repeat WHERE tick_id=?")) {
+				ps.setInt(1, idTick);
+				ps.execute();
+			}
+		} else {
+			var placeholders = String.join(",", Collections.nCopies(idsToKeep.size(), "?"));
+			var sqlStr = "DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (" + placeholders + ")";
+			try (var ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, idTick);
+				for (var i = 0; i < idsToKeep.size(); i++) {
+					ps.setInt(i + 2, idsToKeep.get(i));
+				}
+				ps.execute();
+			}
+		}
+		if (repeats != null && !repeats.isEmpty()) {
+			for (var r : repeats) {
+				final var dt = Strings.isNullOrEmpty(r.date()) ? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+				if (r.id() > 0) {
+					try (var ps = c.prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
+						ps.setObject(1, dt);
+						ps.setString(2, GlobalFunctions.stripString(r.comment()));
+						ps.setInt(3, r.id());
+						var res = ps.executeUpdate();
+						if (res != 1) {
+							throw new SQLException("Invalid repeat=" + r);
+						}
+					}
+				}
+				else {
+					try (var ps = c.prepareStatement("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")) {
+						ps.setInt(1, idTick);
+						ps.setObject(2, dt);
+						ps.setString(3, GlobalFunctions.stripString(r.comment()));
+						ps.execute();
+					}
+				}
+			}
+		}
 	}
 }

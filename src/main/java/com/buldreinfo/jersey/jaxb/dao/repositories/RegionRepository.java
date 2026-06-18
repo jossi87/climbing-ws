@@ -28,7 +28,7 @@ import com.google.common.collect.Multimap;
 
 public record RegionRepository(Dao dao) {
 	private static final Logger logger = LogManager.getLogger();
-	
+
 	private List<Grade> getGrades(int gradeSystemId) throws SQLException {
 		var res = new ArrayList<Grade>();
 		var c = DatabaseContext.getConnection();
@@ -52,7 +52,7 @@ public record RegionRepository(Dao dao) {
 		}
 		return res;
 	}
-	
+
 	private Multimap<Integer, Coordinates> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
 		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
 		var stopwatch = Stopwatch.createStarted();
@@ -80,7 +80,7 @@ public record RegionRepository(Dao dao) {
 		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}, duration={}", idRegions.size(), res.size(), stopwatch);
 		return res;
 	}
-	
+
 	protected void ensureAdminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		var c = DatabaseContext.getConnection();
@@ -96,7 +96,7 @@ public record RegionRepository(Dao dao) {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	protected void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		var c = DatabaseContext.getConnection();
@@ -112,7 +112,7 @@ public record RegionRepository(Dao dao) {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	public List<Integer> getFaYears(int regionId) throws SQLException {
 		var res = new ArrayList<Integer>();
 		var c = DatabaseContext.getConnection();
@@ -132,7 +132,7 @@ public record RegionRepository(Dao dao) {
 		}
 		return res;
 	}
-	
+
 	public List<Region> getRegions(int currIdRegion) throws SQLException {
 		Map<Integer, Region> regionLookup = new LinkedHashMap<>();
 		var c = DatabaseContext.getConnection();
@@ -157,48 +157,49 @@ public record RegionRepository(Dao dao) {
 		}
 		return Lists.newArrayList(regionLookup.values());
 	}
-	
+
 	public List<Setup> getSetups() throws SQLException {
+		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Setup>();
 		var c = DatabaseContext.getConnection();
-		try (var ps = c.prepareStatement("""
-				SELECT r.id id_region, r.title, r.description, REPLACE(REPLACE(r.url,'https://',''),'http://','') domain, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
+		var compassDirections = dao.getGeoRepo().getCompassDirections();
+		var converterCache = new java.util.HashMap<Integer, GradeConverter>();
+		String sql = """
+				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
 				FROM region r
-				JOIN region_type rt ON r.id=rt.region_id
-				JOIN type t ON rt.type_id=t.id
-				JOIN type_grade_system tgs ON t.id=tgs.type_id
-				GROUP BY r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
+				JOIN region_type rt ON r.id = rt.region_id
+				JOIN type t ON rt.type_id = t.id
+				JOIN type_grade_system tgs ON t.id = tgs.type_id
 				ORDER BY r.id
-				""")) {
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idRegion = rst.getInt("id_region");
-					var title = rst.getString("title");
-					var description = rst.getString("description");
-					var domain = rst.getString("domain");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					int defaultZoom = rst.getInt("default_zoom");
-					var group = rst.getString("group");
-					int gradeSystemId = rst.getInt("grade_system_id");
-					var compassDirections = dao.getGeoRepo().getCompassDirections();
-					var gradeConverter = new GradeConverter(getGrades(gradeSystemId));
-					res.add(Setup.newBuilder(domain, group)
-							.withIdRegion(idRegion)
-							.withTitle(title)
-							.withDescription(description)
-							.withDefaultCenter(new LatLng(latitude, longitude))
-							.withDefaultZoom(defaultZoom)
-							.withCompassDirections(compassDirections)
-							.withGradeConverter(gradeConverter)
-							.build());
-				}
+				""";
+		try (var ps = c.prepareStatement(sql);
+				var rst = ps.executeQuery()) {
+			while (rst.next()) {
+				int gradeSystemId = rst.getInt("grade_system_id");
+				var gradeConverter = converterCache.computeIfAbsent(gradeSystemId, id -> {
+					try {
+						return new GradeConverter(getGrades(id));
+					} catch (SQLException e) {
+						throw new RuntimeException(e);
+					}
+				});
+				res.add(Setup.newBuilder(
+						rst.getString("url").replace("https://", "").replace("http://", ""),
+						rst.getString("group"))
+						.withIdRegion(rst.getInt("id"))
+						.withTitle(rst.getString("title"))
+						.withDescription(rst.getString("description"))
+						.withDefaultCenter(new LatLng(rst.getDouble("latitude"), rst.getDouble("longitude")))
+						.withDefaultZoom(rst.getInt("default_zoom"))
+						.withCompassDirections(compassDirections)
+						.withGradeConverter(gradeConverter)
+						.build());
 			}
 		}
-		logger.debug("getSetups() - res.size()={}", res.size());
+		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), stopwatch);
 		return res;
 	}
-	
+
 	public List<Type> getTypes(int regionId) throws SQLException {
 		var res = new ArrayList<Type>();
 		var c = DatabaseContext.getConnection();
