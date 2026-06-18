@@ -6,28 +6,31 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public class BuldreinfoConfig {
-	public final static String PROPERTY_KEY_DB_HOSTNAME = "db.hostname";
-	public final static String PROPERTY_KEY_DB_DATABASE = "db.database";
-	public final static String PROPERTY_KEY_DB_USERNAME = "db.username";
-	public final static String PROPERTY_KEY_DB_PASSWORD = "db.password";
-	public final static String PROPERTY_KEY_GOOGLE_APIKEY = "google.apikey";
-	public final static String PROPERTY_KEY_VEGVESEN_AUTH = "vegvesen.auth";
 	public final static String PROPERTY_KEY_AKAMAI_ACCESS_KEY = "akamai.access_key";
 	public final static String PROPERTY_KEY_AKAMAI_SECRET_KEY = "akamai.secret_key";
 	public final static String PROPERTY_KEY_APIFY_API_TOKEN = "apify.api_token";
-	private static BuldreinfoConfig config = null;
-
-	public static synchronized BuldreinfoConfig getConfig() {
+	public final static String PROPERTY_KEY_DB_DATABASE = "db.database";
+	public final static String PROPERTY_KEY_DB_HOSTNAME = "db.hostname";
+	public final static String PROPERTY_KEY_DB_PASSWORD = "db.password";
+	public final static String PROPERTY_KEY_DB_USERNAME = "db.username";
+	public final static String PROPERTY_KEY_GOOGLE_APIKEY = "google.apikey";
+	public final static String PROPERTY_KEY_VEGVESEN_AUTH = "vegvesen.auth";
+	private static volatile BuldreinfoConfig config = null;
+	public static BuldreinfoConfig getConfig() {
 		BuldreinfoConfig result = config;
 		if (result == null) {
-			config = result = new BuldreinfoConfig();
+			synchronized (BuldreinfoConfig.class) {
+				result = config;
+				if (result == null) {
+					config = result = new BuldreinfoConfig();
+				}
+			}
 		}
 		return result;
 	}
-
 	private final Properties prop;
 
-	public BuldreinfoConfig() {
+	private BuldreinfoConfig() {
 		this.prop = new Properties();
 		Path externalPath = Path.of("/usr/local/tomcat/conf/buldreinfo.properties");
 		try {
