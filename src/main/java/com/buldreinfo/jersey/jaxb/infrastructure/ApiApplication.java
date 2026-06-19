@@ -13,10 +13,10 @@ public class ApiApplication extends ResourceConfig {
     public ApiApplication() {
         super(MultiPartFeature.class);
         packages(BaseResource.class.getPackageName());
-        register(CorsFilter.class);
+        register(new DependencyBinder());
+        register(CorsFilter.class); 
         register(HitTrackingFilter.class);
         register(GlobalExceptionMapper.class);
         register(JsonProvider.class);
-        register(new DependencyBinder());
     }
 }

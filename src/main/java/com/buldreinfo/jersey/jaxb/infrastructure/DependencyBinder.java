@@ -40,6 +40,7 @@ public class DependencyBinder extends AbstractBinder {
     protected void configure() {
         bindFactory(DataSourceFactory.class).to(DataSource.class).in(Singleton.class);
         bindAsContract(TransactionManager.class).in(Singleton.class);
+        bindAsContract(CorsFilter.class).in(Singleton.class);
         
         // Bind Repositories as Singletons
         bindAsContract(ActivityRepository.class).in(Singleton.class);
