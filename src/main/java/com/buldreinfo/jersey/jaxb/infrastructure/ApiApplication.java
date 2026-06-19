@@ -12,7 +12,12 @@ import jakarta.ws.rs.ApplicationPath;
 public class ApiApplication extends ResourceConfig {
     public ApiApplication() {
         super(MultiPartFeature.class);
-        packages(BaseResource.class.getPackageName());
+        
+        packages(
+            BaseResource.class.getPackageName(),
+            "io.swagger.v3.jaxrs2.integration.resources"
+        );
+        
         register(new DependencyBinder());
         register(CorsFilter.class); 
         register(HitTrackingFilter.class);
