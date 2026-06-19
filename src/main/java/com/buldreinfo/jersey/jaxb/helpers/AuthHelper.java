@@ -21,7 +21,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -71,7 +71,7 @@ public class AuthHelper {
 				}
 			});
 
-	public Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup) {
+	public Optional<Integer> getAuthUserId(UserRepository userRepo, HttpServletRequest request, Setup setup) {
 		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 		String accessToken = null;
 		if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
@@ -83,18 +83,18 @@ public class AuthHelper {
 		if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
 			return Optional.empty();
 		}
-		return getAuthUserId(dao, request, setup, accessToken);
+		return getAuthUserId(userRepo, request, setup, accessToken);
 	}
 
-	private Optional<Integer> getAuthUserId(Dao dao, HttpServletRequest request, Setup setup, String accessToken) {
+	private Optional<Integer> getAuthUserId(UserRepository userRepo, HttpServletRequest request, Setup setup, String accessToken) {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try {
 			boolean isNewToken = cache.getIfPresent(accessToken) == null;
 			Auth0Profile profile = cache.get(accessToken);
-			Optional<Integer> authUserId = dao.getUserRepo().getAuthUserId(profile);
+			Optional<Integer> authUserId = userRepo.getAuthUserId(profile);
 			if (isNewToken && authUserId.isPresent()) {
 				String headers = gson.toJson(getHeaders(request));
-				dao.getUserRepo().upsertUserLogin(setup, authUserId.get(), headers);
+				userRepo.upsertUserLogin(setup, authUserId.get(), headers);
 			}
 			logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
 			return authUserId;

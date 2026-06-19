@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -14,19 +14,20 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.dao.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
+import com.buldreinfo.jersey.jaxb.helpers.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.Media;
@@ -46,12 +47,38 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
-public record SectorRepository(Dao dao) {
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+
+public class SectorRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
-	
+	private final Provider<AreaRepository> areaRepo;
+	private final ExternalLinksRepository externalLinksRepo;
+	private final GeoRepository geoRepo;
+	private final Provider<HierarchyRepository> hierarchyRepo;
+	private final Provider<MediaRepository> mediaRepo;
+	private final Provider<SectorRepository> sectorRepo;
+
+	@Inject
+	public SectorRepository(TransactionManager txManager,
+			Provider<AreaRepository> areaRepo,
+			ExternalLinksRepository externalLinksRepo,
+			GeoRepository geoRepo,
+			Provider<HierarchyRepository> hierarchyRepo,
+			Provider<MediaRepository> mediaRepo,
+			Provider<SectorRepository> sectorRepo) {
+		super(txManager);
+		this.areaRepo = areaRepo;
+		this.externalLinksRepo = externalLinksRepo;
+		this.geoRepo = geoRepo;
+		this.hierarchyRepo = hierarchyRepo;
+		this.mediaRepo = mediaRepo;
+		this.sectorRepo = sectorRepo;
+	}
+
 	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
@@ -59,237 +86,116 @@ public record SectorRepository(Dao dao) {
 			}
 		}
 
-		var outlineFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorOutline(reqId));
-		var trailsFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(reqId)));
-		var mediaFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getMediaRepo().getMediaSector(setup, authUserId, reqId, 0, false, 0, 0, 0, false));
-		var linksFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getExternalLinksRepo().getExternalLinks(0, reqId, 0));
-		var problemsFuture = DatabaseContext.submitDaoTask(dao2 -> dao2.getSectorRepo().getSectorProblems(setup, authUserId, 0, reqId));
+		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			var outlineFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorOutline(reqId)), executor);
+			var trailsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorTrails(authUserId, Collections.singleton(reqId))), executor);
+			var mediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> mediaRepo.get().getMediaSector(setup, authUserId, reqId, 0, false, 0, 0, 0, false)), executor);
+			var linksFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> externalLinksRepo.getExternalLinks(0, reqId, 0)), executor);
+			var problemsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorProblems(setup, authUserId, 0, reqId)), executor);
 
-		Sector s = null;
-		try (var ps = c.prepareStatement("""
-				WITH req AS (
-					SELECT ? region_id, ? auth_user_id, ? sector_id
-				)
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
-				FROM req
-				JOIN sector s ON req.sector_id=s.id
-				JOIN area a ON s.area_id=a.id
-				JOIN region r ON a.region_id=r.id
-				JOIN region_type rt ON r.id=rt.region_id
-				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=auth_user_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-				GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
-				""")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, reqId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
-					boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					String areaAccessInfo = rst.getString("area_access_info");
-					String areaAccessClosed = rst.getString("area_access_closed");
-					boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
-					int areaSunFromHour = rst.getInt("area_sun_from_hour");
-					int areaSunToHour = rst.getInt("area_sun_to_hour");
-					String areaName = rst.getString("area_name");
-					boolean lockedAdmin = rst.getBoolean("locked_admin");
-					boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					String name = rst.getString("name");
-					String comment = rst.getString("description");
-					String accessInfo = rst.getString("access_info");
-					String accessClosed = rst.getString("access_closed");
-					int sunFromHour = rst.getInt("sun_from_hour");
-					int sunToHour = rst.getInt("sun_to_hour");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates parking = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					CompassDirection wallDirectionCalculated = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
-					CompassDirection wallDirectionManual = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
-					String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					
-					var allMedia = mediaFuture.join();
-					var partitioned = Optional.ofNullable(allMedia)
-							.orElse(List.of())
-							.stream()
-							.collect(Collectors.partitioningBy(
-									x -> x.sectors().stream().anyMatch(MediaSector::trivia)
-									));
-					List<Media> triviaMedia = partitioned.get(true);
-					List<Media> media = partitioned.get(false);
-					
-					s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outlineFuture.join(), wallDirectionCalculated, wallDirectionManual, trailsFuture.join().get(reqId), media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksFuture.join(), pageViews);
-				}
-			}
-		}
-		if (s == null) {
-			try {
-				Redirect res = dao.getHierarchyRepo().getCanonicalUrl(setup, 0, reqId, 0);
-				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
-					return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
-				}
-			} catch (NoSuchElementException _) {
-			}
-		}
-		if (s == null) {
-			throw new NoSuchElementException("Could not find sector with id=" + reqId);
-		}
-		try (var ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, s.areaId());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					s.sectors().add(new Sector.SectorJump(rst.getInt("id"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), rst.getString("name"), rst.getInt("sorting")));
-				}
-			}
-		}
-		if (s.sectors() != null) {
-			s.sectors().sort((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
-		}
-		var problemsMap = problemsFuture.join();
-		var sectorProblems = problemsMap.get(reqId);
-		if (sectorProblems != null) {
-			for (SectorProblem sp : sectorProblems) {
-				s.problems().add(sp);
-				s.problemOrder().add(new Sector.SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
-			}
-		}
-		if (!s.problems().isEmpty() && orderByGrade) {
-			Collections.sort(s.problems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());
-		}
-		logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, stopwatch);
-		return s;
-	}
-	
-	public Redirect setSector(Optional<Integer> authUserId, Setup setup, Sector s) throws SQLException, InterruptedException {
-		var c = DatabaseContext.getConnection();
-		int idSector = -1;
-		final boolean isLockedAdmin = s.lockedSuperadmin() ? false : s.lockedAdmin();
-		boolean setPermissionRecursive = false;
-		List<Coordinates> allCoordinates = new ArrayList<>();
-		if (s.outline() != null && !s.outline().isEmpty()) {
-			allCoordinates.addAll(s.outline());
-		}
-		if (s.parking() != null) {
-			if (s.parking().getLatitude() == 0 || s.parking().getLongitude() == 0) {
-				s = s.withParking(null);
-			}
-			else {
-				allCoordinates.add(s.parking());
-			}
-		}
-		dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(allCoordinates);
+			Sector s = null;
+			try (var ps = c.prepareStatement("""
+					WITH req AS (
+						SELECT ? region_id, ? auth_user_id, ? sector_id
+					)
+					SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
+					FROM req
+					JOIN sector s ON req.sector_id=s.id
+					JOIN area a ON s.area_id=a.id
+					JOIN region r ON a.region_id=r.id
+					JOIN region_type rt ON r.id=rt.region_id
+					LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
+					LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=auth_user_id
+					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+					  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
+					  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+					GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
+					""")) {
+				ps.setInt(1, setup.idRegion());
+				ps.setInt(2, authUserId.orElse(0));
+				ps.setInt(3, reqId);
+				try (var rst = ps.executeQuery()) {
+					while (rst.next()) {
+						int areaId = rst.getInt("area_id");
+						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
+						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						String areaAccessInfo = rst.getString("area_access_info");
+						String areaAccessClosed = rst.getString("area_access_closed");
+						boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
+						int areaSunFromHour = rst.getInt("area_sun_from_hour");
+						int areaSunToHour = rst.getInt("area_sun_to_hour");
+						String areaName = rst.getString("area_name");
+						boolean lockedAdmin = rst.getBoolean("locked_admin");
+						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
+						String name = rst.getString("name");
+						String comment = rst.getString("description");
+						String accessInfo = rst.getString("access_info");
+						String accessClosed = rst.getString("access_closed");
+						int sunFromHour = rst.getInt("sun_from_hour");
+						int sunToHour = rst.getInt("sun_to_hour");
+						int idCoordinates = rst.getInt("coordinates_id");
+						Coordinates parking = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+						CompassDirection wallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
+						CompassDirection wallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
+						String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
 
-		if (s.id() > 0) {
-			ensureAdminWriteSector(authUserId, s.id());
-			Sector currSector = getSector(authUserId, false, setup, s.id(), false);
-			setPermissionRecursive = currSector.lockedAdmin() != isLockedAdmin || currSector.lockedSuperadmin() != s.lockedSuperadmin();
-			try (var ps = c.prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
-				ps.setString(1, GlobalFunctions.stripString(s.name()));
-				ps.setString(2, GlobalFunctions.stripString(s.comment()));
-				ps.setString(3, GlobalFunctions.stripString(s.accessInfo()));
-				ps.setString(4, GlobalFunctions.stripString(s.accessClosed()));
-				JdbcUtils.setNullablePositiveDouble(ps, 5, s.sunFromHour());
-				JdbcUtils.setNullablePositiveDouble(ps, 6, s.sunToHour());
-				JdbcUtils.setNullablePositiveInteger(ps, 7, s.parking() == null ? 0 : s.parking().getId());
-				ps.setBoolean(8, isLockedAdmin);
-				ps.setBoolean(9, s.lockedSuperadmin());
-				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
-				JdbcUtils.setNullablePositiveInteger(ps, 10, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
-				JdbcUtils.setNullablePositiveInteger(ps, 11, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
-				ps.setBoolean(12, s.trash());
-				ps.setInt(13, s.trash() ? authUserId.orElseThrow() : 0);
-				ps.setInt(14, s.id());
-				ps.setInt(15, authUserId.orElseThrow());
-				int res = ps.executeUpdate();
-				if (res != 1) {
-					throw new SQLException("Insufficient credentials");
-				}
-			}
-			idSector = s.id();
+						var allMedia = mediaFuture.join();
+						var partitioned = Optional.ofNullable(allMedia)
+								.orElse(List.of())
+								.stream()
+								.collect(Collectors.partitioningBy(
+										x -> x.sectors().stream().anyMatch(MediaSector::trivia)
+										));
+						List<Media> triviaMedia = partitioned.get(true);
+						List<Media> media = partitioned.get(false);
 
-			if (s.problemOrder() != null) {
-				setSectorProblemOrder(s.problemOrder());
-			}
-
-			String sqlStr = null;
-			if (setPermissionRecursive) {
-				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?";
-				try (var ps = c.prepareStatement(sqlStr)) {
-					ps.setBoolean(1, isLockedAdmin);
-					ps.setBoolean(2, s.lockedSuperadmin());
-					ps.setBoolean(3, isLockedAdmin);
-					ps.setBoolean(4, s.lockedSuperadmin());
-					ps.setInt(5, idSector);
-					ps.execute();
-				}
-			} else {
-				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?";
-				try (var ps = c.prepareStatement(sqlStr)) {
-					ps.setInt(1, idSector);
-					ps.execute();
-				}
-			}
-		} else {
-			dao.getAreaRepo().ensureAdminWriteArea(authUserId, s.areaId());
-			try (var ps = c.prepareStatement("INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setInt(1, s.areaId());
-				ps.setString(2, s.name());
-				ps.setString(3, GlobalFunctions.stripString(s.comment()));
-				ps.setString(4, GlobalFunctions.stripString(s.accessInfo()));
-				ps.setString(5, GlobalFunctions.stripString(s.accessClosed()));
-				JdbcUtils.setNullablePositiveInteger(ps, 6, s.parking() == null ? 0 : s.parking().getId());
-				ps.setBoolean(7, isLockedAdmin);
-				ps.setBoolean(8, s.lockedSuperadmin());
-				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
-				JdbcUtils.setNullablePositiveInteger(ps, 9, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
-				JdbcUtils.setNullablePositiveInteger(ps, 10, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
-				ps.executeUpdate();
-				try (var rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idSector = rst.getInt(1);
+						s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outlineFuture.join(), wallDirectionCalculated, wallDirectionManual, trailsFuture.join().get(reqId), media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksFuture.join(), pageViews);
 					}
 				}
 			}
-		}
-		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
-
-		try (var ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
-			ps.setInt(1, idSector);
-			ps.execute();
-		}
-		if (s.outline() != null && !s.outline().isEmpty()) {
-			try (var ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
-				int sorting = 0;
-				for (Coordinates coord : s.outline()) {
-					sorting++;
-					ps.setInt(1, idSector);
-					ps.setInt(2, coord.getId());
-					ps.setInt(3, sorting);
-					ps.addBatch();
+			if (s == null) {
+				try {
+					Redirect res = hierarchyRepo.get().getCanonicalUrl(setup, 0, reqId, 0);
+					if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+						return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
+					}
+				} catch (NoSuchElementException _) {
 				}
-				ps.executeBatch();
 			}
+			if (s == null) {
+				throw new NoSuchElementException("Could not find sector with id=" + reqId);
+			}
+			try (var ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
+				ps.setInt(1, authUserId.orElse(0));
+				ps.setInt(2, s.areaId());
+				try (var rst = ps.executeQuery()) {
+					while (rst.next()) {
+						s.sectors().add(new Sector.SectorJump(rst.getInt("id"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), rst.getString("name"), rst.getInt("sorting")));
+					}
+				}
+			}
+			if (s.sectors() != null) {
+				s.sectors().sort((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
+			}
+			var problemsMap = problemsFuture.join();
+			var sectorProblems = problemsMap.get(reqId);
+			if (sectorProblems != null) {
+				for (SectorProblem sp : sectorProblems) {
+					s.problems().add(sp);
+					s.problemOrder().add(new Sector.SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
+				}
+			}
+			if (!s.problems().isEmpty() && orderByGrade) {
+				Collections.sort(s.problems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());
+			}
+			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, orderByGrade, reqId, shouldUpdateHits, stopwatch);
+			return s;
 		}
-
-		dao.getExternalLinksRepo().upsertExternalLinks(s.externalLinks(), 0, idSector, 0);
-		Redirect res = null;
-		if (s.trash()) {
-			res = Redirect.fromIdArea(s.areaId());
-		}
-		else {
-			res = Redirect.fromIdSector(idSector);
-		}
-		logger.debug("setSector() - res={}", res);
-		return res;
 	}
-	
+
 	public Multimap<Integer, Trail> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Preconditions.checkArgument(!sectorIds.isEmpty(), "sectorIds is empty");
 		Multimap<Integer, Trail> res = ArrayListMultimap.create();
 		String inClause = ",?".repeat(sectorIds.size()).substring(1);
@@ -361,7 +267,7 @@ public record SectorRepository(Dao dao) {
 			}
 		}
 
-		Multimap<Integer, Media> trailsMediaMap = dao.getMediaRepo().getMediaTrails(authUserId, trailBuilders.keySet());
+		Multimap<Integer, Media> trailsMediaMap = mediaRepo.get().getMediaTrails(authUserId, trailBuilders.keySet());
 		Map<Integer, Trail> finalTrailsMap = new HashMap<>();
 		for (TrailBuilder b : trailBuilders.values()) {
 			List<Media> trailMediaList = (List<Media>) trailsMediaMap.get(b.id);
@@ -376,9 +282,132 @@ public record SectorRepository(Dao dao) {
 		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), stopwatch);
 		return res;
 	}
-	
+
+	public Redirect setSector(Optional<Integer> authUserId, Setup setup, Sector s) throws SQLException, InterruptedException {
+		var c = txManager.getConnection();
+		int idSector = -1;
+		final boolean isLockedAdmin = s.lockedSuperadmin() ? false : s.lockedAdmin();
+		boolean setPermissionRecursive = false;
+		List<Coordinates> allCoordinates = new ArrayList<>();
+		if (s.outline() != null && !s.outline().isEmpty()) {
+			allCoordinates.addAll(s.outline());
+		}
+		if (s.parking() != null) {
+			if (s.parking().getLatitude() == 0 || s.parking().getLongitude() == 0) {
+				s = s.withParking(null);
+			}
+			else {
+				allCoordinates.add(s.parking());
+			}
+		}
+		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoordinates);
+
+		if (s.id() > 0) {
+			ensureAdminWriteSector(authUserId, s.id());
+			Sector currSector = getSector(authUserId, false, setup, s.id(), false);
+			setPermissionRecursive = currSector.lockedAdmin() != isLockedAdmin || currSector.lockedSuperadmin() != s.lockedSuperadmin();
+			try (var ps = c.prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
+				ps.setString(1, GlobalFunctions.stripString(s.name()));
+				ps.setString(2, GlobalFunctions.stripString(s.comment()));
+				ps.setString(3, GlobalFunctions.stripString(s.accessInfo()));
+				ps.setString(4, GlobalFunctions.stripString(s.accessClosed()));
+				JdbcUtils.setNullablePositiveDouble(ps, 5, s.sunFromHour());
+				JdbcUtils.setNullablePositiveDouble(ps, 6, s.sunToHour());
+				JdbcUtils.setNullablePositiveInteger(ps, 7, s.parking() == null ? 0 : s.parking().getId());
+				ps.setBoolean(8, isLockedAdmin);
+				ps.setBoolean(9, s.lockedSuperadmin());
+				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
+				JdbcUtils.setNullablePositiveInteger(ps, 10, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
+				JdbcUtils.setNullablePositiveInteger(ps, 11, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
+				ps.setBoolean(12, s.trash());
+				ps.setInt(13, s.trash() ? authUserId.orElseThrow() : 0);
+				ps.setInt(14, s.id());
+				ps.setInt(15, authUserId.orElseThrow());
+				int res = ps.executeUpdate();
+				if (res != 1) {
+					throw new SQLException("Insufficient credentials");
+				}
+			}
+			idSector = s.id();
+
+			if (s.problemOrder() != null) {
+				setSectorProblemOrder(s.problemOrder());
+			}
+
+			String sqlStr = null;
+			if (setPermissionRecursive) {
+				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?";
+				try (var ps = c.prepareStatement(sqlStr)) {
+					ps.setBoolean(1, isLockedAdmin);
+					ps.setBoolean(2, s.lockedSuperadmin());
+					ps.setBoolean(3, isLockedAdmin);
+					ps.setBoolean(4, s.lockedSuperadmin());
+					ps.setInt(5, idSector);
+					ps.execute();
+				}
+			} else {
+				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?";
+				try (var ps = c.prepareStatement(sqlStr)) {
+					ps.setInt(1, idSector);
+					ps.execute();
+				}
+			}
+		} else {
+			areaRepo.get().ensureAdminWriteArea(authUserId, s.areaId());
+			try (var ps = c.prepareStatement("INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
+				ps.setInt(1, s.areaId());
+				ps.setString(2, s.name());
+				ps.setString(3, GlobalFunctions.stripString(s.comment()));
+				ps.setString(4, GlobalFunctions.stripString(s.accessInfo()));
+				ps.setString(5, GlobalFunctions.stripString(s.accessClosed()));
+				JdbcUtils.setNullablePositiveInteger(ps, 6, s.parking() == null ? 0 : s.parking().getId());
+				ps.setBoolean(7, isLockedAdmin);
+				ps.setBoolean(8, s.lockedSuperadmin());
+				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
+				JdbcUtils.setNullablePositiveInteger(ps, 9, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
+				JdbcUtils.setNullablePositiveInteger(ps, 10, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
+				ps.executeUpdate();
+				try (var rst = ps.getGeneratedKeys()) {
+					if (rst != null && rst.next()) {
+						idSector = rst.getInt(1);
+					}
+				}
+			}
+		}
+		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
+
+		try (var ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
+			ps.setInt(1, idSector);
+			ps.execute();
+		}
+		if (s.outline() != null && !s.outline().isEmpty()) {
+			try (var ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
+				int sorting = 0;
+				for (Coordinates coord : s.outline()) {
+					sorting++;
+					ps.setInt(1, idSector);
+					ps.setInt(2, coord.getId());
+					ps.setInt(3, sorting);
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+
+		externalLinksRepo.upsertExternalLinks(s.externalLinks(), 0, idSector, 0);
+		Redirect res = null;
+		if (s.trash()) {
+			res = Redirect.fromIdArea(s.areaId());
+		}
+		else {
+			res = Redirect.fromIdSector(idSector);
+		}
+		logger.debug("setSector() - res={}", res);
+		return res;
+	}
+
 	public void upsertTrails(Optional<Integer> authUserId, List<Trail> trails) throws SQLException, InterruptedException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (trails == null || trails.isEmpty()) return;
 		Set<Integer> allSectorsToLock = new TreeSet<>();
 		List<Integer> existingTrailIds = new ArrayList<>();
@@ -449,7 +478,7 @@ public record SectorRepository(Dao dao) {
 				if (latCompare != 0) return latCompare;
 				return Double.compare(c1.getLongitude(), c2.getLongitude());
 			});
-			dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(allCoordinatesGlobal);
+			geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoordinatesGlobal);
 		}
 		List<Trail> sortedTrails = new ArrayList<>(trails);
 		sortedTrails.sort(Comparator.comparingInt(Trail::id));
@@ -537,86 +566,9 @@ public record SectorRepository(Dao dao) {
 			}
 		}
 	}
-	
-	protected void tryFixSectorOrdering(int sectorId, int problemId, int problemNewNr) throws SQLException {
-		var c = DatabaseContext.getConnection();
-		List<SectorProblemOrder> lst = new ArrayList<>();
-		if (problemId > 0) {
-			String sqlStr = """
-					WITH x AS (
-					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
-					  FROM problem p
-					  WHERE p.sector_id=?
-					  GROUP BY p.sector_id
-					)
-					SELECT p.id
-					FROM problem p_input, x,
-					     problem p
-					WHERE p_input.id=? AND p_input.nr!=?
-					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
-					  AND p_input.sector_id=p.sector_id
-					  AND p.id!=p_input.id
-					ORDER BY p.nr
-					""";
-			try (var ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				ps.setInt(2, problemId);
-				ps.setInt(3, problemNewNr);
-				try (var rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) ++nr;
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
-				}
-			}
-		}
-		else if (problemNewNr != 0) {
-			String sqlStr = """
-					WITH x AS (
-					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
-					  FROM problem p
-					  WHERE p.sector_id=?
-					  GROUP BY p.sector_id
-					)
-					SELECT p.id
-					FROM x, problem p
-					WHERE x.num_problems=x.max_num
-					  AND x.sector_id=p.sector_id
-					ORDER BY p.nr
-					""";
-			try (var ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				try (var rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) ++nr;
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
-				}
-			}
-		}
-		setSectorProblemOrder(lst);
-	}
-	
-	protected void setSectorProblemOrder(List<SectorProblemOrder> lst) throws SQLException {
-		var c = DatabaseContext.getConnection();
-		if (!lst.isEmpty()) {
-			try (var ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
-				for (SectorProblemOrder x : lst) {
-					ps.setInt(1, x.nr());
-					ps.setInt(2, x.id());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-	}
-	
+
 	protected void ensureAdminWriteSector(Optional<Integer> authUserId, int sectorId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		boolean ok = false;
 		try (var ps = c.prepareStatement("""
 				SELECT ur.admin_write, ur.superadmin_write
@@ -637,15 +589,15 @@ public record SectorRepository(Dao dao) {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	protected List<Coordinates> getSectorOutline(int idSector) throws SQLException {
 		Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(Collections.singleton(idSector));
 		if (idSectorOutline == null || idSectorOutline.isEmpty()) return null;
 		return Lists.newArrayList(idSectorOutline.get(idSector));
 	}
-	
+
 	protected Multimap<Integer, Coordinates> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var stopwatch = Stopwatch.createStarted();
 		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
 		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
@@ -666,7 +618,7 @@ public record SectorRepository(Dao dao) {
 	}
 
 	protected Multimap<Integer, SectorProblem> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || optAreaId > 0 && optSectorId == 0);
 		var stopwatch = Stopwatch.createStarted();
 		Multimap<Integer, SectorProblem> res = LinkedListMultimap.create();
@@ -781,5 +733,82 @@ public record SectorRepository(Dao dao) {
 		}
 		logger.debug("getSectorProblems(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
 		return res;
+	}
+
+	protected void setSectorProblemOrder(List<SectorProblemOrder> lst) throws SQLException {
+		var c = txManager.getConnection();
+		if (!lst.isEmpty()) {
+			try (var ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
+				for (SectorProblemOrder x : lst) {
+					ps.setInt(1, x.nr());
+					ps.setInt(2, x.id());
+					ps.addBatch();
+				}
+				ps.executeBatch();
+			}
+		}
+	}
+
+	protected void tryFixSectorOrdering(int sectorId, int problemId, int problemNewNr) throws SQLException {
+		var c = txManager.getConnection();
+		List<SectorProblemOrder> lst = new ArrayList<>();
+		if (problemId > 0) {
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM problem p_input, x,
+					     problem p
+					WHERE p_input.id=? AND p_input.nr!=?
+					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
+					  AND p_input.sector_id=p.sector_id
+					  AND p.id!=p_input.id
+					ORDER BY p.nr
+					""";
+			try (var ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				ps.setInt(2, problemId);
+				ps.setInt(3, problemNewNr);
+				try (var rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) ++nr;
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
+					}
+				}
+			}
+		}
+		else if (problemNewNr != 0) {
+			String sqlStr = """
+					WITH x AS (
+					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
+					  FROM problem p
+					  WHERE p.sector_id=?
+					  GROUP BY p.sector_id
+					)
+					SELECT p.id
+					FROM x, problem p
+					WHERE x.num_problems=x.max_num
+					  AND x.sector_id=p.sector_id
+					ORDER BY p.nr
+					""";
+			try (var ps = c.prepareStatement(sqlStr)) {
+				ps.setInt(1, sectorId);
+				try (var rst = ps.executeQuery()) {
+					int nr = 0;
+					while (rst.next()) {
+						if (++nr == problemNewNr) ++nr;
+						int id = rst.getInt("id");
+						lst.add(new SectorProblemOrder(id, null, nr));
+					}
+				}
+			}
+		}
+		setSectorProblemOrder(lst);
 	}
 }

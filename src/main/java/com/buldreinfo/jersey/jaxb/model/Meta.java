@@ -3,35 +3,41 @@ package com.buldreinfo.jersey.jaxb.model;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
+import com.buldreinfo.jersey.jaxb.infrastructure.FunctionalUtils;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
+import com.buldreinfo.jersey.jaxb.resources.BaseResource;
 
 public record Meta(String title,
-		boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
-		int userId, String authenticatedName, String themePreference, MediaIdentity mediaIdentity,
-		List<Grade> grades, List<Integer> faYears,
-		int defaultZoom, LatLng defaultCenter,
-		boolean isBouldering, boolean isClimbing, boolean isIce, String url,
-		List<Type> types, List<Region> regions, List<CompassDirection> compassDirections) {
-	
-	public static Meta from(Setup setup, Optional<Integer> authUserId) throws InterruptedException, ExecutionException {
-	    var authUserFuture = DatabaseContext.submitDaoTask(d -> d.getUserRepo().getAuthenticatedUser(setup, authUserId));
-	    var faYearsFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getFaYears(setup.idRegion()));
-	    var typesFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getTypes(setup.idRegion()));
-	    var regionsFuture = DatabaseContext.submitDaoTask(d -> d.getRegionRepo().getRegions(setup.idRegion()));
+                   boolean isAuthenticated, boolean isAdmin, boolean isSuperAdmin,
+                   int userId, String authenticatedName, String themePreference, MediaIdentity mediaIdentity,
+                   List<Grade> grades, List<Integer> faYears,
+                   int defaultZoom, LatLng defaultCenter,
+                   boolean isBouldering, boolean isClimbing, boolean isIce, String url,
+                   List<Type> types, List<Region> regions, List<CompassDirection> compassDirections) {
+
+	public static Meta from(Setup setup, Optional<Integer> authUserId, TransactionManager txManager, UserRepository userRepo, RegionRepository regionRepo) {
+	    var authUserFuture = CompletableFuture.supplyAsync(FunctionalUtils.transactional(txManager, () -> userRepo.getAuthenticatedUser(setup, authUserId).orElse(null)), BaseResource.executor);
+	    var faYearsFuture = CompletableFuture.supplyAsync(FunctionalUtils.transactional(txManager, () -> regionRepo.getFaYears(setup.idRegion())), BaseResource.executor);
+	    var typesFuture = CompletableFuture.supplyAsync(FunctionalUtils.transactional(txManager, () -> regionRepo.getTypes(setup.idRegion())), BaseResource.executor);
+	    var regionsFuture = CompletableFuture.supplyAsync(FunctionalUtils.transactional(txManager, () -> regionRepo.getRegions(setup.idRegion())), BaseResource.executor);
+
 	    CompletableFuture.allOf(authUserFuture, faYearsFuture, typesFuture, regionsFuture).join();
-	    var authUser = authUserFuture.get();
-	    return new Meta(
+
+	    try {
+	        var authUser = Optional.ofNullable(authUserFuture.get());
+	        return new Meta(
 	            setup.title(),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isAuthenticated).orElse(false),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isAdmin).orElse(false),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::isSuperAdmin).orElse(false),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::userId).orElse(0),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::authenticatedName).orElse(null),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::themePreference).orElse(null),
-	            authUser.map(com.buldreinfo.jersey.jaxb.model.AuthenticatedUser::mediaIdentity).orElse(null),
+	            authUser.map(AuthenticatedUser::isAuthenticated).orElse(false),
+	            authUser.map(AuthenticatedUser::isAdmin).orElse(false),
+	            authUser.map(AuthenticatedUser::isSuperAdmin).orElse(false),
+	            authUser.map(AuthenticatedUser::userId).orElse(0),
+	            authUser.map(AuthenticatedUser::authenticatedName).orElse(null),
+	            authUser.map(AuthenticatedUser::themePreference).orElse(null),
+	            authUser.map(AuthenticatedUser::mediaIdentity).orElse(null),
 	            setup.gradeConverter().getGrades(),
 	            faYearsFuture.get(),
 	            setup.defaultZoom(),
@@ -43,6 +49,9 @@ public record Meta(String title,
 	            typesFuture.get(),
 	            regionsFuture.get(),
 	            setup.compassDirections()
-	    );
+	        );
+	    } catch (Exception e) {
+	        throw new RuntimeException("Meta construction failed", e);
+	    }
 	}
 }

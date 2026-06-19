@@ -13,14 +13,15 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.google.common.base.Stopwatch;
 
 public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
-	public static void extractThumbnail(Dao dao, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	public static void extractThumbnail(TransactionManager txManager, MediaRepository mediaRepo, int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
@@ -32,7 +33,7 @@ public class VideoHelper {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
 				if (b != null) {
 					try {
-						ImageHelper.saveImage(dao, idMedia, b);
+						ImageHelper.saveImage(txManager, mediaRepo, idMedia, b);
 					} finally {
 						b.flush();
 					}
@@ -44,7 +45,7 @@ public class VideoHelper {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
 	}
 
-	public static void processVideo(Dao dao, int idMedia, int thumbnailSeconds) throws Exception {
+	public static void processVideo(TransactionManager txManager, MediaRepository mediaRepo, int idMedia, int thumbnailSeconds) throws Exception {
 		StorageManager storage = StorageManager.getInstance();
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
@@ -79,7 +80,7 @@ public class VideoHelper {
 				}
 			}
 			if (needsThumb) {
-				extractThumbnail(dao, idMedia, tempOriginal, thumbnailSeconds);
+				extractThumbnail(txManager, mediaRepo, idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {
 			Files.deleteIfExists(tempOriginal);

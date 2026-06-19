@@ -16,7 +16,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void testGetProfile() throws Exception {
-		var tester = new ProfilesResource();
+		var tester = getService(ProfilesResource.class);
 		try (Response r = tester.getProfiles(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Profile);
@@ -27,7 +27,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void testGetProfileAscents() throws Exception {
-		var tester = new ProfilesResource();
+		var tester = getService(ProfilesResource.class);
 		try (Response r = tester.getProfilesAscents(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof List<?>);
@@ -36,7 +36,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void testGetProfileMedia() throws Exception {
-		var tester = new ProfilesResource();
+		var tester = getService(ProfilesResource.class);
 		try (Response r = tester.getProfilesMedia(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN, true)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof List<?>);
@@ -45,7 +45,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProfileTodo() throws Exception {
-		var tester = new ProfilesResource();
+		var tester = getService(ProfilesResource.class);
 		try (Response r = tester.getProfilesTodo(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof ProfileTodo);

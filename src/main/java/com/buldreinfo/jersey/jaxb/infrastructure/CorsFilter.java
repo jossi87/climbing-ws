@@ -10,10 +10,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 
 import jakarta.annotation.Priority;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -27,8 +29,6 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
 public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilter {
-	private static final Logger logger = LogManager.getLogger();
-	private static final String ORIGIN = "Origin";
 	private static final String ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials";
 	private static final String ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
 	private static final String ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
@@ -37,25 +37,32 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 	private static final String ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age";
 	private static final String LOCAL_DEV_ORIGIN = "http://localhost:3001";
 	private static final AtomicReference<Set<String>> lastKnownGoodOrigins = new AtomicReference<>(Set.of(LOCAL_DEV_ORIGIN));
-	private static final Supplier<Set<String>> legalOriginsSupplier = Suppliers.memoizeWithExpiration(
-			() -> {
-				Set<String> newOrigins = Sets.newHashSet(LOCAL_DEV_ORIGIN);
-				try {
-					DatabaseContext.getSetups().stream()
-							.map(Setup::domain)
-							.map(domain -> "https://" + domain)
-							.forEach(newOrigins::add);
-					
-					Set<String> immutableSet = Set.copyOf(newOrigins);
-					lastKnownGoodOrigins.set(immutableSet);
-					return immutableSet;
-				} catch (Exception e) {
-					logger.warn("Could not initialize legal origins from setups: {}. Using stale fallback.", e.getMessage());
-					return lastKnownGoodOrigins.get();
-				}
-			},
-			60, TimeUnit.SECONDS
-	);
+	private static final Logger logger = LogManager.getLogger();
+	private static final String ORIGIN = "Origin";
+	private final Supplier<Set<String>> legalOriginsSupplier;
+
+	@Inject
+	public CorsFilter(TransactionManager txManager, RegionRepository regionRepo) {
+		this.legalOriginsSupplier = Suppliers.memoizeWithExpiration(
+				() -> {
+					Set<String> newOrigins = Sets.newHashSet(LOCAL_DEV_ORIGIN);
+					try {
+						txManager.executeInTransaction(() -> regionRepo.getSetups()).stream()
+								.map(Setup::domain)
+								.map(domain -> "https://" + domain)
+								.forEach(newOrigins::add);
+						
+						Set<String> immutableSet = Set.copyOf(newOrigins);
+						lastKnownGoodOrigins.set(immutableSet);
+						return immutableSet;
+					} catch (Exception e) {
+						logger.warn("Could not initialize legal origins from setups: {}. Using stale fallback.", e.getMessage());
+						return lastKnownGoodOrigins.get();
+					}
+				},
+				60, TimeUnit.SECONDS
+		);
+	}
 
 	@Override
 	public void filter(ContainerRequestContext creq) throws IOException {

@@ -3,7 +3,7 @@ package com.buldreinfo.jersey.jaxb.batch;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 
 public class MergeUsers {
 	// WITH u AS (SELECT TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) nm FROM user u GROUP BY TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) HAVING COUNT(TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))))>1) SELECT u2.* FROM u, user u2 WHERE u.nm=TRIM(CONCAT(u2.firstname,' ',COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname
@@ -26,10 +26,12 @@ public class MergeUsers {
 	private final static int USER_ID_DELETE = -1;
 	private final static int USER_ID_KEEP = -2;
 
-	public static void main(String[] args) {
-		DatabaseContext.runSql(_ -> {
+	public static void main(String[] args) throws Exception {
+		var locator = BatchBootstrapper.createLocator();
+        TransactionManager txManager = locator.getService(TransactionManager.class);
+        txManager.executeInTransaction(() -> {
 			try {
-				var c = DatabaseContext.getConnection();
+				var c = txManager.getConnection();
 				// guestbook
 				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
 					ps.setInt(1, USER_ID_KEEP);

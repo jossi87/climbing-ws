@@ -3,9 +3,15 @@ package com.buldreinfo.jersey.jaxb.resources;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.dao.AreaRepository;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.dao.ProblemRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.SectorRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Problem;
 import com.buldreinfo.jersey.jaxb.model.ProblemSearchResult;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
@@ -20,6 +26,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -35,6 +42,25 @@ import jakarta.ws.rs.core.StreamingOutput;
 @Path("/problems")
 public class ProblemsResource extends BaseResource {
 	private static final Logger logger = LogManager.getLogger();
+	private final AreaRepository areaRepo;
+	private final MediaRepository mediaRepo;
+	private final ProblemRepository problemRepo;
+	private final SectorRepository sectorRepo;
+
+	@Inject
+	public ProblemsResource(TransactionManager txManager,
+			AreaRepository areaRepo,
+			MediaRepository mediaRepo,
+			ProblemRepository problemRepo,
+			RegionRepository regionRepo,
+			SectorRepository sectorRepo,
+			UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.areaRepo = areaRepo;
+		this.mediaRepo = mediaRepo;
+		this.problemRepo = problemRepo;
+		this.sectorRepo = sectorRepo;
+	}
 
 	@Operation(summary = "Get problem by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Problem.class))}),
@@ -48,16 +74,17 @@ public class ProblemsResource extends BaseResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblems(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
-			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia) {
+			@Parameter(description = "Include hidden media (example: if a sector has multiple topo-images, the topo-images without this route will be hidden)", required = false) @QueryParam("showHiddenMedia") boolean showHiddenMedia) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
-			var res = dao.getProblemRepo().getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			var res = problemRepo.getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get problem PDF by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
@@ -68,15 +95,16 @@ public class ProblemsResource extends BaseResource {
 	@GET
 	@Path("/pdf")
 	@Produces(OpenApiConstants.APPLICATION_PDF)
-	public Response getProblemsPdf(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) {
+	public Response getProblemsPdf(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
-			final var problem = dao.getProblemRepo().getProblem(authUserId, setup, id, false, shouldUpdateHits);
-			final var area = dao.getAreaRepo().getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
-			final var sector = dao.getSectorRepo().getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
-			
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			final var problem = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
+			final var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
+			final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+
 			StreamingOutput stream = output -> {
 				try (var generator = new PdfGenerator(output)) {
 					generator.writeProblem(setup, area, sector, problem);
@@ -104,12 +132,12 @@ public class ProblemsResource extends BaseResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblemsSearch(@Context HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
-			) {
+			) throws Exception {
 		if (value == null || value.isBlank()) {
 			return createBadRequestResponse("Search keyword is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			var res = dao.getProblemRepo().getProblemsSearch(authUserId, setup, value);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var res = problemRepo.getProblemsSearch(authUserId, setup, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -125,19 +153,19 @@ public class ProblemsResource extends BaseResource {
 	@POST
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postProblems(@Context HttpServletRequest request, Problem p) {
+	public Response postProblems(@Context HttpServletRequest request, Problem p) throws Exception {
 		if (p == null || p.name() == null || p.name().strip().isEmpty()) {
 			return createBadRequestResponse("Problem name is missing or invalid");
 		}
 		if (p.sectorId() <= 0) {
 			return createBadRequestResponse("Invalid sectorId=" + p.sectorId());
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
-			var res = dao.getProblemRepo().setProblem(authUserId, setup, p);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var res = problemRepo.setProblem(authUserId, setup, p);
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Update topo line on route/boulder (SVG on sector/problem-image)", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -153,7 +181,7 @@ public class ProblemsResource extends BaseResource {
 			@Parameter(description = "Problem section id", required = true) @QueryParam("pitch") int pitch,
 			@Parameter(description = "Media id", required = true) @QueryParam("mediaId") int mediaId,
 			Svg svg
-			) {
+			) throws Exception {
 		if (problemId <= 0) {
 			return createBadRequestResponse("Invalid problemId=" + problemId);
 		}
@@ -163,8 +191,8 @@ public class ProblemsResource extends BaseResource {
 		if (svg == null) {
 			return createBadRequestResponse("Svg payload is missing");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getMediaRepo().upsertSvg(authUserId, problemId, pitch, mediaId, svg);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			mediaRepo.upsertSvg(authUserId, problemId, pitch, mediaId, svg);
 			return Response.ok().build();
 		});
 	}

@@ -8,8 +8,14 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.dao.AreaRepository;
+import com.buldreinfo.jersey.jaxb.dao.FrontpageRepository;
+import com.buldreinfo.jersey.jaxb.dao.ProblemRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.SectorRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageRandomMedia;
@@ -25,6 +31,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -38,6 +45,32 @@ import jakarta.ws.rs.core.Response;
 @Path("/without-js")
 public class WithoutJsResource extends BaseResource {
 	private static Logger logger = LogManager.getLogger();
+	private final static boolean shouldUpdateHits = false; // Never update hits on these endpoints
+	private final TransactionManager txManager;
+	private final AreaRepository areaRepo;
+	private final FrontpageRepository frontpageRepo;
+	private final ProblemRepository problemRepo;
+	private final RegionRepository regionRepo;
+	private final SectorRepository sectorRepo;
+	private final UserRepository userRepo;
+
+	@Inject
+	public WithoutJsResource(TransactionManager txManager,
+			AreaRepository areaRepo,
+			FrontpageRepository frontpageRepo,
+			ProblemRepository problemRepo,
+			RegionRepository regionRepo,
+			SectorRepository sectorRepo,
+			UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.txManager = txManager;
+		this.areaRepo = areaRepo;
+		this.frontpageRepo = frontpageRepo;
+		this.problemRepo = problemRepo;
+		this.regionRepo = regionRepo;
+		this.sectorRepo = sectorRepo;
+		this.userRepo = userRepo;
+	}
 
 	@Operation(summary = "Get Frontpage without JavaScript (for embedding on e.g. Facebook)", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_HTML, schema = @Schema(implementation = String.class))}),
@@ -46,12 +79,12 @@ public class WithoutJsResource extends BaseResource {
 	@GET
 	@Path("")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJs(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSql(request, (dao, setup, _) -> {
+	public Response getWithoutJs(@Context HttpServletRequest request) throws Exception {
+		return executeSetupTask(request, setup -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			var meta = Meta.from(setup, authUserId);
-			var stats = dao.getFrontpageRepo().getFrontpageStats(authUserId, setup);
-			FrontpageRandomMedia frontpageRandomMedia = dao.getFrontpageRepo().getFrontpageRandomMedia(setup).stream()
+			var meta = Meta.from(setup, authUserId, txManager, userRepo, regionRepo);
+			var stats = frontpageRepo.getFrontpageStats(authUserId, setup);
+			FrontpageRandomMedia frontpageRandomMedia = frontpageRepo.getFrontpageRandomMedia(setup).stream()
 					.findAny()
 					.orElse(null);
 			String description = String.format("%s - %d regions, %d areas, %d %s, %d ticks",
@@ -81,13 +114,13 @@ public class WithoutJsResource extends BaseResource {
 	@GET
 	@Path("/area/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) {
+	public Response getWithoutJsArea(@Context HttpServletRequest request, @Parameter(description = "Area id", required = true) @PathParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
+		return executeSetupTask(request, setup -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Area a = dao.getAreaRepo().getArea(setup, authUserId, id, shouldUpdateHits);
+			Area a = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
 			String description = setup.isBouldering() ? "Bouldering in " + a.name() : "Climbing in " + a.name();
 			Media m = a.media() != null && !a.media().isEmpty()? a.media().getFirst() : null;
 			String html = getHtml(setup,
@@ -110,7 +143,7 @@ public class WithoutJsResource extends BaseResource {
 	@GET
 	@Path("/problem/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) {
+	public Response getWithoutJsProblem(@Context HttpServletRequest request, @Parameter(description = "Problem id", required = true) @PathParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
@@ -127,16 +160,16 @@ public class WithoutJsResource extends BaseResource {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJsProblemMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
-			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) {
+			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
 		if (mediaId < 0) {
 			return createBadRequestResponse("Invalid mediaId=" + mediaId);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
+		return executeSetupTask(request, setup -> {
 			final Optional<Integer> authUserId = Optional.empty();
-			Problem p = dao.getProblemRepo().getProblem(authUserId, setup, id, false, shouldUpdateHits);
+			Problem p = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
 			String title = String.format("%s [%s] (%s / %s)", p.name(), p.grade(), p.areaName(), p.sectorName());
 			String description = p.comment();
 			if (p.fa() != null && !p.fa().isEmpty()) {
@@ -179,7 +212,7 @@ public class WithoutJsResource extends BaseResource {
 	public Response getWithoutJsProblemMediaPitch(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathParam("id") int id,
 			@Parameter(description = "Media id", required = true) @PathParam("mediaId") int mediaId,
-			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch) {
+			@Parameter(description = "Pitch", required = true) @PathParam("pitch") int pitch) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
@@ -198,14 +231,14 @@ public class WithoutJsResource extends BaseResource {
 	@GET
 	@Path("/sector/{id}")
 	@Produces(MediaType.TEXT_HTML)
-	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) {
+	public Response getWithoutJsSector(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @PathParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSql(request, (dao, setup, shouldUpdateHits) -> {
+		return executeSetupTask(request, setup -> {
 			final Optional<Integer> authUserId = Optional.empty();
 			final boolean orderByGrade = false;
-			Sector s = dao.getSectorRepo().getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			Sector s = sectorRepo.getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			String title = String.format("%s (%s)", s.name(), s.areaName());
 			String description = String.format("%s in %s / %s (%d %s)%s",
 					(setup.isBouldering()? "Bouldering" : "Climbing"),

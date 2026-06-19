@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageFirstAscent;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageLastComment;
 import com.buldreinfo.jersey.jaxb.model.Frontpage.FrontpageNewestMedia;
@@ -24,17 +24,21 @@ import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-public record FrontpageRepository(Gson gson) {
-	private static final Logger logger = LogManager.getLogger();
+import jakarta.inject.Inject;
 
-	public FrontpageRepository() {
-		this(new Gson());
+public class FrontpageRepository extends BaseRepository {
+	private static final Logger logger = LogManager.getLogger();
+	private final Gson gson = new Gson();
+	
+	@Inject
+	public FrontpageRepository(TransactionManager txManager) {
+		super(txManager);
 	}
 
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageFirstAscent>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 					SELECT ? auth_user_id, ? region_id
@@ -116,7 +120,7 @@ public record FrontpageRepository(Gson gson) {
 	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageLastComment>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -168,7 +172,7 @@ public record FrontpageRepository(Gson gson) {
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageRecentAscent>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -248,7 +252,7 @@ public record FrontpageRepository(Gson gson) {
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageNewestMedia>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id
@@ -308,7 +312,7 @@ public record FrontpageRepository(Gson gson) {
 	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageRandomMedia>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
 				    SELECT ? region_id
@@ -425,7 +429,7 @@ public record FrontpageRepository(Gson gson) {
 	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		FrontpageStats res = null;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id

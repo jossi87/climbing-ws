@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -16,9 +16,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea;
 import com.buldreinfo.jersey.jaxb.model.DangerousArea.DangerousProblem;
@@ -45,62 +44,23 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
-public record HierarchyRepository(Dao dao) {
-	private static final Logger logger = LogManager.getLogger();
-	
-	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) throws SQLException {
-		var c = DatabaseContext.getConnection();
-		String sqlStr = null;
-		int id = 0;
-		if (idArea > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/area/',a.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					WHERE r.id!=? AND a.id=?
-					""";
-			id = idArea;
-		}
-		else if (idSector > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/sector/',s.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					JOIN sector s ON a.id=s.area_id
-					WHERE r.id!=? AND s.id=?
-					""";
-			id = idSector;
-		}
-		else if (idProblem > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/problem/',p.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					JOIN sector s ON a.id=s.area_id
-					JOIN problem p ON s.id=p.sector_id
-					WHERE r.id!=? AND p.id=?
-					""";
-			id = idProblem;
-		}
-		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		Redirect res = null;
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, id);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res = Redirect.fromRedirectUrl(rst.getString("url"));
-				}
-			}
-		}
-		if (res == null) {
-			throw new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		}
-		return res;
-	}
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 
+public class HierarchyRepository extends BaseRepository {
+	private static final Logger logger = LogManager.getLogger();
+	private final GeoRepository geoRepo;
+	private final Provider<SectorRepository> sectorRepo;
+	
+	@Inject
+	public HierarchyRepository(TransactionManager txManager, GeoRepository geoRepo, Provider<SectorRepository> sectorRepo) {
+		super(txManager);
+		this.geoRepo = geoRepo;
+		this.sectorRepo = sectorRepo;
+	}
+	
 	public Collection<GradeDistribution> getContentGraph(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		var sqlStr = """
 				WITH req AS (
@@ -160,7 +120,7 @@ public record HierarchyRepository(Dao dao) {
 
 	public Collection<DangerousArea> getDangerous(Setup setup, Optional<Integer> authUserId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
 		var sectorLookup = new HashMap<Integer, DangerousSector>();
 		try (var ps = c.prepareStatement("""
@@ -205,8 +165,8 @@ public record HierarchyRepository(Dao dao) {
 					var s = sectorLookup.get(sectorId);
 					if (s == null) {
 						var sectorName = rst.getString("sector_name");
-						var sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-						var sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
+						var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
+						var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
 						var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 						var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 						int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
@@ -232,9 +192,9 @@ public record HierarchyRepository(Dao dao) {
 		logger.debug("getDangerous() - areasLookup.size()={}, duration={}", areasLookup.size(), stopwatch);
 		return areasLookup.values();
 	}
-	
+
 	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		var sqlStr = """
 				WITH req AS (
@@ -292,7 +252,7 @@ public record HierarchyRepository(Dao dao) {
 	
 	public Collection<RestrictionsRegion> getRestrictions(Setup setup, Optional<Integer> authUserId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
 		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
 		var sqlStr = """
@@ -357,7 +317,7 @@ public record HierarchyRepository(Dao dao) {
 	
 	public List<Search> getSearch(Setup setup, Optional<Integer> authUserId, String search) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		
 		var cleanSearch = search.replaceAll("[^\\p{L}0-9]", "");
 		var wildCardSearch = "%" + cleanSearch + "%";
@@ -562,9 +522,9 @@ public record HierarchyRepository(Dao dao) {
 		logger.debug("getSearch(search={}) - res.size()={}, duration={}", search, res.size(), stopwatch);
 		return res;
 	}
-
+	
 	public String getSitemapTxt(Setup setup) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var urls = new ArrayList<String>();
 		urls.add(setup.url());
 		urls.add(setup.url() + "/about");
@@ -606,7 +566,7 @@ public record HierarchyRepository(Dao dao) {
 
 	public Toc getToc(Optional<Integer> authUserId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
 		var areaLookup = new HashMap<Integer, TocArea>();
 		var sectorLookup = new HashMap<Integer, TocSector>();
@@ -739,8 +699,8 @@ public record HierarchyRepository(Dao dao) {
 						int sectorSunToHour = rst.getInt("sector_sun_to_hour");
 						int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
 						var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-						var sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-						var sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
+						var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
+						var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
 						var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
 						var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
 						s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
@@ -777,7 +737,7 @@ public record HierarchyRepository(Dao dao) {
 			}
 		}
 		if (!sectorLookup.isEmpty()) {
-			var idSectorOutline = dao.getSectorRepo().getSectorOutlines(sectorLookup.keySet());
+			var idSectorOutline = sectorRepo.get().getSectorOutlines(sectorLookup.keySet());
 			for (var idSector : idSectorOutline.keySet()) {
 				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}
@@ -792,7 +752,7 @@ public record HierarchyRepository(Dao dao) {
 	}
 
 	public List<TocPitch> getTocPitches(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var res = new ArrayList<TocPitch>();
 		var sqlStr = """
 				SELECT r.name region_name, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name problem_name, ps.nr pitch, g.grade, ps.description
@@ -833,7 +793,7 @@ public record HierarchyRepository(Dao dao) {
 	}
 
 	public Top getTop(Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var columnCondition = (sectorId > 0) ? "s.id" : "a.id";
 		int filterId = (sectorId > 0) ? sectorId : areaId;
 		var sqlStr = """
@@ -928,5 +888,56 @@ public record HierarchyRepository(Dao dao) {
 		}
 		var rows = topByPercentage.values();
 		return new Top(rows, uniqueUserIds.size());
+	}
+
+	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) throws SQLException {
+		var c = txManager.getConnection();
+		String sqlStr = null;
+		int id = 0;
+		if (idArea > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/area/',a.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					WHERE r.id!=? AND a.id=?
+					""";
+			id = idArea;
+		}
+		else if (idSector > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/sector/',s.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					WHERE r.id!=? AND s.id=?
+					""";
+			id = idSector;
+		}
+		else if (idProblem > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/problem/',p.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					JOIN problem p ON s.id=p.sector_id
+					WHERE r.id!=? AND p.id=?
+					""";
+			id = idProblem;
+		}
+		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		Redirect res = null;
+		try (var ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, id);
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					res = Redirect.fromRedirectUrl(rst.getString("url"));
+				}
+			}
+		}
+		if (res == null) {
+			throw new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		}
+		return res;
 	}
 }

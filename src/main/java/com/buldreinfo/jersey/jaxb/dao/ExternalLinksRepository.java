@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -7,16 +7,23 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.ExternalLink;
 import com.google.common.base.Stopwatch;
 
-public record ExternalLinksRepository() {
+import jakarta.inject.Inject;
+
+public class ExternalLinksRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
+	
+	@Inject
+	public ExternalLinksRepository(TransactionManager txManager) {
+		super(txManager);
+	}
 	
 	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var res = new ArrayList<ExternalLink>();
 		var sql = """
 				WITH req AS (
@@ -79,7 +86,7 @@ public record ExternalLinksRepository() {
 		if (areaId <= 0 && sectorId <= 0 && problemId <= 0) {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var previousLinks = getExternalLinks(areaId, sectorId, problemId).stream()
 				.filter(x -> !x.inherited())
 				.toList();

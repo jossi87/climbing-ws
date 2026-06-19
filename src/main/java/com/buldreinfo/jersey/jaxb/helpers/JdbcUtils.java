@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao;
+package com.buldreinfo.jersey.jaxb.helpers;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;

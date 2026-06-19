@@ -16,13 +16,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 
 public class AuditImages {
 	private static final Logger logger = LogManager.getLogger();
 	private final static String LOCAL_BUCKET_ROOT = "G:/My Drive/web/buldreinfo/s3_bucket_climbing_web";
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		new AuditImages().runSanityCheck();
 	}
 
@@ -31,10 +31,12 @@ public class AuditImages {
 	private final AtomicInteger missingCount = new AtomicInteger(0);
 	private final AtomicInteger zeroByteCount = new AtomicInteger(0);
 
-	public void runSanityCheck() {
-		DatabaseContext.runSql(_ -> {
+	public void runSanityCheck() throws Exception {
+		var locator = BatchBootstrapper.createLocator();
+		var txManager = locator.getService(TransactionManager.class);
+		txManager.executeInTransaction(() -> {
 			try {
-				var c = DatabaseContext.getConnection();
+				var c = txManager.getConnection();
 				String sql = "SELECT id, suffix FROM media WHERE is_movie=0";
 				try (PreparedStatement ps = c.prepareStatement(sql);
 						ResultSet rst = ps.executeQuery()) {

@@ -1,9 +1,10 @@
 package com.buldreinfo.jersey.jaxb.resources;
 
-import java.util.List;
-
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.dao.ActivityRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -26,6 +28,13 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Activity")
 @Path("/activity")
 public class ActivityResource extends BaseResource {
+	private final ActivityRepository activityRepo;
+
+	@Inject
+	public ActivityResource(TransactionManager txManager, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.activityRepo = activityRepo;
+	}
 
 	@Operation(summary = "Get activity feed", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
@@ -44,7 +53,7 @@ public class ActivityResource extends BaseResource {
 			@Parameter(description = "Include comments", required = false) @QueryParam("comments") boolean comments,
 			@Parameter(description = "Include ticks (public ascents)", required = false) @QueryParam("ticks") boolean ticks,
 			@Parameter(description = "Include new media", required = false) @QueryParam("media") boolean media,
-			@Parameter(description = "Offset (see more)", required = false) @QueryParam("offset") int offset) {
+			@Parameter(description = "Offset (see more)", required = false) @QueryParam("offset") int offset) throws Exception {
 		if (idArea < 0 || idSector < 0) {
 			return createBadRequestResponse("IDs cannot be negative");
 		}
@@ -54,9 +63,9 @@ public class ActivityResource extends BaseResource {
 		if (offset < 0) {
 			return createBadRequestResponse("offset cannot be negative");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			List<Activity> res = dao.getActivityRepo().getActivity(authUserId, setup, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
-			return Response.ok().entity(res).build();
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var activity = activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
+			return Response.ok().entity(activity).build();
 		});
 	}
 }

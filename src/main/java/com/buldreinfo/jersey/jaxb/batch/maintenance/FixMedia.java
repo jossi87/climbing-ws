@@ -1,6 +1,5 @@
 package com.buldreinfo.jersey.jaxb.batch.maintenance;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.PreparedStatement;
@@ -17,12 +16,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 
 public class FixMedia {
 	private record MediaTask(int id, String embedUrl) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final TransactionManager txManager;
+	private final MediaRepository mediaRepo;
 	private final Path localBucketRoot;
 	private final Path ffmpegPath;
 	private final Path ytDlpPath;
@@ -30,7 +32,9 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	protected FixMedia(Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+	protected FixMedia(TransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.txManager = txManager;
+		this.mediaRepo = mediaRepo;
 		this.localBucketRoot = localBucketRoot;
 		this.ffmpegPath = ffmpegPath;
 		this.ytDlpPath = ytDlpPath;
@@ -73,13 +77,14 @@ public class FixMedia {
 		}
 
 		if (!Files.exists(originalJpg)) {
-			DatabaseContext.runSql(dao -> {
-				try {
-					ImageHelper.saveImageFromEmbedVideo(dao, id, embedUrl);
-				} catch (IOException | InterruptedException | SQLException e) {
-					throw new RuntimeException(e.getMessage(), e);
-				}
-			});
+			txManager.executeInTransaction(() -> {
+                try {
+                    ImageHelper.saveImageFromEmbedVideo(txManager, mediaRepo, id, embedUrl);
+                    return null;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
 		}
 
 		if (!Files.exists(originalJpg) && !privateEmbeddedVideosToIgnore.contains(id)) {
@@ -87,11 +92,11 @@ public class FixMedia {
 		}
 	}
 
-	protected void run() {
+	protected void run() throws Exception {
 		List<MediaTask> tasks = new ArrayList<>();
-		DatabaseContext.runSql(_ -> {
+		txManager.executeInTransaction(() -> {
 			String sqlStr = "SELECT id, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL";
-			var c = DatabaseContext.getConnection();
+			var c = txManager.getConnection();
 			try (PreparedStatement ps = c.prepareStatement(sqlStr);
 					ResultSet rst = ps.executeQuery()) {
 				while (rst.next()) {

@@ -2,9 +2,11 @@ package com.buldreinfo.jersey.jaxb.resources;
 
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.User;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -28,6 +31,13 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Users")
 @Path("/users")
 public class UsersResource extends BaseResource {
+	private final UserRepository userRepo;
+
+	@Inject
+	public UsersResource(TransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.userRepo = userRepo;
+	}
 	
 	@Operation(summary = "Search for problem", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = User.class)))}),
@@ -40,12 +50,12 @@ public class UsersResource extends BaseResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getUsersSearch(@Context HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @QueryParam("value") String value
-			) {
+			) throws Exception {
 		if (value == null || value.isBlank()) {
 			return createBadRequestResponse("Search keyword is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
-			List<User> res = dao.getUserRepo().getUserSearch(authUserId, value);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			List<User> res = userRepo.getUserSearch(authUserId, value);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -59,9 +69,9 @@ public class UsersResource extends BaseResource {
 	@GET
 	@Path("/ticks")
 	@Produces(OpenApiConstants.APPLICATION_XLSX)
-	public Response getUsersTicks(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
-			byte[] bytes = dao.getUserRepo().getUserTicks(authUserId);
+	public Response getUsersTicks(@Context HttpServletRequest request) throws Exception {
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			byte[] bytes = userRepo.getUserTicks(authUserId);
 			return Response.ok(bytes, OpenApiConstants.APPLICATION_XLSX)
 					.header("Content-Length", bytes.length)
 					.header("Content-Disposition", "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
@@ -82,12 +92,12 @@ public class UsersResource extends BaseResource {
 	public Response postUserRegions(@Context HttpServletRequest request,
 			@Parameter(description = "Region id", required = true) @QueryParam("regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @QueryParam("delete") boolean delete
-			) {
+			) throws Exception {
 		if (regionId <= 0) {
 			return createBadRequestResponse("Invalid regionId=" + regionId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getUserRepo().setUserRegion(authUserId, regionId, delete);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			userRepo.setUserRegion(authUserId, regionId, delete);
 			return Response.ok().build();
 		});
 	}

@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -11,15 +11,22 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.GeoHelper;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.CompassDirection;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 
-public record GeoRepository() {
+import jakarta.inject.Inject;
+
+public class GeoRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
 	
+	@Inject
+	public GeoRepository(TransactionManager txManager) {
+		super(txManager);
+	}
+	
 	private void fillMissingElevations() throws SQLException, InterruptedException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var coordinatesMissingElevation = new ArrayList<Coordinates>();
 		try (var ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
 			try (var rst = ps.executeQuery()) {
@@ -52,7 +59,7 @@ public record GeoRepository() {
 	}
 
 	protected void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException, InterruptedException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (coordinates != null && !coordinates.isEmpty()) {
 			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
 			try (var ps = c.prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")) {
@@ -104,7 +111,7 @@ public record GeoRepository() {
 	}
 	
 	protected List<CompassDirection> getCompassDirections() throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var res = new ArrayList<CompassDirection>();
 		try (var ps = c.prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
 			try (var rst = ps.executeQuery()) {

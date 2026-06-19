@@ -13,7 +13,7 @@ public class MediaResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void testGetMedia() throws Exception {
-		var tester = new MediaResource();
+		var tester = getService(MediaResource.class);
 		try (Response r = tester.getMedia(getRequest(Region.buldreinfo), BULDREINFO_MEDIA_ID_WITH_CHAPTERS)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Media);

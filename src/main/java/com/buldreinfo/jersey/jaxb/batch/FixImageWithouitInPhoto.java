@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.google.common.base.Strings;
 
@@ -23,9 +23,11 @@ public class FixImageWithouitInPhoto {
 	private static final int END_SIGNAL = 0;
 	private static final int MIN_MEDIA_ID = 25254; // TODO
 
-	public static void main(String[] args) {
-		DatabaseContext.runSql(_ -> {
-			var c = DatabaseContext.getConnection();
+	public static void main(String[] args) throws Exception {
+		var locator = BatchBootstrapper.createLocator();
+		var txManager = locator.getService(TransactionManager.class);
+		txManager.executeInTransaction(() -> {
+			var c = txManager.getConnection();
 			String sqlQuery = """
 				SELECT m.id FROM media m, media_problem mp, problem p, sector s, area a 
 				WHERE m.id=mp.media_id AND mp.problem_id=p.id AND p.sector_id=s.id 

@@ -7,6 +7,10 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.batch.BatchBootstrapper;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
+
 public class VardenMaintenanceOrchestrator {
     private static final Logger logger = LogManager.getLogger();
     private static final String SSH_HOST = "172.232.129.122";
@@ -20,7 +24,10 @@ public class VardenMaintenanceOrchestrator {
     private static final String REMOTE_BACKUP_DIR = "/opt/varden-infra/backups";
     private static final List<Integer> privateEmbeddedVideosToIgnore = List.of(36370, 36374, 36379, 36380, 36381, 36383, 36388);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+    	var locator = BatchBootstrapper.createLocator();
+        var txManager = locator.getService(TransactionManager.class);
+        var mediaRepo = locator.getService(MediaRepository.class);
         for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
             if (!Files.exists(p)) {
                 throw new RuntimeException(p.toString() + " not found");
@@ -33,10 +40,10 @@ public class VardenMaintenanceOrchestrator {
         new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT).run();
         
         logger.debug("Starting FixMedia background embedding sync task.");
-        new FixMedia(LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+        new FixMedia(txManager, mediaRepo, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
         
         logger.debug("FixMediaAnalyze started");
-        new FixMediaAnalyze(LOCAL_MEDIA_ROOT).run();
+        new FixMediaAnalyze(LOCAL_MEDIA_ROOT, txManager, mediaRepo).run();
         
         logger.debug("S3BucketUploadBatch started");
         new S3BucketUploadBatch(LOCAL_MEDIA_ROOT).run();

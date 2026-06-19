@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -21,11 +23,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.dao.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.helpers.JdbcUtils;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Comment;
 import com.buldreinfo.jersey.jaxb.model.Coordinates;
 import com.buldreinfo.jersey.jaxb.model.FaAid;
@@ -47,16 +48,42 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-public record ProblemRepository(Dao dao, Gson gson) {
-	private static final Logger logger = LogManager.getLogger();
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 
-	public ProblemRepository(Dao dao) {
-		this(dao, new Gson());
+public class ProblemRepository extends BaseRepository {
+	private static final Logger logger = LogManager.getLogger();
+	private final ActivityRepository activityRepo;
+	private final ExternalLinksRepository externalLinksRepo;
+	private final GeoRepository geoRepo;
+	private final Gson gson = new Gson();
+	private final Provider<HierarchyRepository> hierarchyRepo;
+	private final Provider<MediaRepository> mediaRepo;
+	private final Provider<SectorRepository> sectorRepo;
+	private final Provider<UserRepository> userRepo;
+
+	@Inject
+	public ProblemRepository(TransactionManager txManager,
+			ActivityRepository activityRepo,
+			ExternalLinksRepository externalLinksRepo,
+			GeoRepository geoRepo,
+			Provider<HierarchyRepository> hierarchyRepo,
+			Provider<MediaRepository> mediaRepo,
+			Provider<SectorRepository> sectorRepo,
+			Provider<UserRepository> userRepo) {
+		super(txManager);
+		this.activityRepo = activityRepo;
+		this.externalLinksRepo = externalLinksRepo;
+		this.geoRepo = geoRepo;
+		this.hierarchyRepo = hierarchyRepo;
+		this.mediaRepo = mediaRepo;
+		this.sectorRepo = sectorRepo;
+		this.userRepo = userRepo;
 	}
-	
+
 	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE problem SET hits=hits+1 WHERE id=?")) {
@@ -75,180 +102,183 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			}
 		}
 
-		var linksFuture = DatabaseContext.submitDaoTask(d -> d.getExternalLinksRepo().getExternalLinks(0, 0, reqId));
-
 		Problem p = null;
-		try (var ps = c.prepareStatement("""
-				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id, ? problem_id
-				),
-				stars_count AS (
-				    SELECT 
-				        p_sub.id AS pid,
-				        COUNT(DISTINCT t_sub.id) AS num_ticks,
-				        ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
-				    FROM req
-				    JOIN problem p_sub ON p_sub.id = req.problem_id
-				    LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
-				    GROUP BY p_sub.id
-				)
-				SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
-				       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
-				       sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
-				       s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
-				       p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m/%y') fa_date_hr,
-				       gf.grade grade, go.grade original_grade,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
-				       GROUP_CONCAT(DISTINCT 
-				           IF(u.id IS NULL, NULL, 
-				              CONCAT('{"id":', u.id, 
-				                     ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '"', '\\"'), 
-				                     '",', IF(m.id IS NULL, '"mediaIdentity":null', 
-				                              CONCAT('"mediaIdentity":{"id":', m.id, 
-				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
-				                                     ',"focusX":', COALESCE(mma.focus_x, 0), 
-				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
-				                           ), '}')
-				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
-				       p.length_meter,
-				       sc_data.num_ticks, sc_data.stars,
-				       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
-				       ty.id type_id, ty.type, ty.subtype,
-				       p.trivia, p.starting_altitude, p.aspect, p.descent,
-				       (
-				           SELECT GROUP_CONCAT(
-				               CONCAT('{"id":', ps_sub.id, ',"nr":', ps_sub.nr, ',"description":"', COALESCE(REPLACE(ps_sub.description, '"', '\\\\u0022'), ''), '","grade":"', g_sub.grade, '"}')
-				               ORDER BY ps_sub.nr SEPARATOR ','
-				           )
-				           FROM problem_section ps_sub
-				           JOIN grade g_sub ON ps_sub.grade_id = g_sub.id
-				           WHERE ps_sub.problem_id = p.id
-				       ) compiled_sections
-				FROM req
-				JOIN problem p ON p.id = req.problem_id
-				JOIN stars_count sc_data ON p.id = sc_data.pid
-				JOIN type ty ON p.type_id = ty.id
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN region r ON a.region_id = r.id
-				JOIN region_type rt ON r.id = rt.region_id
-				LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
-				LEFT JOIN grade go ON p.grade_id = go.id
-				LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
-				LEFT JOIN coordinates c ON p.coordinates_id = c.id
-				LEFT JOIN fa f ON p.id = f.problem_id
-				LEFT JOIN user u ON f.user_id = u.id
-				LEFT JOIN media m ON u.media_id=m.id
-				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
-				LEFT JOIN tick t ON p.id=t.problem_id
-				LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
-				  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
-				ORDER BY p.name
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, s.idRegion());
-			ps.setInt(3, reqId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var sectorId = rst.getInt("sector_id");
-					var rock = rst.getString("rock");
-					var outlineFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutline(sectorId));
-					var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, Collections.singleton(sectorId)).get(sectorId));
-					var neighboursFuture = DatabaseContext.submitDaoTask(_ -> getProblemNeighbours(authUserId, sectorId, reqId, rock));
 
-					var areaId = rst.getInt("area_id");
-					var areaLockedAdmin = rst.getBoolean("area_locked_admin");
-					var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-					var areaName = rst.getString("area_name");
-					var areaAccessInfo = rst.getString("area_access_info");
-					var areaAccessClosed = rst.getString("area_access_closed");
-					var areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
-					var areaSunFromHour = rst.getInt("area_sun_from_hour");
-					var areaSunToHour = rst.getInt("area_sun_to_hour");
-					var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-					var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-					var sectorName = rst.getString("sector_name");
-					var sectorAccessInfo = rst.getString("sector_access_info");
-					var sectorAccessClosed = rst.getString("sector_access_closed");
-					var sectorSunFromHour = rst.getInt("sector_sun_from_hour");
-					var sectorSunToHour = rst.getInt("sector_sun_to_hour");
-					var parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-					var sectorParking = parkingidCoordinates == 0 ? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-					
-					var sectorOutline = outlineFuture.join();
-					var sectorWallDirectionCalculated = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
-					var sectorWallDirectionManual = dao.getGeoRepo().getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
-					var trails = trailsFuture.join();
-					var neighbours = neighboursFuture.join();
-					var externalLinks = linksFuture.join();
-					
-					int id = rst.getInt("id");
-					var broken = rst.getString("broken");
-					var lockedAdmin = rst.getBoolean("locked_admin");
-					var lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					var nr = rst.getInt("nr");
-					var grade = rst.getString("grade");
-					var originalGrade = rst.getString("original_grade");
-					var faDate = rst.getString("fa_date");
-					var faDateHr = rst.getString("fa_date_hr");
-					var name = rst.getString("name");
-					var comment = rst.getString("description");
-					var faStr = rst.getString("fa");
-					List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
-					var lengthMeter = rst.getInt("length_meter");
-					var idCoordinates = rst.getInt("coordinates_id");
-					var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					var numTicks = rst.getInt("num_ticks");
-					var stars = rst.getDouble("stars");
-					var ticked = rst.getBoolean("ticked");
-					var allMedia = dao.getMediaRepo().getMediaProblem(s, authUserId, areaId, sectorId, id, showHiddenMedia);
-					Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
-							.orElse(List.of())
-							.stream()
-							.collect(Collectors.partitioningBy(
-									x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)
-									));
+		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			var linksFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> externalLinksRepo.getExternalLinks(0, 0, reqId)), executor);
+			try (var ps = c.prepareStatement("""
+					WITH req AS (
+					    SELECT ? auth_user_id, ? region_id, ? problem_id
+					),
+					stars_count AS (
+					    SELECT 
+					        p_sub.id AS pid,
+					        COUNT(DISTINCT t_sub.id) AS num_ticks,
+					        ROUND(ROUND(AVG(NULLIF(t_sub.stars, -1)) * 2) / 2, 1) AS stars
+					    FROM req
+					    JOIN problem p_sub ON p_sub.id = req.problem_id
+					    LEFT JOIN tick t_sub ON p_sub.id = t_sub.problem_id
+					    GROUP BY p_sub.id
+					)
+					SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.name area_name, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, 
+					       s.id sector_id, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.name sector_name, s.access_info sector_access_info, s.access_closed sector_access_closed, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour, 
+					       sc.id sector_parking_coordinates_id, sc.latitude sector_parking_latitude, sc.longitude sector_parking_longitude, sc.elevation sector_parking_elevation, sc.elevation_source sector_parking_elevation_source, 
+					       s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, 
+					       p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, p.hits, DATE_FORMAT(p.fa_date,'%Y-%m-%d') fa_date, DATE_FORMAT(p.fa_date,'%d/%m/%y') fa_date_hr,
+					       gf.grade grade, go.grade original_grade,
+					       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source,
+					       GROUP_CONCAT(DISTINCT 
+					           IF(u.id IS NULL, NULL, 
+					              CONCAT('{"id":', u.id, 
+					                     ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '"', '\\"'), 
+					                     '",', IF(m.id IS NULL, '"mediaIdentity":null', 
+					                              CONCAT('"mediaIdentity":{"id":', m.id, 
+					                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
+					                                     ',"focusX":', COALESCE(mma.focus_x, 0), 
+					                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
+					                           ), '}')
+					           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
+					       p.length_meter,
+					       sc_data.num_ticks, sc_data.stars,
+					       MAX(CASE WHEN (t.user_id = req.auth_user_id OR u.id = req.auth_user_id) THEN 1 END) ticked, 
+					       ty.id type_id, ty.type, ty.subtype,
+					       p.trivia, p.starting_altitude, p.aspect, p.descent,
+					       (
+					           SELECT GROUP_CONCAT(
+					               CONCAT('{"id":', ps_sub.id, ',"nr":', ps_sub.nr, ',"description":"', COALESCE(REPLACE(ps_sub.description, '"', '\\\\u0022'), ''), '","grade":"', g_sub.grade, '"}')
+					               ORDER BY ps_sub.nr SEPARATOR ','
+					           )
+					           FROM problem_section ps_sub
+					           JOIN grade g_sub ON ps_sub.grade_id = g_sub.id
+					           WHERE ps_sub.problem_id = p.id
+					       ) compiled_sections
+					FROM req
+					JOIN problem p ON p.id = req.problem_id
+					JOIN stars_count sc_data ON p.id = sc_data.pid
+					JOIN type ty ON p.type_id = ty.id
+					JOIN sector s ON p.sector_id = s.id
+					JOIN area a ON s.area_id = a.id
+					JOIN region r ON a.region_id = r.id
+					JOIN region_type rt ON r.id = rt.region_id
+					LEFT JOIN grade gf ON p.consensus_grade_id = gf.id
+					LEFT JOIN grade go ON p.grade_id = go.id
+					LEFT JOIN coordinates sc ON s.parking_coordinates_id = sc.id
+					LEFT JOIN coordinates c ON p.coordinates_id = c.id
+					LEFT JOIN fa f ON p.id = f.problem_id
+					LEFT JOIN user u ON f.user_id = u.id
+					LEFT JOIN media m ON u.media_id=m.id
+					LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
+					LEFT JOIN tick t ON p.id=t.problem_id
+					LEFT JOIN user_region ur ON r.id = ur.region_id AND ur.user_id = req.auth_user_id
+					WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.region_id)
+					  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
+					  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+					GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
+					ORDER BY p.name
+					""")) {
+				ps.setInt(1, authUserId.orElse(0));
+				ps.setInt(2, s.idRegion());
+				ps.setInt(3, reqId);
+				try (var rst = ps.executeQuery()) {
+					while (rst.next()) {
+						var sectorId = rst.getInt("sector_id");
+						var rock = rst.getString("rock");
 
-					var triviaMedia = partitioned.get(true);
-					var media = partitioned.get(false);
-					var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					var pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					var trivia = rst.getString("trivia");
-					var startingAltitude = rst.getString("starting_altitude");
-					var aspect = rst.getString("aspect");
-					var descent = rst.getString("descent");
+						var outlineFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorOutline(sectorId)), executor);
+						var trailsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorTrails(authUserId, Collections.singleton(sectorId)).get(sectorId)), executor);
+						var neighboursFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> getProblemNeighbours(authUserId, sectorId, reqId, rock)), executor);
 
-					var sectionsStr = rst.getString("compiled_sections");
-					List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(gson.fromJson("[" + sectionsStr + "]", new TypeToken<List<ProblemSection>>(){}));
-					
-					if (media != null && !sections.isEmpty()) {
-						for (var section : sections) {
-							var sectionMedia = media.stream()
-									.filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
-									.toList();
-							media.removeAll(sectionMedia);
-							sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
+						var areaId = rst.getInt("area_id");
+						var areaLockedAdmin = rst.getBoolean("area_locked_admin");
+						var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+						var areaName = rst.getString("area_name");
+						var areaAccessInfo = rst.getString("area_access_info");
+						var areaAccessClosed = rst.getString("area_access_closed");
+						var areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
+						var areaSunFromHour = rst.getInt("area_sun_from_hour");
+						var areaSunToHour = rst.getInt("area_sun_to_hour");
+						var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
+						var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						var sectorName = rst.getString("sector_name");
+						var sectorAccessInfo = rst.getString("sector_access_info");
+						var sectorAccessClosed = rst.getString("sector_access_closed");
+						var sectorSunFromHour = rst.getInt("sector_sun_from_hour");
+						var sectorSunToHour = rst.getInt("sector_sun_to_hour");
+						var parkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+						var sectorParking = parkingidCoordinates == 0 ? null : new Coordinates(parkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
+
+						var sectorOutline = outlineFuture.join();
+						var sectorWallDirectionCalculated = geoRepo.getCompassDirection(s, rst.getInt("sector_compass_direction_id_calculated"));
+						var sectorWallDirectionManual = geoRepo.getCompassDirection(s, rst.getInt("sector_compass_direction_id_manual"));
+						var trails = trailsFuture.join();
+						var neighbours = neighboursFuture.join();
+						var externalLinks = linksFuture.join();
+
+						int id = rst.getInt("id");
+						var broken = rst.getString("broken");
+						var lockedAdmin = rst.getBoolean("locked_admin");
+						var lockedSuperadmin = rst.getBoolean("locked_superadmin");
+						var nr = rst.getInt("nr");
+						var grade = rst.getString("grade");
+						var originalGrade = rst.getString("original_grade");
+						var faDate = rst.getString("fa_date");
+						var faDateHr = rst.getString("fa_date_hr");
+						var name = rst.getString("name");
+						var comment = rst.getString("description");
+						var faStr = rst.getString("fa");
+						List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
+						var lengthMeter = rst.getInt("length_meter");
+						var idCoordinates = rst.getInt("coordinates_id");
+						var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+						var numTicks = rst.getInt("num_ticks");
+						var stars = rst.getDouble("stars");
+						var ticked = rst.getBoolean("ticked");
+						var allMedia = mediaRepo.get().getMediaProblem(s, authUserId, areaId, sectorId, id, showHiddenMedia);
+						Map<Boolean, List<Media>> partitioned = Optional.ofNullable(allMedia)
+								.orElse(List.of())
+								.stream()
+								.collect(Collectors.partitioningBy(
+										x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)
+										));
+
+						var triviaMedia = partitioned.get(true);
+						var media = partitioned.get(false);
+						var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+						var pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+						var trivia = rst.getString("trivia");
+						var startingAltitude = rst.getString("starting_altitude");
+						var aspect = rst.getString("aspect");
+						var descent = rst.getString("descent");
+
+						var sectionsStr = rst.getString("compiled_sections");
+						List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(gson.fromJson("[" + sectionsStr + "]", new TypeToken<List<ProblemSection>>(){}));
+
+						if (media != null && !sections.isEmpty()) {
+							for (var section : sections) {
+								var sectionMedia = media.stream()
+										.filter(x -> x.problems().stream().anyMatch(y -> y.problemId() == reqId && y.problemPitch() == section.nr()))
+										.toList();
+								media.removeAll(sectionMedia);
+								sections.set(sections.indexOf(section), section.withMedia(sectionMedia));
+							}
 						}
-					}
 
-					p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
-							sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
-							sectorSunFromHour, sectorSunToHour,
-							sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails,
-							neighbours,
-							id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
-							grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
-							media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, sections, isTodo, externalLinks, pageViews,
-							null, trivia, triviaMedia, startingAltitude, aspect, descent);
+						p = new Problem(null, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour,
+								sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed,
+								sectorSunFromHour, sectorSunToHour,
+								sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails,
+								neighbours,
+								id, broken, false, lockedAdmin, lockedSuperadmin, nr, name, rock, comment,
+								grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates,
+								media, numTicks, stars, ticked, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), t, sections, isTodo, externalLinks, pageViews,
+								null, trivia, triviaMedia, startingAltitude, aspect, descent);
+					}
 				}
 			}
 		}
 		if (p == null) {
 			try {
-				var res = dao.getHierarchyRepo().getCanonicalUrl(s, 0, 0, reqId);
+				var res = hierarchyRepo.get().getCanonicalUrl(s, 0, 0, reqId);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
 				}
@@ -373,7 +403,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 					var message = rst.getString("message");
 					var danger = rst.getBoolean("danger");
 					var resolved = rst.getBoolean("resolved");
-					var media = dao.getMediaRepo().getMediaGuestbook(authUserId, id);
+					var media = mediaRepo.get().getMediaGuestbook(authUserId, id);
 					p.addComment(id, date, idUser, mediaIdentity, name, message, danger, resolved, media);
 				}
 				if (p.comments() != null && !p.comments().isEmpty()) {
@@ -425,16 +455,16 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 		}
-		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}) - duration={} - p.id()={}", authUserId, s.idRegion(), reqId, stopwatch, p.id());
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, shouldUpdateHits={}) - duration={} - p.id()={}", authUserId, s.idRegion(), reqId, shouldUpdateHits, stopwatch, p.id());
 		return p;
 	}
-	
+
 	public List<ProblemSearchResult> getProblemsSearch(Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
 		if (search == null || search.strip().isEmpty()) {
 			return List.of();
 		}
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var searchRegexPattern = "(^|\\W)" + Pattern.quote(search);
 		var sql = """
 				WITH req AS (
@@ -476,9 +506,9 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		}
 		return res;
 	}
-	
+
 	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		final var orderByGrade = s.isBouldering();
 		final var dt = Strings.isNullOrEmpty(p.faDate())? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		var idProblem = -1;
@@ -488,10 +518,10 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				p = p.withCoordinates(null);
 			}
 			else {
-				dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.coordinates()));
+				geoRepo.ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.coordinates()));
 			}
 		}
-		dao.getSectorRepo().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
+		sectorRepo.get().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
 		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
 		if (p.id() > 0) {
 			ensureAdminWriteProblem(authUserId, p.id());
@@ -532,7 +562,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 			updateProblemConsensusGrade(idProblem);
 		}
 		else {
-			dao.getSectorRepo().ensureAdminWriteSector(authUserId, p.sectorId());
+			sectorRepo.get().ensureAdminWriteSector(authUserId, p.sectorId());
 			try (var ps = c.prepareStatement("INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, coordinates_id, broken, locked_admin, locked_superadmin, nr, type_id, trivia, starting_altitude, aspect, length_meter, descent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 				ps.setInt(1, p.sectorId());
 				ps.setString(2, GlobalFunctions.stripString(p.name()));
@@ -545,7 +575,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				ps.setString(9, GlobalFunctions.stripString(p.broken()));
 				ps.setBoolean(10, isLockedAdmin);
 				ps.setBoolean(11, p.lockedSuperadmin());
-				ps.setInt(12, p.nr() == 0 ? dao.getSectorRepo().getSector(authUserId, orderByGrade, s, p.sectorId(), false).problems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.nr());
+				ps.setInt(12, p.nr() == 0 ? sectorRepo.get().getSector(authUserId, orderByGrade, s, p.sectorId(), false).problems().stream().map(x -> x.nr()).mapToInt(Integer::intValue).max().orElse(0) + 1 : p.nr());
 				ps.setInt(13, p.t().id());
 				ps.setString(14, GlobalFunctions.stripString(p.trivia()));
 				ps.setString(15, GlobalFunctions.stripString(p.startingAltitude()));
@@ -593,7 +623,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 						}
 					}
 				} else {
-					var idUser = dao.getUserRepo().addUser(null, x.name(), null);
+					var idUser = userRepo.get().addUser(null, x.name(), null);
 					Preconditions.checkArgument(idUser > 0);
 					try (var ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
@@ -657,7 +687,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 						for (var u : faAid.users()) {
 							var idUser = u.id();
 							if (idUser <= 0) {
-								idUser = dao.getUserRepo().addUser(null, u.name(), null);
+								idUser = userRepo.get().addUser(null, u.name(), null);
 							}
 							Preconditions.checkArgument(idUser > 0);
 							ps.setInt(1, idProblem);
@@ -669,17 +699,17 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 		}
-		dao.getExternalLinksRepo().upsertExternalLinks(p.externalLinks(), 0, 0, idProblem);
-		dao.getActivityRepo().fillActivity(idProblem);
+		externalLinksRepo.upsertExternalLinks(p.externalLinks(), 0, 0, idProblem);
+		activityRepo.fillActivity(idProblem);
 		if (p.trash()) {
 			return Redirect.fromIdSector(p.sectorId());
 		}
 		return Redirect.fromIdProblem(idProblem);
 	}
-	
+
 	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var idGuestbook = co.id();
 		if (idGuestbook > 0) {
 			var comments = getProblem(authUserId, s, co.idProblem(), false, false).comments();
@@ -741,13 +771,13 @@ public record ProblemRepository(Dao dao, Gson gson) {
 				}
 			}
 		}
-		dao.getActivityRepo().fillActivity(co.idProblem());
+		activityRepo.fillActivity(co.idProblem());
 		return idGuestbook;
 	}
-	
+
 	private List<Neighbour> getProblemNeighbours(Optional<Integer> authUserId, int sectorId, int problemId, String rock) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var res = new ArrayList<Neighbour>();
 		if (rock == null) {
 			var sql = """
@@ -853,7 +883,7 @@ public record ProblemRepository(Dao dao, Gson gson) {
 	}
 
 	protected void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var ok = false;
 		try (var ps = c.prepareStatement("""
 				SELECT ur.admin_write, ur.superadmin_write 
@@ -877,9 +907,9 @@ public record ProblemRepository(Dao dao, Gson gson) {
 		}
 		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
-	
+
 	protected void updateProblemConsensusGrade(int problemId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sql = """
 				UPDATE problem p
 				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id

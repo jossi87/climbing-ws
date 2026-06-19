@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -13,11 +13,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.dao.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.helpers.JdbcUtils;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.PublicAscent;
 import com.buldreinfo.jersey.jaxb.model.Tick;
 import com.buldreinfo.jersey.jaxb.model.Tick.TickRepeat;
@@ -26,14 +25,26 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 
-public record TickRepository(Dao dao) {
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+
+public class TickRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
+	private final ActivityRepository activityRepo;
+	private final Provider<ProblemRepository> problemRepo;
+	
+	@Inject
+	public TickRepository(TransactionManager txManager, ActivityRepository activityRepo, Provider<ProblemRepository> problemRepo) {
+		super(txManager);
+		this.activityRepo = activityRepo;
+		this.problemRepo = problemRepo;
+	}
 	
 	public Ticks getTicks(Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		final var take = 200;
 		var skip = (page - 1) * take;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 					SELECT ? region_id, ? auth_user_id
@@ -108,7 +119,7 @@ public record TickRepository(Dao dao) {
 	
 	public void setTick(Setup setup, Optional<Integer> authUserId, Tick t) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("DELETE FROM todo WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, t.idProblem());
@@ -163,12 +174,12 @@ public record TickRepository(Dao dao) {
 		} else {
 			throw new SQLException("Invalid tick=" + t + ", authUserId=" + authUserId);
 		}
-		dao.getActivityRepo().fillActivity(t.idProblem());
-		dao.getProblemRepo().updateProblemConsensusGrade(t.idProblem());
+		activityRepo.fillActivity(t.idProblem());
+		problemRepo.get().updateProblemConsensusGrade(t.idProblem());
 	}
 	
 	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var idsToKeep = repeats == null ? List.<Integer>of() : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).toList();
 		if (idsToKeep.isEmpty()) {
 			try (var ps = c.prepareStatement("DELETE FROM tick_repeat WHERE tick_id=?")) {

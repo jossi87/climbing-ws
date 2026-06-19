@@ -14,7 +14,7 @@ public class ActivityResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void testGetActivity() throws Exception {
-		var tester = new ActivityResource();
+		var tester = getService(ActivityResource.class);
 		try (Response r = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true, 0)) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);

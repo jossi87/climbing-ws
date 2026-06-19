@@ -3,11 +3,13 @@ package com.buldreinfo.jersey.jaxb.resources;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
+import com.buldreinfo.jersey.jaxb.dao.HierarchyRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
-import com.buldreinfo.jersey.jaxb.model.Frontpage;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Meta;
 import com.buldreinfo.jersey.jaxb.model.Toc;
@@ -20,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -32,27 +35,18 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Meta")
 @Path("")
 public class MetaResource extends BaseResource {
+	private final HierarchyRepository hierarchyRepo;
+	private final RegionRepository regionRepo;
+	private final TransactionManager txManager;
+	private final UserRepository userRepo;
 
-	@Operation(summary = "Get frontpage", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Frontpage.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = "Bearer Authentication")
-	@GET
-	@Path("/frontpage")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getFrontpage(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (_, setup, authUserId, _) -> {
-			var stats = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageStats(authUserId, setup));
-			var randomMedia = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageRandomMedia(setup));
-			var firstAscents = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageFirstAscents(authUserId, setup));
-			var newestComments = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageNewestAscents(authUserId, setup));
-			var newestMedia = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageNewestMedia(authUserId, setup));
-			var lastComments = DatabaseContext.submitDaoTask(dao -> dao.getFrontpageRepo().getFrontpageLastComments(authUserId, setup));
-			var res = new Frontpage(stats.join(), randomMedia.join(), firstAscents.join(), newestComments.join(), newestMedia.join(), lastComments.join());
-			return Response.ok().entity(res).build();
-		});
+	@Inject
+	public MetaResource(TransactionManager txManager, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.txManager = txManager;
+		this.hierarchyRepo = hierarchyRepo;
+		this.userRepo = userRepo;
+		this.regionRepo = regionRepo;
 	}
 
 	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {
@@ -67,15 +61,15 @@ public class MetaResource extends BaseResource {
 	public Response getGradeDistribution(@Context HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @QueryParam("idSector") int idSector
-			) {
+			) throws Exception {
 		if (idArea < 0 || idSector < 0) {
 			return createBadRequestResponse("IDs cannot be negative");
 		}
 		if (idArea == 0 && idSector == 0) {
 			return createBadRequestResponse("Either idArea or idSector must be greater than 0");
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
-			var res = dao.getHierarchyRepo().getGradeDistribution(authUserId, idArea, idSector);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			var res = hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -89,9 +83,9 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/graph")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getGraph(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			var res = dao.getHierarchyRepo().getContentGraph(authUserId, setup);
+	public Response getGraph(@Context HttpServletRequest request) throws Exception {
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var res = hierarchyRepo.getContentGraph(authUserId, setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -105,9 +99,9 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/meta")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getMeta(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (_, setup, authUserId, _) -> {
-			var res = Meta.from(setup, authUserId);
+	public Response getMeta(@Context HttpServletRequest request) throws Exception {
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var res = Meta.from(setup, authUserId, txManager, userRepo, regionRepo);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -119,8 +113,8 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/robots.txt")
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getRobotsTxt(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSql(request, (_, setup, _) -> {
+	public Response getRobotsTxt(@Context HttpServletRequest request) throws Exception {
+		return executeSetupTask(request, setup -> {
 			var lines = List.of(
 					"User-agent: *",
 					"Disallow: */pdf",
@@ -136,9 +130,9 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/sitemap.txt")
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getSitemapTxt(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSql(request, (dao, setup, _) -> {
-			var res = dao.getHierarchyRepo().getSitemapTxt(setup);
+	public Response getSitemapTxt(@Context HttpServletRequest request) throws Exception {
+		return executeSetupTask(request, setup -> {
+			var res = hierarchyRepo.getSitemapTxt(setup);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -152,9 +146,9 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/toc")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getToc(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			return Response.ok().entity(dao.getHierarchyRepo().getToc(authUserId, setup)).build();
+	public Response getToc(@Context HttpServletRequest request) throws Exception {
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			return Response.ok().entity(hierarchyRepo.getToc(authUserId, setup)).build();
 		});
 	}
 
@@ -167,9 +161,9 @@ public class MetaResource extends BaseResource {
 	@GET
 	@Path("/toc/xlsx")
 	@Produces(OpenApiConstants.APPLICATION_XLSX)
-	public Response getTocXlsx(@Context HttpServletRequest request) {
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			var toc = dao.getHierarchyRepo().getToc(authUserId, setup);
+	public Response getTocXlsx(@Context HttpServletRequest request) throws Exception {
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var toc = hierarchyRepo.getToc(authUserId, setup);
 			byte[] bytes;
 			try (var workbook = new ExcelWorkbook()) {
 				try (var sheet = workbook.addSheet("TOC")) {
@@ -213,7 +207,7 @@ public class MetaResource extends BaseResource {
 						}
 					}
 				}
-				var pitches = dao.getHierarchyRepo().getTocPitches(authUserId, setup);
+				var pitches = hierarchyRepo.getTocPitches(authUserId, setup);
 				if (!pitches.isEmpty()) {
 					try (var sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
 						for (var p : pitches) {

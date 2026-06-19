@@ -16,24 +16,29 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
 import com.buldreinfo.jersey.jaxb.helpers.ImageClassifier;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 
 public class FixMediaAnalyze {
+	private final TransactionManager txManager;
+    private final MediaRepository mediaRepo;
     private final Path localBucketRoot;
     private record Task(int id, int width, int height) {}
     private static final Logger logger = LogManager.getLogger();
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-    public FixMediaAnalyze(Path localBucketRoot) {
-        this.localBucketRoot = localBucketRoot;
+    public FixMediaAnalyze(Path localBucketRoot, TransactionManager txManager, MediaRepository mediaRepo) {
+    	this.localBucketRoot = localBucketRoot;
+    	this.txManager = txManager;
+        this.mediaRepo = mediaRepo;
     }
 
-    public void run() {
+    public void run() throws Exception {
         List<Task> tasks = new ArrayList<>();
-        DatabaseContext.runSql(_ -> {
-        	var c = DatabaseContext.getConnection();
+        txManager.executeInTransaction(() -> {
+        	var c = txManager.getConnection();
             try (PreparedStatement ps = c.prepareStatement("""
                     SELECT id, width, height
                     FROM media m
@@ -72,8 +77,8 @@ public class FixMediaAnalyze {
             logger.warn(w);
         }
         logger.debug("Updating cache columns...");
-        DatabaseContext.runSql(_ -> {
-        	var c = DatabaseContext.getConnection();
+        txManager.executeInTransaction(() -> {
+        	var c = txManager.getConnection();
             try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE media_ml_analysis mla
                     JOIN media m ON mla.media_id = m.id
@@ -118,22 +123,22 @@ public class FixMediaAnalyze {
         logger.debug("Done");
     }
     
-    public void processTask(Task t) {
+    public void processTask(Task t) throws Exception {
         try {
             Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
             var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
-            DatabaseContext.runSql(dao -> {
+            txManager.executeInTransaction(() -> {
                 try {
-                    dao.getMediaRepo().saveMediaAnalysis(t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
+                    mediaRepo.saveMediaAnalysis(t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);
                 } catch (Exception e) {
                     warnings.add("Failed to save media id=" + t.id + ": " + e.getMessage());
                 }
             });
         } catch (Exception e) {
             warnings.add("Failed to process/analyze media id=" + t.id + ": " + e.getMessage());
-            DatabaseContext.runSql(dao -> {
+            txManager.executeInTransaction(() -> {
                 try {
-                    dao.getMediaRepo().saveMediaAnalysis(t.id, t.width, t.height, null, null, null, true);
+                    mediaRepo.saveMediaAnalysis(t.id, t.width, t.height, null, null, null, true);
                 } catch (Exception dbEx) {
                     logger.error("Could not save failure state for id=" + t.id, dbEx);
                 }

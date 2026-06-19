@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.sql.Types;
@@ -18,22 +18,29 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.helpers.GradeConverter;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Activity;
 import com.buldreinfo.jersey.jaxb.model.MediaIdentity;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 
-public record ActivityRepository() {
-	private static final Logger logger = LogManager.getLogger();
+import jakarta.inject.Inject;
+
+public class ActivityRepository extends BaseRepository {
 	private static final String ACTIVITY_TYPE_FA = "FA";
-	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
+	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
+	private static final Logger logger = LogManager.getLogger();
+	
+	@Inject
+	public ActivityRepository(TransactionManager txManager) {
+		super(txManager);
+	}
 	
 	public void fillActivity(int idProblem) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("DELETE FROM activity WHERE problem_id=?")) {
 			ps.setInt(1, idProblem);
 			ps.execute();
@@ -237,7 +244,7 @@ public record ActivityRepository() {
 		}
 	}
 
-	public List<Activity> getActivity(Optional<Integer> authUserId, Setup setup, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
+	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Activity>();
 		var faIds = new HashSet<Integer>();
@@ -246,7 +253,7 @@ public record ActivityRepository() {
 		var mediaIds = new HashSet<Integer>();
 		var gbIds = new HashSet<Integer>();
 		var showAllTime = offset > 0 || lowerGrade > 0 || !fa || !comments || !ticks || !media || idArea > 0 || idSector > 0;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? region_id, ? show_all_time,

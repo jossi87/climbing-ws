@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -9,21 +9,28 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Todo;
 import com.buldreinfo.jersey.jaxb.model.Todo.TodoProblem;
 import com.buldreinfo.jersey.jaxb.model.Todo.TodoSector;
 import com.buldreinfo.jersey.jaxb.model.User;
 import com.google.common.base.Preconditions;
 
-public record TodoRepository() {
+import jakarta.inject.Inject;
+
+public class TodoRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
+	
+	@Inject
+	public TodoRepository(TransactionManager txManager) {
+		super(txManager);
+	}
 	
 	public Todo getTodo(Optional<Integer> authUserId, Setup setup, int idArea, int idSector) throws SQLException {
 		var res = new Todo(new ArrayList<>());
 		var sectorLookup = new HashMap<Integer, TodoSector>();
 		var problemLookup = new HashMap<Integer, TodoProblem>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		String condition = null;
 		int id = 0;
 		if (idSector > 0) {
@@ -94,7 +101,7 @@ public record TodoRepository() {
 	public void toggleTodo(Optional<Integer> authUserId, int problemId) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in");
 		Preconditions.checkArgument(problemId > 0, "Problem id not set");
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		int todoId = -1;
 		try (var ps = c.prepareStatement("SELECT id FROM todo WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, authUserId.orElseThrow());

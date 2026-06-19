@@ -2,8 +2,11 @@ package com.buldreinfo.jersey.jaxb.resources;
 
 import java.util.List;
 
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Media;
 import com.buldreinfo.jersey.jaxb.model.Profile;
 import com.buldreinfo.jersey.jaxb.model.Profile.ProfileIdentity;
@@ -18,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -31,6 +35,15 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Profiles")
 @Path("/profiles")
 public class ProfilesResource extends BaseResource {
+	private final MediaRepository mediaRepo;
+	private final UserRepository userRepo;
+
+	@Inject
+	public ProfilesResource(TransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.mediaRepo = mediaRepo;
+		this.userRepo = userRepo;
+	}
 
 	@Operation(summary = "Get profile by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Profile.class))}),
@@ -38,25 +51,23 @@ public class ProfilesResource extends BaseResource {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getProfiles(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) {
+	public Response getProfiles(@Context HttpServletRequest request, @Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) throws Exception {
 		if (reqUserId <= 0) {
 			return createBadRequestResponse("Invalid user id=" + reqUserId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao1, setup, _, _) -> {
-			dao1.getUserRepo().ensureUserExists(reqUserId);
-			var identity = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileIdentity(setup, reqUserId));
-			var kpis = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileKpis(reqUserId));
-			var disciplines = DatabaseContext.submitDaoTask(dao -> dao.getUserRepo().getProfileDisciplines(setup, reqUserId));
+		return executeSetupTask(request, setup -> {
+			userRepo.ensureUserExists(reqUserId);
+			var identity = supplyAsync(() -> userRepo.getProfileIdentity(setup, reqUserId));
+			var kpis = supplyAsync(() -> userRepo.getProfileKpis(reqUserId));
+			var disciplines = supplyAsync(() -> userRepo.getProfileDisciplines(setup, reqUserId));
 			Profile res = new Profile(identity.join(), kpis.join(), disciplines.join());
 			return Response.ok().entity(res).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get profile ascents", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, array = @ArraySchema(schema = @Schema(implementation = ProfileAscent.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -66,14 +77,13 @@ public class ProfilesResource extends BaseResource {
 	@GET
 	@Path("/ascents")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getProfilesAscents(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
+	public Response getProfilesAscents(@Context HttpServletRequest request, @Parameter(description = "User id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(id);
-			List<ProfileAscent> res = dao.getUserRepo().getProfileAscents(authUserId, setup, id);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			userRepo.ensureUserExists(id);
+			List<ProfileAscent> res = userRepo.getProfileAscents(authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -91,13 +101,13 @@ public class ProfilesResource extends BaseResource {
 	public Response getProfilesMedia(@Context HttpServletRequest request,
 			@Parameter(description = "User id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "FALSE = tagged media, TRUE = captured media", required = false) @QueryParam("captured") boolean captured
-			) {
+			) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(id);
-			List<Media> res = dao.getMediaRepo().getProfileMedia(authUserId, id, captured);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			userRepo.ensureUserExists(id);
+			List<Media> res = mediaRepo.getProfileMedia(authUserId, id, captured);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -113,13 +123,13 @@ public class ProfilesResource extends BaseResource {
 	@Path("/todo")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfilesTodo(@Context HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @QueryParam("id") int id) {
+			@Parameter(description = "User id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid user id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, _) -> {
-			dao.getUserRepo().ensureUserExists(id);
-			ProfileTodo res = dao.getUserRepo().getProfileTodo(authUserId, setup, id);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			userRepo.ensureUserExists(id);
+			ProfileTodo res = userRepo.getProfileTodo(authUserId, setup, id);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -133,12 +143,12 @@ public class ProfilesResource extends BaseResource {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/identity")
-	public Response postProfilesIdentity(@Context HttpServletRequest request, ProfileIdentity profile) {
+	public Response postProfilesIdentity(@Context HttpServletRequest request, ProfileIdentity profile) throws Exception {
 		if (profile == null) {
 			return createBadRequestResponse("Profile identity payload is missing");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getUserRepo().setProfile(authUserId, profile);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			userRepo.setProfile(authUserId, profile);
 			return Response.ok().build();
 		});
 	}
@@ -153,12 +163,12 @@ public class ProfilesResource extends BaseResource {
 	@POST
 	@Path("/theme")
 	public Response postProfilesTheme(@Context HttpServletRequest request,
-			@Parameter(description = "Theme preference (light or dark)", required = true) @QueryParam("themePreference") String themePreference) {
+			@Parameter(description = "Theme preference (light or dark)", required = true) @QueryParam("themePreference") String themePreference) throws Exception {
 		if (themePreference == null || (!themePreference.equals("light") && !themePreference.equals("dark"))) {
 			return createBadRequestResponse("Invalid theme preference. Must be 'light' or 'dark'.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getUserRepo().setThemePreference(authUserId, themePreference);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			userRepo.setThemePreference(authUserId, themePreference);
 			return Response.ok().build();
 		});
 	}

@@ -5,7 +5,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -17,10 +16,13 @@ import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.S3KeyGenerator;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
+import com.buldreinfo.jersey.jaxb.dao.MediaRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.helpers.ApifyInstagramResolver;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.io.ImageHelper;
 import com.buldreinfo.jersey.jaxb.io.ImageSaver;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
@@ -39,6 +41,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -64,8 +67,17 @@ public class MediaResource extends BaseResource {
 	private interface ImageTask {
 		void execute(StorageManager storage) throws Exception;
 	}
-
 	private static Logger logger = LogManager.getLogger();
+	private final MediaRepository mediaRepo;
+
+	private final TransactionManager txManager;
+
+	@Inject
+	public MediaResource(TransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.txManager = txManager;
+		this.mediaRepo = mediaRepo;
+	}
 
 	@Operation(summary = "Move media to trash", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
@@ -77,12 +89,12 @@ public class MediaResource extends BaseResource {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
 	@Path("")
-	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) {
+	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
-	        return createBadRequestResponse("Invalid id=" + id);
-	    }
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getMediaRepo().deleteMedia(authUserId, id);
+			return createBadRequestResponse("Invalid id=" + id);
+		}
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			mediaRepo.deleteMedia(authUserId, id);
 			return Response.ok().build();
 		});
 	}
@@ -98,12 +110,12 @@ public class MediaResource extends BaseResource {
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
-			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) {
+			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws Exception {
 		if (idMedia <= 0) {
 			return createBadRequestResponse("Invalid idMedia=" + idMedia);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, _, authUserId, _) -> {
-			Media res = dao.getMediaRepo().getMedia(authUserId, idMedia);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			Media res = mediaRepo.getMedia(authUserId, idMedia);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -125,7 +137,7 @@ public class MediaResource extends BaseResource {
 			@Parameter(description = "Region X", required = false) @QueryParam("x") int x,
 			@Parameter(description = "Region Y", required = false) @QueryParam("y") int y,
 			@Parameter(description = "Region Width", required = false) @QueryParam("width") int width,
-			@Parameter(description = "Region Height", required = false) @QueryParam("height") int height) {
+			@Parameter(description = "Region Height", required = false) @QueryParam("height") int height) throws Exception {
 		StorageManager storage = StorageManager.getInstance();
 		if (isMovie) {
 			String finalObjectKey = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
@@ -146,7 +158,7 @@ public class MediaResource extends BaseResource {
 			}
 			return createRedirect(finalObjectKey, versionStamp);
 		} 
-		
+
 		if (targetWidth > 0 || minDimension > 0) {
 			finalObjectKey = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
 			if (storage.exists(finalObjectKey)) {
@@ -154,7 +166,7 @@ public class MediaResource extends BaseResource {
 			}
 			return executeGenerationPipeline(storage, finalObjectKey, versionStamp, s -> processResize(s, id, targetWidth, minDimension, finalObjectKey, outputType));
 		} 
-		
+
 		if (width > 0 && height > 0) {
 			finalObjectKey = webP ? S3KeyGenerator.getWebWebpRegion(id, x, y, width, height) : S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
 			if (storage.exists(finalObjectKey)) {
@@ -184,15 +196,15 @@ public class MediaResource extends BaseResource {
 			@Parameter(description = "Media id", required = true) @QueryParam("id") int id,
 			@Parameter(description = "Move left", required = false) @QueryParam("left") boolean left,
 			@Parameter(description = "Move right", required = false) @QueryParam("right") boolean right
-			) {
+			) throws Exception {
 		if (id <= 0) {
-		    return createBadRequestResponse("Invalid id=" + id);
+			return createBadRequestResponse("Invalid id=" + id);
 		}
 		if (!(left ^ right)) {
-		    return createBadRequestResponse("You must specify either 'left' or 'right', but not both.");
+			return createBadRequestResponse("You must specify either 'left' or 'right', but not both.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getMediaRepo().shiftMediaPosition(authUserId, id, left, right);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			mediaRepo.shiftMediaPosition(authUserId, id, left, right);
 			return Response.ok().build();
 		});
 	}
@@ -209,7 +221,7 @@ public class MediaResource extends BaseResource {
 	@Path("/image")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaImage(@Context HttpServletRequest request, FormDataMultiPart multiPart) {
+	public Response postMediaImage(@Context HttpServletRequest request, FormDataMultiPart multiPart) throws Exception {
 		FormDataBodyPart jsonPart = multiPart.getField("json");
 		Preconditions.checkArgument(jsonPart != null);
 		Media m = new Gson().fromJson(jsonPart.getValue(), Media.class);
@@ -219,9 +231,9 @@ public class MediaResource extends BaseResource {
 		String fileName = filePart.getContentDisposition().getFileName();
 		StorageType storageType = StorageType.fromFilename(fileName)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + fileName));
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			int newMediaId = dao.getMediaRepo().addMediaImage(authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
-			Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			int newMediaId = mediaRepo.addMediaImage(authUserId, m, storageType, () -> filePart.getValueAs(InputStream.class));
+			Media res = mediaRepo.getMedia(authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -243,22 +255,22 @@ public class MediaResource extends BaseResource {
 			@HeaderParam("X-Selected-Cdn-Url") String selectedCdnUrl,
 			@HeaderParam("X-Selected-Is-Video") boolean isVideo,
 			@HeaderParam("X-Selected-Media-Index") int mediaIndex,
-			Media mediaPayload) {
+			Media mediaPayload) throws Exception {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload is missing");
 		Preconditions.checkArgument(selectedCdnUrl != null && !selectedCdnUrl.isBlank(), "Selected slide CDN URL is required");
 		URI validatedInitialUri = ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			if (dao.getMediaRepo().getDailyInstagramScrapeCount(authUserId) > 50) {
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50) {
 				throw new WebApplicationException(
-					Response.status(Response.Status.TOO_MANY_REQUESTS)
-							.entity("Daily Instagram import limit reached (max 50 per day)")
-							.build()
-				);
+						Response.status(Response.Status.TOO_MANY_REQUESTS)
+						.entity("Daily Instagram import limit reached (max 50 per day)")
+						.build()
+						);
 			}
 			mediaPayload.ensureCorrectMediaAssociations(authUserId);
 			if (isVideo) {
-				int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(authUserId, mediaPayload, StorageType.MP4);
-				DatabaseContext.runAsync(() -> {
+				int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, mediaPayload, StorageType.MP4);
+				supplyAsync(() -> {
 					try {
 						byte[] videoData;
 						try (InputStream is = validatedInitialUri.toURL().openStream()) {
@@ -270,32 +282,26 @@ public class MediaResource extends BaseResource {
 									.filter(m -> m.mediaIndex() == mediaIndex)
 									.findFirst()
 									.orElse(freshMedia.get(0));
-
 							URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
-
-							DatabaseContext.submitDaoTask(dao2 -> {
-							    dao2.getMediaRepo().logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
-							    return null;
+							txManager.executeInTransaction(() -> {
+								mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
+								return null;
 							});
 							try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 								videoData = StorageManager.getInstance().readBoundedStream(is);
 							}
 						}
 						StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(newMediaId), videoData, StorageType.MP4);
-						DatabaseContext.submitDaoTask(backgroundDao -> {
-						    try {
-						        VideoHelper.processVideo(backgroundDao, newMediaId, mediaPayload.thumbnailSeconds());
-						    } catch (Exception e) {
-						        logger.error("Async video processing failed for media " + newMediaId, e);
-						        throw new SQLException("Video processing failed", e);
-						    }
-						    return null;
-						});
+						VideoHelper.processVideo(txManager, mediaRepo, newMediaId, mediaPayload.thumbnailSeconds());
+						return null;
 					} catch (Exception e) {
-						logger.error("Failed async instagram video save for id=" + newMediaId, e);
+						throw new RuntimeException("Async instagram video save failed for id=" + newMediaId, e);
 					}
+				}).exceptionally(ex -> {
+					logger.error("Failed async instagram video save for id=" + newMediaId, ex);
+					return null;
 				});
-				Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
+				Media res = mediaRepo.getMedia(authUserId, newMediaId);
 				return Response.ok().entity(res).build();
 			}
 			byte[] imageData;
@@ -309,14 +315,14 @@ public class MediaResource extends BaseResource {
 						.findFirst()
 						.orElse(freshMedia.get(0));
 				URI validatedFallbackUri = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl());
-				dao.getMediaRepo().logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
+				mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), freshMedia.size());
 				try (InputStream is = validatedFallbackUri.toURL().openStream()) {
 					imageData = StorageManager.getInstance().readBoundedStream(is);
 				}
 			}
 			final byte[] finalImageData = imageData;
-			int newMediaId = dao.getMediaRepo().addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
-			Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
+			int newMediaId = mediaRepo.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalImageData));
+			Media res = mediaRepo.getMedia(authUserId, newMediaId);
 			return Response.ok().entity(res).build();
 		});
 	}
@@ -332,24 +338,24 @@ public class MediaResource extends BaseResource {
 	@POST
 	@Path("/instagram-scrape")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) {
+	public Response postMediaInstagramScrape(@Context HttpServletRequest request, @QueryParam("url") String url) throws Exception {
 		if (url == null || url.isBlank()) {
-		    return createBadRequestResponse("Instagram URL is required");
+			return createBadRequestResponse("Instagram URL is required");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-		    if (dao.getMediaRepo().getDailyInstagramScrapeCount(authUserId) > 50) {
-		        throw new WebApplicationException(
-		            Response.status(Response.Status.TOO_MANY_REQUESTS)
-		                    .entity("Daily Instagram import limit reached (max 50 per day)")
-		                    .build()
-		        );
-		    }
-		    List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
-		    dao.getMediaRepo().logInstagramScrape(authUserId, url, scrapedList.size());
-		    return Response.ok().entity(scrapedList).build();
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50) {
+				throw new WebApplicationException(
+						Response.status(Response.Status.TOO_MANY_REQUESTS)
+						.entity("Daily Instagram import limit reached (max 50 per day)")
+						.build()
+						);
+			}
+			List<ApifyInstagramResolver.InstagramMedia> scrapedList = ApifyInstagramResolver.resolveMedia(url);
+			mediaRepo.logInstagramScrape(authUserId, url, scrapedList.size());
+			return Response.ok().entity(scrapedList).build();
 		});
 	}
-	
+
 	@Operation(summary = "Update Media SVG", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -360,12 +366,12 @@ public class MediaResource extends BaseResource {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/svg")
-	public Response postMediaSvg(@Context HttpServletRequest request, Media m) {
+	public Response postMediaSvg(@Context HttpServletRequest request, Media m) throws Exception {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
 			return createBadRequestResponse("Invalid media payload");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
-			dao.getMediaRepo().upsertMediaSvg(setup, authUserId, m);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			mediaRepo.upsertMediaSvg(setup, authUserId, m);
 			return Response.ok().build();
 		});
 	}
@@ -380,23 +386,20 @@ public class MediaResource extends BaseResource {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
 	@Path("/video/{id}/complete")
-	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) {
+	public Response postMediaVideoComplete(@Context HttpServletRequest request, @PathParam("id") int mediaId) throws Exception {
 		if (mediaId <= 0) {
 			return createBadRequestResponse("Invalid mediaId=" + mediaId);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			Media media = dao.getMediaRepo().getMedia(authUserId, mediaId);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			Media media = mediaRepo.getMedia(authUserId, mediaId);
 			Preconditions.checkArgument(media.isMovie(), "Target media is an image, not a video.");
 			Preconditions.checkArgument(media.uploadedByMe(), "You do not have permission to modify this media item.");
-			DatabaseContext.runAsync(() -> {
-				DatabaseContext.submitDaoTask(backgroundDao -> {
-					try {
-						VideoHelper.processVideo(backgroundDao, mediaId, media.thumbnailSeconds());
-					} catch (Exception e) {
-						logger.error("Failed async video processing for id=" + mediaId, e);
-					}
-					return null;
-				});
+			supplyAsync(() -> {
+				VideoHelper.processVideo(txManager, mediaRepo, mediaId, media.thumbnailSeconds());
+				return null;
+			}).exceptionally(ex -> {
+				logger.error("Failed async video processing for id=" + mediaId, ex);
+				return null;
 			});
 			return Response.ok().build();
 		});
@@ -414,7 +417,7 @@ public class MediaResource extends BaseResource {
 	@Path("/video/embed")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaVideoEmbed(@Context HttpServletRequest request, Media media) {
+	public Response postMediaVideoEmbed(@Context HttpServletRequest request, Media media) throws Exception {
 		Preconditions.checkArgument(media != null, "Media payload is missing");
 		Preconditions.checkArgument(media.embedUrl() != null && !media.embedUrl().isBlank(), "External video URL is required");
 		String lowerUrl = media.embedUrl().toLowerCase();
@@ -427,20 +430,17 @@ public class MediaResource extends BaseResource {
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The provided embed URL is malformed.", e);
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-		    int newMediaId = dao.getMediaRepo().addMediaVideoEmbed(authUserId, media, StorageType.MP4);
-		    DatabaseContext.runAsync(() -> {
-		        DatabaseContext.submitDaoTask(backgroundDao -> {
-		            try {
-		                ImageHelper.saveImageFromEmbedVideo(backgroundDao, newMediaId, media.embedUrl());
-		            } catch (Exception e) {
-		                logger.error("Failed async embed thumbnail processing for id=" + newMediaId, e);
-		            }
-		            return null;
-		        });
-		    });
-		    Media res = dao.getMediaRepo().getMedia(authUserId, newMediaId);
-		    return Response.ok().entity(res).build();
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			int newMediaId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
+			supplyAsync(() -> {
+				ImageHelper.saveImageFromEmbedVideo(txManager, mediaRepo, newMediaId, media.embedUrl());
+				return null;
+			}).exceptionally(ex -> {
+				logger.error("Failed async embed thumbnail processing for id=" + newMediaId, ex);
+				return null;
+			});
+			Media res = mediaRepo.getMedia(authUserId, newMediaId);
+			return Response.ok().entity(res).build();
 		});
 	}
 
@@ -456,14 +456,14 @@ public class MediaResource extends BaseResource {
 	@Path("/video/initiate")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postMediaVideoInitiate(@Context HttpServletRequest request, VideoInitPayload payload) {
+	public Response postMediaVideoInitiate(@Context HttpServletRequest request, VideoInitPayload payload) throws Exception {
 		Preconditions.checkArgument(payload != null && payload.media() != null, "Video payload or media is missing");
 		Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size (max " + StorageManager.MAX_VIDEO_UPLOAD_BYTES + " bytes)");
 		StorageType storageType = StorageType.fromMimeType(payload.contentType())
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
 		Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			int newMediaId = dao.getMediaRepo().addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
 			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
 					S3KeyGenerator.getOriginalMp4(newMediaId), 
 					storageType.getMimeType(),
@@ -483,12 +483,12 @@ public class MediaResource extends BaseResource {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PUT
 	@Path("")
-	public Response putMedia(@Context HttpServletRequest request, Media m) {
+	public Response putMedia(@Context HttpServletRequest request, Media m) throws Exception {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
-		    return createBadRequestResponse("Invalid mediaId");
+			return createBadRequestResponse("Invalid mediaId");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getMediaRepo().updateMedia(authUserId, m);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			mediaRepo.updateMedia(authUserId, m);
 			return Response.ok().build();
 		});
 	}
@@ -506,15 +506,15 @@ public class MediaResource extends BaseResource {
 	public Response putMediaJpegRotate(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia,
 			@Parameter(description = "Degrees (90/180/270)", required = true) @QueryParam("degrees") int degrees
-			) {
+			) throws Exception {
 		if (idMedia <= 0) {
-		    return createBadRequestResponse("Invalid idMedia");
+			return createBadRequestResponse("Invalid idMedia");
 		}
 		if (degrees != 90 && degrees != 180 && degrees != 270) {
-		    return createBadRequestResponse("Invalid rotation degrees. Must be 90, 180, or 270.");
+			return createBadRequestResponse("Invalid rotation degrees. Must be 90, 180, or 270.");
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, _, authUserId, _) -> {
-			dao.getMediaRepo().rotateMedia(authUserId, idMedia, degrees);
+		return executeAuthenticatedTask(request, (_, authUserId) -> {
+			mediaRepo.rotateMedia(authUserId, idMedia, degrees);
 			return Response.ok().build();
 		});
 	}
@@ -529,14 +529,12 @@ public class MediaResource extends BaseResource {
 				.cacheControl(cc).build();
 	}
 
-	private Response executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) {
-		return DatabaseContext.buildResponse(() -> {
-			task.execute(storage);
-			if (!storage.exists(key)) {
-				return createNotFoundResponse();
-			}
-			return createRedirect(key, version);
-		});
+	private Response executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) throws Exception {
+		task.execute(storage);
+		if (!storage.exists(key)) {
+			return createNotFoundResponse();
+		}
+		return createRedirect(key, version);
 	}
 
 	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) throws IOException {

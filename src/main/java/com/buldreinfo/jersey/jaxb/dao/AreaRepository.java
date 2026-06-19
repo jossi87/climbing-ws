@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -9,18 +9,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.dao.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
 import com.buldreinfo.jersey.jaxb.helpers.HitsFormatter;
+import com.buldreinfo.jersey.jaxb.helpers.JdbcUtils;
 import com.buldreinfo.jersey.jaxb.helpers.SectorSort;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSector;
 import com.buldreinfo.jersey.jaxb.model.Area.AreaSectorOrder;
@@ -36,12 +37,38 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-public record AreaRepository(Dao dao) {
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+
+public class AreaRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
-	
+	private final ExternalLinksRepository externalLinksRepo;
+	private final GeoRepository geoRepo;
+	private final Provider<HierarchyRepository> hierarchyRepo;
+	private final Provider<MediaRepository> mediaRepo;
+	private final Provider<RegionRepository> regionRepo;
+	private final Provider<SectorRepository> sectorRepo;
+
+	@Inject
+	public AreaRepository(TransactionManager txManager,
+			ExternalLinksRepository externalLinksRepo,
+			GeoRepository geoRepo,
+			Provider<HierarchyRepository> hierarchyRepo,
+			Provider<MediaRepository> mediaRepo,
+			Provider<RegionRepository> regionRepo,
+			Provider<SectorRepository> sectorRepo) {
+		super(txManager);
+		this.externalLinksRepo = externalLinksRepo;
+		this.geoRepo = geoRepo;
+		this.hierarchyRepo = hierarchyRepo;
+		this.mediaRepo = mediaRepo;
+		this.regionRepo = regionRepo;
+		this.sectorRepo = sectorRepo;
+	}
+
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
 				ps.setInt(1, reqId);
@@ -86,7 +113,7 @@ public record AreaRepository(Dao dao) {
 					int idCoordinates = rst.getInt("coordinates_id");
 					var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
 					var pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
-					var allMedia = dao.getMediaRepo().getMediaArea(authUserId, reqId, false);
+					var allMedia = mediaRepo.get().getMediaArea(authUserId, reqId, false);
 					var partitioned = Optional.ofNullable(allMedia)
 							.orElse(List.of())
 							.stream()
@@ -95,7 +122,7 @@ public record AreaRepository(Dao dao) {
 									));
 					var triviaMedia = partitioned.get(true);
 					var media = partitioned.get(false);
-					var externalLinks = dao.getExternalLinksRepo().getExternalLinks(reqId, 0, 0);
+					var externalLinks = externalLinksRepo.getExternalLinks(reqId, 0, 0);
 
 					a = new Area(null, regionName, reqId, false, lockedAdmin, lockedSuperadmin, forDevelopers, accessInfo, accessClosed, noDogsAllowed, sunFromHour, sunToHour, name, comment, coordinates, -1, -1, new ArrayList<>(), new ArrayList<>(), media, triviaMedia, externalLinks, pageViews);
 				}
@@ -103,7 +130,7 @@ public record AreaRepository(Dao dao) {
 		}
 		if (a == null) {
 			try {
-				var res = dao.getHierarchyRepo().getCanonicalUrl(setup, reqId, 0, 0);
+				var res = hierarchyRepo.get().getCanonicalUrl(setup, reqId, 0, 0);
 				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
 					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null, null);
 				}
@@ -115,67 +142,69 @@ public record AreaRepository(Dao dao) {
 		}
 		var sectorLookup = getAreaSectors(setup, authUserId, a.id(), a.name());
 		if (!sectorLookup.isEmpty()) {
-			var problemsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorProblems(setup, authUserId, reqId, 0));
-			var outlinesFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorOutlines(sectorLookup.keySet()));
-			var trailsFuture = DatabaseContext.submitDaoTask(d -> d.getSectorRepo().getSectorTrails(authUserId, sectorLookup.keySet()));
+			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+				var problemsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorProblems(setup, authUserId, reqId, 0)), executor);
+				var outlinesFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorOutlines(sectorLookup.keySet())), executor);
+				var trailsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.get().getSectorTrails(authUserId, sectorLookup.keySet())), executor);
 
-			var sectorProblems = problemsFuture.join();
-			for (var sectorId : sectorProblems.keySet()) {
-				var sector = sectorLookup.get(sectorId);
-				if (sector != null) {
-					sector.problems().addAll(sectorProblems.get(sectorId));
-				}
-			}
-			if (authUserId.isPresent()) {
-				for (var entry : sectorLookup.entrySet()) {
-					var sector = entry.getValue();
-					long totalProblems = sector.problems().stream()
-							.filter(p -> p.broken() == null)
-							.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
-							.count();
-					if (totalProblems != 0) {
-						long completedProblems = sector.problems().stream()
-								.filter(p -> p.broken() == null)
-								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
-								.filter(SectorProblem::ticked)
-								.count();
-						int percentage = (int) Math.round((double) completedProblems / totalProblems * 100);
-						sectorLookup.put(entry.getKey(), sector.withProgress(percentage));
+				var sectorProblems = problemsFuture.join();
+				for (var sectorId : sectorProblems.keySet()) {
+					var sector = sectorLookup.get(sectorId);
+					if (sector != null) {
+						sector.problems().addAll(sectorProblems.get(sectorId));
 					}
 				}
-			}
-			var idSectorOutline = outlinesFuture.join();
-			for (var idSector : idSectorOutline.keySet()) {
-				var sector = sectorLookup.get(idSector);
-				if (sector != null) {
-					sector.outline().addAll(idSectorOutline.get(idSector));
+				if (authUserId.isPresent()) {
+					for (var entry : sectorLookup.entrySet()) {
+						var sector = entry.getValue();
+						long totalProblems = sector.problems().stream()
+								.filter(p -> p.broken() == null)
+								.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
+								.count();
+						if (totalProblems != 0) {
+							long completedProblems = sector.problems().stream()
+									.filter(p -> p.broken() == null)
+									.filter(p -> !"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)
+									.filter(SectorProblem::ticked)
+									.count();
+							int percentage = (int) Math.round((double) completedProblems / totalProblems * 100);
+							sectorLookup.put(entry.getKey(), sector.withProgress(percentage));
+						}
+					}
 				}
-			}
-			var sectorTrailsMultimap = trailsFuture.join();
-			for (var idSector : sectorTrailsMultimap.keySet()) {
-				var sector = sectorLookup.get(idSector);
-				if (sector != null) {
-					Collection<Trail> trails = sectorTrailsMultimap.get(idSector);
-					sectorLookup.put(idSector, sector.withTrails(trails));
+				var idSectorOutline = outlinesFuture.join();
+				for (var idSector : idSectorOutline.keySet()) {
+					var sector = sectorLookup.get(idSector);
+					if (sector != null) {
+						sector.outline().addAll(idSectorOutline.get(idSector));
+					}
 				}
-			}
+				var sectorTrailsMultimap = trailsFuture.join();
+				for (var idSector : sectorTrailsMultimap.keySet()) {
+					var sector = sectorLookup.get(idSector);
+					if (sector != null) {
+						Collection<Trail> trails = sectorTrailsMultimap.get(idSector);
+						sectorLookup.put(idSector, sector.withTrails(trails));
+					}
+				}
 
-			loadSimplifiedGradeCounts(reqId, sectorLookup);
-			for (var sector : sectorLookup.values().stream()
-					.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
-					.toList()) {
-				a.sectors().add(sector);
-				a.sectorOrder().add(new AreaSectorOrder(sector.id(), sector.name(), sector.sorting()));
+				loadSimplifiedGradeCounts(reqId, sectorLookup);
+				for (var sector : sectorLookup.values().stream()
+						.sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
+						.toList()) {
+					a.sectors().add(sector);
+					a.sectorOrder().add(new AreaSectorOrder(sector.id(), sector.name(), sector.sorting()));
+				}
 			}
 		}
-		logger.debug("getArea(authUserId={}, reqId={}) - duration={}", authUserId, reqId, stopwatch);
+		logger.debug("getArea(authUserId={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, reqId, shouldUpdateHits, stopwatch);
 		return a;
 	}
-	
+
 	public Collection<Area> getAreaList(Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Area>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT r.name region_name,
 				       a.id, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, a.description,
@@ -232,12 +261,12 @@ public record AreaRepository(Dao dao) {
 		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
 		return res;
 	}
-	
+
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
-		var c = DatabaseContext.getConnection();
-		dao.getRegionRepo().ensureAdminWriteRegion(s, authUserId);
+		var c = txManager.getConnection();
+		regionRepo.get().ensureAdminWriteRegion(s, authUserId);
 		int idArea = -1;
 		final var isLockedAdmin = a.lockedSuperadmin() ? false : a.lockedAdmin();
 		var setPermissionRecursive = false;
@@ -246,7 +275,7 @@ public record AreaRepository(Dao dao) {
 				a = a.withCoordinates(null);
 			}
 			else {
-				dao.getGeoRepo().ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.coordinates()));
+				geoRepo.ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.coordinates()));
 			}
 		}
 		if (a.id() > 0) {
@@ -325,17 +354,17 @@ public record AreaRepository(Dao dao) {
 		if (idArea == -1) {
 			throw new SQLException("idArea == -1");
 		}
-		dao.getExternalLinksRepo().upsertExternalLinks(a.externalLinks(), idArea, 0, 0);
+		externalLinksRepo.upsertExternalLinks(a.externalLinks(), idArea, 0, 0);
 		if (a.trash()) {
 			return Redirect.fromRoot();
 		}
 		return Redirect.fromIdArea(idArea);
 	}
-	
+
 	private Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var sectorLookup = new HashMap<Integer, AreaSector>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
 				  SELECT ? auth_user_id, ? area_id
@@ -382,8 +411,8 @@ public record AreaRepository(Dao dao) {
 					int sunToHour = rst.getInt("sun_to_hour");
 					int idCoordinates = rst.getInt("coordinates_id");
 					var parking = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					var wallDirectionCalculated = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
-					var wallDirectionManual = dao.getGeoRepo().getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
+					var wallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
+					var wallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
 					MediaIdentity mediaIdentity = null;
 					int mediaId = rst.getInt("media_id");
 					if (mediaId > 0) {
@@ -396,7 +425,7 @@ public record AreaRepository(Dao dao) {
 					else {
 						var inherited = false;
 						var showHiddenMedia = true;
-						var x = dao.getMediaRepo().getMediaSector(setup, authUserId, id, 0, inherited, 0, 0, 0, showHiddenMedia);
+						var x = mediaRepo.get().getMediaSector(setup, authUserId, id, 0, inherited, 0, 0, 0, showHiddenMedia);
 						if (!x.isEmpty()) {
 							mediaIdentity = x.getFirst().identity();
 						}
@@ -412,10 +441,10 @@ public record AreaRepository(Dao dao) {
 		logger.debug("getAreaSectors(areaId={}, areaName={}) - sectorLookup.size()={}, duration={}", areaId, areaName, sectorLookup.size(), stopwatch);
 		return sectorLookup;
 	}
-	
+
 	private void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? area_id
@@ -470,9 +499,9 @@ public record AreaRepository(Dao dao) {
 		}
 		logger.debug("loadSimplifiedGradeCounts(areaId={}, sectorLookup.size()={}) - duration={}", areaId, sectorLookup.size(), stopwatch);
 	}
-	
+
 	protected void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var ok = false;
 		try (var ps = c.prepareStatement("""
 				SELECT ur.admin_write, ur.superadmin_write

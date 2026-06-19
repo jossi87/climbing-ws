@@ -14,7 +14,7 @@ public class AdministratorsResourceTest extends BaseResourceTest {
 	
 	@Test
 	public void getAdministrators() throws Exception {
-		var tester = new AdministratorsResource();
+		var tester = getService(AdministratorsResource.class);
 		try (Response r = tester.getAdministrators(getRequest(Region.buldreinfo))) {
 			assertTrue(r.getStatus() == Response.Status.OK.getStatusCode());
 			assertTrue(r.getEntity() instanceof Collection<?>);

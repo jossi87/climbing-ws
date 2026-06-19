@@ -15,7 +15,7 @@ import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.imgscalr.Scalr;
 
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.resources.BaseResource;
 
 public class ImageSaver {
 	public static final int IMAGE_WEB_WIDTH = 2560;
@@ -61,7 +61,7 @@ public class ImageSaver {
 
 	private void execute() {
 		StorageManager storage = StorageManager.getInstance();
-		Executor executor = DatabaseContext.getExecutor();
+		Executor executor = BaseResource.executor;
 
 		var originalFuture = CompletableFuture.runAsync(() -> {
 			try {

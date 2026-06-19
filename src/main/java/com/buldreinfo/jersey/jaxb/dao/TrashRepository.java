@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -6,15 +6,25 @@ import java.util.List;
 import java.util.Optional;
 
 import com.buldreinfo.jersey.jaxb.beans.Setup;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Trash;
 
-public record TrashRepository(Dao dao) {
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+
+public class TrashRepository extends BaseRepository {
+	private final Provider<RegionRepository> regionRepo;
+	
+	@Inject
+	public TrashRepository(TransactionManager txManager, Provider<RegionRepository> regionRepo) {
+		super(txManager);
+		this.regionRepo = regionRepo;
+	}
+	
 	public List<Trash> getTrash(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		dao.getRegionRepo().ensureAdminWriteRegion(setup, authUserId);
+		regionRepo.get().ensureAdminWriteRegion(setup, authUserId);
 		var res = new ArrayList<Trash>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -150,8 +160,8 @@ public record TrashRepository(Dao dao) {
 	}
 	
 	public void trashRecover(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
-		dao.getRegionRepo().ensureSuperadminWriteRegion(setup, authUserId);
-		var c = DatabaseContext.getConnection();
+		regionRepo.get().ensureSuperadminWriteRegion(setup, authUserId);
+		var c = txManager.getConnection();
 		String sqlStr = null;
 		int id = 0;
 		if (idMedia > 0) {

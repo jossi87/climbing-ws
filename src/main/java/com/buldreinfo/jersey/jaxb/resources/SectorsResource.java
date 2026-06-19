@@ -7,9 +7,14 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.buldreinfo.jersey.jaxb.dao.AreaRepository;
+import com.buldreinfo.jersey.jaxb.dao.HierarchyRepository;
+import com.buldreinfo.jersey.jaxb.dao.RegionRepository;
+import com.buldreinfo.jersey.jaxb.dao.SectorRepository;
+import com.buldreinfo.jersey.jaxb.dao.UserRepository;
 import com.buldreinfo.jersey.jaxb.helpers.GlobalFunctions;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
 import com.buldreinfo.jersey.jaxb.infrastructure.OpenApiConstants;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.model.Area;
 import com.buldreinfo.jersey.jaxb.model.GradeDistribution;
 import com.buldreinfo.jersey.jaxb.model.Redirect;
@@ -24,6 +29,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -39,7 +45,23 @@ import jakarta.ws.rs.core.StreamingOutput;
 @Path("/sectors")
 public class SectorsResource extends BaseResource {
 	private static Logger logger = LogManager.getLogger();
-	
+	private final AreaRepository areaRepo;
+	private final HierarchyRepository hierarchyRepo;
+	private final SectorRepository sectorRepo;
+
+	@Inject
+	public SectorsResource(TransactionManager txManager,
+			AreaRepository areaRepo,
+			HierarchyRepository hierarchyRepo,
+			RegionRepository regionRepo,
+			SectorRepository sectorRepo,
+			UserRepository userRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.areaRepo = areaRepo;
+		this.hierarchyRepo = hierarchyRepo;
+		this.sectorRepo = sectorRepo;
+	}
+
 	@Operation(summary = "Get sector by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Sector.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
@@ -51,17 +73,18 @@ public class SectorsResource extends BaseResource {
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getSectors(@Context HttpServletRequest request,
-			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
+			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
 			final boolean orderByGrade = setup.isBouldering();
-			Sector s = dao.getSectorRepo().getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			Sector s = sectorRepo.getSector(authUserId, orderByGrade, setup, id, shouldUpdateHits);
 			return Response.ok().entity(s).build();
 		});
 	}
-	
+
 	@Operation(summary = "Get sector PDF by id", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
@@ -72,14 +95,15 @@ public class SectorsResource extends BaseResource {
 	@GET
 	@Path("/pdf")
 	@Produces(OpenApiConstants.APPLICATION_PDF)
-	public Response getSectorsPdf(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) {
+	public Response getSectorsPdf(@Context HttpServletRequest request, @Parameter(description = "Sector id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
 		}
-		return DatabaseContext.buildResponseWithSqlAndAuth(request, (dao, setup, authUserId, shouldUpdateHits) -> {
-			final Sector sector = dao.getSectorRepo().getSector(authUserId, false, setup, id, shouldUpdateHits);
-			final Collection<GradeDistribution> gradeDistribution = dao.getHierarchyRepo().getGradeDistribution(authUserId, 0, id);
-			final Area area = dao.getAreaRepo().getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			final Sector sector = sectorRepo.getSector(authUserId, false, setup, id, shouldUpdateHits);
+			final Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
+			final Area area = areaRepo.getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
 			StreamingOutput stream = new StreamingOutput() {
 				@Override
 				public void write(OutputStream output) {
@@ -98,7 +122,7 @@ public class SectorsResource extends BaseResource {
 					.build();
 		});
 	}
-	
+
 	@Operation(summary = "Update sector", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = Redirect.class))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
@@ -110,15 +134,15 @@ public class SectorsResource extends BaseResource {
 	@POST
 	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response postSectors(@Context HttpServletRequest request, Sector s) {
+	public Response postSectors(@Context HttpServletRequest request, Sector s) throws Exception {
 		if (s == null || s.name() == null || s.name().strip().isEmpty()) {
 			return createBadRequestResponse("Sector name is missing or invalid");
 		}
 		if (s.areaId() <= 0) {
 			return createBadRequestResponse("Invalid areaId=" + s.areaId());
 		}
-		return DatabaseContext.buildResponseWithSqlAndRequiredAuth(request, (dao, setup, authUserId, _) -> {
-			Redirect res = dao.getSectorRepo().setSector(authUserId, setup, s);
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			Redirect res = sectorRepo.setSector(authUserId, setup, s);
 			return Response.ok().entity(res).build();
 		});
 	}

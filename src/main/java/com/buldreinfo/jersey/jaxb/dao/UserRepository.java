@@ -1,4 +1,4 @@
-package com.buldreinfo.jersey.jaxb.dao.repositories;
+package com.buldreinfo.jersey.jaxb.dao;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,11 +28,10 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.jersey.jaxb.beans.Auth0Profile;
 import com.buldreinfo.jersey.jaxb.beans.Setup;
 import com.buldreinfo.jersey.jaxb.beans.StorageType;
-import com.buldreinfo.jersey.jaxb.dao.Dao;
 import com.buldreinfo.jersey.jaxb.excel.ExcelSheet;
 import com.buldreinfo.jersey.jaxb.excel.ExcelWorkbook;
 import com.buldreinfo.jersey.jaxb.helpers.TimeAgo;
-import com.buldreinfo.jersey.jaxb.infrastructure.DatabaseContext;
+import com.buldreinfo.jersey.jaxb.infrastructure.TransactionManager;
 import com.buldreinfo.jersey.jaxb.io.StorageManager;
 import com.buldreinfo.jersey.jaxb.model.Administrator;
 import com.buldreinfo.jersey.jaxb.model.AuthenticatedUser;
@@ -57,13 +56,25 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 
-public record UserRepository(Dao dao) {
+import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+
+public class UserRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private static final int USER_ID_UNKNOWN = 1049;
+	private final Provider<MediaRepository> mediaRepo;
+	private final Provider<RegionRepository> regionRepo;
+	
+	@Inject
+	public UserRepository(TransactionManager txManager, Provider<MediaRepository> mediaRepo, Provider<RegionRepository> regionRepo) {
+		super(txManager);
+		this.mediaRepo = mediaRepo;
+		this.regionRepo = regionRepo;
+	}
 	
 	public void ensureUserExists(int userId) throws SQLException {
 		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var exists = false;
 		try (var ps = c.prepareStatement("SELECT id FROM user WHERE id=?")) {
 			ps.setInt(1, userId);
@@ -78,7 +89,7 @@ public record UserRepository(Dao dao) {
 	
 	public List<Administrator> getAdministrators(Setup setup) throws SQLException {
 		var res = new ArrayList<Administrator>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) AS name,
@@ -135,7 +146,7 @@ public record UserRepository(Dao dao) {
 		if (authUserId.isEmpty()) {
 			return Optional.empty();
 		}
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sql = """
 				SELECT ur.admin_write, ur.superadmin_write,
 				       u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) authenticated_name, u.theme_preference,
@@ -175,7 +186,7 @@ public record UserRepository(Dao dao) {
 	public Optional<Integer> getAuthUserId(Auth0Profile profile) throws SQLException {
 		Optional<Integer> authUserId = Optional.empty();
 		var hasAvatar = false;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
 				FROM user_email e
@@ -217,7 +228,7 @@ public record UserRepository(Dao dao) {
 				}
 				var photographer = User.from(USER_ID_UNKNOWN, null);
 				var m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
-				dao.getMediaRepo().addMediaImage(finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
+				mediaRepo.get().addMediaImage(finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
 			} catch (Exception e) {
 				logger.error("Failed to cleanly download and apply login avatar profile image", e);
 			}
@@ -226,25 +237,10 @@ public record UserRepository(Dao dao) {
 		return authUserId;
 	}
 	
-	public void upsertUserLogin(Setup setup, int userId, String headers) throws Exception {
-		var c = DatabaseContext.getConnection();
-		var sqlStr = """
-				INSERT INTO user_login (user_id, region_id, headers) 
-				VALUES (?, ?, ?) AS new_rows
-				ON DUPLICATE KEY UPDATE `when` = CURRENT_TIMESTAMP, headers = new_rows.headers
-				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, userId);
-			ps.setInt(2, setup.idRegion());
-			ps.setString(3, headers);
-			ps.execute();
-		}
-	}
-
 	public List<PermissionUser> getPermissions(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		dao.getRegionRepo().ensureAdminWriteRegion(setup, authUserId);
+		regionRepo.get().ensureAdminWriteRegion(setup, authUserId);
 		var res = new ArrayList<PermissionUser>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT u.id,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) AS name,
@@ -298,11 +294,11 @@ public record UserRepository(Dao dao) {
 		}
 		return res;
 	}
-	
+
 	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
 		var res = new ArrayList<ProfileAscent>();
 		var idProblemTickMap = new HashMap<Integer, ProfileAscent>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				SELECT r.name region_name,
 				       a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin,
@@ -529,7 +525,7 @@ public record UserRepository(Dao dao) {
 	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<ProfileDiscipline>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
 					SELECT ? AS user_id, ? AS req_is_bouldering, ? AS req_is_climbing, ? AS req_is_ice
@@ -718,7 +714,7 @@ public record UserRepository(Dao dao) {
 	
 	public ProfileIdentity getProfileIdentity(Setup setup, int userId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT u.firstname, 
 				       u.lastname, 
@@ -783,7 +779,7 @@ public record UserRepository(Dao dao) {
 	public ProfileKpis getProfileKpis(int userId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		ProfileKpis res = null;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? user_id
@@ -826,7 +822,7 @@ public record UserRepository(Dao dao) {
 		var res = new ProfileTodo(new ArrayList<>());
 		var areaLookup = new HashMap<Integer, ProfileTodoArea>();
 		var sectorLookup = new HashMap<Integer, ProfileTodoSector>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var sql = """
 				WITH req AS (
 				    SELECT ? user_id, ? auth_user_id, ? region_id
@@ -926,7 +922,7 @@ public record UserRepository(Dao dao) {
 	public List<User> getUserSearch(Optional<Integer> authUserId, String value) throws SQLException {
 		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
 		var res = new ArrayList<User>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (!Strings.isNullOrEmpty(value)) {
 			var searchRegexPattern = "(^|\\W)" + Pattern.quote(value);
 			try (var ps = c.prepareStatement("""
@@ -955,11 +951,11 @@ public record UserRepository(Dao dao) {
 		}
 		return res;
 	}
-
+	
 	@SuppressWarnings("resource")
 	public byte[] getUserTicks(Optional<Integer> authUserId) throws SQLException, IOException {
 		int userId = authUserId.orElseThrow();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
 			Map<String, ExcelSheet> sheets = new HashMap<>();
 
@@ -1071,12 +1067,12 @@ public record UserRepository(Dao dao) {
 			return os.toByteArray();
 		}
 	}
-	
+
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) throws SQLException {
 		Preconditions.checkArgument(authUserId.orElse(0) == profile.id(), "Wrong input");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark"))) ? profile.themePreference() : null;
 		try (var ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=?, theme_preference=COALESCE(theme_preference, ?) WHERE id=?")) {
 			ps.setString(1, profile.firstname());
@@ -1091,10 +1087,10 @@ public record UserRepository(Dao dao) {
 			ps.execute();
 		}
 	}
-
+	
 	public void setThemePreference(Optional<Integer> authUserId, String themePreference) throws SQLException {
 		Preconditions.checkArgument(themePreference != null && (themePreference.equals("light") || themePreference.equals("dark")), "themePreference must be 'light' or 'dark'");
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("UPDATE user SET theme_preference=? WHERE id=?")) {
 			ps.setString(1, themePreference);
 			ps.setInt(2, authUserId.orElseThrow());
@@ -1103,7 +1099,7 @@ public record UserRepository(Dao dao) {
 	}
 
 	public void setUserRegion(Optional<Integer> authUserId, int regionId, boolean delete) throws SQLException {
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		if (delete) {
 			try (var ps = c.prepareStatement("DELETE FROM user_region WHERE user_id=? AND region_id=?")) {
 				ps.setInt(1, authUserId.orElseThrow());
@@ -1121,8 +1117,8 @@ public record UserRepository(Dao dao) {
 	}
 
 	public void upsertPermissionUser(Setup setup, Optional<Integer> authUserId, PermissionUser u) throws SQLException {
-		dao.getRegionRepo().ensureAdminWriteRegion(setup, authUserId);
-		var c = DatabaseContext.getConnection();
+		regionRepo.get().ensureAdminWriteRegion(setup, authUserId);
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("INSERT INTO user_region (user_id, region_id, admin_read, admin_write, superadmin_read, superadmin_write) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE admin_read=?, admin_write=?, superadmin_read=?, superadmin_write=?")) {
 			ps.setInt(1, u.userId());
 			ps.setInt(2, setup.idRegion());
@@ -1141,10 +1137,25 @@ public record UserRepository(Dao dao) {
 		}
 	}
 
+	public void upsertUserLogin(Setup setup, int userId, String headers) throws Exception {
+		var c = txManager.getConnection();
+		var sqlStr = """
+				INSERT INTO user_login (user_id, region_id, headers) 
+				VALUES (?, ?, ?) AS new_rows
+				ON DUPLICATE KEY UPDATE `when` = CURRENT_TIMESTAMP, headers = new_rows.headers
+				""";
+		try (var ps = c.prepareStatement(sqlStr)) {
+			ps.setInt(1, userId);
+			ps.setInt(2, setup.idRegion());
+			ps.setString(3, headers);
+			ps.execute();
+		}
+	}
+
 	private Map<Integer, Coordinates> getProblemCoordinates(Collection<Integer> idProblems) throws SQLException {
 		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
 		var res = new HashMap<Integer, Coordinates>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		var in = ",?".repeat(idProblems.size()).substring(1);
 		var sqlStr = "SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, COALESCE(pc.longitude,c.longitude,sc.longitude,ac.longitude) longitude, COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation, COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source FROM (((((((problem p INNER JOIN sector s ON p.sector_id=s.id) INNER JOIN area a ON s.area_id=a.id) LEFT JOIN coordinates ac ON a.coordinates_id=ac.id) LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id) LEFT JOIN coordinates pc ON p.coordinates_id=pc.id) LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1) LEFT JOIN coordinates c ON so.coordinates_id=c.id) WHERE p.id IN (" + in + ")";
 		try (var ps = c.prepareStatement(sqlStr)) {
@@ -1169,7 +1180,7 @@ public record UserRepository(Dao dao) {
 	private List<UserRegion> getUserRegion(int userId, Setup setup) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<UserRegion>();
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				WITH req AS (
 				    SELECT ? region_id, ? user_id
@@ -1257,7 +1268,7 @@ public record UserRepository(Dao dao) {
 	
 	protected int addUser(String email, String firstname, String lastname) throws SQLException {
 		int id = -1;
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("INSERT INTO user (firstname, lastname) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
 			ps.setString(1, firstname);
 			ps.setString(2, lastname);
@@ -1293,7 +1304,7 @@ public record UserRepository(Dao dao) {
 		if (Strings.isNullOrEmpty(name)) {
 			return USER_ID_UNKNOWN;
 		}
-		var c = DatabaseContext.getConnection();
+		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")) {
 			ps.setString(1, name);
 			try (var rst = ps.executeQuery()) {
