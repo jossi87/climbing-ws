@@ -47,7 +47,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Tag(name = "Interaction")
-@Path("")
 public class InteractionResource extends BaseResource {
 	private final HierarchyRepository hierarchyRepo;
 	private final ProblemRepository problemRepo;

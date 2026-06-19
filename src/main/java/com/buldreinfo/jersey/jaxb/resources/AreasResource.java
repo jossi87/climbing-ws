@@ -66,7 +66,6 @@ public class AreasResource extends BaseResource {
     })
     @SecurityRequirement(name = "Bearer Authentication")
     @GET
-    @Path("")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAreas(@Context HttpServletRequest request,
             @Parameter(description = "Area id", required = false) @QueryParam("id") int id) throws Exception {
@@ -129,7 +128,6 @@ public class AreasResource extends BaseResource {
     })
     @SecurityRequirement(name = "Bearer Authentication")
     @POST
-    @Path("")
     @Produces(MediaType.APPLICATION_JSON)
     public Response postAreas(@Context HttpServletRequest request, Area a) throws Exception {
         if (a == null || a.name() == null || a.name().strip().isEmpty()) {

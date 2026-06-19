@@ -35,7 +35,6 @@ public class WebcamsResource extends BaseResource {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getCameras() throws Exception {
 		VegvesenParser vegvesenPaser = new VegvesenParser();

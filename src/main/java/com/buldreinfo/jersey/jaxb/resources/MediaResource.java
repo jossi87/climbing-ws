@@ -88,7 +88,6 @@ public class MediaResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@DELETE
-	@Path("")
 	public Response deleteMedia(@Context HttpServletRequest request, @Parameter(description = "Media id", required = true) @QueryParam("id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid id=" + id);
@@ -107,7 +106,6 @@ public class MediaResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getMedia(@Context HttpServletRequest request,
 			@Parameter(description = "Media id", required = true) @QueryParam("idMedia") int idMedia) throws Exception {

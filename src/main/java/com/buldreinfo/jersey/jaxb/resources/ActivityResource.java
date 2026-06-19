@@ -43,7 +43,6 @@ public class ActivityResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getActivity(@Context HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @QueryParam("idArea") int idArea,

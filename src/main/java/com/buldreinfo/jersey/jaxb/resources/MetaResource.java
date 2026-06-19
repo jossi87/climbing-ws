@@ -33,7 +33,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Tag(name = "Meta")
-@Path("")
 public class MetaResource extends BaseResource {
 	private final HierarchyRepository hierarchyRepo;
 	private final RegionRepository regionRepo;

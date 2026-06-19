@@ -77,7 +77,6 @@ public class WithoutJsResource extends BaseResource {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
-	@Path("")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getWithoutJs(@Context HttpServletRequest request) throws Exception {
 		return executeSetupTask(request, setup -> {

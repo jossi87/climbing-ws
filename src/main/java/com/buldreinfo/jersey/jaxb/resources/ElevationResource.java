@@ -39,7 +39,6 @@ public class ElevationResource extends BaseResource {
     })
     @SecurityRequirement(name = "Bearer Authentication")
     @GET
-    @Path("")
     @Produces(MediaType.TEXT_PLAIN)
     public Response getElevation(@Context HttpServletRequest request,
             @Parameter(description = "Latitude (-90 to 90)", required = true) @QueryParam("latitude") double latitude,

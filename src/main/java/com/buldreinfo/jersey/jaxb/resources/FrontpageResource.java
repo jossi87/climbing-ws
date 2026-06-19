@@ -38,7 +38,6 @@ public class FrontpageResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getFrontpage(@Context HttpServletRequest request) throws Exception {
 		return executeAuthenticatedTask(request, (setup, authUserId) -> {

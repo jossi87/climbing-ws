@@ -37,7 +37,6 @@ public class AdministratorsResource extends BaseResource {
             @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
     })
     @GET
-    @Path("")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAdministrators(@Context HttpServletRequest request) throws Exception {
     	return executeTask(() -> {

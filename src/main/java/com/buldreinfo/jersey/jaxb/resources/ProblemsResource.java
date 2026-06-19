@@ -70,7 +70,6 @@ public class ProblemsResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProblems(@Context HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @QueryParam("id") int id,
@@ -151,7 +150,6 @@ public class ProblemsResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postProblems(@Context HttpServletRequest request, Problem p) throws Exception {
 		if (p == null || p.name() == null || p.name().strip().isEmpty()) {

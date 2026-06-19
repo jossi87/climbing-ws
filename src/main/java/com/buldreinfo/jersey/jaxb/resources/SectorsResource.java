@@ -70,7 +70,6 @@ public class SectorsResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getSectors(@Context HttpServletRequest request,
 			@Parameter(description = "Sector id", required = true) @QueryParam("id") int id) throws Exception {
@@ -132,7 +131,6 @@ public class SectorsResource extends BaseResource {
 	})
 	@SecurityRequirement(name = "Bearer Authentication")
 	@POST
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response postSectors(@Context HttpServletRequest request, Sector s) throws Exception {
 		if (s == null || s.name() == null || s.name().strip().isEmpty()) {

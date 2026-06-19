@@ -52,7 +52,6 @@ public class ProfilesResource extends BaseResource {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GET
-	@Path("")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getProfiles(@Context HttpServletRequest request, @Parameter(description = "User id", required = true) @QueryParam("id") int reqUserId) throws Exception {
 		if (reqUserId <= 0) {
