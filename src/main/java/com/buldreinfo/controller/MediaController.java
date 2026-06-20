@@ -39,6 +39,7 @@ import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.ApifyInstagramResolver;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.io.ImageHelper;
 import com.buldreinfo.io.ImageSaver;
 import com.buldreinfo.io.StorageManager;
@@ -50,6 +51,10 @@ import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,7 +79,13 @@ public class MediaController extends BaseController {
 		this.mediaRepo = mediaRepo;
 	}
 
-	@Operation(summary = "Move media to trash")
+	@Operation(summary = "Move media to trash", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@DeleteMapping
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> deleteMedia(HttpServletRequest request, @RequestParam(name = "id") int id) throws Exception {
@@ -85,7 +96,12 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Get Media by id")
+	@Operation(summary = "Get Media by id", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> getMedia(HttpServletRequest request, @RequestParam(name = "idMedia") int idMedia) throws Exception {
@@ -93,7 +109,11 @@ public class MediaController extends BaseController {
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> mediaRepo.getMedia(authUserId, idMedia)));
 	}
 
-	@Operation(summary = "Get media file by id")
+	@Operation(summary = "Get media file by id", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.FOUND_CODE, description = OpenApiConstants.FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@GetMapping("/file")
 	public ResponseEntity<?> getMediaFile(HttpServletRequest request,
 			@RequestParam(name = "id") int id,
@@ -140,7 +160,13 @@ public class MediaController extends BaseController {
 		return executeGenerationPipeline(storage, key, versionStamp, s -> processStandard(s, id, key, outputType));
 	}
 
-	@Operation(summary = "Reorder media")
+	@Operation(summary = "Reorder media", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PatchMapping("/order")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> patchMediaOrder(HttpServletRequest request,
@@ -155,7 +181,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Add single image media item")
+	@Operation(summary = "Add single image media item", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaImage(HttpServletRequest request, 
@@ -178,7 +210,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Commit verified Instagram media")
+	@Operation(summary = "Commit verified Instagram media to application storage", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/instagram-save")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaInstagramSave(HttpServletRequest request,
@@ -235,7 +273,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Scrape Instagram URL metadata")
+	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/instagram-scrape")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaInstagramScrape(HttpServletRequest request, @RequestParam(name = "url") String url) throws Exception {
@@ -249,7 +293,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Update Media SVG")
+	@Operation(summary = "Update Media SVG", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/svg")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaSvg(HttpServletRequest request, @RequestBody Media m) throws Exception {
@@ -260,7 +310,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Signal direct video upload completion")
+	@Operation(summary = "Signal direct video upload completion and trigger async background processing", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/video/{id}/complete")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaVideoComplete(HttpServletRequest request, @PathVariable(name = "id") int id) throws Exception {
@@ -275,7 +331,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Add embedded external video")
+	@Operation(summary = "Add embedded external video (YouTube/Vimeo)", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Media.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/video/embed")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaVideoEmbed(HttpServletRequest request, @RequestBody Media media) throws Exception {
@@ -292,7 +354,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Initiate video upload to get a presigned storage URL")
+	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = VideoInitResponse.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PostMapping("/video/initiate")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> postMediaVideoInitiate(HttpServletRequest request, @RequestBody VideoInitPayload payload) throws Exception {
@@ -313,7 +381,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Update media")
+	@Operation(summary = "Update media", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PutMapping
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> putMedia(HttpServletRequest request, @RequestBody Media m) throws Exception {
@@ -326,7 +400,13 @@ public class MediaController extends BaseController {
 		}));
 	}
 
-	@Operation(summary = "Update media rotation")
+	@Operation(summary = "Update media rotation (allowed for administrators + user who uploaded specific image)", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@PutMapping("/jpeg/rotate")
 	@SecurityRequirement(name = "Bearer Authentication")
 	public ResponseEntity<?> putMediaJpegRotate(HttpServletRequest request,
