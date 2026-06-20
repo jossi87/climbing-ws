@@ -25,6 +25,7 @@ import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.DangerousArea;
 import com.buldreinfo.model.PermissionUser;
 import com.buldreinfo.model.RestrictionsRegion;
+import com.buldreinfo.model.Search;
 import com.buldreinfo.model.SearchRequest;
 import com.buldreinfo.model.Tick;
 import com.buldreinfo.model.Ticks;
@@ -161,6 +162,14 @@ public class InteractionController extends BaseController {
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> trashRepo.getTrash(authUserId, setup)));
 	}
 
+	@Operation(summary = "Update comment", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/comments", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> postComments(HttpServletRequest request, @RequestBody Comment co) throws Exception {
 		if (co == null || co.idProblem() <= 0 || co.comment() == null || co.comment().strip().isEmpty())
@@ -168,6 +177,14 @@ public class InteractionController extends BaseController {
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> problemRepo.upsertComment(authUserId, setup, co)));
 	}
 
+	@Operation(summary = "Update user privileges", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping("/permissions")
 	public ResponseEntity<?> postPermissions(HttpServletRequest request, @RequestBody PermissionUser u) throws Exception {
 		if (u == null || u.userId() <= 0) return createBadRequestResponse("Invalid userId");
@@ -177,12 +194,25 @@ public class InteractionController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Search for area/sector/problem/user", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Search.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> postSearch(HttpServletRequest request, @RequestBody SearchRequest sr) throws Exception {
 		if (sr == null || sr.value() == null || sr.value().strip().isEmpty()) return createBadRequestResponse("Search criteria missing");
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> hierarchyRepo.getSearch(setup, authUserId, sr.value().trim())));
 	}
 
+	@Operation(summary = "Update tick (public ascent)", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping("/ticks")
 	public ResponseEntity<?> postTicks(HttpServletRequest request, @RequestBody Tick t) throws Exception {
 		if (t == null || t.idProblem() <= 0) return createBadRequestResponse("Invalid idProblem");
@@ -192,6 +222,13 @@ public class InteractionController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Update todo", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping("/todo")
 	public ResponseEntity<?> postTodo(HttpServletRequest request, @RequestParam(name = "idProblem") int idProblem) throws Exception {
 		if (idProblem <= 0) return createBadRequestResponse("Invalid idProblem");
@@ -201,6 +238,14 @@ public class InteractionController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Upsert trails", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/trails", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> postTrails(HttpServletRequest request, @RequestBody List<Trail> trails) throws Exception {
 		if (trails == null || trails.isEmpty()) return createBadRequestResponse("Trails empty");
@@ -210,6 +255,14 @@ public class InteractionController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Move Area/Sector/Problem/Media to trash (only one of the arguments must be different from 0)", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PutMapping("/trash")
 	public ResponseEntity<?> putTrash(HttpServletRequest request,
 			@RequestParam(name = "idArea", defaultValue = "0") int idArea,

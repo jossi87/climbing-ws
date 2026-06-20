@@ -118,6 +118,13 @@ public class ProfilesController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Update profile identity", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/identity")
 	public ResponseEntity<?> postProfilesIdentity(HttpServletRequest request, @RequestBody ProfileIdentity profile) throws Exception {
 		if (profile == null) return createBadRequestResponse("Profile identity payload is missing");
@@ -128,6 +135,13 @@ public class ProfilesController extends BaseController {
 		}));
 	}
 
+	@Operation(summary = "Update theme preference (light/dark)", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/theme")
 	public ResponseEntity<?> postProfilesTheme(HttpServletRequest request, 
 			@Parameter(description = "Theme preference", required = true) @RequestParam(name = "themePreference") String themePreference) throws Exception {
