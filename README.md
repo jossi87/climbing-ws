@@ -48,9 +48,9 @@ To enable map exports and PDF generation, ensure the **[climbing-leaflet-rendere
 
 You should now be able to access the server on:
 
-- <http://localhost:8080/com.buldreinfo.jersey.jaxb/meta>
-- <http://localhost:8080/com.buldreinfo.jersey.jaxb/openapi.json>
-- <http://localhost:8080/com.buldreinfo.jersey.jaxb/application.wadl>
+- <http://localhost:8080/meta>
+- <http://localhost:8080/swagger-ui>
+- <http://localhost:8080/v3/api-docs>
 
 ## :scroll: License
 

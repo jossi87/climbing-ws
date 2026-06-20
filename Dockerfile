@@ -19,7 +19,7 @@ RUN apt-get update && \
 
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-COPY --from=build /app/target/com.buldreinfo.jersey.jaxb.war /usr/local/tomcat/webapps/
+COPY --from=build /app/target/climbing-ws.war /usr/local/tomcat/webapps/
 
 EXPOSE 8080
 CMD ["catalina.sh", "run"]

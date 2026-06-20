@@ -1,0 +1,139 @@
+package com.buldreinfo.controller;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import com.buldreinfo.dao.AreaRepository;
+import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.RegionRepository;
+import com.buldreinfo.dao.SectorRepository;
+import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.helpers.GlobalFunctions;
+import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.model.Area;
+import com.buldreinfo.model.GradeDistribution;
+import com.buldreinfo.model.Redirect;
+import com.buldreinfo.model.Sector;
+import com.buldreinfo.pdf.PdfGenerator;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+
+@Tag(name = "Areas")
+@RestController
+@RequestMapping("/areas")
+public class AreasController extends BaseController {
+	private static final Logger logger = LogManager.getLogger();
+	private final AreaRepository areaRepo;
+	private final SectorRepository sectorRepo;
+	private final HierarchyRepository hierarchyRepo;
+
+	public AreasController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo, 
+			AreaRepository areaRepo, SectorRepository sectorRepo, HierarchyRepository hierarchyRepo) {
+		super(txManager, regionRepo, userRepo);
+		this.areaRepo = areaRepo;
+		this.sectorRepo = sectorRepo;
+		this.hierarchyRepo = hierarchyRepo;
+	}
+
+	@Operation(summary = "Get areas", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Area.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> getAreas(HttpServletRequest request,
+			@Parameter(description = "Area id", required = false) @RequestParam(name = "id", defaultValue = "0") int id) throws Exception {
+		if (id < 0) {
+			return createBadRequestResponse("Invalid id=" + id);
+		}
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id, shouldUpdateHits)) : areaRepo.getAreaList(authUserId, setup.idRegion());
+			return ResponseEntity.ok(res);
+		});
+	}
+
+	@Operation(summary = "Get area PDF by id", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@GetMapping(value = "/pdf", produces = OpenApiConstants.APPLICATION_PDF)
+	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request, 
+			@Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
+		if (id <= 0) {
+			return createBadRequestResponse("Invalid area id=" + id);
+		}
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			boolean shouldUpdateHits = isHitTrackingEnabled(request);
+			Area area = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
+			Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
+			List<Sector> sectors = new ArrayList<>();
+			for (Area.AreaSector sector : area.sectors()) {
+				sectors.add(sectorRepo.getSector(authUserId, false, setup, sector.id(), shouldUpdateHits));
+			}
+
+			StreamingResponseBody stream = output -> {
+				try (PdfGenerator generator = new PdfGenerator(output)) {
+					generator.writeArea(setup, area, gradeDistribution, sectors);
+				} catch (Exception e) {
+					logger.error(e.getMessage(), e);
+					throw new RuntimeException(e.getMessage(), e);
+				}
+			};
+
+			return ResponseEntity.ok()
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.name(), "pdf")))
+					.header("Access-Control-Expose-Headers", HttpHeaders.CONTENT_DISPOSITION)
+					.contentType(MediaType.APPLICATION_PDF)
+					.body(stream);
+		});
+	}
+
+	@Operation(summary = "Update area", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Redirect.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = "Bearer Authentication")
+	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> postAreas(HttpServletRequest request, @RequestBody Area a) throws Exception {
+		if (a == null || a.name() == null || a.name().strip().isEmpty()) {
+			return createBadRequestResponse("Area name is missing or invalid");
+		}
+		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			var res = areaRepo.setArea(setup, authUserId, a);
+			return ResponseEntity.ok(res);
+		});
+	}
+}
