@@ -1,6 +1,6 @@
 # About
 
-RESTful Java Web Service (Jersey/JAXB) serving as the API gateway for the Climbing/Bouldering platform.
+Spring Boot RESTful Web Service serving as the backend API for the Climbing/Bouldering platform.
 Used by [https://github.com/jossi87/climbing-web](https://github.com/jossi87/climbing-web) as a gateway to a MySQL database.
 
 ## :link: Live sites
@@ -35,14 +35,10 @@ Import the [latest database dump](https://github.com/jossi87/climbing-ws/blob/ma
 ### 2. Dependencies
 To enable map exports and PDF generation, ensure the **[climbing-leaflet-renderer](https://github.com/jossi87/climbing-leaflet-renderer)** service is running and accessible.
 
-### 3. Docker Deployment
+### 3. Application Setup
 
-1. **Configure:** Create `src/main/resources/com/buldreinfo/jersey/jaxb/config/buldreinfo.properties` (use `.example` as a template).
-2. **Build & Run:**
-> ```sh
-> docker build -t climbing-ws .
-> docker run -d -p 8080:8080 --name climbing-ws climbing-ws
-> ```
+1. **Configure:** Create `src/main/resources/com/buldreinfo/config/buldreinfo.properties` (use `.example` as a template).
+2. **Build & Run:** Run the main method in Application.java directly from your IDE.
 
 ### :traffic_light: Testing
 
