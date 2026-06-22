@@ -652,30 +652,34 @@ public class UserRepository extends BaseRepository {
 						WHEN req.req_is_bouldering = 1 THEN 
 							CASE 
 								WHEN v.internal_subtype = 'Boulder' THEN 1
-								WHEN v.internal_subtype = 'Single' THEN 2
-								WHEN v.internal_subtype = 'Multi' THEN 3
-								ELSE 4
+								WHEN v.internal_subtype = 'Single bolted' THEN 2
+                                WHEN v.internal_subtype = 'Single traditional' THEN 3
+								WHEN v.internal_subtype = 'Multi' THEN 4
+								ELSE 5
 							END
 						WHEN req.req_is_climbing = 1 THEN 
 							CASE 
-								WHEN v.internal_subtype = 'Single' THEN 1
-								WHEN v.internal_subtype = 'Multi' THEN 2
-								WHEN v.internal_subtype = 'Ice' THEN 3
-								ELSE 4
+								WHEN v.internal_subtype = 'Single bolted' THEN 1
+                                WHEN v.internal_subtype = 'Single traditional' THEN 2
+								WHEN v.internal_subtype = 'Multi' THEN 3
+								WHEN v.internal_subtype = 'Ice' THEN 4
+								ELSE 5
 							END
 						WHEN req.req_is_ice = 1 THEN 
 							CASE 
 								WHEN v.internal_subtype = 'Ice' THEN 1
-								WHEN v.internal_subtype = 'Single' THEN 2
-								WHEN v.internal_subtype = 'Multi' THEN 3
-								ELSE 4
+								WHEN v.internal_subtype = 'Single bolted' THEN 2
+                                WHEN v.internal_subtype = 'Single traditional' THEN 3
+								WHEN v.internal_subtype = 'Multi' THEN 4
+								ELSE 5
 							END
 						ELSE 
 							CASE 
 								WHEN v.internal_subtype = 'Boulder' THEN 1
-								WHEN v.internal_subtype = 'Single' THEN 2
-								WHEN v.internal_subtype = 'Multi' THEN 3
-								ELSE 4
+								WHEN v.internal_subtype = 'Single bolted' THEN 2
+                                WHEN v.internal_subtype = 'Single traditional' THEN 3
+								WHEN v.internal_subtype = 'Multi' THEN 4
+								ELSE 5
 							END
 					END,
 					v.weight DESC
