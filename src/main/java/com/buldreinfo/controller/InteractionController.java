@@ -22,6 +22,7 @@ import com.buldreinfo.dao.TrashRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.DangerousArea;
 import com.buldreinfo.model.PermissionUser;
@@ -57,7 +58,8 @@ public class InteractionController extends BaseController {
 	private final TrashRepository trashRepo;
 	private final UserRepository userRepo;
 
-	public InteractionController(ClimbingTransactionManager txManager,
+	public InteractionController(StorageManager storage,
+			ClimbingTransactionManager txManager,
 			HierarchyRepository hierarchyRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
@@ -67,7 +69,7 @@ public class InteractionController extends BaseController {
 			TodoRepository todoRepo,
 			TrashRepository trashRepo,
 			UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.hierarchyRepo = hierarchyRepo;
 		this.problemRepo = problemRepo;
 		this.regionRepo = regionRepo;

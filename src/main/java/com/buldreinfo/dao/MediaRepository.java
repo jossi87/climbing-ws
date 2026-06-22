@@ -54,15 +54,18 @@ import com.google.common.collect.Multimap;
 public class MediaRepository extends BaseRepository {
 	private record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final StorageManager storage;
 	private final ActivityRepository activityRepo;
 	private final ObjectProvider<ProblemRepository> problemRepo;
 	private final UserRepository userRepo;
 
-	public MediaRepository(ClimbingTransactionManager txManager,
+	public MediaRepository(StorageManager storage,
+			ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
 			UserRepository userRepo) {
 		super(txManager);
+		this.storage = storage;
 		this.activityRepo = activityRepo;
 		this.problemRepo = problemRepo;
 		this.userRepo = userRepo;
@@ -83,8 +86,8 @@ public class MediaRepository extends BaseRepository {
 			}
 		}
 		try (var is = inputStreamSupplier.get()) {
-			var bytes = StorageManager.getInstance().readBoundedStream(is);
-			ImageHelper.saveImage(txManager, this, idMedia, bytes);
+			var bytes = storage.readBoundedStream(is);
+			ImageHelper.saveImage(storage, txManager, this, idMedia, bytes);
 		}
 		return idMedia;
 	}
@@ -487,7 +490,7 @@ public class MediaRepository extends BaseRepository {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
-		ImageHelper.rotateImage(txManager, this, idMedia, r);
+		ImageHelper.rotateImage(storage, txManager, this, idMedia, r);
 	}
 
 	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
@@ -733,12 +736,11 @@ public class MediaRepository extends BaseRepository {
 			ps.execute();
 		}
 		if (originalMedia.isMovie() && thumbnailChanged) {
-			var storage = StorageManager.getInstance();
 			var originalMp4Key = S3KeyGenerator.getOriginalMp4(mediaId);
 			var tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
 			try {
 				storage.downloadFile(originalMp4Key, tempOriginal);
-				VideoHelper.extractThumbnail(txManager, this, mediaId, tempOriginal, m.thumbnailSeconds());
+				VideoHelper.extractThumbnail(storage, txManager, this, mediaId, tempOriginal, m.thumbnailSeconds());
 				S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
 			} finally {
 				Files.deleteIfExists(tempOriginal);

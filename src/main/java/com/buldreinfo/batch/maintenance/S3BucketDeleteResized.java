@@ -34,8 +34,7 @@ public class S3BucketDeleteResized {
         }
     }
 
-    protected void run() {
-        StorageManager storage = StorageManager.getInstance();
+    protected void run(StorageManager storage) {
         logger.info("Starting cleanup of resized images in bucket [{}]", StorageManager.BUCKET_NAME);
         try {
             ListObjectsV2Request listRequest = ListObjectsV2Request.builder()

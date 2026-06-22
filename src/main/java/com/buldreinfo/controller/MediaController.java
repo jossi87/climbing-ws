@@ -69,13 +69,14 @@ public class MediaController extends BaseController {
 	}
 
 	private static final Logger logger = LogManager.getLogger();
+	private final StorageManager storage;
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
 
-	public MediaController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, 
-			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public MediaController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo,  RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+		this.storage = storage;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
@@ -128,8 +129,6 @@ public class MediaController extends BaseController {
 			@RequestParam(name = "y", defaultValue = "0") int y,
 			@RequestParam(name = "width", defaultValue = "0") int width,
 			@RequestParam(name = "height", defaultValue = "0") int height) throws Exception {
-
-		StorageManager storage = StorageManager.getInstance();
 
 		if (isMovie) {
 			String key = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
@@ -239,18 +238,18 @@ public class MediaController extends BaseController {
 					try {
 						byte[] videoData;
 						try (InputStream is = validatedUri.toURL().openStream()) {
-							videoData = StorageManager.getInstance().readBoundedStream(is);
+							videoData = storage.readBoundedStream(is);
 						} catch (IOException e) {
 							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
 							List<ApifyInstagramResolver.InstagramMedia> fresh = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
 							ApifyInstagramResolver.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 							txManager.executeInTransaction(() -> { mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size()); return null; });
 							try (InputStream is = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-								videoData = StorageManager.getInstance().readBoundedStream(is);
+								videoData = storage.readBoundedStream(is);
 							}
 						}
-						StorageManager.getInstance().uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
-						VideoHelper.processVideo(txManager, mediaRepo, id, mediaPayload.thumbnailSeconds());
+						storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
+						VideoHelper.processVideo(storage, txManager, mediaRepo, id, mediaPayload.thumbnailSeconds());
 					} catch (Exception e) { throw new RuntimeException(e); }
 					return null;
 				}).exceptionally(ex -> { logger.error("Async video save failed", ex); return null; });
@@ -259,14 +258,14 @@ public class MediaController extends BaseController {
 
 			byte[] imageData;
 			try (InputStream is = validatedUri.toURL().openStream()) {
-				imageData = StorageManager.getInstance().readBoundedStream(is);
+				imageData = storage.readBoundedStream(is);
 			} catch (IOException e) {
 				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
 				List<ApifyInstagramResolver.InstagramMedia> fresh = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
 				ApifyInstagramResolver.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 				mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
 				try (InputStream is = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-					imageData = StorageManager.getInstance().readBoundedStream(is);
+					imageData = storage.readBoundedStream(is);
 				}
 			}
 			final byte[] finalData = imageData;
@@ -328,7 +327,7 @@ public class MediaController extends BaseController {
 			Media m = mediaRepo.getMedia(authUserId, id);
 			Preconditions.checkArgument(m.isMovie(), "Target is not a video");
 			Preconditions.checkArgument(m.uploadedByMe(), "Permission denied");
-			supplyAsync(() -> { VideoHelper.processVideo(txManager, mediaRepo, id, m.thumbnailSeconds()); return null; })
+			supplyAsync(() -> { VideoHelper.processVideo(storage, txManager, mediaRepo, id, m.thumbnailSeconds()); return null; })
 			.exceptionally(ex -> { logger.error("Async video error for id=" + id, ex); return null; });
 			return null;
 		}));
@@ -351,7 +350,7 @@ public class MediaController extends BaseController {
 
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> {
 			int newId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
-			supplyAsync(() -> { ImageHelper.saveImageFromEmbedVideo(txManager, mediaRepo, newId, media.embedUrl()); return null; })
+			supplyAsync(() -> { ImageHelper.saveImageFromEmbedVideo(storage, txManager, mediaRepo, newId, media.embedUrl()); return null; })
 			.exceptionally(ex -> { logger.error("Async embed thumbnail failed for id=" + newId, ex); return null; });
 			return mediaRepo.getMedia(authUserId, newId);
 		}));
@@ -375,7 +374,7 @@ public class MediaController extends BaseController {
 
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> {
 			int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
-			String presignedUrl = StorageManager.getInstance().generatePresignedPutUrl(
+			String presignedUrl = storage.generatePresignedPutUrl(
 					S3KeyGenerator.getOriginalMp4(newMediaId),
 					storageType.getMimeType(),
 					payload.fileSize()

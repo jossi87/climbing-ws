@@ -25,8 +25,9 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
@@ -48,14 +49,16 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/areas")
 public class AreasController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
+	private final StorageManager storage;
 	private final AreaRepository areaRepo;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
-	public AreasController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo, 
+	public AreasController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo, 
 			AreaRepository areaRepo, SectorRepository sectorRepo, HierarchyRepository hierarchyRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
@@ -105,7 +108,7 @@ public class AreasController extends BaseController {
 			}
 
 			StreamingResponseBody stream = output -> {
-				try (PdfGenerator generator = new PdfGenerator(output)) {
+				try (PdfGenerator generator = new PdfGenerator(storage, output)) {
 					generator.writeArea(setup, area, gradeDistribution, sectors);
 				} catch (Exception e) {
 					logger.error(e.getMessage(), e);

@@ -53,7 +53,8 @@ public class WithoutJsController extends BaseController {
 	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 
-	public WithoutJsController(ClimbingTransactionManager txManager,
+	public WithoutJsController(StorageManager storage,
+			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			FrontpageRepository frontpageRepo,
 			MediaRepository mediaRepo,
@@ -61,7 +62,7 @@ public class WithoutJsController extends BaseController {
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.areaRepo = areaRepo;
 		this.frontpageRepo = frontpageRepo;

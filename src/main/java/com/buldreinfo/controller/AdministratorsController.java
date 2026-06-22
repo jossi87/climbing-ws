@@ -10,6 +10,7 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Administrator;
 
@@ -27,8 +28,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AdministratorsController extends BaseController {
 	private final UserRepository userRepo;
 
-	public AdministratorsController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public AdministratorsController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.userRepo = userRepo;
 	}
 

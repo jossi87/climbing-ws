@@ -23,13 +23,15 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 public class S3BucketUploadBatch {
 	private static final Logger logger = LogManager.getLogger();
 	private final Path localMediaRoot;
+	private final StorageManager storage;
 	private final ExecutorService executor = Executors.newFixedThreadPool(16);
 	private final AtomicInteger uploadCount = new AtomicInteger(0);
 	private final AtomicInteger skipCount = new AtomicInteger(0);
 	private final AtomicLong totalBytesUploaded = new AtomicLong(0);
 	
-	protected S3BucketUploadBatch(Path localMediaRoot) {
+	protected S3BucketUploadBatch(Path localMediaRoot, StorageManager storage) {
 		this.localMediaRoot = localMediaRoot;
+		this.storage = storage;
 	}
 
 	private boolean isNotSystemFile(Path path) {
@@ -97,7 +99,6 @@ public class S3BucketUploadBatch {
 
 	protected void run() {
 		Preconditions.checkArgument(Files.exists(localMediaRoot), localMediaRoot.toString() + " does not exist");
-		StorageManager storage = StorageManager.getInstance();
 		logger.info("Starting uploading from local directory {} to bucket [{}]", localMediaRoot, StorageManager.BUCKET_NAME);
 		try {
 			try (var stream = Files.walk(localMediaRoot)) {

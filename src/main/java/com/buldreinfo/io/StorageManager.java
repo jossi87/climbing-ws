@@ -20,8 +20,7 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.BuldreinfoConfig;
@@ -30,6 +29,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -49,49 +50,16 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-public final class StorageManager implements AutoCloseable {
-	private static final Logger logger = LogManager.getLogger();
+@Service
+public final class StorageManager {
 	public static final String BUCKET_NAME = "climbing-web";
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; 
-	private static final StorageManager INSTANCE = new StorageManager();
 	private static final String PROXY_PATH = "/media-proxy/";
-
-	static {
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			try {
-				INSTANCE.close();
-			} catch (Exception e) {
-				logger.error("Failed to close StorageManager resources", e);
-			}
-		}));
-	}
-
-	@Override
-	public void close() {
-		try {
-			if (s3Client != null) {
-				s3Client.close();
-			}
-		} catch (Exception e) {
-			logger.error("Failed to close S3Client", e);
-		}
-		try {
-			if (s3Presigner != null) {
-				s3Presigner.close();
-			}
-		} catch (Exception e) {
-			logger.error("Failed to close S3Presigner", e);
-		}
-	}
 
 	public static String getDirectStorageUrl(String objectKey) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
 		return "https://climbing-web.se-sto-1.linodeobjects.com/" + cleanKey;
-	}
-
-	public static StorageManager getInstance() {
-		return INSTANCE;
 	}
 
 	public static String getPublicUrl(String objectKey, long versionStamp) {
@@ -108,34 +76,18 @@ public final class StorageManager implements AutoCloseable {
 			.expireAfterWrite(Duration.ofMinutes(15))
 			.build();
 
-	private final S3Client s3Client;
-	private final S3Presigner s3Presigner;
+	private S3Client s3Client;
 
-	private StorageManager() {
-		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
-		AwsBasicCredentials credentials = AwsBasicCredentials.create(
-				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_ACCESS_KEY), 
-				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_SECRET_KEY)
-				);
-
-		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
-		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
-		Region region = Region.of("se-sto-1");
-		this.s3Client = S3Client.builder()
-				.credentialsProvider(credentialsProvider)
-				.endpointOverride(endpointUri)
-				.region(region)
-				.httpClientBuilder(ApacheHttpClient.builder()
-						.maxConnections(100)
-						.connectionMaxIdleTime(Duration.ofSeconds(30))
-						)
-				.build();
-		this.s3Presigner = S3Presigner.builder()
-				.credentialsProvider(credentialsProvider)
-				.endpointOverride(endpointUri)
-				.region(region)
-				.build();
-	}
+	private S3Presigner s3Presigner;
+	@PreDestroy
+    public void cleanup() {
+        if (s3Client != null) {
+            s3Client.close();
+        }
+        if (s3Presigner != null) {
+            s3Presigner.close();
+        }
+    }
 
 	public byte[] downloadBytes(String objectKey) throws IOException {
 		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
@@ -201,6 +153,33 @@ public final class StorageManager implements AutoCloseable {
 
 	public S3Client getS3Client() {
 		return s3Client;
+	}
+
+	@PostConstruct
+    public void init() {
+		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
+		AwsBasicCredentials credentials = AwsBasicCredentials.create(
+				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_ACCESS_KEY), 
+				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_SECRET_KEY)
+				);
+
+		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
+		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
+		Region region = Region.of("se-sto-1");
+		this.s3Client = S3Client.builder()
+				.credentialsProvider(credentialsProvider)
+				.endpointOverride(endpointUri)
+				.region(region)
+				.httpClientBuilder(ApacheHttpClient.builder()
+						.maxConnections(100)
+						.connectionMaxIdleTime(Duration.ofSeconds(30))
+						)
+				.build();
+		this.s3Presigner = S3Presigner.builder()
+				.credentialsProvider(credentialsProvider)
+				.endpointOverride(endpointUri)
+				.region(region)
+				.build();
 	}
 
 	public void invalidateCache(String prefix) {

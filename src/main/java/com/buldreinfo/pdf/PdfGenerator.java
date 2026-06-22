@@ -183,8 +183,8 @@ public class PdfGenerator implements AutoCloseable {
 
 	private BaseFont watermarkFont;
 
-	public PdfGenerator(OutputStream output) {
-		this.storage = StorageManager.getInstance();
+	public PdfGenerator(StorageManager storage, OutputStream output) {
+		this.storage = storage;
 		this.document = new Document(PageSize.A4, 30, 30, 30, 30);
 		this.writer = PdfWriter.getInstance(document, output);
 

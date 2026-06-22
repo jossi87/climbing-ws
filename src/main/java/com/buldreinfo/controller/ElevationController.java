@@ -13,6 +13,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,8 +30,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/elevation")
 public class ElevationController extends BaseController {
 
-	public ElevationController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public ElevationController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {

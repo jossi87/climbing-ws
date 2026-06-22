@@ -21,7 +21,7 @@ public class VideoHelper {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
-	public static void extractThumbnail(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	public static void extractThumbnail(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
@@ -33,7 +33,7 @@ public class VideoHelper {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
 				if (b != null) {
 					try {
-						ImageHelper.saveImage(txManager, mediaRepo, idMedia, b);
+						ImageHelper.saveImage(storage, txManager, mediaRepo, idMedia, b);
 					} finally {
 						b.flush();
 					}
@@ -45,8 +45,7 @@ public class VideoHelper {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
 	}
 
-	public static void processVideo(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, int thumbnailSeconds) throws Exception {
-		StorageManager storage = StorageManager.getInstance();
+	public static void processVideo(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, int thumbnailSeconds) throws Exception {
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
 		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
@@ -80,7 +79,7 @@ public class VideoHelper {
 				}
 			}
 			if (needsThumb) {
-				extractThumbnail(txManager, mediaRepo, idMedia, tempOriginal, thumbnailSeconds);
+				extractThumbnail(storage, txManager, mediaRepo, idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {
 			Files.deleteIfExists(tempOriginal);

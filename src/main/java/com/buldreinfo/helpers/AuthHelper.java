@@ -78,7 +78,7 @@ public class AuthHelper {
 				}
 			});
 
-	public Optional<Integer> getAuthUserId(UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup) {
+	public Optional<Integer> getAuthUserId(StorageManager storage, UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup) {
 		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 		String accessToken = null;
 		if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
@@ -90,10 +90,10 @@ public class AuthHelper {
 		if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
 			return Optional.empty();
 		}
-		return getAuthUserId(userRepo, mediaRepo, request, setup, accessToken);
+		return getAuthUserId(storage, userRepo, mediaRepo, request, setup, accessToken);
 	}
 
-	private Optional<Integer> getAuthUserId(UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup, String accessToken) {
+	private Optional<Integer> getAuthUserId(StorageManager storage, UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup, String accessToken) {
 	    Stopwatch stopwatch = Stopwatch.createStarted();
 	    try {
 	        boolean isNewToken = cache.getIfPresent(accessToken) == null;
@@ -103,7 +103,7 @@ public class AuthHelper {
 	            String headers = gson.toJson(getHeaders(request));
 	            userRepo.upsertUserLogin(setup, userId, headers);
 	            if (profile.picture() != null && !userRepo.hasAvatar(userId)) {
-	                applyAvatarFromUrl(mediaRepo, userId, profile.picture());
+	                applyAvatarFromUrl(storage, mediaRepo, userId, profile.picture());
 	            }
 	        }
 	        logger.info("getAuthUserId() - authUserId={}, duration={}", userId, stopwatch);
@@ -114,11 +114,11 @@ public class AuthHelper {
 	    }
 	}
 
-	private void applyAvatarFromUrl(MediaRepository mediaRepo, int userId, String url) {
+	private void applyAvatarFromUrl(StorageManager storage, MediaRepository mediaRepo, int userId, String url) {
 	    try {
 	        byte[] avatarBytes;
 	        try (var remoteStream = URI.create(url).toURL().openStream()) {
-	            avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
+	            avatarBytes = storage.readBoundedStream(remoteStream);
 	        }
 	        var photographer = User.from(userId, null);
 	        var m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, userId);

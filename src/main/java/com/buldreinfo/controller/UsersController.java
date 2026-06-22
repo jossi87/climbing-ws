@@ -14,6 +14,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.User;
 
@@ -33,8 +34,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class UsersController extends BaseController {
 	private final UserRepository userRepo;
 
-	public UsersController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public UsersController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.userRepo = userRepo;
 	}
 

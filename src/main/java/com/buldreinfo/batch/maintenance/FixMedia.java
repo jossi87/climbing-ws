@@ -19,10 +19,12 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.io.ImageHelper;
+import com.buldreinfo.io.StorageManager;
 
 public class FixMedia {
 	private record MediaTask(int id, String embedUrl) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final StorageManager storage;
 	private final ClimbingTransactionManager txManager;
 	private final MediaRepository mediaRepo;
 	private final Path localBucketRoot;
@@ -32,7 +34,8 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	protected FixMedia(ClimbingTransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+	protected FixMedia(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.storage = storage;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.localBucketRoot = localBucketRoot;
@@ -79,7 +82,7 @@ public class FixMedia {
 		if (!Files.exists(originalJpg)) {
 			txManager.executeInTransaction(() -> {
                 try {
-                    ImageHelper.saveImageFromEmbedVideo(txManager, mediaRepo, id, embedUrl);
+                    ImageHelper.saveImageFromEmbedVideo(storage, txManager, mediaRepo, id, embedUrl);
                     return null;
                 } catch (Exception e) {
                     throw new RuntimeException(e);

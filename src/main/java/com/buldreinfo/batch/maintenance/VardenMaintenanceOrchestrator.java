@@ -12,6 +12,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import com.buldreinfo.Application;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.io.StorageManager;
 
 public class VardenMaintenanceOrchestrator {
 	private static final Logger logger = LogManager.getLogger();
@@ -30,6 +31,7 @@ public class VardenMaintenanceOrchestrator {
 		var context = new SpringApplicationBuilder(Application.class)
 				.web(WebApplicationType.NONE)
 				.run(args);
+		var storage = context.getBean(StorageManager.class);
 		var txManager = context.getBean(ClimbingTransactionManager.class);
 		var mediaRepo = context.getBean(MediaRepository.class);
 		for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
@@ -41,21 +43,21 @@ public class VardenMaintenanceOrchestrator {
 		new DataSftpDownloadTask(SSH_HOST, SSH_USER, SSH_KEY_PATH, LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, REMOTE_BACKUP_DIR).run();
 
 		logger.debug("S3BucketDownloadBatch started");
-		new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT).run();
+		new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT, storage).run();
 
 		logger.debug("Starting FixMedia background embedding sync task.");
-		new FixMedia(txManager, mediaRepo, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+		new FixMedia(storage, txManager, mediaRepo, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
 
 		logger.debug("FixMediaAnalyze started");
 		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, txManager, mediaRepo).run();
 
 		logger.debug("S3BucketUploadBatch started");
-		new S3BucketUploadBatch(LOCAL_MEDIA_ROOT).run();
+		new S3BucketUploadBatch(LOCAL_MEDIA_ROOT, storage).run();
 
 		boolean runS3BucketDeleteResized = false;
 		if (runS3BucketDeleteResized) {
 			logger.debug("S3BucketDeleteResized started");
-			new S3BucketDeleteResized().run();
+			new S3BucketDeleteResized().run(storage);
 		}
 		else {
 			logger.debug("S3BucketDeleteResized skipped");

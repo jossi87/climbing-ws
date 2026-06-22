@@ -20,8 +20,9 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
@@ -43,19 +44,22 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/problems")
 public class ProblemsController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
+	private final StorageManager storage;
 	private final AreaRepository areaRepo;
 	private final MediaRepository mediaRepo;
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 
-	public ProblemsController(ClimbingTransactionManager txManager,
+	public ProblemsController(StorageManager storage,
+			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.mediaRepo = mediaRepo;
 		this.problemRepo = problemRepo;
@@ -100,7 +104,7 @@ public class ProblemsController extends BaseController {
 			final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
 
 			StreamingResponseBody stream = output -> {
-				try (var generator = new PdfGenerator(output)) {
+				try (var generator = new PdfGenerator(storage, output)) {
 					generator.writeProblem(setup, area, sector, problem);
 				} catch (Exception e) {
 					logger.error(e.getMessage(), e);

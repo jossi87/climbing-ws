@@ -41,8 +41,7 @@ public class ImageHelper {
 		}
 	}
 	
-	public static void rotateImage(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
-		StorageManager storage = StorageManager.getInstance();
+	public static void rotateImage(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
 		String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
 		byte[] bytes = storage.downloadBytes(originalKey);
 		ExifReader exifReader = new ExifReader(bytes);
@@ -56,7 +55,7 @@ public class ImageHelper {
 			int height = image.getHeight();
 			
 			mediaRepo.deleteMediaAnalysis(idMedia);
-			ImageSaver.save(image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
+			ImageSaver.save(storage, image, originalKey, S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 			mediaRepo.setMediaMetadata(idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			
 			byte[] rotatedBytes = getJpgBytes(image);
@@ -70,17 +69,17 @@ public class ImageHelper {
 		}
 	}
 
-	public static void saveImage(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, BufferedImage bufferedImage) throws SQLException, IOException {
+	public static void saveImage(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, BufferedImage bufferedImage) throws SQLException, IOException {
 		int width = bufferedImage.getWidth();
 		int height = bufferedImage.getHeight();
-		ImageSaver.save(bufferedImage, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
+		ImageSaver.save(storage, bufferedImage, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 		mediaRepo.setMediaMetadata(idMedia, width, height, null, false);
 		
 		byte[] imgBytes = getJpgBytes(bufferedImage);
 		analyzeAndSaveAsync(txManager, mediaRepo, idMedia, imgBytes, width, height, "");
 	}
 
-	public static void saveImage(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
+	public static void saveImage(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
@@ -89,19 +88,19 @@ public class ImageHelper {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();
-			ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
+			ImageSaver.save(storage, image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 			mediaRepo.setMediaMetadata(idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			
 			analyzeAndSaveAsync(txManager, mediaRepo, idMedia, bytes, width, height, "");
 		}
 	}
 
-	public static void saveImageFromEmbedVideo(ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, String embedVideoUrl) throws IOException, InterruptedException, SQLException {
+	public static void saveImageFromEmbedVideo(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, String embedVideoUrl) throws IOException, InterruptedException, SQLException {
 		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build()) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();
-			ImageSaver.save(image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
+			ImageSaver.save(storage, image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 			mediaRepo.setMediaMetadata(idMedia, width, height, null, false);
 			
 			byte[] imgBytes = getJpgBytes(image);

@@ -11,6 +11,7 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Frontpage;
 
@@ -26,9 +27,9 @@ import jakarta.servlet.http.HttpServletRequest;
 public class FrontpageController extends BaseController {
 	private final FrontpageRepository frontpageRepo;
 
-	public FrontpageController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, FrontpageRepository frontpageRepo, 
+	public FrontpageController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, FrontpageRepository frontpageRepo, 
 			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.frontpageRepo = frontpageRepo;
 	}
 

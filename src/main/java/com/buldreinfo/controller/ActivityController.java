@@ -13,6 +13,7 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Activity;
 
@@ -33,8 +34,8 @@ public class ActivityController extends BaseController {
 	private final ActivityRepository activityRepo;
 
 	@Autowired
-	public ActivityController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public ActivityController(StorageManager storage,ClimbingTransactionManager txManager, MediaRepository mediaRepo, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.activityRepo = activityRepo;
 	}
 

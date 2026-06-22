@@ -21,13 +21,15 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 public class S3BucketDownloadBatch {
 	private static final Logger logger = LogManager.getLogger();
 	private final Path localMediaRoot;
+	private final StorageManager storage;
 	private final ExecutorService executor = Executors.newFixedThreadPool(16);
 	private final AtomicInteger skipCount = new AtomicInteger(0);
 	private final AtomicInteger downloadCount = new AtomicInteger(0);
 	private final AtomicLong totalBytesDownloaded = new AtomicLong(0);
 	
-	protected S3BucketDownloadBatch(Path localMediaRoot) {
+	protected S3BucketDownloadBatch(Path localMediaRoot, StorageManager storage) {
 		this.localMediaRoot = localMediaRoot;
+		this.storage = storage;
 	}
 
 	private void shutdownExecutor() {
@@ -77,7 +79,6 @@ public class S3BucketDownloadBatch {
 
 	protected void run() {
 		Preconditions.checkArgument(Files.exists(localMediaRoot), localMediaRoot.toString() + " does not exist");
-		StorageManager storage = StorageManager.getInstance();
 		logger.info("Starting downloading from bucket [{}] to local directory {}", StorageManager.BUCKET_NAME, localMediaRoot);
 		try {
 			ListObjectsV2Request listRequest = ListObjectsV2Request.builder().bucket(StorageManager.BUCKET_NAME).build();

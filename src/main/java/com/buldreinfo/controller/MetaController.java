@@ -18,6 +18,7 @@ import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
@@ -40,9 +41,8 @@ public class MetaController extends BaseController {
 	private final UserRepository userRepo;
 	private final RegionRepository regionRepo;
 
-	public MetaController(ClimbingTransactionManager txManager, HierarchyRepository hierarchyRepo, 
-			MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, mediaRepo, regionRepo, userRepo);
+	public MetaController(StorageManager storage, ClimbingTransactionManager txManager, HierarchyRepository hierarchyRepo, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(storage, txManager, mediaRepo, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.hierarchyRepo = hierarchyRepo;
 		this.userRepo = userRepo;

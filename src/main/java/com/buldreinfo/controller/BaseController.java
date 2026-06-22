@@ -22,6 +22,7 @@ import com.buldreinfo.filters.HitTrackingFilter;
 import com.buldreinfo.helpers.AuthHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.io.StorageManager;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -34,17 +35,17 @@ public abstract class BaseController {
 	protected interface SetupFunction<T> {
 		T apply(Setup setup) throws Exception;
 	}
-	
 	private static final ThreadFactory VIRTUAL_THREAD_FACTORY = Thread.ofVirtual().name("climbing-ws-", 0).factory();
 	public static final Executor executor = Executors.newThreadPerTaskExecutor(VIRTUAL_THREAD_FACTORY);
-
 	private final AuthHelper authHelper = new AuthHelper();
+	private final StorageManager storage;
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 
-	protected BaseController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+	protected BaseController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		this.storage = storage;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
@@ -65,7 +66,7 @@ public abstract class BaseController {
 	protected <T> T executeAuthenticatedTask(HttpServletRequest request, AuthFunction<T> task) throws Exception {
 		Setup setup = getSetup(request);
 		return executeTask(() -> {
-			Optional<Integer> authUserId = authHelper.getAuthUserId(userRepo, mediaRepo, request, setup);
+			Optional<Integer> authUserId = authHelper.getAuthUserId(storage, userRepo, mediaRepo, request, setup);
 			return task.apply(setup, authUserId);
 		});
 	}

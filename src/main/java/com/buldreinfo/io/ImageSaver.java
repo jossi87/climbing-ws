@@ -21,12 +21,12 @@ public class ImageSaver {
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 
-	public static void save(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP) {
-		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, null).execute();
+	public static void save(StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, null).execute(storage);
 	}
 
-	public static void save(BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
-		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, metadata).execute();
+	public static void save(StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, metadata).execute(storage);
 	}
 
 	private final BufferedImage bufferedImage;
@@ -59,8 +59,7 @@ public class ImageSaver {
 		return rgbImage;
 	}
 
-	private void execute() {
-		StorageManager storage = StorageManager.getInstance();
+	private void execute(StorageManager storage) {
 		Executor executor = BaseController.executor;
 
 		var originalFuture = CompletableFuture.runAsync(() -> {
