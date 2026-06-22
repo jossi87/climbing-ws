@@ -563,6 +563,7 @@ public class UserRepository extends BaseRepository {
 						g.weight, 
 						1 is_fa, 
 						0 is_tick,
+                        CASE WHEN ty.id=2 THEN 1 ELSE 0 END is_bolted,
 						COALESCE(pc.total_pitches, 0) AS pitches
 					FROM req
 					JOIN fa f ON f.user_id = req.user_id
@@ -581,6 +582,7 @@ public class UserRepository extends BaseRepository {
 						g.weight, 
 						0 is_fa, 
 						1 is_tick,
+                        CASE WHEN ty.id=2 THEN 1 ELSE 0 END is_bolted,
 						COALESCE(pc.total_pitches, 0) AS pitches
 					FROM req
 					JOIN tick t ON t.user_id = req.user_id
@@ -608,13 +610,15 @@ public class UserRepository extends BaseRepository {
 							WHEN discipline = 'Bouldering' THEN 'Boulder problems'
 							WHEN discipline = 'Ice' THEN 'Climbing routes (ice)'
 							WHEN pitches > 0 THEN 'Climbing routes (multi-pitch)'
-							ELSE 'Climbing routes (single-pitch)'
+                            WHEN is_bolted = 1 THEN 'Climbing routes (single-pitch bolted)'
+							ELSE 'Climbing routes (single-pitch traditional)'
 						END AS type,
 						CASE 
 							WHEN discipline = 'Bouldering' THEN 'Boulder'
 							WHEN discipline = 'Ice' THEN 'Ice'
 							WHEN pitches > 0 THEN 'Multi'
-							ELSE 'Single'
+                            WHEN is_bolted = 1 THEN 'Single bolted'
+							ELSE 'Single traditional'
 						END AS internal_subtype
 					FROM raw_activity
 				)
