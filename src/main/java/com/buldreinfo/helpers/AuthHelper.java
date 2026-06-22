@@ -1,5 +1,7 @@
 package com.buldreinfo.helpers;
 
+import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.Enumeration;
@@ -21,7 +23,12 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import com.buldreinfo.beans.Auth0Profile;
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.beans.StorageType;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.io.StorageManager;
+import com.buldreinfo.model.Media;
+import com.buldreinfo.model.User;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -71,7 +78,7 @@ public class AuthHelper {
 				}
 			});
 
-	public Optional<Integer> getAuthUserId(UserRepository userRepo, HttpServletRequest request, Setup setup) {
+	public Optional<Integer> getAuthUserId(UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup) {
 		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 		String accessToken = null;
 		if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
@@ -83,25 +90,42 @@ public class AuthHelper {
 		if (Strings.isNullOrEmpty(accessToken) || accessToken.isBlank()) {
 			return Optional.empty();
 		}
-		return getAuthUserId(userRepo, request, setup, accessToken);
+		return getAuthUserId(userRepo, mediaRepo, request, setup, accessToken);
 	}
 
-	private Optional<Integer> getAuthUserId(UserRepository userRepo, HttpServletRequest request, Setup setup, String accessToken) {
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		try {
-			boolean isNewToken = cache.getIfPresent(accessToken) == null;
-			Auth0Profile profile = cache.get(accessToken);
-			Optional<Integer> authUserId = userRepo.getAuthUserId(profile);
-			if (isNewToken && authUserId.isPresent()) {
-				String headers = gson.toJson(getHeaders(request));
-				userRepo.upsertUserLogin(setup, authUserId.get(), headers);
-			}
-			logger.info("getAuthUserId() - authUserId={}, duration={}", authUserId.orElse(null), stopwatch);
-			return authUserId;
-		} catch (Exception e) {
-			logger.warn("getAuthUserId() - Auth failed or email missing: {} - duration={}", e.getMessage(), stopwatch);
-			return Optional.empty();
-		}
+	private Optional<Integer> getAuthUserId(UserRepository userRepo, MediaRepository mediaRepo, HttpServletRequest request, Setup setup, String accessToken) {
+	    Stopwatch stopwatch = Stopwatch.createStarted();
+	    try {
+	        boolean isNewToken = cache.getIfPresent(accessToken) == null;
+	        Auth0Profile profile = cache.get(accessToken);
+	        int userId = userRepo.getAuthUserId(profile).orElseThrow();
+	        if (isNewToken) {
+	            String headers = gson.toJson(getHeaders(request));
+	            userRepo.upsertUserLogin(setup, userId, headers);
+	            if (profile.picture() != null && !userRepo.hasAvatar(userId)) {
+	                applyAvatarFromUrl(mediaRepo, userId, profile.picture());
+	            }
+	        }
+	        logger.info("getAuthUserId() - authUserId={}, duration={}", userId, stopwatch);
+	        return Optional.of(userId);
+	    } catch (Exception e) {
+	        logger.warn("getAuthUserId() - Auth failed: {} - duration={}", e.getMessage(), stopwatch);
+	        return Optional.empty();
+	    }
+	}
+
+	private void applyAvatarFromUrl(MediaRepository mediaRepo, int userId, String url) {
+	    try {
+	        byte[] avatarBytes;
+	        try (var remoteStream = URI.create(url).toURL().openStream()) {
+	            avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
+	        }
+	        var photographer = User.from(userId, null);
+	        var m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, userId);
+	        mediaRepo.addMediaImage(Optional.of(userId), m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
+	    } catch (Exception e) {
+	        logger.error("Failed to apply login avatar", e);
+	    }
 	}
 
 	private Map<String, String> getHeaders(HttpServletRequest request) {

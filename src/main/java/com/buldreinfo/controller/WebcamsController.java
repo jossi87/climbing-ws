@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -27,8 +28,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/webcams")
 public class WebcamsController extends BaseController {
 
-    public WebcamsController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
-        super(txManager, regionRepo, userRepo);
+    public WebcamsController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+        super(txManager, mediaRepo, regionRepo, userRepo);
     }
 
     @Operation(summary = "Get webcams", responses = {

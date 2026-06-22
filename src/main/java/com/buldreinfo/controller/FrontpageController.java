@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.FrontpageRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -25,9 +26,9 @@ import jakarta.servlet.http.HttpServletRequest;
 public class FrontpageController extends BaseController {
 	private final FrontpageRepository frontpageRepo;
 
-	public FrontpageController(ClimbingTransactionManager txManager, FrontpageRepository frontpageRepo, 
+	public FrontpageController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, FrontpageRepository frontpageRepo, 
 			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.frontpageRepo = frontpageRepo;
 	}
 

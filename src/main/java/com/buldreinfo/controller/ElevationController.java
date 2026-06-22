@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GeoHelper;
@@ -28,8 +29,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/elevation")
 public class ElevationController extends BaseController {
 
-	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+	public ElevationController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, mediaRepo, regionRepo, userRepo);
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {

@@ -16,6 +16,7 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.FrontpageRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -55,11 +56,12 @@ public class WithoutJsController extends BaseController {
 	public WithoutJsController(ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			FrontpageRepository frontpageRepo,
+			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.areaRepo = areaRepo;
 		this.frontpageRepo = frontpageRepo;

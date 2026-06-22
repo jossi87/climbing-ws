@@ -60,7 +60,7 @@ public class ProblemRepository extends BaseRepository {
 	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
 	private final ObjectProvider<MediaRepository> mediaRepo;
 	private final ObjectProvider<SectorRepository> sectorRepo;
-	private final ObjectProvider<UserRepository> userRepo;
+	private final UserRepository userRepo;
 
 	public ProblemRepository(ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
@@ -69,7 +69,7 @@ public class ProblemRepository extends BaseRepository {
 			ObjectProvider<HierarchyRepository> hierarchyRepo,
 			ObjectProvider<MediaRepository> mediaRepo,
 			ObjectProvider<SectorRepository> sectorRepo,
-			ObjectProvider<UserRepository> userRepo) {
+			UserRepository userRepo) {
 		super(txManager);
 		this.activityRepo = activityRepo;
 		this.externalLinksRepo = externalLinksRepo;
@@ -628,7 +628,7 @@ public class ProblemRepository extends BaseRepository {
 						}
 					}
 				} else {
-					var idUser = userRepo.getObject().addUser(null, x.name(), null);
+					var idUser = userRepo.addUser(null, x.name(), null);
 					Preconditions.checkArgument(idUser > 0);
 					try (var ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
@@ -692,7 +692,7 @@ public class ProblemRepository extends BaseRepository {
 						for (var u : faAid.users()) {
 							var idUser = u.id();
 							if (idUser <= 0) {
-								idUser = userRepo.getObject().addUser(null, u.name(), null);
+								idUser = userRepo.addUser(null, u.name(), null);
 							}
 							Preconditions.checkArgument(idUser > 0);
 							ps.setInt(1, idProblem);

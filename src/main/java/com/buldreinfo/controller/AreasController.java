@@ -20,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -52,9 +53,9 @@ public class AreasController extends BaseController {
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
-	public AreasController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo, 
+	public AreasController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo, 
 			AreaRepository areaRepo, SectorRepository sectorRepo, HierarchyRepository hierarchyRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.areaRepo = areaRepo;
 		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;

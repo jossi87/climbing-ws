@@ -75,7 +75,7 @@ public class MediaController extends BaseController {
 
 	public MediaController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, 
 			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;

@@ -15,12 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.filters.HitTrackingFilter;
 import com.buldreinfo.helpers.AuthHelper;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -33,17 +34,19 @@ public abstract class BaseController {
 	protected interface SetupFunction<T> {
 		T apply(Setup setup) throws Exception;
 	}
-
+	
 	private static final ThreadFactory VIRTUAL_THREAD_FACTORY = Thread.ofVirtual().name("climbing-ws-", 0).factory();
 	public static final Executor executor = Executors.newThreadPerTaskExecutor(VIRTUAL_THREAD_FACTORY);
 
 	private final AuthHelper authHelper = new AuthHelper();
+	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 
-	protected BaseController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
+	protected BaseController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
 		this.txManager = txManager;
+		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
 		this.userRepo = userRepo;
 	}
@@ -62,7 +65,7 @@ public abstract class BaseController {
 	protected <T> T executeAuthenticatedTask(HttpServletRequest request, AuthFunction<T> task) throws Exception {
 		Setup setup = getSetup(request);
 		return executeTask(() -> {
-			Optional<Integer> authUserId = authHelper.getAuthUserId(userRepo, request, setup);
+			Optional<Integer> authUserId = authHelper.getAuthUserId(userRepo, mediaRepo, request, setup);
 			return task.apply(setup, authUserId);
 		});
 	}

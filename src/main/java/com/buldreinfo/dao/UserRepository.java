@@ -1,9 +1,7 @@
 package com.buldreinfo.dao;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -23,21 +21,17 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.beans.Auth0Profile;
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.excel.ExcelSheet;
 import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Administrator;
 import com.buldreinfo.model.AuthenticatedUser;
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.model.Media;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.PermissionUser;
 import com.buldreinfo.model.Profile.ProfileDiscipline;
@@ -60,12 +54,10 @@ import com.google.common.collect.ComparisonChain;
 @Repository
 public class UserRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
-	private static final int USER_ID_UNKNOWN = 1049;
-	private final ObjectProvider<MediaRepository> mediaRepo;
+	public static final int USER_ID_UNKNOWN = 1049;
 	
-	public UserRepository(ClimbingTransactionManager txManager, ObjectProvider<MediaRepository> mediaRepo) {
+	public UserRepository(ClimbingTransactionManager txManager) {
 		super(txManager);
-		this.mediaRepo = mediaRepo;
 	}
 	
 	public void ensureUserExists(int userId) throws SQLException {
@@ -179,59 +171,18 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	public Optional<Integer> getAuthUserId(Auth0Profile profile) throws SQLException {
-		Optional<Integer> authUserId = Optional.empty();
-		var hasAvatar = false;
-		var c = txManager.getConnection();
-		try (var ps = c.prepareStatement("""
-				SELECT e.user_id, CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
-				FROM user_email e
-				JOIN user u ON e.user_id=u.id
-				LEFT JOIN media m ON u.media_id=m.id
-				WHERE lower(e.email)=?
-				""")) {
-			ps.setString(1, profile.email().toLowerCase());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					authUserId = Optional.of(rst.getInt("user_id"));
-					hasAvatar = rst.getBoolean("has_avatar");
-				}
-			}
-		}
-		if (authUserId.isEmpty()) {
-			authUserId = Optional.of(addUser(profile.email(), profile.firstname(), profile.lastname()));
-			try (var ps = c.prepareStatement("""
-					SELECT CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END has_avatar
-					FROM user_email e
-					JOIN user u ON e.user_id=u.id
-					LEFT JOIN media m ON u.media_id=m.id
-					WHERE lower(e.email)=?
-					""")) {
-				ps.setString(1, profile.email().toLowerCase());
-				try (var rst = ps.executeQuery()) {
-					if (rst.next()) {
-						hasAvatar = rst.getBoolean("has_avatar");
-					}
-				}
-			}
-		}
-		final var finalUserId = authUserId;
-		if (!hasAvatar && profile.picture() != null) {
-			try {
-				byte[] avatarBytes;
-				try (var remoteStream = URI.create(profile.picture()).toURL().openStream()) {
-					avatarBytes = StorageManager.getInstance().readBoundedStream(remoteStream);
-				}
-				var photographer = User.from(USER_ID_UNKNOWN, null);
-				var m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, finalUserId.get().intValue());
-				mediaRepo.getObject().addMediaImage(finalUserId, m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
-			} catch (Exception e) {
-				logger.error("Failed to cleanly download and apply login avatar profile image", e);
-			}
-		}
-		logger.debug("getAuthUserId(profile={}) - authUserId={}", profile, authUserId);
-		return authUserId;
+	    var c = txManager.getConnection();
+	    try (var ps = c.prepareStatement("SELECT user_id FROM user_email WHERE lower(email)=?")) {
+	        ps.setString(1, profile.email().toLowerCase());
+	        try (var rst = ps.executeQuery()) {
+	            if (rst.next()) {
+	                return Optional.of(rst.getInt("user_id"));
+	            }
+	        }
+	    }
+	    return Optional.of(addUser(profile.email(), profile.firstname(), profile.lastname()));
 	}
-	
+
 	public List<PermissionUser> getPermissions(Setup setup, Optional<Integer> authUserId) throws SQLException {
 		var res = new ArrayList<PermissionUser>();
 		var c = txManager.getConnection();
@@ -287,7 +238,7 @@ public class UserRepository extends BaseRepository {
 		}
 		return res;
 	}
-
+	
 	public List<ProfileAscent> getProfileAscents(Optional<Integer> authUserId, Setup setup, int reqId) throws SQLException {
 		var res = new ArrayList<ProfileAscent>();
 		var idProblemTickMap = new HashMap<Integer, ProfileAscent>();
@@ -514,7 +465,7 @@ public class UserRepository extends BaseRepository {
 		}
 		return res;
 	}
-	
+
 	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<ProfileDiscipline>();
@@ -1067,6 +1018,16 @@ public class UserRepository extends BaseRepository {
 			workbook.write(os);
 			return os.toByteArray();
 		}
+	}
+	
+	public boolean hasAvatar(int userId) throws SQLException {
+	    var c = txManager.getConnection();
+	    try (var ps = c.prepareStatement("SELECT m.id FROM user u JOIN media m ON u.media_id = m.id WHERE u.id = ?")) {
+	        ps.setInt(1, userId);
+	        try (var rst = ps.executeQuery()) {
+	            return rst.next();
+	        }
+	    }
 	}
 
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) throws SQLException {

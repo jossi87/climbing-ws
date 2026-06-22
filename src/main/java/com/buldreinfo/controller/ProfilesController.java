@@ -37,9 +37,8 @@ public class ProfilesController extends BaseController {
 	private final MediaRepository mediaRepo;
 	private final UserRepository userRepo;
 
-	public ProfilesController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, 
-			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+	public ProfilesController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.mediaRepo = mediaRepo;
 		this.userRepo = userRepo;
 	}

@@ -55,7 +55,7 @@ public class ProblemsController extends BaseController {
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.areaRepo = areaRepo;
 		this.mediaRepo = mediaRepo;
 		this.problemRepo = problemRepo;

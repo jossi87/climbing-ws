@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.ActivityRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -32,8 +33,8 @@ public class ActivityController extends BaseController {
 	private final ActivityRepository activityRepo;
 
 	@Autowired
-	public ActivityController(ClimbingTransactionManager txManager, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+	public ActivityController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.activityRepo = activityRepo;
 	}
 

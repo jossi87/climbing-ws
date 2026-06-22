@@ -56,12 +56,12 @@ public class MediaRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private final ActivityRepository activityRepo;
 	private final ObjectProvider<ProblemRepository> problemRepo;
-	private final ObjectProvider<UserRepository> userRepo;
+	private final UserRepository userRepo;
 
 	public MediaRepository(ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
-			ObjectProvider<UserRepository> userRepo) {
+			UserRepository userRepo) {
 		super(txManager);
 		this.activityRepo = activityRepo;
 		this.problemRepo = problemRepo;
@@ -720,7 +720,7 @@ public class MediaRepository extends BaseRepository {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, mediaId);
 		var originalMedia = getMedia(authUserId, m.identity().id());     
 		var thumbnailChanged = originalMedia.thumbnailSeconds() != m.thumbnailSeconds();
-		int photographerId = m.photographer().id() > 0 ? m.photographer().id() : userRepo.getObject().getExistingOrInsertUser(m.photographer().name());
+		int photographerId = m.photographer().id() > 0 ? m.photographer().id() : userRepo.getExistingOrInsertUser(m.photographer().name());
 		var baseUpdateSql = thumbnailChanged 
 				? "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=?, updated_at=NOW() WHERE id=?"
 						: "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=? WHERE id=?";
@@ -884,7 +884,7 @@ public class MediaRepository extends BaseRepository {
 
 	private int insertMediaMetadata(int uploaderId, Media m, StorageType storageType) throws Exception {
 		var photographerName = (m.photographer() != null) ? m.photographer().name() : null;
-		int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : userRepo.getObject().getExistingOrInsertUser(photographerName);
+		int photographerId = (m.photographer() != null && m.photographer().id() > 0) ? m.photographer().id() : userRepo.getExistingOrInsertUser(photographerName);
 
 		var c = txManager.getConnection();
 		var insertMediaSql = "INSERT INTO media (is_movie, suffix, photographer_user_id, uploader_user_id, date_created, description, thumbnail_seconds, embed_url) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)";
@@ -992,7 +992,7 @@ public class MediaRepository extends BaseRepository {
 					if (isUpdate) {
 						Preconditions.checkArgument(!Strings.isNullOrEmpty(u.name()), "Invalid tagged user: " + u);
 					}
-					int userId = u.id() > 0 ? u.id() : userRepo.getObject().getExistingOrInsertUser(u.name());
+					int userId = u.id() > 0 ? u.id() : userRepo.getExistingOrInsertUser(u.name());
 					ps.setInt(1, mediaId);
 					ps.setInt(2, userId);
 					ps.addBatch();

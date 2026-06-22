@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
@@ -32,8 +33,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class UsersController extends BaseController {
 	private final UserRepository userRepo;
 
-	public UsersController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+	public UsersController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.userRepo = userRepo;
 	}
 

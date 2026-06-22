@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.excel.ExcelWorkbook;
@@ -40,8 +41,8 @@ public class MetaController extends BaseController {
 	private final RegionRepository regionRepo;
 
 	public MetaController(ClimbingTransactionManager txManager, HierarchyRepository hierarchyRepo, 
-			RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+			MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.hierarchyRepo = hierarchyRepo;
 		this.userRepo = userRepo;

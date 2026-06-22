@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.HierarchyRepository;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -58,6 +59,7 @@ public class InteractionController extends BaseController {
 
 	public InteractionController(ClimbingTransactionManager txManager,
 			HierarchyRepository hierarchyRepo,
+			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo,
 			RegionRepository regionRepo,
@@ -65,7 +67,7 @@ public class InteractionController extends BaseController {
 			TodoRepository todoRepo,
 			TrashRepository trashRepo,
 			UserRepository userRepo) {
-		super(txManager, regionRepo, userRepo);
+		super(txManager, mediaRepo, regionRepo, userRepo);
 		this.hierarchyRepo = hierarchyRepo;
 		this.problemRepo = problemRepo;
 		this.regionRepo = regionRepo;
