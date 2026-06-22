@@ -10,7 +10,6 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -100,7 +99,7 @@ public class UserRepository extends BaseRepository {
 				       mma.focus_x AS media_focus_x, 
 				       mma.focus_y AS media_focus_y, 
 				       mma.primary_color_hex AS media_primary_color_hex,
-				       DATE_FORMAT(l.when, '%Y.%m.%d') AS last_login
+				       l.when AS last_login
 				FROM user_region ur
 				JOIN user_login l ON l.user_id = ur.user_id AND l.region_id = ur.region_id
 				JOIN user u ON u.id = ur.user_id
@@ -112,7 +111,6 @@ public class UserRepository extends BaseRepository {
 				""")) {
 			ps.setInt(1, setup.idRegion());
 			try (var rst = ps.executeQuery()) {
-				final var formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 				while (rst.next()) {
 					int userId = rst.getInt("id");
 					var name = rst.getString("name");
@@ -130,8 +128,8 @@ public class UserRepository extends BaseRepository {
 						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, versionStamp, focusX, focusY, mediaPrimaryColorHex);
 					}
-					var lastLogin = rst.getString("last_login");
-					var timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
+					var lastLogin = rst.getObject("last_login", LocalDate.class);
+					var timeAgo = TimeAgo.getTimeAgo(lastLogin);
 					res.add(new Administrator(userId, name, emails, mediaIdentity, timeAgo));
 				}
 			}
@@ -245,7 +243,7 @@ public class UserRepository extends BaseRepository {
 				       mma.focus_x AS media_focus_x,
 				       mma.focus_y AS media_focus_y,
 				       mma.primary_color_hex AS media_primary_color_hex,
-				       DATE_FORMAT(l.when, '%Y.%m.%d') AS last_login,
+				       l.when AS last_login,
 				       COALESCE(ur.admin_read, 0) AS admin_read,
 				       COALESCE(ur.admin_write, 0) AS admin_write,
 				       COALESCE(ur.superadmin_read, 0) AS superadmin_read,
@@ -265,7 +263,6 @@ public class UserRepository extends BaseRepository {
 			ps.setInt(1, setup.idRegion());
 			ps.setInt(2, setup.idRegion());
 			try (var rst = ps.executeQuery()) {
-				final var formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 				while (rst.next()) {
 					int userId = rst.getInt("id");
 					var name = rst.getString("name");
@@ -278,12 +275,12 @@ public class UserRepository extends BaseRepository {
 						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
-					var lastLogin = rst.getString("last_login");
+					var lastLogin = rst.getObject("last_login", LocalDate.class);
 					boolean adminRead = rst.getBoolean("admin_read");
 					boolean adminWrite = rst.getBoolean("admin_write");
 					boolean superadminRead = rst.getBoolean("superadmin_read");
 					boolean superadminWrite = rst.getBoolean("superadmin_write");
-					var timeAgo = TimeAgo.getTimeAgo(LocalDate.parse(lastLogin, formatter));
+					var timeAgo = TimeAgo.getTimeAgo(lastLogin); 
 					res.add(new PermissionUser(userId, name, mediaIdentity, timeAgo, adminRead, adminWrite, superadminRead, superadminWrite, authUserId.orElse(0) == userId));
 				}
 			}
