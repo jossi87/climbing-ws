@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="warn" shutdownHook="disable">
+<Configuration status="warn">
     <Properties>
         <Property name="BASE_DIR">./logs</Property>
         <Property name="LOG_PATTERN">%d{yyyy.MM.dd HH:mm:ss,SSS} [%t] %-5level %logger{36} - %msg%n</Property>
@@ -11,8 +11,8 @@
         </Console>
         
         <RollingFile name="RollingFile"
-            fileName="${BASE_DIR}/com.buldreinfo.jersey.jaxb.log"
-            filePattern="${BASE_DIR}/archive/com.buldreinfo.jersey.jaxb-%d{MM-dd-yyyy}-%i.log.gz">
+            fileName="${BASE_DIR}/com.buldreinfo.log"
+            filePattern="${BASE_DIR}/archive/com.buldreinfo-%d{MM-dd-yyyy}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8" />
             <Policies>
                 <SizeBasedTriggeringPolicy size="10 MB" />
@@ -21,39 +21,31 @@
         </RollingFile>
         
         <RollingFile name="ErrRollingFile"
-            fileName="${BASE_DIR}/com.buldreinfo.jersey.jaxb.error.log"
-            filePattern="${BASE_DIR}/archive/com.buldreinfo.jersey.jaxb.error-%d{MM-dd-yyyy}-%i.log.gz">
+            fileName="${BASE_DIR}/com.buldreinfo.error.log"
+            filePattern="${BASE_DIR}/archive/com.buldreinfo.error-%d{MM-dd-yyyy}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8" />
             <Policies>
                 <SizeBasedTriggeringPolicy size="10 MB" />
             </Policies>
             <DefaultRolloverStrategy max="10" />
         </RollingFile>
-        
-        <Async name="ASYNC" includeLocation="false">
-            <AppenderRef ref="CONSOLE" />
-            <AppenderRef ref="RollingFile" />
-        </Async>
-        
-        <Async name="ASYNCERR" includeLocation="false">
-            <AppenderRef ref="ErrRollingFile" />
-        </Async>
     </Appenders>
 
     <Loggers>
         <Logger name="software.amazon.awssdk" level="info" />
         <Logger name="com.zaxxer.hikari" level="info" />
-        <Logger name="org.glassfish.jersey" level="info" />
         <Logger name="org.apache" level="warn" />
 
         <Logger name="com.buldreinfo" level="debug" additivity="false">
-            <AppenderRef ref="ASYNC" />
-            <AppenderRef ref="ASYNCERR" level="error" />
+            <AppenderRef ref="CONSOLE" />
+            <AppenderRef ref="RollingFile" />
+            <AppenderRef ref="ErrRollingFile" level="error" />
         </Logger>
 
         <Root level="info">
-            <AppenderRef ref="ASYNC" />
-            <AppenderRef ref="ASYNCERR" level="error" />
+            <AppenderRef ref="CONSOLE" />
+            <AppenderRef ref="RollingFile" />
+            <AppenderRef ref="ErrRollingFile" level="error" />
         </Root>
     </Loggers>
 </Configuration>
