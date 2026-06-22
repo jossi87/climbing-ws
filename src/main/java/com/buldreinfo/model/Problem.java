@@ -19,10 +19,8 @@ public record Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, b
 	public record ProblemTodo(int idUser, MediaIdentity mediaIdentity, String name) {}
 	public record Neighbour(int id, int nr, String name, String grade, boolean ticked, boolean todo) {}
 
-	public ProblemComment addComment(int id, String date, int idUser, MediaIdentity mediaIdentity, String name, String message, boolean danger, boolean resolved, List<Media> media) {
-		ProblemComment comment = new ProblemComment(id, date, idUser, mediaIdentity, name, message, danger, resolved, media);
+	public void addComment(ProblemComment comment) {
 		this.comments.add(comment);
-		return comment;
 	}
 
 	public void addSection(int id, int nr, String description, String grade, List<Media> media) {

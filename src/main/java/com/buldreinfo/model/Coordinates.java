@@ -5,12 +5,15 @@ import java.math.RoundingMode;
 
 public class Coordinates {
 	public final static String ELEVATION_SOURCE_GOOGLE = "Google Elevation API";
+	private double distance;
+	private double elevation;
+	private String elevationSource;
 	private int id;
 	private double latitude;
 	private double longitude;
-	private double elevation;
-	private String elevationSource;
-	private double distance;
+	
+	public Coordinates() {
+	}
 	
 	public Coordinates(double latitude, double longitude) {
 		this.latitude = latitude;
@@ -53,11 +56,11 @@ public class Coordinates {
 		this.latitude = round(latitude, 10);
 		this.longitude = round(longitude, 10);
 	}
-	
+
 	public void setDistance(double distance) {
 		this.distance = distance;
 	}
-	
+
 	public void setElevation(double elevation, String elevationSource) {
 		this.elevation = elevation;
 		this.elevationSource = elevationSource;
@@ -65,6 +68,14 @@ public class Coordinates {
 	
 	public void setId(int id) {
 		this.id = id;
+	}
+	
+	public void setLatitude(double latitude) {
+		this.latitude = latitude;
+	}
+	
+	public void setLongitude(double longitude) {
+		this.longitude = longitude;
 	}
 	
 	@Override

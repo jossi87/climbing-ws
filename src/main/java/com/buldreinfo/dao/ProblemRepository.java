@@ -385,6 +385,7 @@ public class ProblemRepository extends BaseRepository {
 				""")) {
 			ps.setInt(1, p.id());
 			try (var rst = ps.executeQuery()) {
+				List<ProblemComment> comments = new ArrayList<>();
 				while (rst.next()) {
 					var id = rst.getInt("id");
 					var date = rst.getString("date");
@@ -403,13 +404,18 @@ public class ProblemRepository extends BaseRepository {
 					var danger = rst.getBoolean("danger");
 					var resolved = rst.getBoolean("resolved");
 					var media = mediaRepo.getObject().getMediaGuestbook(authUserId, id);
-					p.addComment(id, date, idUser, mediaIdentity, name, message, danger, resolved, media);
+					comments.add(new ProblemComment(id, date, idUser, mediaIdentity, name, message, danger, resolved, media, false));
 				}
-				if (p.comments() != null && !p.comments().isEmpty()) {
-					var lastComment = p.comments().stream().max(Comparator.comparing(ProblemComment::getId));
-					if (lastComment.isPresent() && lastComment.get().getIdUser() == authUserId.orElse(0)) {
-						lastComment.get().setEditable(true);
-					}
+				comments.stream()
+			    .max(Comparator.comparing(ProblemComment::id))
+			    .ifPresent(last -> {
+			        if (last.idUser() == authUserId.orElse(0)) {
+			            int index = comments.indexOf(last);
+			            comments.set(index, last.withEditable(true));
+			        }
+			    });
+				for (var comment : comments) {
+					p.addComment(comment);
 				}
 			}
 		}
@@ -713,8 +719,8 @@ public class ProblemRepository extends BaseRepository {
 		if (idGuestbook > 0) {
 			var comments = getProblem(authUserId, s, co.idProblem(), false, false).comments();
 			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
-			var comment = comments.stream().filter(x -> x.getId() == co.id()).findAny().orElseThrow();
-			if (comment.isEditable()) {
+			var comment = comments.stream().filter(x -> x.id() == co.id()).findAny().orElseThrow();
+			if (comment.editable()) {
 				if (co.delete()) {
 					try (var ps = c.prepareStatement("DELETE FROM guestbook WHERE id=?")) {
 						ps.setInt(1, co.id());
@@ -732,7 +738,7 @@ public class ProblemRepository extends BaseRepository {
 					}
 				}
 			}
-			else if (!comment.isDanger() && !comment.isResolved() && co.danger()) {
+			else if (!comment.danger() && !comment.resolved() && co.danger()) {
 				try (var ps = c.prepareStatement("UPDATE guestbook SET danger=? WHERE id=?")) {
 					ps.setBoolean(1, co.danger());
 					ps.setInt(2, co.id());

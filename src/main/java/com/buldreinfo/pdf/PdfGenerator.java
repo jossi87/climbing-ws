@@ -1057,18 +1057,18 @@ public class PdfGenerator implements AutoCloseable {
 			cTable.setSpacingBefore(5f);
 
 			for (ProblemComment c : p.comments()) {
-				PdfPCell dateCell = new PdfPCell(new Phrase(c.getDate(), FONT_REG));
+				PdfPCell dateCell = new PdfPCell(new Phrase(c.date(), FONT_REG));
 				dateCell.setPadding(4f);
 				dateCell.setBorderColor(Color.LIGHT_GRAY);
 				cTable.addCell(dateCell);
 
-				PdfPCell nameCell = new PdfPCell(new Phrase(c.getName(), FONT_REG));
+				PdfPCell nameCell = new PdfPCell(new Phrase(c.name(), FONT_REG));
 				nameCell.setPadding(4f);
 				nameCell.setBorderColor(Color.LIGHT_GRAY);
 				cTable.addCell(nameCell);
 
 				Paragraph para = new Paragraph(8);
-				addTextWithLinks(para, c.getMessage(), FONT_REG);
+				addTextWithLinks(para, c.message(), FONT_REG);
 				PdfPCell cell = new PdfPCell(para);
 				cell.setPadding(4f);
 				cell.setBorderColor(Color.LIGHT_GRAY);
