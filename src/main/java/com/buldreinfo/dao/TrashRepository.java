@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.beans.Setup;
@@ -14,15 +13,11 @@ import com.buldreinfo.model.Trash;
 
 @Repository
 public class TrashRepository extends BaseRepository {
-	private final ObjectProvider<RegionRepository> regionRepo;
-	
-	public TrashRepository(ClimbingTransactionManager txManager, ObjectProvider<RegionRepository> regionRepo) {
+	public TrashRepository(ClimbingTransactionManager txManager) {
 		super(txManager);
-		this.regionRepo = regionRepo;
 	}
 	
 	public List<Trash> getTrash(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		regionRepo.getObject().ensureAdminWriteRegion(setup, authUserId);
 		var res = new ArrayList<Trash>();
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -159,8 +154,7 @@ public class TrashRepository extends BaseRepository {
 		return res;
 	}
 	
-	public void trashRecover(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
-		regionRepo.getObject().ensureSuperadminWriteRegion(setup, authUserId);
+	public void trashRecover(int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
 		var c = txManager.getConnection();
 		String sqlStr = null;
 		int id = 0;

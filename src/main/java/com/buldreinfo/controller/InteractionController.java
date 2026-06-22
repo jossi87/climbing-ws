@@ -49,6 +49,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class InteractionController extends BaseController {
 	private final HierarchyRepository hierarchyRepo;
 	private final ProblemRepository problemRepo;
+	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final TickRepository tickRepo;
 	private final TodoRepository todoRepo;
@@ -67,6 +68,7 @@ public class InteractionController extends BaseController {
 		super(txManager, regionRepo, userRepo);
 		this.hierarchyRepo = hierarchyRepo;
 		this.problemRepo = problemRepo;
+		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
 		this.tickRepo = tickRepo;
 		this.todoRepo = todoRepo;
@@ -93,7 +95,10 @@ public class InteractionController extends BaseController {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GetMapping(value = "/permissions", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getPermissions(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> userRepo.getPermissions(setup, authUserId)));
+		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
+			return userRepo.getPermissions(setup, authUserId);
+		}));
 	}
 
 	@Operation(summary = "Get areas and sectors with restrictions", responses = {
@@ -159,7 +164,10 @@ public class InteractionController extends BaseController {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@GetMapping(value = "/trash", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getTrash(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> trashRepo.getTrash(authUserId, setup)));
+		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
+			return trashRepo.getTrash(authUserId, setup);
+		}));
 	}
 
 	@Operation(summary = "Update comment", responses = {
@@ -190,7 +198,8 @@ public class InteractionController extends BaseController {
 	public ResponseEntity<?> postPermissions(HttpServletRequest request, @RequestBody PermissionUser u) throws Exception {
 		if (u == null || u.userId() <= 0) return createBadRequestResponse("Invalid userId");
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
-			userRepo.upsertPermissionUser(setup, authUserId, u);
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
+			userRepo.upsertPermissionUser(setup, u);
 			return null;
 		}));
 	}
@@ -277,7 +286,8 @@ public class InteractionController extends BaseController {
 				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0);
 		if (!isValid) return createBadRequestResponse("Invalid arguments");
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
-			trashRepo.trashRecover(setup, authUserId, idArea, idSector, idProblem, idMedia);
+			regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+			trashRepo.trashRecover(idArea, idSector, idProblem, idMedia);
 			return null;
 		}));
 	}

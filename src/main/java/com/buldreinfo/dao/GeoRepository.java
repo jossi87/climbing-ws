@@ -108,19 +108,4 @@ public class GeoRepository extends BaseRepository {
 				.findAny()
 				.get();
 	}
-	
-	protected List<CompassDirection> getCompassDirections() throws SQLException {
-		var c = txManager.getConnection();
-		var res = new ArrayList<CompassDirection>();
-		try (var ps = c.prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					var direction = rst.getString("direction");
-					res.add(new CompassDirection(id, direction));
-				}
-			}
-		}
-		return res;
-	}
 }

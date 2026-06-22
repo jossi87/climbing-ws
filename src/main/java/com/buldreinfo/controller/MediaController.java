@@ -70,6 +70,7 @@ public class MediaController extends BaseController {
 
 	private static final Logger logger = LogManager.getLogger();
 	private final MediaRepository mediaRepo;
+	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
 
 	public MediaController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, 
@@ -77,6 +78,7 @@ public class MediaController extends BaseController {
 		super(txManager, regionRepo, userRepo);
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
+		this.regionRepo = regionRepo;
 	}
 
 	@Operation(summary = "Move media to trash", responses = {
@@ -305,7 +307,8 @@ public class MediaController extends BaseController {
 	public ResponseEntity<?> postMediaSvg(HttpServletRequest request, @RequestBody Media m) throws Exception {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) return createBadRequestResponse("Invalid media payload");
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
-			mediaRepo.upsertMediaSvg(setup, authUserId, m);
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
+			mediaRepo.upsertMediaSvg(m);
 			return null;
 		}));
 	}

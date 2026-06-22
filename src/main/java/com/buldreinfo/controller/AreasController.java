@@ -48,6 +48,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AreasController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
 	private final AreaRepository areaRepo;
+	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
@@ -55,6 +56,7 @@ public class AreasController extends BaseController {
 			AreaRepository areaRepo, SectorRepository sectorRepo, HierarchyRepository hierarchyRepo) {
 		super(txManager, regionRepo, userRepo);
 		this.areaRepo = areaRepo;
+		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
 		this.hierarchyRepo = hierarchyRepo;
 	}
@@ -132,6 +134,7 @@ public class AreasController extends BaseController {
 			return createBadRequestResponse("Area name is missing or invalid");
 		}
 		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
 			var res = areaRepo.setArea(setup, authUserId, a);
 			return ResponseEntity.ok(res);
 		});

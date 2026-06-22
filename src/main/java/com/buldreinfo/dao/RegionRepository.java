@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Grade;
 import com.buldreinfo.model.LatLng;
@@ -33,11 +34,41 @@ public class RegionRepository extends BaseRepository {
 	private record CacheEntry(List<Setup> data, long expiry) {}
 	private static final Logger logger = LogManager.getLogger();
 	private final AtomicReference<CacheEntry> cache = new AtomicReference<>();
-	private final GeoRepository geoRepo;
 
-	public RegionRepository(ClimbingTransactionManager txManager, GeoRepository geoRepo) {
+	public RegionRepository(ClimbingTransactionManager txManager) {
 		super(txManager);
-		this.geoRepo = geoRepo;
+	}
+
+	public void ensureAdminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		var c = txManager.getConnection();
+		var ok = false;
+		try (var ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElseThrow());
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
+	}
+
+	public void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
+		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		var c = txManager.getConnection();
+		var ok = false;
+		try (var ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
+			ps.setInt(1, setup.idRegion());
+			ps.setInt(2, authUserId.orElseThrow());
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					ok = rst.getBoolean("superadmin_write");
+				}
+			}
+		}
+		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 
 	public List<Integer> getFaYears(int regionId) throws SQLException {
@@ -116,12 +147,12 @@ public class RegionRepository extends BaseRepository {
 		}
 		return res;
 	}
-
+	
 	private List<Setup> fetchSetupsFromDb() throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Setup>();
 		var c = txManager.getConnection();
-		var compassDirections = geoRepo.getCompassDirections();
+		var compassDirections = getCompassDirections();
 		var converterCache = new HashMap<Integer, GradeConverter>();
 		String sql = """
 				SELECT DISTINCT r.id, r.title, r.description, r.url, r.latitude, r.longitude, r.default_zoom, t.group, tgs.grade_system_id
@@ -156,6 +187,21 @@ public class RegionRepository extends BaseRepository {
 			}
 		}
 		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), stopwatch);
+		return res;
+	}
+
+	private List<CompassDirection> getCompassDirections() throws SQLException {
+		var c = txManager.getConnection();
+		var res = new ArrayList<CompassDirection>();
+		try (var ps = c.prepareStatement("SELECT id, direction FROM compass_direction ORDER BY id")) {
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					var direction = rst.getString("direction");
+					res.add(new CompassDirection(id, direction));
+				}
+			}
+		}
 		return res;
 	}
 
@@ -209,37 +255,5 @@ public class RegionRepository extends BaseRepository {
 		}
 		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}, duration={}", idRegions.size(), res.size(), stopwatch);
 		return res;
-	}
-
-	protected void ensureAdminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		var c = txManager.getConnection();
-		var ok = false;
-		try (var ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElseThrow());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
-	}
-
-	protected void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		var c = txManager.getConnection();
-		var ok = false;
-		try (var ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElseThrow());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("superadmin_write");
-				}
-			}
-		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
 	}
 }

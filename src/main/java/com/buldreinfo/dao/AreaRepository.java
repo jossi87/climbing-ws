@@ -46,7 +46,6 @@ public class AreaRepository extends BaseRepository {
 	private final GeoRepository geoRepo;
 	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
 	private final ObjectProvider<MediaRepository> mediaRepo;
-	private final ObjectProvider<RegionRepository> regionRepo;
 	private final ObjectProvider<SectorRepository> sectorRepo;
 
 	public AreaRepository(ClimbingTransactionManager txManager,
@@ -54,14 +53,12 @@ public class AreaRepository extends BaseRepository {
 			GeoRepository geoRepo,
 			ObjectProvider<HierarchyRepository> hierarchyRepo,
 			ObjectProvider<MediaRepository> mediaRepo,
-			ObjectProvider<RegionRepository> regionRepo,
 			ObjectProvider<SectorRepository> sectorRepo) {
 		super(txManager);
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoRepo = geoRepo;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaRepo = mediaRepo;
-		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
 	}
 
@@ -265,7 +262,6 @@ public class AreaRepository extends BaseRepository {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
 		var c = txManager.getConnection();
-		regionRepo.getObject().ensureAdminWriteRegion(s, authUserId);
 		int idArea = -1;
 		final var isLockedAdmin = a.lockedSuperadmin() ? false : a.lockedAdmin();
 		var setPermissionRecursive = false;

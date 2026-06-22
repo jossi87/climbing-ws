@@ -56,18 +56,15 @@ public class MediaRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private final ActivityRepository activityRepo;
 	private final ObjectProvider<ProblemRepository> problemRepo;
-	private final ObjectProvider<RegionRepository> regionRepo;
 	private final ObjectProvider<UserRepository> userRepo;
 
 	public MediaRepository(ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
-			ObjectProvider<RegionRepository> regionRepo,
 			ObjectProvider<UserRepository> userRepo) {
 		super(txManager);
 		this.activityRepo = activityRepo;
 		this.problemRepo = problemRepo;
-		this.regionRepo = regionRepo;
 		this.userRepo = userRepo;
 	}
 
@@ -759,8 +756,7 @@ public class MediaRepository extends BaseRepository {
 		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
 	}
 
-	public void upsertMediaSvg(Setup setup, Optional<Integer> authUserId, Media m) throws SQLException {
-		regionRepo.getObject().ensureAdminWriteRegion(setup, authUserId);
+	public void upsertMediaSvg(Media m) throws SQLException {
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("DELETE FROM media_svg WHERE media_id=?")) {
 			ps.setInt(1, m.identity().id());

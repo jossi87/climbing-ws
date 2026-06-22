@@ -63,12 +63,10 @@ public class UserRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private static final int USER_ID_UNKNOWN = 1049;
 	private final ObjectProvider<MediaRepository> mediaRepo;
-	private final ObjectProvider<RegionRepository> regionRepo;
 	
-	public UserRepository(ClimbingTransactionManager txManager, ObjectProvider<MediaRepository> mediaRepo, ObjectProvider<RegionRepository> regionRepo) {
+	public UserRepository(ClimbingTransactionManager txManager, ObjectProvider<MediaRepository> mediaRepo) {
 		super(txManager);
 		this.mediaRepo = mediaRepo;
-		this.regionRepo = regionRepo;
 	}
 	
 	public void ensureUserExists(int userId) throws SQLException {
@@ -237,7 +235,6 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	public List<PermissionUser> getPermissions(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		regionRepo.getObject().ensureAdminWriteRegion(setup, authUserId);
 		var res = new ArrayList<PermissionUser>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -1123,8 +1120,7 @@ public class UserRepository extends BaseRepository {
 		}
 	}
 
-	public void upsertPermissionUser(Setup setup, Optional<Integer> authUserId, PermissionUser u) throws SQLException {
-		regionRepo.getObject().ensureAdminWriteRegion(setup, authUserId);
+	public void upsertPermissionUser(Setup setup, PermissionUser u) throws SQLException {
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("INSERT INTO user_region (user_id, region_id, admin_read, admin_write, superadmin_read, superadmin_write) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE admin_read=?, admin_write=?, superadmin_read=?, superadmin_write=?")) {
 			ps.setInt(1, u.userId());
