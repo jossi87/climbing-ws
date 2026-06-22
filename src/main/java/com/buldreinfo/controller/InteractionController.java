@@ -172,8 +172,9 @@ public class InteractionController extends BaseController {
 	@SecurityRequirement(name = "Bearer Authentication")
 	@PostMapping(value = "/comments", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> postComments(HttpServletRequest request, @RequestBody Comment co) throws Exception {
-		if (co == null || co.idProblem() <= 0 || co.comment() == null || co.comment().strip().isEmpty())
+		if (co == null || co.idProblem() <= 0 || (!co.delete() && (co.comment() == null || co.comment().strip().isEmpty()))) {
 			return createBadRequestResponse("Comment payload invalid");
+		}
 		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> problemRepo.upsertComment(authUserId, setup, co)));
 	}
 
