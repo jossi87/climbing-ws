@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
@@ -27,9 +28,11 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/elevation")
 public class ElevationController extends BaseController {
+	private final AppConfig appConfig;
 
-	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo) {
+	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo, AppConfig appConfig) {
 		super(txManager, regionRepo);
+		this.appConfig = appConfig;
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
@@ -59,7 +62,7 @@ public class ElevationController extends BaseController {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 			}
 
-			int elevation = GeoHelper.getElevation(latitude, longitude);
+			int elevation = GeoHelper.getElevation(appConfig, latitude, longitude);
 			return ResponseEntity.ok(String.valueOf(elevation));
 		});
 	}

@@ -20,10 +20,12 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.io.ImageHelper;
 import com.buldreinfo.io.StorageManager;
+import com.buldreinfo.service.ImageClassifierService;
 
 public class FixMedia {
 	private record MediaTask(int id, String embedUrl) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final ImageClassifierService imageClassifierService;
 	private final StorageManager storage;
 	private final ClimbingTransactionManager txManager;
 	private final MediaRepository mediaRepo;
@@ -34,7 +36,8 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	protected FixMedia(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+	protected FixMedia(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.imageClassifierService = imageClassifierService;
 		this.storage = storage;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
@@ -82,7 +85,7 @@ public class FixMedia {
 		if (!Files.exists(originalJpg)) {
 			txManager.executeInTransaction(() -> {
                 try {
-                    ImageHelper.saveImageFromEmbedVideo(storage, txManager, mediaRepo, id, embedUrl);
+                    ImageHelper.saveImageFromEmbedVideo(imageClassifierService, storage, txManager, mediaRepo, id, embedUrl);
                     return null;
                 } catch (Exception e) {
                     throw new RuntimeException(e);

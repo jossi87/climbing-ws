@@ -1,4 +1,4 @@
-package com.buldreinfo.helpers;
+package com.buldreinfo.service;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,24 +14,26 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 
+import com.buldreinfo.config.AppConfig;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-public class ApifyInstagramResolver {
+@Service
+public class InstagramService {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
-	private static final Logger logger = LoggerFactory.getLogger(ApifyInstagramResolver.class);
-	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-			.connectTimeout(Duration.ofSeconds(15))
-			.build();
+	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
 	private static final Gson GSON = new GsonBuilder()
 			.disableHtmlEscaping()
 			.create();
-	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
-
+	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+			.connectTimeout(Duration.ofSeconds(15))
+			.build();
+	private static final Logger logger = LoggerFactory.getLogger(InstagramService.class);
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
 		if (cleanUrl.endsWith("/")) {
@@ -45,8 +47,23 @@ public class ApifyInstagramResolver {
 		}
 		return "unknown";
 	}
+	public static URI validateInstagramCdnUrl(String urlString) {
+		if (urlString == null) {
+			throw new IllegalArgumentException("URL cannot be null");
+		}
+		var matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
+		if (!matcher.matches()) {
+			throw new IllegalArgumentException("Unauthorized or malicious media storage URL");
+		}
+		return URI.create(matcher.group(0));
+	}
+	private final AppConfig appConfig;
 
-	public static List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
+	public InstagramService(AppConfig appConfig) {
+		this.appConfig = appConfig;
+	}
+
+	public List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
 		if (instagramUrl == null || !instagramUrl.matches("^(https?://)?(www\\.)?instagram\\.com/(p|reel|tv)/.+")) {
 			throw new IllegalArgumentException("Invalid Instagram media URL format");
 		}
@@ -57,7 +74,7 @@ public class ApifyInstagramResolver {
 			instagramUrl = instagramUrl.substring(0, instagramUrl.length() - 1);
 		}
 
-		String apiToken = com.buldreinfo.config.BuldreinfoConfig.getConfig().getProperty(com.buldreinfo.config.BuldreinfoConfig.PROPERTY_KEY_APIFY_API_TOKEN);
+		String apiToken = appConfig.apifyApiToken();
 		String startUrl = "https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/runs?token=" + apiToken;
 
 		JsonObject inputJson = new JsonObject();
@@ -140,16 +157,5 @@ public class ApifyInstagramResolver {
 			throw new IOException("No download_url found in Apify response payload for URL: " + instagramUrl);
 		}
 		return mediaList;
-	}
-
-	public static URI validateInstagramCdnUrl(String urlString) {
-		if (urlString == null) {
-			throw new IllegalArgumentException("URL cannot be null");
-		}
-		var matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
-		if (!matcher.matches()) {
-			throw new IllegalArgumentException("Unauthorized or malicious media storage URL");
-		}
-		return URI.create(matcher.group(0));
 	}
 }

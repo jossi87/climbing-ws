@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.xml.VegvesenParser;
-import com.buldreinfo.xml.Webcam;
+import com.buldreinfo.service.VegvesenService;
+import com.buldreinfo.service.VegvesenService.Webcam;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -25,9 +25,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/webcams")
 public class WebcamsController extends BaseController {
+	private final VegvesenService vegvesenService;
 
-    public WebcamsController(ClimbingTransactionManager txManager, RegionRepository regionRepo) {
+    public WebcamsController(ClimbingTransactionManager txManager, RegionRepository regionRepo, VegvesenService vegvesenService) {
         super(txManager, regionRepo);
+        this.vegvesenService = vegvesenService;
     }
 
     @Operation(summary = "Get webcams", responses = {
@@ -36,7 +38,6 @@ public class WebcamsController extends BaseController {
     })
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Webcam>> getCameras() throws Exception {
-        VegvesenParser vegvesenParser = new VegvesenParser();
-        return ResponseEntity.ok(vegvesenParser.getCameras());
+        return ResponseEntity.ok(vegvesenService.getCameras());
     }
 }

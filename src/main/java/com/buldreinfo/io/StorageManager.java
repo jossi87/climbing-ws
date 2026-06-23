@@ -23,7 +23,7 @@ import javax.imageio.stream.ImageOutputStream;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.config.BuldreinfoConfig;
+import com.buldreinfo.config.AppConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -56,12 +56,10 @@ public final class StorageManager {
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L; 
 	private static final String PROXY_PATH = "/media-proxy/";
-
 	public static String getDirectStorageUrl(String objectKey) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
 		return "https://climbing-web.se-sto-1.linodeobjects.com/" + cleanKey;
 	}
-
 	public static String getPublicUrl(String objectKey, long versionStamp) {
 		String cleanKey = (objectKey != null && objectKey.startsWith("/")) ? objectKey.substring(1) : objectKey;
 		StringBuilder url = new StringBuilder(PROXY_PATH).append(cleanKey);
@@ -70,24 +68,27 @@ public final class StorageManager {
 		}
 		return url.toString();
 	}
-
+	private final AppConfig appConfig;
 	private final Cache<String, Boolean> existsCache = CacheBuilder.newBuilder()
 			.maximumSize(50000)
 			.expireAfterWrite(Duration.ofMinutes(15))
 			.build();
-
 	private S3Client s3Client;
-
 	private S3Presigner s3Presigner;
+
+	public StorageManager(AppConfig appConfig) {
+		this.appConfig = appConfig;
+	}
+
 	@PreDestroy
-    public void cleanup() {
-        if (s3Client != null) {
-            s3Client.close();
-        }
-        if (s3Presigner != null) {
-            s3Presigner.close();
-        }
-    }
+	public void cleanup() {
+		if (s3Client != null) {
+			s3Client.close();
+		}
+		if (s3Presigner != null) {
+			s3Presigner.close();
+		}
+	}
 
 	public byte[] downloadBytes(String objectKey) throws IOException {
 		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
@@ -156,13 +157,8 @@ public final class StorageManager {
 	}
 
 	@PostConstruct
-    public void init() {
-		BuldreinfoConfig config = BuldreinfoConfig.getConfig();
-		AwsBasicCredentials credentials = AwsBasicCredentials.create(
-				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_ACCESS_KEY), 
-				config.getProperty(BuldreinfoConfig.PROPERTY_KEY_AKAMAI_SECRET_KEY)
-				);
-
+	public void init() {
+		AwsBasicCredentials credentials = AwsBasicCredentials.create(appConfig.akamaiAccessKey(), appConfig.akamaiSecretKey());
 		StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
 		URI endpointUri = URI.create("https://se-sto-1.linodeobjects.com");
 		Region region = Region.of("se-sto-1");

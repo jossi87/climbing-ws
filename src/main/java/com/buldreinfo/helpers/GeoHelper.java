@@ -19,7 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.config.BuldreinfoConfig;
+import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.google.common.base.Preconditions;
@@ -110,7 +110,7 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	public static void fillMissingElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
+	public static void fillMissingElevations(AppConfig appConfig, List<Coordinates> allCoordinates) throws IOException, InterruptedException {
 		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
 			String locations = null;
 			for (Coordinates coord : coordinates) {
@@ -125,7 +125,7 @@ public class GeoHelper {
 			locations = URLEncoder.encode(locations, StandardCharsets.UTF_8); // Encode pipe to avoid java.lang.IllegalArgumentException: Illegal character in query at index 88
 			double latitude = 0, longitude = 0, elevation = 0;
 			try (HttpClient client = HttpClient.newHttpClient()) {
-				String apiKey = BuldreinfoConfig.getConfig().getProperty(BuldreinfoConfig.PROPERTY_KEY_GOOGLE_APIKEY);
+				String apiKey = appConfig.googleApikey();
 				HttpRequest request = HttpRequest.newBuilder()
 						.uri(URI.create(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey)))
 						.GET()
@@ -188,11 +188,11 @@ public class GeoHelper {
 		logger.debug("fillMissingElevations(allCoordinates.size()={}) - success", allCoordinates.size());
 	}
 	
-	public static int getElevation(double latitude, double longitude) throws IOException, InterruptedException {
+	public static int getElevation(AppConfig appConfig, double latitude, double longitude) throws IOException, InterruptedException {
 		List<Coordinates> coordinates = new ArrayList<>();
 		coordinates.add(new Coordinates(latitude, longitude));
 		coordinates.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
-		GeoHelper.fillMissingElevations(coordinates);
+		GeoHelper.fillMissingElevations(appConfig, coordinates);
 		return (int)Math.round(coordinates.getFirst().getElevation());
 	}
 	

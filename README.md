@@ -37,8 +37,8 @@ To enable map exports and PDF generation, ensure the **[climbing-leaflet-rendere
 
 ### 3. Application Setup
 
-1. **Configure:** Create `src/main/resources/com/buldreinfo/config/buldreinfo.properties` (use `.example` as a template).
-2. **Build & Run:** Run the main method in Application.java directly from your IDE.
+1. **Configure:** Create `src/main/resources/application-dev.properties` by copying `application-dev.properties.example` and filling in your local secrets. This file is ignored by Git.
+2. **Build & Run:** Build & Run: Run the main method in `Application.java` directly from your IDE. The `dev` profile is loaded automatically by default.
 
 ### :traffic_light: Testing
 

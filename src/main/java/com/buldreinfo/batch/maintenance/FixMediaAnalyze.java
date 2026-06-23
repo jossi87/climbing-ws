@@ -17,10 +17,11 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.dao.MediaRepository;
-import com.buldreinfo.helpers.ImageClassifier;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.service.ImageClassifierService;
 
 public class FixMediaAnalyze {
+	private final ImageClassifierService imageClassifierService;
 	private final ClimbingTransactionManager txManager;
     private final MediaRepository mediaRepo;
     private final Path localBucketRoot;
@@ -29,8 +30,9 @@ public class FixMediaAnalyze {
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-    public FixMediaAnalyze(Path localBucketRoot, ClimbingTransactionManager txManager, MediaRepository mediaRepo) {
+    public FixMediaAnalyze(Path localBucketRoot, ImageClassifierService imageClassifierService, ClimbingTransactionManager txManager, MediaRepository mediaRepo) {
     	this.localBucketRoot = localBucketRoot;
+    	this.imageClassifierService = imageClassifierService;
     	this.txManager = txManager;
         this.mediaRepo = mediaRepo;
     }
@@ -126,7 +128,7 @@ public class FixMediaAnalyze {
     public void processTask(Task t) throws Exception {
         try {
             Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(t.id));
-            var result = ImageClassifier.analyze(Files.readAllBytes(originalJpg));
+            var result = imageClassifierService.analyze(Files.readAllBytes(originalJpg));
             txManager.executeInTransaction(() -> {
                 try {
                     mediaRepo.saveMediaAnalysis(t.id, t.width, t.height, result.hexColor(), result.labels(), result.objects(), false);

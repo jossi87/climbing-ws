@@ -1,0 +1,9 @@
+buldreinfo.db.hostname=127.0.0.1
+buldreinfo.db.database=climbing
+buldreinfo.db.username=root
+buldreinfo.db.password=YOUR_PASSWORD
+buldreinfo.google-apikey=WhateverYouWant
+buldreinfo.vegvesen-auth=WhateverYouWant
+buldreinfo.akamai-access-key=WhateverYouWant
+buldreinfo.akamai-secret-key=WhateverYouWant
+buldreinfo.apify-api-token=WhateverYouWant

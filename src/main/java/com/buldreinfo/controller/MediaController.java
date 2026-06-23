@@ -36,7 +36,6 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.helpers.ApifyInstagramResolver;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -48,6 +47,8 @@ import com.buldreinfo.io.VideoHelper;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.VideoInitPayload;
 import com.buldreinfo.model.VideoInitResponse;
+import com.buldreinfo.service.InstagramService;
+import com.buldreinfo.service.ImageClassifierService;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 
@@ -74,13 +75,17 @@ public class MediaController extends BaseController {
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
+	private final ImageClassifierService imageClassifierService;
+	private final InstagramService instagramService;
 
-	public MediaController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo,  RegionRepository regionRepo) {
+	public MediaController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, ImageClassifierService imageClassifierService, InstagramService instagramService) {
 		super(txManager, regionRepo);
 		this.storage = storage;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
+		this.imageClassifierService = imageClassifierService;
+		this.instagramService = instagramService;
 	}
 
 	@Operation(summary = "Move media to trash", responses = {
@@ -235,7 +240,7 @@ public class MediaController extends BaseController {
 			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
 			@RequestBody Media mediaPayload) throws Exception {
 		Preconditions.checkArgument(mediaPayload != null, "Media payload missing");
-		URI validatedUri = ApifyInstagramResolver.validateInstagramCdnUrl(selectedCdnUrl);
+		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			if (mediaRepo.getDailyInstagramScrapeCount(ctx.authUserId()) > 50)
 				throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
@@ -250,15 +255,15 @@ public class MediaController extends BaseController {
 							videoData = storage.readBoundedStream(is);
 						} catch (IOException e) {
 							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
-							List<ApifyInstagramResolver.InstagramMedia> fresh = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
-							ApifyInstagramResolver.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+							List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
+							InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 							txManager.executeInTransaction(() -> { mediaRepo.logInstagramScrape(ctx.authUserId(), mediaPayload.embedUrl(), fresh.size()); return null; });
-							try (InputStream is = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
+							try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
 								videoData = storage.readBoundedStream(is);
 							}
 						}
 						storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
-						VideoHelper.processVideo(storage, txManager, mediaRepo, id, mediaPayload.thumbnailSeconds());
+						VideoHelper.processVideo(imageClassifierService, storage, txManager, mediaRepo, id, mediaPayload.thumbnailSeconds());
 					} catch (Exception e) { throw new RuntimeException(e); }
 					return null;
 				}).exceptionally(ex -> { logger.error("Async video save failed", ex); return null; });
@@ -270,10 +275,10 @@ public class MediaController extends BaseController {
 				imageData = storage.readBoundedStream(is);
 			} catch (IOException e) {
 				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
-				List<ApifyInstagramResolver.InstagramMedia> fresh = ApifyInstagramResolver.resolveMedia(mediaPayload.embedUrl());
-				ApifyInstagramResolver.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+				List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
+				InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 				mediaRepo.logInstagramScrape(ctx.authUserId(), mediaPayload.embedUrl(), fresh.size());
-				try (InputStream is = ApifyInstagramResolver.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
+				try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
 					imageData = storage.readBoundedStream(is);
 				}
 			}
@@ -284,7 +289,7 @@ public class MediaController extends BaseController {
 	}
 
 	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ApifyInstagramResolver.InstagramMedia.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = InstagramService.InstagramMedia.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
@@ -292,12 +297,12 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/instagram-scrape")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<List<ApifyInstagramResolver.InstagramMedia>> postMediaInstagramScrape(HttpServletRequest request, @RequestParam(name = "url") String url) throws Exception {
+	public ResponseEntity<List<InstagramService.InstagramMedia>> postMediaInstagramScrape(HttpServletRequest request, @RequestParam(name = "url") String url) throws Exception {
 		if (url == null || url.isBlank()) throw new ValidationFailedException("Instagram URL is required");
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			if (mediaRepo.getDailyInstagramScrapeCount(ctx.authUserId()) > 50)
 				throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
-			List<ApifyInstagramResolver.InstagramMedia> list = ApifyInstagramResolver.resolveMedia(url);
+			List<InstagramService.InstagramMedia> list = instagramService.resolveMedia(url);
 			mediaRepo.logInstagramScrape(ctx.authUserId(), url, list.size());
 			return list;
 		}));
@@ -337,7 +342,7 @@ public class MediaController extends BaseController {
 			Media m = mediaRepo.getMedia(ctx.authUserId(), id);
 			Preconditions.checkArgument(m.isMovie(), "Target is not a video");
 			Preconditions.checkArgument(m.uploadedByMe(), "Permission denied");
-			supplyAsync(() -> { VideoHelper.processVideo(storage, txManager, mediaRepo, id, m.thumbnailSeconds()); return null; })
+			supplyAsync(() -> { VideoHelper.processVideo(imageClassifierService, storage, txManager, mediaRepo, id, m.thumbnailSeconds()); return null; })
 			.exceptionally(ex -> { logger.error("Async video error for id=" + id, ex); return null; });
 			return null;
 		});
@@ -361,7 +366,7 @@ public class MediaController extends BaseController {
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			int newId = mediaRepo.addMediaVideoEmbed(ctx.authUserId(), media, StorageType.MP4);
-			supplyAsync(() -> { ImageHelper.saveImageFromEmbedVideo(storage, txManager, mediaRepo, newId, media.embedUrl()); return null; })
+			supplyAsync(() -> { ImageHelper.saveImageFromEmbedVideo(imageClassifierService, storage, txManager, mediaRepo, newId, media.embedUrl()); return null; })
 			.exceptionally(ex -> { logger.error("Async embed thumbnail failed for id=" + newId, ex); return null; });
 			return mediaRepo.getMedia(ctx.authUserId(), newId);
 		}));

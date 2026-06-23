@@ -29,7 +29,6 @@ import org.springframework.stereotype.Repository;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.helpers.ApifyInstagramResolver;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.JdbcUtils;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
@@ -41,6 +40,8 @@ import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
+import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.InstagramService;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.common.base.Preconditions;
@@ -57,17 +58,20 @@ public class MediaRepository extends BaseRepository {
 	private final ActivityRepository activityRepo;
 	private final ObjectProvider<ProblemRepository> problemRepo;
 	private final UserRepository userRepo;
+	private final ImageClassifierService imageClassifierService;
 
 	public MediaRepository(StorageManager storage,
 			ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
-			UserRepository userRepo) {
+			UserRepository userRepo,
+			ImageClassifierService imageClassifierService) {
 		super(txManager);
 		this.storage = storage;
 		this.activityRepo = activityRepo;
 		this.problemRepo = problemRepo;
 		this.userRepo = userRepo;
+		this.imageClassifierService = imageClassifierService;
 	}
 
 	public int addMediaImage(Optional<Integer> authUserId, Media m, StorageType storageType, Supplier<InputStream> inputStreamSupplier) throws Exception {
@@ -86,7 +90,7 @@ public class MediaRepository extends BaseRepository {
 		}
 		try (var is = inputStreamSupplier.get()) {
 			var bytes = storage.readBoundedStream(is);
-			ImageHelper.saveImage(storage, txManager, this, idMedia, bytes);
+			ImageHelper.saveImage(imageClassifierService, storage, txManager, this, idMedia, bytes);
 		}
 		return idMedia;
 	}
@@ -474,7 +478,7 @@ public class MediaRepository extends BaseRepository {
 		var sql = "INSERT INTO instagram_scrape_log (user_id, shortcode, original_url, slide_count) VALUES (?, ?, ?, ?)";
 		try (var ps = c.prepareStatement(sql)) {
 			ps.setInt(1, authUserId.orElseThrow());
-			ps.setString(2, ApifyInstagramResolver.extractInstagramShortcode(originalUrl));
+			ps.setString(2, InstagramService.extractInstagramShortcode(originalUrl));
 			ps.setString(3, originalUrl);
 			ps.setInt(4, slideCount);
 			ps.executeUpdate();
@@ -489,7 +493,7 @@ public class MediaRepository extends BaseRepository {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
-		ImageHelper.rotateImage(storage, txManager, this, idMedia, r);
+		ImageHelper.rotateImage(imageClassifierService, storage, txManager, this, idMedia, r);
 	}
 
 	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
@@ -739,7 +743,7 @@ public class MediaRepository extends BaseRepository {
 			var tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
 			try {
 				storage.downloadFile(originalMp4Key, tempOriginal);
-				VideoHelper.extractThumbnail(storage, txManager, this, mediaId, tempOriginal, m.thumbnailSeconds());
+				VideoHelper.extractThumbnail(imageClassifierService, storage, txManager, this, mediaId, tempOriginal, m.thumbnailSeconds());
 				S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
 			} finally {
 				Files.deleteIfExists(tempOriginal);
