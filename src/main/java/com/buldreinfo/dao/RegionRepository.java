@@ -8,14 +8,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GradeConverter;
+import com.buldreinfo.infrastructure.CacheConstants;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
@@ -31,9 +32,7 @@ import com.google.common.collect.Multimap;
 
 @Repository
 public class RegionRepository extends BaseRepository {
-	private record CacheEntry(List<Setup> data, long expiry) {}
 	private static final Logger logger = LogManager.getLogger();
-	private final AtomicReference<CacheEntry> cache = new AtomicReference<>();
 
 	public RegionRepository(ClimbingTransactionManager txManager) {
 		super(txManager);
@@ -116,39 +115,8 @@ public class RegionRepository extends BaseRepository {
 		return Lists.newArrayList(regionLookup.values());
 	}
 
-	public List<Setup> getSetups() throws Exception {
-		CacheEntry current = cache.get();
-		if (current == null || System.currentTimeMillis() > current.expiry()) {
-			synchronized (this) {
-				current = cache.get();
-				if (current == null || System.currentTimeMillis() > current.expiry()) {
-					List<Setup> freshData = fetchSetupsFromDb();
-					current = new CacheEntry(freshData, System.currentTimeMillis() + 60_000);
-					cache.set(current);
-				}
-			}
-		}
-		return current.data();
-	}
-
-	public List<Type> getTypes(int regionId) throws SQLException {
-		var res = new ArrayList<Type>();
-		var c = txManager.getConnection();
-		try (var ps = c.prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
-			ps.setInt(1, regionId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					var type = rst.getString("type");
-					var subtype = rst.getString("subtype");
-					res.add(new Type(id, type, subtype));
-				}
-			}
-		}
-		return res;
-	}
-	
-	private List<Setup> fetchSetupsFromDb() throws SQLException {
+	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'setups'")
+	public List<Setup> getSetups() throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Setup>();
 		var c = txManager.getConnection();
@@ -187,6 +155,23 @@ public class RegionRepository extends BaseRepository {
 			}
 		}
 		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), stopwatch);
+		return res;
+	}
+
+	public List<Type> getTypes(int regionId) throws SQLException {
+		var res = new ArrayList<Type>();
+		var c = txManager.getConnection();
+		try (var ps = c.prepareStatement("SELECT t.id, t.type, t.subtype FROM type t, region_type rt WHERE t.id=rt.type_id AND rt.region_id=? GROUP BY t.id, t.type, t.subtype ORDER BY t.id, t.type, t.subtype")) {
+			ps.setInt(1, regionId);
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					int id = rst.getInt("id");
+					var type = rst.getString("type");
+					var subtype = rst.getString("subtype");
+					res.add(new Type(id, type, subtype));
+				}
+			}
+		}
 		return res;
 	}
 
