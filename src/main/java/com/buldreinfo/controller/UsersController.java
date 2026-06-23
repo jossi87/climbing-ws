@@ -59,14 +59,12 @@ public class UsersController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/ticks", produces = OpenApiConstants.APPLICATION_XLSX)
 	public ResponseEntity<byte[]> getUsersTicks(HttpServletRequest request) throws Exception {
-		return executeContextualTask(request, ctx -> {
-			byte[] bytes = userRepo.getUserTicks(ctx.authUserId());
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
-					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-					.contentType(MediaType.parseMediaType(OpenApiConstants.APPLICATION_XLSX))
-					.body(bytes);
-		});
+		byte[] bytes = executeContextualTask(request, ctx -> userRepo.getUserTicks(ctx.authUserId()));
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
+				.body(bytes);
 	}
 
 	@Operation(summary = "Update visible regions", responses = {

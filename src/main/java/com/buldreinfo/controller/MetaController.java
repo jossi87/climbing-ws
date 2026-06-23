@@ -126,13 +126,10 @@ public class MetaController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/toc/xlsx", produces = OpenApiConstants.APPLICATION_XLSX)
 	public ResponseEntity<byte[]> getTocXlsx(HttpServletRequest request) throws Exception {
-		return executeContextualTask(request, ctx -> {
+		byte[] bytes = executeContextualTask(request, ctx -> {
 			var toc = hierarchyRepo.getToc(ctx.authUserId(), ctx.setup());
 			var pitches = hierarchyRepo.getTocPitches(ctx.authUserId(), ctx.setup());
-			byte[] bytes;
-
 			try (var workbook = new ExcelWorkbook()) {
-				// Sheet 1: Main TOC
 				try (var sheet = workbook.addSheet("TOC")) {
 					for (var r : toc.regions()) {
 						for (var a : r.areas()) {
@@ -168,8 +165,6 @@ public class MetaController extends BaseController {
 						}
 					}
 				}
-
-				// Sheet 2: Multipitch - Correctly scoped outside the first sheet block
 				if (!pitches.isEmpty()) {
 					try (var sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
 						for (var p : pitches) {
@@ -185,17 +180,16 @@ public class MetaController extends BaseController {
 						}
 					}
 				}
-
 				try (var os = new ByteArrayOutputStream()) {
 					workbook.write(os);
-					bytes = os.toByteArray();
+					return os.toByteArray();
 				}
 			}
-
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
-					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-					.body(bytes);
 		});
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
+				.body(bytes);
 	}
 }

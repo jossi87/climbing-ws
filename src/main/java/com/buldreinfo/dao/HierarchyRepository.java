@@ -328,119 +328,111 @@ public class HierarchyRepository extends BaseRepository {
 		var users = new ArrayList<Search>();
 		var areaIdsVisible = new HashSet<Integer>();
 		var sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? region_id, ? search_term
-				),
-				ranked_area_media AS (
-				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.is_movie, ma.sorting, m.id DESC) rn
-				   FROM media_area ma
-				   JOIN media m ON ma.media_id=m.id AND m.deleted_user_id IS NULL
-				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				),
-				ranked_sector_media AS (
-				   SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_movie, ms.sorting, m.id DESC) rn
-				   FROM media_sector ms
-				   JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
-				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				),
-				ranked_problem_media AS (
-				   SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				          ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.is_movie, mp.sorting, m.id DESC) rn
-				   FROM media_problem mp
-				   JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
-				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				   WHERE mp.trivia=0
-				)
-				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
-				        ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
-				        a.hits, NULL external_url,
-				        a.locked_admin, a.locked_superadmin
-				 FROM req
-				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-				 JOIN area a ON r.id=a.region_id
-				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE REPLACE(REPLACE(REPLACE(a.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				   AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				 GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
-				 ORDER BY a.hits DESC, a.name LIMIT 8)
-
-				UNION ALL
-
-				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
-				        ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
-				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
-				        a_ext.locked_admin, a_ext.locked_superadmin
-				 FROM req
-				 JOIN region_type rt ON rt.region_id=req.region_id
-				 JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
-				 JOIN region r_ext ON rt_ext.region_id=r_ext.id AND r_ext.id != req.region_id
-				 JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
-				              LEFT JOIN ranked_area_media ma_ext ON a_ext.id=ma_ext.area_id AND ma_ext.rn=1
-				 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
-				 WHERE ur_check.region_id IS NULL
-				   AND REPLACE(REPLACE(REPLACE(a_ext.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				 GROUP BY a_ext.id, r_ext.name, r_ext.url, ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
-				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-
-				UNION ALL
-
-				(SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
-				        COALESCE(ms.media_id,ma.media_id) media_id, COALESCE(ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
-				        s.hits, NULL external_url,
-				        s.locked_admin, s.locked_superadmin
-				 FROM req
-				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-				 JOIN area a ON r.id=a.region_id
-				 JOIN sector s ON a.id=s.area_id
-				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				 LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
-				              LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE REPLACE(REPLACE(REPLACE(s.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				   AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-				 GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
-				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
-				                      ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
-				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-
-				UNION ALL
-
-				(SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
-				        COALESCE(mp.media_id,ms.media_id,ma.media_id) media_id, COALESCE(mp.media_version_stamp,ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(mp.media_focus_x,ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(mp.media_focus_y,ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(mp.media_primary_color_hex,ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
-				        p.hits, NULL external_url,
-				        p.locked_admin, p.locked_superadmin
-				 FROM req
-				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-				 JOIN area a ON r.id=a.region_id
-				 JOIN sector s ON a.id=s.area_id
-				 JOIN problem p ON s.id=p.sector_id
-				 JOIN grade g ON p.consensus_grade_id = g.id
-				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-				 LEFT JOIN ranked_problem_media mp ON p.id=mp.problem_id AND mp.rn=1
-				              LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
-				              LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-				 WHERE (REPLACE(REPLACE(REPLACE(p.name, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term OR REPLACE(REPLACE(REPLACE(p.rock, '’', ''), '\\'', ''), ' ', '') LIKE req.search_term)
-				   AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				 GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
-				                      mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
-				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
-				                      ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
-				 ORDER BY p.hits DESC, p.name LIMIT 8)
-
-				UNION ALL
-
-				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
-				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				        0 hits, NULL external_url,
-				        0 locked_admin, 0 locked_superadmin
-				 FROM req
-				 JOIN user u ON REPLACE(REPLACE(REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '’', ''), '\\'', ''), ' ', '') LIKE req.search_term
-				 LEFT JOIN media m ON u.media_id=m.id
-				 LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
-				 		""";
+			    WITH req AS (
+			      SELECT ? auth_user_id, ? region_id, ? search_term
+			    ),
+			    ranked_area_media AS (
+			       SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+			              ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.is_movie, ma.sorting, m.id DESC) rn
+			       FROM media_area ma
+			       JOIN media m ON ma.media_id=m.id AND m.deleted_user_id IS NULL
+			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+			    ),
+			    ranked_sector_media AS (
+			       SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+			              ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_movie, ms.sorting, m.id DESC) rn
+			       FROM media_sector ms
+			       JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
+			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+			    ),
+			    ranked_problem_media AS (
+			       SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+			              ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.is_movie, mp.sorting, m.id DESC) rn
+			       FROM media_problem mp
+			       JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
+			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+			       WHERE mp.trivia=0
+			    )
+			    (SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
+			            ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
+			            a.hits, NULL external_url,
+			            a.locked_admin, a.locked_superadmin
+			     FROM req
+			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+			     JOIN area a ON r.id=a.region_id
+			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+			     WHERE REGEXP_REPLACE(a.name, '[^[:alnum:]]', '') LIKE req.search_term
+			       AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+			     GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
+			     ORDER BY a.hits DESC, a.name LIMIT 8)
+			    UNION ALL
+			    (SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
+			            ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
+			            a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
+			            a_ext.locked_admin, a_ext.locked_superadmin
+			     FROM req
+			     JOIN region_type rt ON rt.region_id=req.region_id
+			     JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
+			     JOIN region r_ext ON rt_ext.region_id=r_ext.id AND r_ext.id != req.region_id
+			     JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
+			     LEFT JOIN ranked_area_media ma_ext ON a_ext.id=ma_ext.area_id AND ma_ext.rn=1
+			     LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
+			     WHERE ur_check.region_id IS NULL
+			       AND REGEXP_REPLACE(a_ext.name, '[^[:alnum:]]', '') LIKE req.search_term
+			     GROUP BY a_ext.id, r_ext.name, r_ext.url, ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
+			     ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
+			    UNION ALL
+			    (SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
+			            COALESCE(ms.media_id,ma.media_id) media_id, COALESCE(ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
+			            s.hits, NULL external_url,
+			            s.locked_admin, s.locked_superadmin
+			     FROM req
+			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+			     JOIN area a ON r.id=a.region_id
+			     JOIN sector s ON a.id=s.area_id
+			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+			     LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
+			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+			     WHERE REGEXP_REPLACE(s.name, '[^[:alnum:]]', '') LIKE req.search_term
+			       AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+			     GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
+			                          ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
+			                          ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
+			     ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
+			    UNION ALL
+			    (SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
+			            COALESCE(mp.media_id,ms.media_id,ma.media_id) media_id, COALESCE(mp.media_version_stamp,ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(mp.media_focus_x,ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(mp.media_focus_y,ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(mp.media_primary_color_hex,ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
+			            p.hits, NULL external_url,
+			            p.locked_admin, p.locked_superadmin
+			     FROM req
+			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+			     JOIN area a ON r.id=a.region_id
+			     JOIN sector s ON a.id=s.area_id
+			     JOIN problem p ON s.id=p.sector_id
+			     JOIN grade g ON p.consensus_grade_id = g.id
+			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+			     LEFT JOIN ranked_problem_media mp ON p.id=mp.problem_id AND mp.rn=1
+			     LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
+			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+			     WHERE (REGEXP_REPLACE(p.name, '[^[:alnum:]]', '') LIKE req.search_term OR REGEXP_REPLACE(p.rock, '[^[:alnum:]]', '') LIKE req.search_term)
+			       AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+			     GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
+			                          mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
+			                          ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
+			                          ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
+			     ORDER BY p.hits DESC, p.name LIMIT 8)
+			    UNION ALL
+			    (SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
+			            m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+			            0 hits, NULL external_url,
+			            0 locked_admin, 0 locked_superadmin
+			     FROM req
+			     JOIN user u ON REGEXP_REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '[^[:alnum:]]', '') LIKE req.search_term
+			     LEFT JOIN media m ON u.media_id=m.id
+			     LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+			     ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
+			    """;
 		try (var ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, authUserId.orElse(0));
 			ps.setInt(2, setup.idRegion());

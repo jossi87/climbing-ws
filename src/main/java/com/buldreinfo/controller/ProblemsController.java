@@ -18,7 +18,6 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.io.StorageManager;
@@ -84,38 +83,35 @@ public class ProblemsController extends BaseController {
 	}
 
 	@Operation(summary = "Get problem PDF by id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	        @ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+	        @ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	@GetMapping(value = "/pdf", produces = OpenApiConstants.APPLICATION_PDF)
+	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
 	public ResponseEntity<?> getProblemsPdf(HttpServletRequest request, 
-			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-
-		return executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			final var problem = problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, false, shouldUpdateHits);
-			final var area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), problem.areaId(), shouldUpdateHits);
-			final var sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), problem.sectorId(), shouldUpdateHits);
-
-			StreamingResponseBody stream = output -> {
-				try (var generator = new PdfGenerator(storage, output)) {
-					generator.writeProblem(ctx.setup(), area, sector, problem);
-				} catch (Exception e) {
-					logger.error(e.getMessage(), e);
-					throw new RuntimeException(e.getMessage(), e);
-				}
-			};
-
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(problem.name(), "pdf")))
-					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-					.contentType(MediaType.APPLICATION_PDF)
-					.body(stream);
-		});
+	        @Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) throws Exception {
+	    if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
+	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
+	        final var problem = problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, false, shouldUpdateHits);
+	        final var area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), problem.areaId(), shouldUpdateHits);
+	        final var sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), problem.sectorId(), shouldUpdateHits);
+	        return (StreamingResponseBody) output -> {
+	            try (var generator = new PdfGenerator(storage, output)) {
+	                generator.writeProblem(ctx.setup(), area, sector, problem);
+	            } catch (Exception e) {
+	                logger.error(e.getMessage(), e);
+	                throw new RuntimeException(e.getMessage(), e);
+	            }
+	        };
+	    });
+	    return ResponseEntity.ok()
+	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"problem.pdf\"")
+	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+	            .contentType(MediaType.APPLICATION_PDF)
+	            .body(stream);
 	}
 
 	@Operation(summary = "Search for problem", responses = {

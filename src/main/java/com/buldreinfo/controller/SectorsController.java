@@ -19,7 +19,6 @@ import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.io.StorageManager;
@@ -79,38 +78,34 @@ public class SectorsController extends BaseController {
 	}
 
 	@Operation(summary = "Get sector PDF by id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF)}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	        @ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE)}),
+	        @ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+	        @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	@GetMapping(value = "/pdf", produces = OpenApiConstants.APPLICATION_PDF)
-	public ResponseEntity<?> getSectorsPdf(HttpServletRequest request, 
-			@Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-
-		return executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			final Sector sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), id, shouldUpdateHits);
-			final var gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), 0, id);
-			final Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), sector.areaId(), shouldUpdateHits);
-
-			StreamingResponseBody stream = output -> {
-				try (PdfGenerator generator = new PdfGenerator(storage, output)) {
-					generator.writeArea(ctx.setup(), area, gradeDistribution, List.of(sector));
-				} catch (Exception e) {
-					logger.error(e.getMessage(), e);
-					throw new RuntimeException(e.getMessage(), e);
-				}
-			};
-
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(sector.name(), "pdf")))
-					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-					.contentType(MediaType.parseMediaType(OpenApiConstants.APPLICATION_PDF))
-					.body(stream);
-		});
+	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+	public ResponseEntity<?> getSectorsPdf(HttpServletRequest request, @Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
+	    if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
+	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
+	        final Sector sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), id, shouldUpdateHits);
+	        final var gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), 0, id);
+	        final Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), sector.areaId(), shouldUpdateHits);
+	        return (StreamingResponseBody) output -> {
+	            try (PdfGenerator generator = new PdfGenerator(storage, output)) {
+	                generator.writeArea(ctx.setup(), area, gradeDistribution, List.of(sector));
+	            } catch (Exception e) {
+	                logger.error(e.getMessage(), e);
+	                throw new RuntimeException(e.getMessage(), e);
+	            }
+	        };
+	    });
+	    return ResponseEntity.ok()
+	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"sector.pdf\"")
+	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+	            .contentType(MediaType.APPLICATION_PDF)
+	            .body(stream);
 	}
 
 	@Operation(summary = "Update sector", responses = {

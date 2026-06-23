@@ -22,7 +22,6 @@ import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.io.StorageManager;
@@ -83,19 +82,18 @@ public class AreasController extends BaseController {
 	}
 
 	@Operation(summary = "Get area PDF by id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_PDF, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	@GetMapping(value = "/pdf", produces = OpenApiConstants.APPLICATION_PDF)
-	public ResponseEntity<?> getAreasPdf(HttpServletRequest request, 
-			@Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
+	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+	public ResponseEntity<?> getAreasPdf(HttpServletRequest request, @Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
 		if (id <= 0) {
 			return createBadRequestResponse("Invalid area id=" + id);
 		}
-		return executeContextualTask(request, ctx -> {
+		StreamingResponseBody stream = executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
 			Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), id, shouldUpdateHits);
 			Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), area.id(), 0);
@@ -103,8 +101,7 @@ public class AreasController extends BaseController {
 			for (Area.AreaSector sector : area.sectors()) {
 				sectors.add(sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), sector.id(), shouldUpdateHits));
 			}
-
-			StreamingResponseBody stream = output -> {
+			return (StreamingResponseBody) output -> {
 				try (PdfGenerator generator = new PdfGenerator(storage, output)) {
 					generator.writeArea(ctx.setup(), area, gradeDistribution, sectors);
 				} catch (Exception e) {
@@ -112,13 +109,12 @@ public class AreasController extends BaseController {
 					throw new RuntimeException(e.getMessage(), e);
 				}
 			};
-
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename(area.name(), "pdf")))
-					.header("Access-Control-Expose-Headers", HttpHeaders.CONTENT_DISPOSITION)
-					.contentType(MediaType.APPLICATION_PDF)
-					.body(stream);
 		});
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"area.pdf\"")
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(stream);
 	}
 
 	@Operation(summary = "Update area", responses = {

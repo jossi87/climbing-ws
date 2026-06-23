@@ -58,7 +58,7 @@ public abstract class BaseController {
 	}
 
 	protected ResponseEntity<?> createBadRequestResponse(String message) {
-	    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
 	}
 
 	protected ResponseEntity<String> createNotFoundResponse() {

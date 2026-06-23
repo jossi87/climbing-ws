@@ -16,7 +16,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1294,174 +1293,172 @@ public class MediaRepository extends BaseRepository {
 	protected List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
-		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-			var sectorMediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> getMediaSector(s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia)), executor);
+		var sectorMediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> getMediaSector(s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia)), executor);
 
-			var pMediaList = new ArrayList<Media>();
-			var sql = """
-					WITH req AS (
-					    SELECT ? auth_user_id, ? problem_id
-					)
-					SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-					       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
-					       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, ROUND(mp.milliseconds/1000) seconds,
-					       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT('id', tu.id, 'name', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,'')))))
-					           FROM media_user tmu
-					           JOIN user tu ON tmu.user_id = tu.id
-					           WHERE tmu.media_id = m.id
-					       ) tagged_json,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', ma.area_id, 'areaName', a2.name, 'trivia', ma.trivia))
-					           FROM media_area ma
-					           JOIN area a2 ON ma.area_id = a2.id
-					           WHERE ma.media_id = m.id
-					       ) areas_json,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
-					           FROM media_sector ms
-					           JOIN sector s2 ON ms.sector_id = s2.id
-					           JOIN area a2 ON s2.area_id = a2.id
-					           WHERE ms.media_id = m.id
-					       ) sectors_json,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
-					               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
-					               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorName', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
-					           ))
-					           FROM media_problem mp2
-					           JOIN problem p2 ON mp2.problem_id = p2.id
-					           JOIN sector s2 ON p2.sector_id = s2.id
-					           JOIN area a2 ON s2.area_id = a2.id
-					           JOIN grade g ON p2.consensus_grade_id = g.id
-					           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-					           WHERE mp2.media_id = m.id
-					             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
-					       ) problems_json,
-					       (
-					            SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					                'trailId', t9.id,
-					                'trailTitle', t9.title,
-					                'sectors', (
-					                    SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					                        'areaId', a9_sub.id,
-					                        'areaName', a9_sub.name,
-					                        'sectorId', s9_sub.id,
-					                        'sectorName', s9_sub.name
-					                    ))
-					                    FROM sector_trail st9_sub
-					                    JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
-					                    JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
-					                    WHERE st9_sub.trail_id = t9.id
-					                )
-					            ))
-					            FROM media_trail mt9
-					            JOIN trail t9 ON mt9.trail_id = t9.id
-					            WHERE mt9.media_id = m.id
-					        ) trails_json,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					               'id', id, 'path', path, 'rappelX', rappel_x, 'rappelY', rappel_y, 'rappelBolted', rappel_bolted
-					           ))
-					           FROM media_svg
-					           WHERE media_id = m.id
-					       ) svgs_json,
-					       (
-					           SELECT JSON_ARRAYAGG(JSON_OBJECT(
-					               'id', s3.id,
-					               'problemId', p3.id,
-					               'problemName', p3.name,
-					               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
-					               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
-					               'problemSubtype', ty3.subtype,
-					               'nr', p3.nr,
-					               'pitch', COALESCE(ps3.nr, 0),
-					               'path', s3.path,
-					               'hasAnchor', s3.has_anchor,
-					               'texts', s3.texts,
-					               'anchors', s3.anchors,
-					               'tradBelayStations', s3.trad_belay_stations,
-					               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
-					               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
-					               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
-					               'dangerous', COALESCE((
-					                   SELECT gb3.danger 
-					                   FROM guestbook gb3 
-					                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
-					                   ORDER BY gb3.id DESC LIMIT 1
-					               ), 0) = 1
-					           ))
-					           FROM svg s3
-					           JOIN problem p3 ON s3.problem_id = p3.id
-					           JOIN grade g3 ON p3.consensus_grade_id = g3.id
-					           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
-					           JOIN type ty3 ON p3.type_id = ty3.id
-					           JOIN sector sec3 ON p3.sector_id = sec3.id
-					           JOIN area a5 ON sec3.area_id = a5.id
-					           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
-					           LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
-					           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
-					           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
-					           WHERE s3.media_id = m.id
-					             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
-					       ) svgs_table_json,
-					       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
-					FROM req
-					JOIN problem p ON p.id = req.problem_id
-					JOIN sector s ON p.sector_id=s.id
-					JOIN area a ON s.area_id=a.id
-					JOIN media_problem mp ON p.id=mp.problem_id
-					JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)
-					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-					LEFT JOIN user ph ON m.photographer_user_id=ph.id
-					GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
-					ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
-					""";
-			try (var ps = c.prepareStatement(sql)) {
-				int idx = 1;
-				ps.setInt(idx++, authUserId.orElse(0));
-				ps.setInt(idx++, problemId);
+		var pMediaList = new ArrayList<Media>();
+		var sql = """
+				WITH req AS (
+				    SELECT ? auth_user_id, ? problem_id
+				)
+				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
+				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       DATE_FORMAT(m.date_created,'%Y.%m.%d') date_created, DATE_FORMAT(m.date_taken,'%Y.%m.%d') date_taken, ROUND(mp.milliseconds/1000) seconds,
+				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('id', tu.id, 'name', TRIM(CONCAT(tu.firstname, ' ', COALESCE(tu.lastname,'')))))
+				           FROM media_user tmu
+				           JOIN user tu ON tmu.user_id = tu.id
+				           WHERE tmu.media_id = m.id
+				       ) tagged_json,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', ma.area_id, 'areaName', a2.name, 'trivia', ma.trivia))
+				           FROM media_area ma
+				           JOIN area a2 ON ma.area_id = a2.id
+				           WHERE ma.media_id = m.id
+				       ) areas_json,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT('areaId', a2.id, 'areaName', a2.name, 'sectorId', ms.sector_id, 'sectorName', s2.name, 'trivia', ms.trivia))
+				           FROM media_sector ms
+				           JOIN sector s2 ON ms.sector_id = s2.id
+				           JOIN area a2 ON s2.area_id = a2.id
+				           WHERE ms.media_id = m.id
+				       ) sectors_json,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'problemId', p2.id, 'problemName', p2.name, 'problemGrade', g.grade, 'problemPitch', mp2.pitch,
+				               'problemNumPitches', (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p2.id),
+				               'milliseconds', mp2.milliseconds, 'areaId', a2.id, 'areaName', a2.name, 'sectorName', s2.id, 'sectorName', s2.name, 'trivia', mp2.trivia
+				           ))
+				           FROM media_problem mp2
+				           JOIN problem p2 ON mp2.problem_id = p2.id
+				           JOIN sector s2 ON p2.sector_id = s2.id
+				           JOIN area a2 ON s2.area_id = a2.id
+				           JOIN grade g ON p2.consensus_grade_id = g.id
+				           LEFT JOIN user_region ur ON a2.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				           WHERE mp2.media_id = m.id
+				             AND p2.trash IS NULL AND ((p2.locked_admin=0 AND p2.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p2.locked_superadmin=0))
+				       ) problems_json,
+				       (
+				            SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				                'trailId', t9.id,
+				                'trailTitle', t9.title,
+				                'sectors', (
+				                    SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				                        'areaId', a9_sub.id,
+				                        'areaName', a9_sub.name,
+				                        'sectorId', s9_sub.id,
+				                        'sectorName', s9_sub.name
+				                    ))
+				                    FROM sector_trail st9_sub
+				                    JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
+				                    JOIN area a9_sub ON s9_sub.area_id = a9_sub.id
+				                    WHERE st9_sub.trail_id = t9.id
+				                )
+				            ))
+				            FROM media_trail mt9
+				            JOIN trail t9 ON mt9.trail_id = t9.id
+				            WHERE mt9.media_id = m.id
+				        ) trails_json,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'id', id, 'path', path, 'rappelX', rappel_x, 'rappelY', rappel_y, 'rappelBolted', rappel_bolted
+				           ))
+				           FROM media_svg
+				           WHERE media_id = m.id
+				       ) svgs_json,
+				       (
+				           SELECT JSON_ARRAYAGG(JSON_OBJECT(
+				               'id', s3.id,
+				               'problemId', p3.id,
+				               'problemName', p3.name,
+				               'problemGrade', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN g3.grade ELSE COALESCE(g_sect3.grade, g3.grade) END,
+				               'problemGradeColor', CASE WHEN s3.pitch IS NULL OR s3.pitch = 0 THEN clr3.hex_code ELSE COALESCE(clr_sect3.hex_code, clr3.hex_code) END,
+				               'problemSubtype', ty3.subtype,
+				               'nr', p3.nr,
+				               'pitch', COALESCE(ps3.nr, 0),
+				               'path', s3.path,
+				               'hasAnchor', s3.has_anchor,
+				               'texts', s3.texts,
+				               'anchors', s3.anchors,
+				               'tradBelayStations', s3.trad_belay_stations,
+				               'primary', CASE WHEN p3.type_id IN (1,2) THEN true ELSE false END,
+				               'ticked', CASE WHEN (SELECT 1 FROM tick tk3 WHERE tk3.problem_id = p3.id AND tk3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL OR (SELECT 1 FROM fa fa3 WHERE fa3.problem_id = p3.id AND fa3.user_id = req.auth_user_id LIMIT 1) IS NOT NULL THEN true ELSE false END,
+				               'todo', CASE WHEN (SELECT 1 FROM todo t3 WHERE t3.problem_id = p3.id AND t3.user_id = req.auth_user_id) IS NOT NULL THEN true ELSE false END,
+				               'dangerous', COALESCE((
+				                   SELECT gb3.danger 
+				                   FROM guestbook gb3 
+				                   WHERE gb3.problem_id = p3.id AND (gb3.danger = 1 OR gb3.resolved = 1) 
+				                   ORDER BY gb3.id DESC LIMIT 1
+				               ), 0) = 1
+				           ))
+				           FROM svg s3
+				           JOIN problem p3 ON s3.problem_id = p3.id
+				           JOIN grade g3 ON p3.consensus_grade_id = g3.id
+				           JOIN grade_color clr3 ON g3.grade_color_id = clr3.id
+				           JOIN type ty3 ON p3.type_id = ty3.id
+				           JOIN sector sec3 ON p3.sector_id = sec3.id
+				           JOIN area a5 ON sec3.area_id = a5.id
+				           LEFT JOIN problem_section ps3 ON ps3.problem_id = p3.id AND ps3.nr = s3.pitch
+				           LEFT JOIN grade g_sect3 ON ps3.grade_id = g_sect3.id
+				           LEFT JOIN grade_color clr_sect3 ON g_sect3.grade_color_id = clr_sect3.id
+				           LEFT JOIN user_region ur3 ON ur3.user_id = req.auth_user_id AND ur3.region_id = a5.region_id
+				           WHERE s3.media_id = m.id
+				             AND p3.trash IS NULL AND ((p3.locked_admin=0 AND p3.locked_superadmin=0) OR (ur3.superadmin_read=1) OR (ur3.admin_read=1 AND p3.locked_superadmin=0))
+				       ) svgs_table_json,
+				       COALESCE((SELECT mg.guestbook_id FROM media_guestbook mg WHERE mg.media_id = m.id LIMIT 1), 0) guestbook_id
+				FROM req
+				JOIN problem p ON p.id = req.problem_id
+				JOIN sector s ON p.sector_id=s.id
+				JOIN area a ON s.area_id=a.id
+				JOIN media_problem mp ON p.id=mp.problem_id
+				JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)
+				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				LEFT JOIN user ph ON m.photographer_user_id=ph.id
+				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
+				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
+				""";
+		try (var ps = c.prepareStatement(sql)) {
+			int idx = 1;
+			ps.setInt(idx++, authUserId.orElse(0));
+			ps.setInt(idx++, problemId);
 
-				try (var rst = ps.executeQuery()) {
-					while (rst.next()) {
-						var embedUrl = rst.getString("embed_url");
-						long seconds = rst.getLong("seconds");
-						if (embedUrl != null && seconds > 0) {
-							if (embedUrl.contains("youtu")) {
-								embedUrl += "?start=" + seconds;
-							} else {
-								embedUrl += "#t=" + seconds + "s";
-							}
+			try (var rst = ps.executeQuery()) {
+				while (rst.next()) {
+					var embedUrl = rst.getString("embed_url");
+					long seconds = rst.getLong("seconds");
+					if (embedUrl != null && seconds > 0) {
+						if (embedUrl.contains("youtu")) {
+							embedUrl += "?start=" + seconds;
+						} else {
+							embedUrl += "#t=" + seconds + "s";
 						}
-						var m = Media.fromResultSet(rst, authUserId);
-						m = new Media(
-								m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
-								m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
-								m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
-								m.inherited(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
-								);
-						pMediaList.add(m);
 					}
+					var m = Media.fromResultSet(rst, authUserId);
+					m = new Media(
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
+							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
+							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
+							m.inherited(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
+							);
+					pMediaList.add(m);
 				}
 			}
-			List<Media> media = null;
-			try {
-				media = sectorMediaFuture.join();
-			} catch (CompletionException e) {
-				throw new SQLException("Failed to aggregate parallel sector media items", e);
-			}
-			if (media == null) {
-				media = new ArrayList<>();
-			}
-			media.addAll(pMediaList);
-			if (media.isEmpty()) {
-				media = null;
-			}
-			logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), stopwatch);
-			return media;
 		}
+		List<Media> media = null;
+		try {
+			media = sectorMediaFuture.join();
+		} catch (CompletionException e) {
+			throw new SQLException("Failed to aggregate parallel sector media items", e);
+		}
+		if (media == null) {
+			media = new ArrayList<>();
+		}
+		media.addAll(pMediaList);
+		if (media.isEmpty()) {
+			media = null;
+		}
+		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), stopwatch);
+		return media;
 	}
 
 	protected List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
