@@ -9,13 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.model.User;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,8 +32,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class UsersController extends BaseController {
 	private final UserRepository userRepo;
 
-	public UsersController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+	public UsersController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo);
 		this.userRepo = userRepo;
 	}
 
@@ -44,24 +42,25 @@ public class UsersController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getUsersSearch(HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
-		if (value == null || value.isBlank()) return createBadRequestResponse("Search keyword is required");
-
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> userRepo.getUserSearch(authUserId, value)));
+		if (value == null || value.isBlank()) {
+			return createBadRequestResponse("Search keyword is required");
+		}
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> userRepo.getUserSearch(ctx.authUserId(), value)));
 	}
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/ticks", produces = OpenApiConstants.APPLICATION_XLSX)
 	public ResponseEntity<byte[]> getUsersTicks(HttpServletRequest request) throws Exception {
-		return executeAuthenticatedTask(request, (_, authUserId) -> {
-			byte[] bytes = userRepo.getUserTicks(authUserId);
+		return executeContextualTask(request, ctx -> {
+			byte[] bytes = userRepo.getUserTicks(ctx.authUserId());
 			return ResponseEntity.ok()
 					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
 					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
@@ -76,15 +75,15 @@ public class UsersController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/regions")
 	public ResponseEntity<?> postUserRegions(HttpServletRequest request,
 			@Parameter(description = "Region id", required = true) @RequestParam(name = "regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @RequestParam(name = "delete") boolean delete) throws Exception {
 		if (regionId <= 0) return createBadRequestResponse("Invalid regionId=" + regionId);
 
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> {
-			userRepo.setUserRegion(authUserId, regionId, delete);
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
+			userRepo.setUserRegion(ctx.authUserId(), regionId, delete);
 			return null;
 		}));
 	}

@@ -8,13 +8,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GeoHelper;
-import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,8 +27,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/elevation")
 public class ElevationController extends BaseController {
 
-	public ElevationController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo) {
+		super(txManager, regionRepo);
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
@@ -40,7 +37,7 @@ public class ElevationController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<?> getElevation(HttpServletRequest request,
 			@Parameter(description = "Latitude (-90 to 90)", required = true) @RequestParam(name = "latitude") double latitude,
@@ -56,8 +53,8 @@ public class ElevationController extends BaseController {
 			return createBadRequestResponse("Invalid coordinates (0,0)");
 		}
 
-		return executeAuthenticatedTask(request, (_, authUserId) -> {
-			if (authUserId.isEmpty()) {
+		return executeContextualTask(request, ctx -> {
+			if (ctx.authUserId().isEmpty()) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 			}
 

@@ -1,6 +1,5 @@
 package com.buldreinfo.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,12 +8,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.ActivityRepository;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.model.Activity;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,9 +29,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class ActivityController extends BaseController {
 	private final ActivityRepository activityRepo;
 
-	@Autowired
-	public ActivityController(StorageManager storage,ClimbingTransactionManager txManager, MediaRepository mediaRepo, ActivityRepository activityRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+	public ActivityController(ClimbingTransactionManager txManager, ActivityRepository activityRepo, RegionRepository regionRepo) {
+		super(txManager, regionRepo);
 		this.activityRepo = activityRepo;
 	}
 
@@ -44,7 +39,7 @@ public class ActivityController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getActivity(HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @RequestParam(name = "idArea") int idArea,
@@ -66,9 +61,6 @@ public class ActivityController extends BaseController {
 			return createBadRequestResponse("offset cannot be negative");
 		}
 
-		return executeAuthenticatedTask(request, (setup, authUserId) -> {
-			var activity = activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset);
-			return ResponseEntity.ok(activity);
-		});
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> activityRepo.getActivity(ctx.setup(), ctx.authUserId(), idArea, idSector, lowerGrade, fa, comments, ticks, media, offset)));
 	}
 }

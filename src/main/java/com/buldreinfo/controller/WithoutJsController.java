@@ -16,7 +16,6 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.FrontpageRepository;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -53,16 +52,14 @@ public class WithoutJsController extends BaseController {
 	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 
-	public WithoutJsController(StorageManager storage,
-			ClimbingTransactionManager txManager,
+	public WithoutJsController(ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			FrontpageRepository frontpageRepo,
-			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+		super(txManager, regionRepo);
 		this.txManager = txManager;
 		this.areaRepo = areaRepo;
 		this.frontpageRepo = frontpageRepo;
@@ -77,7 +74,7 @@ public class WithoutJsController extends BaseController {
 	})
 	@GetMapping(produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJs(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeSetupTask(request, setup -> {
+		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			var meta = Meta.from(setup, Optional.empty(), txManager, userRepo, regionRepo);
 			var stats = frontpageRepo.getFrontpageStats(Optional.empty(), setup);
 			var randomMedia = frontpageRepo.getFrontpageRandomMedia(setup).stream().findAny().orElse(null);
@@ -100,9 +97,9 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/area/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) throws Exception {
+	public ResponseEntity<?> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) throws Exception {
 		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-		return ResponseEntity.ok(executeSetupTask(request, setup -> {
+		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			Area a = areaRepo.getArea(setup, Optional.empty(), id, shouldUpdateHits);
 			String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
 			Media m = (a.media() != null && !a.media().isEmpty()) ? a.media().getFirst() : null;
@@ -127,7 +124,7 @@ public class WithoutJsController extends BaseController {
 			}
 			)
 	@GetMapping(value = {"/problem/{id}", "/problem/{id}/{mediaId}", "/problem/{id}/{mediaId}/{pitch}"}, produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJsProblem(
+	public ResponseEntity<?> getWithoutJsProblem(
 			HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathVariable int id,
 			@Parameter(description = "Media id", required = false) @PathVariable(required = false) Integer mediaId,
@@ -138,7 +135,7 @@ public class WithoutJsController extends BaseController {
 		if (mid < 0) return createBadRequestResponse("Invalid mediaId=" + mid);
 		if (pitch != null) logger.debug("Ignore pitch {}, just return mediaId {}", pitch, mid);
 
-		return ResponseEntity.ok(executeSetupTask(request, setup -> {
+		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false, shouldUpdateHits);
 			String title = "%s [%s] (%s / %s)".formatted(p.name(), p.grade(), p.areaName(), p.sectorName());
 			String description = p.comment();
@@ -165,9 +162,9 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/sector/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) throws Exception {
+	public ResponseEntity<?> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) throws Exception {
 		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-		return ResponseEntity.ok(executeSetupTask(request, setup -> {
+		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id, shouldUpdateHits);
 			String title = "%s (%s)".formatted(s.name(), s.areaName());
 			String description = "%s in %s / %s (%d %s)%s".formatted(

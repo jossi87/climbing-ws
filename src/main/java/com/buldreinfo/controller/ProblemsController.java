@@ -18,7 +18,6 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -56,9 +55,8 @@ public class ProblemsController extends BaseController {
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
-			SectorRepository sectorRepo,
-			UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+			SectorRepository sectorRepo) {
+		super(txManager, regionRepo);
 		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.mediaRepo = mediaRepo;
@@ -72,16 +70,16 @@ public class ProblemsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getProblems(HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id,
 			@Parameter(description = "Include hidden media") @RequestParam(name = "showHiddenMedia", defaultValue = "false") boolean showHiddenMedia) throws Exception {
 		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
 
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> {
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			return problemRepo.getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits);
+			return problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, showHiddenMedia, shouldUpdateHits);
 		}));
 	}
 
@@ -91,21 +89,21 @@ public class ProblemsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = OpenApiConstants.APPLICATION_PDF)
-	public ResponseEntity<StreamingResponseBody> getProblemsPdf(HttpServletRequest request, 
+	public ResponseEntity<?> getProblemsPdf(HttpServletRequest request, 
 			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) throws Exception {
 		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
 
-		return executeAuthenticatedTask(request, (setup, authUserId) -> {
+		return executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			final var problem = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
-			final var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
-			final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+			final var problem = problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, false, shouldUpdateHits);
+			final var area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), problem.areaId(), shouldUpdateHits);
+			final var sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), problem.sectorId(), shouldUpdateHits);
 
 			StreamingResponseBody stream = output -> {
 				try (var generator = new PdfGenerator(storage, output)) {
-					generator.writeProblem(setup, area, sector, problem);
+					generator.writeProblem(ctx.setup(), area, sector, problem);
 				} catch (Exception e) {
 					logger.error(e.getMessage(), e);
 					throw new RuntimeException(e.getMessage(), e);
@@ -125,12 +123,12 @@ public class ProblemsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getProblemsSearch(HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
 		if (value == null || value.isBlank()) return createBadRequestResponse("Search keyword is required");
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> problemRepo.getProblemsSearch(authUserId, setup, value)));
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.getProblemsSearch(ctx.authUserId(), ctx.setup(), value)));
 	}
 
 	@Operation(summary = "Update problem", responses = {
@@ -140,13 +138,13 @@ public class ProblemsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
-	@SecurityRequirement(name = "Bearer Authentication")
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> postProblems(HttpServletRequest request, @RequestBody Problem p) throws Exception {
 		if (p == null || p.name() == null || p.name().strip().isEmpty()) return createBadRequestResponse("Problem name invalid");
 		if (p.sectorId() <= 0) return createBadRequestResponse("Invalid sectorId=" + p.sectorId());
 
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (setup, authUserId) -> problemRepo.setProblem(authUserId, setup, p)));
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.setProblem(ctx.authUserId(), ctx.setup(), p)));
 	}
 
 	@PostMapping(value = "/svg")
@@ -159,8 +157,8 @@ public class ProblemsController extends BaseController {
 		if (mediaId <= 0) return createBadRequestResponse("Invalid mediaId=" + mediaId);
 		if (svg == null) return createBadRequestResponse("Svg payload missing");
 
-		return ResponseEntity.ok(executeAuthenticatedTask(request, (_, authUserId) -> {
-			mediaRepo.upsertSvg(authUserId, problemId, pitch, mediaId, svg);
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
+			mediaRepo.upsertSvg(ctx.authUserId(), problemId, pitch, mediaId, svg);
 			return null;
 		}));
 	}

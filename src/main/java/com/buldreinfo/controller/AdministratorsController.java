@@ -6,12 +6,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.model.Administrator;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,8 +26,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AdministratorsController extends BaseController {
 	private final UserRepository userRepo;
 
-	public AdministratorsController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(storage, txManager, mediaRepo, regionRepo, userRepo);
+	public AdministratorsController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
+		super(txManager, regionRepo);
 		this.userRepo = userRepo;
 	}
 
@@ -39,9 +37,6 @@ public class AdministratorsController extends BaseController {
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getAdministrators(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeTask(() -> {
-			var setup = getSetup(request);
-			return userRepo.getAdministrators(setup);
-		}));
+		return ResponseEntity.ok(executePublicTask(request, setup -> userRepo.getAdministrators(setup)));
 	}
 }

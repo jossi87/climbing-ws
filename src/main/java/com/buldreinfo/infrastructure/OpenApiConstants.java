@@ -1,6 +1,8 @@
 package com.buldreinfo.infrastructure;
 
 public final class OpenApiConstants {
+	public static final String BEARER_AUTH = "Bearer Authentication";
+	
 	public static final String APPLICATION_PDF = "application/pdf";
 	public static final String APPLICATION_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	

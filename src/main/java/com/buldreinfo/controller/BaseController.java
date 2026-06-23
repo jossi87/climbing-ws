@@ -9,83 +9,74 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.filters.HitTrackingFilter;
-import com.buldreinfo.helpers.AuthHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
-import com.buldreinfo.io.StorageManager;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 public abstract class BaseController {
+	public record UserContext(Setup setup, Optional<Integer> authUserId) {}
+
 	@FunctionalInterface
-	protected interface AuthFunction<T> {
-		T apply(Setup setup, Optional<Integer> authUserId) throws Exception;
+	protected interface ContextTask<T> {
+		T apply(UserContext ctx) throws Exception;
 	}
+
 	@FunctionalInterface
-	protected interface SetupFunction<T> {
-		T apply(Setup setup) throws Exception;
+	protected interface PublicTask<T> {
+		T execute(Setup setup) throws Exception;
 	}
-	private static final ThreadFactory VIRTUAL_THREAD_FACTORY = Thread.ofVirtual().name("climbing-ws-", 0).factory();
-	public static final Executor executor = Executors.newThreadPerTaskExecutor(VIRTUAL_THREAD_FACTORY);
-	private final AuthHelper authHelper = new AuthHelper();
-	private final StorageManager storage;
-	private final MediaRepository mediaRepo;
+
+	public static final Executor executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("climbing-ws-", 0).factory());
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
-	private final UserRepository userRepo;
 
-	protected BaseController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		this.storage = storage;
+	protected BaseController(ClimbingTransactionManager txManager, RegionRepository regionRepo) {
 		this.txManager = txManager;
-		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
-		this.userRepo = userRepo;
 	}
 
-	@SuppressWarnings("unchecked")
-	protected <T> ResponseEntity<T> createBadRequestResponse(String message) {
-		return (ResponseEntity<T>) ResponseEntity.status(HttpStatus.BAD_REQUEST)
-				.body(Map.of("error", message));
+	private Optional<Integer> getAuthenticatedUserId() {
+		var auth = SecurityContextHolder.getContext().getAuthentication();
+		return (auth != null && auth.getPrincipal() instanceof Integer userId) ? Optional.of(userId) : Optional.empty();
+	}
+
+	private Setup getSetup(HttpServletRequest request) throws Exception {
+		String serverName = request.getServerName();
+		return executeTask(regionRepo::getSetups).stream()
+				.filter(s -> s.domain().equalsIgnoreCase(serverName))
+				.findFirst()
+				.orElseThrow(() -> new NoSuchElementException("Invalid serverName=" + serverName));
+	}
+
+	protected ResponseEntity<?> createBadRequestResponse(String message) {
+	    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
 	}
 
 	protected ResponseEntity<String> createNotFoundResponse() {
-		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(OpenApiConstants.NOT_FOUND_DESCRIPTION);
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(OpenApiConstants.NOT_FOUND_DESCRIPTION);
 	}
 
-	protected <T> T executeAuthenticatedTask(HttpServletRequest request, AuthFunction<T> task) throws Exception {
+	protected <T> T executeContextualTask(HttpServletRequest request, ContextTask<T> task) throws Exception {
 		Setup setup = getSetup(request);
-		return executeTask(() -> {
-			Optional<Integer> authUserId = authHelper.getAuthUserId(storage, userRepo, mediaRepo, request, setup);
-			return task.apply(setup, authUserId);
-		});
+		Optional<Integer> authUserId = getAuthenticatedUserId();
+		return executeTask(() -> task.apply(new UserContext(setup, authUserId)));
 	}
 
-	protected <T> T executeSetupTask(HttpServletRequest request, SetupFunction<T> task) throws Exception {
-		Setup setup = getSetup(request);
-		return executeTask(() -> task.apply(setup));
+	protected <T> T executePublicTask(HttpServletRequest request, PublicTask<T> task) throws Exception {
+		return executeTask(() -> task.execute(getSetup(request)));
 	}
 
 	protected <T> T executeTask(Callable<T> task) throws Exception {
 		return txManager.executeInTransaction(task);
-	}
-
-	protected Setup getSetup(HttpServletRequest request) throws Exception {
-		String serverName = request.getServerName().toLowerCase().replace("www.", "").replace("staging.", "");
-		return executeTask(() -> regionRepo.getSetups()).stream()
-				.filter(s -> s.domain().equalsIgnoreCase(serverName))
-				.findFirst()
-				.orElseThrow(() -> new NoSuchElementException("Invalid serverName=" + serverName));
 	}
 
 	protected boolean isHitTrackingEnabled(HttpServletRequest request) {
