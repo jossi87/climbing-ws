@@ -11,7 +11,7 @@ RUN mvn dependency:go-offline -B
 COPY . .
 RUN mvn clean package -DskipTests
 
-FROM tomcat:11.0.22-jdk25-temurin-jammy
+FROM tomcat:11.0.23-jdk25-temurin-jammy
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
