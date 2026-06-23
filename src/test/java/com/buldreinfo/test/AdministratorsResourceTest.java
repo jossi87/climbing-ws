@@ -7,7 +7,6 @@ import java.util.Collection;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 
 import com.buldreinfo.controller.AdministratorsController;
 
@@ -16,10 +15,10 @@ public class AdministratorsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void getAdministrators() throws Exception {
-		ResponseEntity<?> r = tester.getAdministrators(getRequest(Region.buldreinfo));
+		var r = tester.getAdministrators(getRequest(Region.buldreinfo));
 		assertTrue(r.getStatusCode() == OK);
-		assertTrue(r.getBody() instanceof Collection<?>);
-		Collection<?> res1 = (Collection<?>) r.getBody();
+		assertTrue(r.getBody() != null);
+		Collection<?> res1 = r.getBody();
 		assertTrue(!res1.isEmpty());
 	}
 }

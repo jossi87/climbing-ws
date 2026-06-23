@@ -37,7 +37,7 @@ public class FrontpageController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getFrontpage(HttpServletRequest request) throws Exception {
+	public ResponseEntity<Frontpage> getFrontpage(HttpServletRequest request) throws Exception {
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			var stats = supplyAsync(() -> frontpageRepo.getFrontpageStats(ctx.authUserId(), ctx.setup()));
 			var randomMedia = supplyAsync(() -> frontpageRepo.getFrontpageRandomMedia(ctx.setup()));

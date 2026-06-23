@@ -1,6 +1,7 @@
 package com.buldreinfo.controller;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.http.HttpHeaders;
@@ -17,6 +18,7 @@ import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
@@ -54,19 +56,18 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/grade/distribution", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getGradeDistribution(HttpServletRequest request,
+	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(HttpServletRequest request,
 			@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
 			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector
 			) throws Exception {
 		if (idArea < 0 || idSector < 0) {
-			return createBadRequestResponse("IDs cannot be negative");
+			throw new ValidationFailedException("IDs cannot be negative");
 		}
 		if (idArea == 0 && idSector == 0) {
-			return createBadRequestResponse("Either idArea or idSector must be greater than 0");
+			throw new ValidationFailedException("Either idArea or idSector must be greater than 0");
 		}
 
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> 
-		hierarchyRepo.getGradeDistribution(ctx.authUserId(), idArea, idSector)));
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getGradeDistribution(ctx.authUserId(), idArea, idSector)));
 	}
 
 	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {
@@ -76,7 +77,7 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/graph", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getGraph(HttpServletRequest request) throws Exception {
+	public ResponseEntity<Collection<GradeDistribution>> getGraph(HttpServletRequest request) throws Exception {
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> 
 		hierarchyRepo.getContentGraph(ctx.authUserId(), ctx.setup())));
 	}
@@ -88,9 +89,8 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/meta", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getMeta(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> 
-		Meta.from(ctx.setup(), ctx.authUserId(), txManager, userRepo, regionRepo)));
+	public ResponseEntity<Meta> getMeta(HttpServletRequest request) throws Exception {
+		return ResponseEntity.ok(executeContextualTask(request, ctx -> Meta.from(ctx.setup(), ctx.authUserId(), txManager, userRepo, regionRepo)));
 	}
 
 	@Operation(summary = "Get robots.txt")
@@ -115,7 +115,7 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/toc", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getToc(HttpServletRequest request) throws Exception {
+	public ResponseEntity<Toc> getToc(HttpServletRequest request) throws Exception {
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getToc(ctx.authUserId(), ctx.setup())));
 	}
 

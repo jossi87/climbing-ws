@@ -22,6 +22,7 @@ import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Media;
@@ -97,8 +98,8 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/area/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<?> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) throws Exception {
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			Area a = areaRepo.getArea(setup, Optional.empty(), id, shouldUpdateHits);
 			String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
@@ -124,15 +125,15 @@ public class WithoutJsController extends BaseController {
 			}
 			)
 	@GetMapping(value = {"/problem/{id}", "/problem/{id}/{mediaId}", "/problem/{id}/{mediaId}/{pitch}"}, produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<?> getWithoutJsProblem(
+	public ResponseEntity<String> getWithoutJsProblem(
 			HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathVariable int id,
 			@Parameter(description = "Media id", required = false) @PathVariable(required = false) Integer mediaId,
 			@Parameter(description = "Pitch number", required = false) @PathVariable(required = false) Integer pitch) throws Exception {
 
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		int mid = (mediaId == null) ? 0 : mediaId;
-		if (mid < 0) return createBadRequestResponse("Invalid mediaId=" + mid);
+		if (mid < 0) throw new ValidationFailedException("Invalid mediaId=" + mid);
 		if (pitch != null) logger.debug("Ignore pitch {}, just return mediaId {}", pitch, mid);
 
 		return ResponseEntity.ok(executePublicTask(request, setup -> {
@@ -162,8 +163,8 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/sector/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<?> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) throws Exception {
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		return ResponseEntity.ok(executePublicTask(request, setup -> {
 			Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id, shouldUpdateHits);
 			String title = "%s (%s)".formatted(s.name(), s.areaName());

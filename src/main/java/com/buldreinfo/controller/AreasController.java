@@ -24,6 +24,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.GradeDistribution;
@@ -69,10 +70,10 @@ public class AreasController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getAreas(HttpServletRequest request,
+	public ResponseEntity<Collection<Area>> getAreas(HttpServletRequest request,
 			@Parameter(description = "Area id", required = false) @RequestParam(name = "id", defaultValue = "0") int id) throws Exception {
 		if (id < 0) {
-			return createBadRequestResponse("Invalid id=" + id);
+			throw new ValidationFailedException("Invalid id=" + id);
 		}
 		return executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
@@ -89,9 +90,9 @@ public class AreasController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-	public ResponseEntity<?> getAreasPdf(HttpServletRequest request, @Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
+	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request, @Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
 		if (id <= 0) {
-			return createBadRequestResponse("Invalid area id=" + id);
+			throw new ValidationFailedException("Invalid area id=" + id);
 		}
 		StreamingResponseBody stream = executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
@@ -126,9 +127,9 @@ public class AreasController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> postAreas(HttpServletRequest request, @RequestBody Area a) throws Exception {
+	public ResponseEntity<Redirect> postAreas(HttpServletRequest request, @RequestBody Area a) throws Exception {
 		if (a == null || a.name() == null || a.name().strip().isEmpty()) {
-			return createBadRequestResponse("Area name is missing or invalid");
+			throw new ValidationFailedException("Area name is missing or invalid");
 		}
 		return executeContextualTask(request, ctx -> {
 			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());

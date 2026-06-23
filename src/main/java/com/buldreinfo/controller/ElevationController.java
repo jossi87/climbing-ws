@@ -12,6 +12,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,18 +40,18 @@ public class ElevationController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<?> getElevation(HttpServletRequest request,
+	public ResponseEntity<String> getElevation(HttpServletRequest request,
 			@Parameter(description = "Latitude (-90 to 90)", required = true) @RequestParam(name = "latitude") double latitude,
 			@Parameter(description = "Longitude (-180 to 180)", required = true) @RequestParam(name = "longitude") double longitude) throws Exception {
 
 		if (latitude < -90 || latitude > 90) {
-			return createBadRequestResponse("Invalid latitude: must be between -90 and 90");
+			throw new ValidationFailedException("Invalid latitude: must be between -90 and 90");
 		}
 		if (longitude < -180 || longitude > 180) {
-			return createBadRequestResponse("Invalid longitude: must be between -180 and 180");
+			throw new ValidationFailedException("Invalid longitude: must be between -180 and 180");
 		}
 		if (latitude == 0.0 && longitude == 0.0) {
-			return createBadRequestResponse("Invalid coordinates (0,0)");
+			throw new ValidationFailedException("Invalid coordinates (0,0)");
 		}
 
 		return executeContextualTask(request, ctx -> {

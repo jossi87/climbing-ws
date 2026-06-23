@@ -18,7 +18,6 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.controller.ProblemsController;
@@ -32,7 +31,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProblem() throws Exception {
-		ResponseEntity<?> r = tester.getProblems(getRequest(Region.buldreinfo), BULDREINFO_PROBLEM_ID_VISIBLE, false);
+		var r = tester.getProblems(getRequest(Region.buldreinfo), BULDREINFO_PROBLEM_ID_VISIBLE, false);
 		assertEquals(OK, r.getStatusCode());
 		Problem p = assertInstanceOf(Problem.class, r.getBody());
 		assertFalse(Strings.isNullOrEmpty(p.name()));
@@ -41,7 +40,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProblemDifferentRegion() throws Exception {
-		ResponseEntity<?> r = tester.getProblems(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false);
+		var r = tester.getProblems(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false);
 		assertEquals(OK, r.getStatusCode());
 		Problem p = assertInstanceOf(Problem.class, r.getBody());
 		assertTrue(Strings.isNullOrEmpty(p.name()));
@@ -71,7 +70,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetProblemPdf() throws Exception {
-		ResponseEntity<?> r = tester.getProblemsPdf(getRequest(Region.brattelinjer), BRATTELINJER_PROBLEM_ID_PDF);
+		var r = tester.getProblemsPdf(getRequest(Region.brattelinjer), BRATTELINJER_PROBLEM_ID_PDF);
 		assertEquals(OK, r.getStatusCode());
 
 		StreamingResponseBody stream = assertInstanceOf(StreamingResponseBody.class, r.getBody());

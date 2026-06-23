@@ -21,6 +21,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
@@ -67,10 +68,9 @@ public class SectorsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getSectors(HttpServletRequest request,
+	public ResponseEntity<Sector> getSectors(HttpServletRequest request,
 			@Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
 			return sectorRepo.getSector(ctx.authUserId(), ctx.setup().isBouldering(), ctx.setup(), id, shouldUpdateHits);
@@ -85,8 +85,8 @@ public class SectorsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-	public ResponseEntity<?> getSectorsPdf(HttpServletRequest request, @Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
-	    if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	public ResponseEntity<StreamingResponseBody> getSectorsPdf(HttpServletRequest request, @Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
+	    if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
 	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
 	        final Sector sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), id, shouldUpdateHits);
@@ -117,9 +117,9 @@ public class SectorsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> postSectors(HttpServletRequest request, @RequestBody Sector s) throws Exception {
-		if (s == null || s.name() == null || s.name().strip().isEmpty()) return createBadRequestResponse("Sector name invalid");
-		if (s.areaId() <= 0) return createBadRequestResponse("Invalid areaId=" + s.areaId());
+	public ResponseEntity<Redirect> postSectors(HttpServletRequest request, @RequestBody Sector s) throws Exception {
+		if (s == null || s.name() == null || s.name().strip().isEmpty()) throw new ValidationFailedException("Sector name invalid");
+		if (s.areaId() <= 0) throw new ValidationFailedException("Invalid areaId=" + s.areaId());
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> sectorRepo.setSector(ctx.authUserId(), ctx.setup(), s)));
 	}

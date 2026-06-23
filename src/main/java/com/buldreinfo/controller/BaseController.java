@@ -1,7 +1,6 @@
 package com.buldreinfo.controller;
 
 import java.sql.Connection;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -10,15 +9,12 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.filters.HitTrackingFilter;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -55,14 +51,6 @@ public abstract class BaseController {
 				.filter(s -> s.domain().equalsIgnoreCase(serverName))
 				.findFirst()
 				.orElseThrow(() -> new NoSuchElementException("Invalid serverName=" + serverName));
-	}
-
-	protected ResponseEntity<?> createBadRequestResponse(String message) {
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
-	}
-
-	protected ResponseEntity<String> createNotFoundResponse() {
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(OpenApiConstants.NOT_FOUND_DESCRIPTION);
 	}
 
 	protected <T> T executeContextualTask(HttpServletRequest request, ContextTask<T> task) throws Exception {

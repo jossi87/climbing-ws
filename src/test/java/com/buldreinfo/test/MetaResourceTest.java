@@ -6,7 +6,6 @@ import static org.springframework.http.HttpStatus.OK;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 
 import com.buldreinfo.controller.MetaController;
 import com.buldreinfo.model.Meta;
@@ -17,26 +16,26 @@ public class MetaResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetMeta() throws Exception {
-		ResponseEntity<?> r = tester.getMeta(getRequest(Region.buldreinfo));
+		var r = tester.getMeta(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(Meta.class, r.getBody());
 	}
 
 	@Test
 	public void testGetRobotsTxt() throws Exception {
-		ResponseEntity<?> r = tester.getRobotsTxt(getRequest(Region.brattelinjer));
+		var r = tester.getRobotsTxt(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
 	public void testGetSitemapTxt() throws Exception {
-		ResponseEntity<?> r = tester.getSitemapTxt(getRequest(Region.brattelinjer));
+		var r = tester.getSitemapTxt(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
 	public void testGetToc() throws Exception {
-		ResponseEntity<?> r = tester.getToc(getRequest(Region.buldreinfo));
+		var r = tester.getToc(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(Toc.class, r.getBody());
 	}

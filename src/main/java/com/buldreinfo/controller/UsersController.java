@@ -1,5 +1,7 @@
 package com.buldreinfo.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,7 @@ import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.User;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,10 +47,10 @@ public class UsersController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getUsersSearch(HttpServletRequest request,
+	public ResponseEntity<List<User>> getUsersSearch(HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
 		if (value == null || value.isBlank()) {
-			return createBadRequestResponse("Search keyword is required");
+			throw new ValidationFailedException("Search keyword is required");
 		}
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> userRepo.getUserSearch(ctx.authUserId(), value)));
 	}
@@ -75,14 +78,15 @@ public class UsersController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/regions")
-	public ResponseEntity<?> postUserRegions(HttpServletRequest request,
+	public ResponseEntity<Void> postUserRegions(HttpServletRequest request,
 			@Parameter(description = "Region id", required = true) @RequestParam(name = "regionId") int regionId,
 			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @RequestParam(name = "delete") boolean delete) throws Exception {
-		if (regionId <= 0) return createBadRequestResponse("Invalid regionId=" + regionId);
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
+		if (regionId <= 0) throw new ValidationFailedException("Invalid regionId=" + regionId);
+		executeContextualTask(request, ctx -> {
 			userRepo.setUserRegion(ctx.authUserId(), regionId, delete);
 			return null;
-		}));
+		});
+
+		return ResponseEntity.ok().build();
 	}
 }

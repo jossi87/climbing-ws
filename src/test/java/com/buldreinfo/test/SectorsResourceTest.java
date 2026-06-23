@@ -15,7 +15,6 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 
 import com.buldreinfo.controller.SectorsController;
 import com.buldreinfo.dao.SectorRepository;
@@ -28,7 +27,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetSector() throws Exception {
-		ResponseEntity<?> r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_SECTOR_ID_VISIBLE);
+		var r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_SECTOR_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
 		assertFalse(Strings.isNullOrEmpty(s.name()));
@@ -38,7 +37,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetSectorDifferentRegion() throws Exception {
-		ResponseEntity<?> r = tester.getSectors(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_SECTOR_ID);
+		var r = tester.getSectors(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_SECTOR_ID);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
 		assertTrue(Strings.isNullOrEmpty(s.name()));

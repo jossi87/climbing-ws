@@ -16,7 +16,6 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 
 import com.buldreinfo.controller.AreasController;
 import com.buldreinfo.dao.AreaRepository;
@@ -29,7 +28,7 @@ public class AreasResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetArea() throws Exception {
-		ResponseEntity<?> r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE);
+		var r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
 		assertEquals(1, area.size());
@@ -40,7 +39,7 @@ public class AreasResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetAreaDifferentRegion() throws Exception {
-		ResponseEntity<?> r = tester.getAreas(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID);
+		var r = tester.getAreas(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
 		assertEquals(1, area.size());
@@ -72,7 +71,7 @@ public class AreasResourceTest extends BaseResourceTest {
 
 	@Test
 	public void testGetAreas() throws Exception {
-		ResponseEntity<?> r = tester.getAreas(getRequest(Region.buldreinfo), 0);
+		var r = tester.getAreas(getRequest(Region.buldreinfo), 0);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> areas = assertInstanceOf(Collection.class, r.getBody());
 		assertFalse(areas.isEmpty());

@@ -1,5 +1,7 @@
 package com.buldreinfo.controller;
 
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,7 +38,7 @@ public class AdministratorsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getAdministrators(HttpServletRequest request) throws Exception {
+	public ResponseEntity<List<Administrator>> getAdministrators(HttpServletRequest request) throws Exception {
 		return ResponseEntity.ok(executePublicTask(request, setup -> userRepo.getAdministrators(setup)));
 	}
 }

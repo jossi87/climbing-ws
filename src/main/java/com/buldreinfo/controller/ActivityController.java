@@ -1,5 +1,7 @@
 package com.buldreinfo.controller;
 
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.dao.RegionRepository;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.model.Activity;
@@ -41,7 +44,7 @@ public class ActivityController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getActivity(HttpServletRequest request,
+	public ResponseEntity<List<Activity>> getActivity(HttpServletRequest request,
 			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @RequestParam(name = "idArea") int idArea,
 			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @RequestParam(name = "idSector") int idSector,
 			@Parameter(description = "Filter on lower grade") @RequestParam(name = "lowerGrade", defaultValue = "0") int lowerGrade,
@@ -50,17 +53,9 @@ public class ActivityController extends BaseController {
 			@Parameter(description = "Include ticks (public ascents)") @RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
 			@Parameter(description = "Include new media") @RequestParam(name = "media", defaultValue = "false") boolean media,
 			@Parameter(description = "Offset (see more)") @RequestParam(name = "offset", defaultValue = "0") int offset) throws Exception {
-
-		if (idArea < 0 || idSector < 0) {
-			return createBadRequestResponse("IDs cannot be negative");
-		}
-		if (lowerGrade < 0) {
-			return createBadRequestResponse("lowerGrade cannot be negative");
-		}
-		if (offset < 0) {
-			return createBadRequestResponse("offset cannot be negative");
-		}
-
+		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
+		if (lowerGrade < 0) throw new ValidationFailedException("lowerGrade cannot be negative");
+		if (offset < 0) throw new ValidationFailedException("offset cannot be negative");
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> activityRepo.getActivity(ctx.setup(), ctx.authUserId(), idArea, idSector, lowerGrade, fa, comments, ticks, media, offset)));
 	}
 }

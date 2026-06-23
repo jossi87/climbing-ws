@@ -1,5 +1,7 @@
 package com.buldreinfo.controller;
 
+import java.util.List;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +22,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.ProblemSearchResult;
@@ -71,11 +74,10 @@ public class ProblemsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getProblems(HttpServletRequest request,
+	public ResponseEntity<Problem> getProblems(HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id,
 			@Parameter(description = "Include hidden media") @RequestParam(name = "showHiddenMedia", defaultValue = "false") boolean showHiddenMedia) throws Exception {
-		if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
-
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			boolean shouldUpdateHits = isHitTrackingEnabled(request);
 			return problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, showHiddenMedia, shouldUpdateHits);
@@ -90,9 +92,9 @@ public class ProblemsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-	public ResponseEntity<?> getProblemsPdf(HttpServletRequest request, 
+	public ResponseEntity<StreamingResponseBody> getProblemsPdf(HttpServletRequest request, 
 	        @Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) throws Exception {
-	    if (id <= 0) return createBadRequestResponse("Invalid id=" + id);
+	    if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
 	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
 	        final var problem = problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, false, shouldUpdateHits);
@@ -121,9 +123,9 @@ public class ProblemsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> getProblemsSearch(HttpServletRequest request,
+	public ResponseEntity<List<ProblemSearchResult>> getProblemsSearch(HttpServletRequest request,
 			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
-		if (value == null || value.isBlank()) return createBadRequestResponse("Search keyword is required");
+		if (value == null || value.isBlank()) throw new ValidationFailedException("Search keyword is required");
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.getProblemsSearch(ctx.authUserId(), ctx.setup(), value)));
 	}
 
@@ -136,26 +138,26 @@ public class ProblemsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> postProblems(HttpServletRequest request, @RequestBody Problem p) throws Exception {
-		if (p == null || p.name() == null || p.name().strip().isEmpty()) return createBadRequestResponse("Problem name invalid");
-		if (p.sectorId() <= 0) return createBadRequestResponse("Invalid sectorId=" + p.sectorId());
+	public ResponseEntity<Redirect> postProblems(HttpServletRequest request, @RequestBody Problem p) throws Exception {
+		if (p == null || p.name() == null || p.name().strip().isEmpty()) throw new ValidationFailedException("Problem name invalid");
+		if (p.sectorId() <= 0) throw new ValidationFailedException("Invalid sectorId=" + p.sectorId());
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.setProblem(ctx.authUserId(), ctx.setup(), p)));
 	}
 
 	@PostMapping(value = "/svg")
-	public ResponseEntity<?> postProblemsSvg(HttpServletRequest request,
+	public ResponseEntity<Void> postProblemsSvg(HttpServletRequest request,
 			@RequestParam(name = "problemId") int problemId,
 			@RequestParam(name = "pitch") int pitch,
 			@RequestParam(name = "mediaId") int mediaId,
 			@RequestBody Svg svg) throws Exception {
-		if (problemId <= 0) return createBadRequestResponse("Invalid problemId=" + problemId);
-		if (mediaId <= 0) return createBadRequestResponse("Invalid mediaId=" + mediaId);
-		if (svg == null) return createBadRequestResponse("Svg payload missing");
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
+		if (problemId <= 0) throw new ValidationFailedException("Invalid problemId=" + problemId);
+		if (mediaId <= 0) throw new ValidationFailedException("Invalid mediaId=" + mediaId);
+		if (svg == null) throw new ValidationFailedException("Svg payload missing");
+		executeContextualTask(request, ctx -> {
 			mediaRepo.upsertSvg(ctx.authUserId(), problemId, pitch, mediaId, svg);
 			return null;
-		}));
+		});
+		return ResponseEntity.ok().build();
 	}
 }

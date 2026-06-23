@@ -22,24 +22,20 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Object> handleException(Throwable e) {
 		Throwable cause = unwrap(e);
 		logger.error("Error occurred: {}", cause.getMessage(), cause);
-
 		return switch (cause) {
-		case IllegalArgumentException iae -> 
-		ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", getBadRequestMessage(iae)));
-		case NoSuchElementException _ -> 
-		ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
-		case SQLException _ -> 
-		ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
-		default -> 
-		ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An unexpected error occurred"));
+		case IllegalArgumentException iae -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", getBadRequestMessage(iae)));
+		case NoSuchElementException _ -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+		case SQLException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
+		case ValidationFailedException vfe -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", vfe.getMessage()));
+		default -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An unexpected error occurred"));
 		};
 	}
 
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<Object> handleNotFound(@SuppressWarnings("unused") NoResourceFoundException ex) {
-	    return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 	}
-	
+
 	private String getBadRequestMessage(IllegalArgumentException e) {
 		if (e != null && e.getMessage() != null && e.getMessage().startsWith("File too large")) {
 			return "File too large";
