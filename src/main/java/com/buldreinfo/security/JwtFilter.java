@@ -16,6 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
+import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
@@ -28,23 +30,25 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 	private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of("user-agent", "x-forwarded-for", "x-real-ip", "cf-connecting-ip", "accept-language", "origin", "referer");
-	private static final Set<String> REDACTED_HEADER_NAMES = Set.of("authorization", "cookie", "set-cookie", "x-api-key");
+	private static final Set<String> REDACTED_HEADER_NAMES = Set.of(OpenApiConstants.AUTH_HEADER.toLowerCase(Locale.ROOT), "cookie", "set-cookie", "x-api-key");
 	private final ObjectMapper objectMapper;
+	private final ClimbingTransactionManager txManager;
 	private final RegionRepository regionRepo;
 	private final TokenService tokenService;
 
-	public JwtFilter(ObjectMapper objectMapper, TokenService tokenService, RegionRepository regionRepo) {
+	public JwtFilter(ObjectMapper objectMapper, ClimbingTransactionManager txManager, TokenService tokenService, RegionRepository regionRepo) {
 		this.objectMapper = objectMapper;
+		this.txManager = txManager;
 		this.tokenService = tokenService;
 		this.regionRepo = regionRepo;
 	}
 
 	private String extractToken(HttpServletRequest request) {
-		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-		if (!Strings.isNullOrEmpty(authHeader) && authHeader.length() > 7) {
-			return authHeader.substring(7);
-		}
-		return request.getParameter("access_token");
+	    String authHeader = request.getHeader(OpenApiConstants.AUTH_HEADER);
+	    if (!Strings.isNullOrEmpty(authHeader) && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
+	        return authHeader.substring(OpenApiConstants.BEARER_PREFIX.length());
+	    }
+	    return request.getParameter(OpenApiConstants.ACCESS_TOKEN_PARAM);
 	}
 
 	private Map<String, String> getHeaders(HttpServletRequest request) {
@@ -70,10 +74,10 @@ public class JwtFilter extends OncePerRequestFilter {
 	}
 
 	private Setup getSetup(HttpServletRequest request) throws Exception {
-		return regionRepo.getSetups().stream()
+		return txManager.executeInTransaction(() -> regionRepo.getSetups().stream()
 				.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
 				.findFirst()
-				.orElseThrow();
+				.orElseThrow());
 	}
 
 	@Override
