@@ -21,7 +21,5 @@ RUN rm -rf /usr/local/tomcat/webapps/*
 
 COPY --from=build /app/target/climbing-ws.war /usr/local/tomcat/webapps/ROOT.war
 
-ENV SPRING_CONFIG_LOCATION=file:/usr/local/tomcat/conf/buldreinfo.properties
-
 EXPOSE 8080
 CMD ["catalina.sh", "run"]
