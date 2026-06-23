@@ -112,7 +112,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 
@@ -164,7 +164,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 
@@ -244,7 +244,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}), duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 
@@ -304,7 +304,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}), duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 
@@ -458,7 +458,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageStats(authUserId={}, setup={}) - res={}, duration={}", authUserId, setup, res, stopwatch);
+		logger.debug("getFrontpageStats(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
 		return res;
 	}
 }

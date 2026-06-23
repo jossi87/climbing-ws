@@ -44,11 +44,11 @@ public class JwtFilter extends OncePerRequestFilter {
 	}
 
 	private String extractToken(HttpServletRequest request) {
-	    String authHeader = request.getHeader(OpenApiConstants.AUTH_HEADER);
-	    if (!Strings.isNullOrEmpty(authHeader) && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
-	        return authHeader.substring(OpenApiConstants.BEARER_PREFIX.length());
-	    }
-	    return request.getParameter(OpenApiConstants.ACCESS_TOKEN_PARAM);
+		String authHeader = request.getHeader(OpenApiConstants.AUTH_HEADER);
+		if (!Strings.isNullOrEmpty(authHeader) && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
+			return authHeader.substring(OpenApiConstants.BEARER_PREFIX.length());
+		}
+		return request.getParameter(OpenApiConstants.ACCESS_TOKEN_PARAM);
 	}
 
 	private Map<String, String> getHeaders(HttpServletRequest request) {
@@ -85,12 +85,15 @@ public class JwtFilter extends OncePerRequestFilter {
 		String accessToken = extractToken(request);
 		if (!Strings.isNullOrEmpty(accessToken)) {
 			try {
-				Setup setup = getSetup(request);
-				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
-				tokenService.processAuthentication(accessToken, setup, headerJson)
-				.ifPresent(userId -> {
-					UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
-					SecurityContextHolder.getContext().setAuthentication(auth);
+				txManager.executeInTransaction(() -> {
+					Setup setup = getSetup(request);
+					String headerJson = objectMapper.writeValueAsString(getHeaders(request));
+					tokenService.processAuthentication(accessToken, setup, headerJson)
+					.ifPresent(userId -> {
+						UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+						SecurityContextHolder.getContext().setAuthentication(auth);
+					});
+					return null;
 				});
 			} catch (Exception e) {
 				logger.error("JWT Authentication failed", e);
