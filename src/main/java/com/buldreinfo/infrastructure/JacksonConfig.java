@@ -19,6 +19,7 @@ public class JacksonConfig {
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new CoercionModule());
         mapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return mapper;
     }
 }
