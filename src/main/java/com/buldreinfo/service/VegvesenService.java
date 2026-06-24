@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.google.common.base.Preconditions;
 
 @Service
 public class VegvesenService {
@@ -52,7 +51,7 @@ public class VegvesenService {
 				.GET()
 				.build();
 		HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-		Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
+		if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("HTTP-" + response.statusCode());
 		try (InputStream is = new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8))) {
 			return parseCameras(is);
 		}

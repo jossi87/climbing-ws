@@ -12,7 +12,6 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.service.ElevationService;
-import com.google.common.base.Preconditions;
 
 public class GeoHelper {
 	public class GeoPoint {
@@ -148,7 +147,7 @@ public class GeoHelper {
 				.sorted(Comparator.comparingDouble(GeoPoint::getDistanceToCenter).reversed())
 				.collect(Collectors.toList())
 				.subList(0, 4);
-		Preconditions.checkArgument(boundingBoxPoints.size() == 4, "Invalid bounding box");
+		if (boundingBoxPoints.size() != 4) throw new IllegalArgumentException("Invalid bounding box");
 		// Group the four points in two pairs
 		for (int i = 0; i < boundingBoxPoints.size(); i++) {
 			GeoPoint a = boundingBoxPoints.get(i);

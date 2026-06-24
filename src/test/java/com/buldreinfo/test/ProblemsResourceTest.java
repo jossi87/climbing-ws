@@ -24,7 +24,6 @@ import com.buldreinfo.controller.ProblemsController;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.model.Problem;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Strings;
 
 public class ProblemsResourceTest extends BaseResourceTest {
 	@Autowired private ProblemsController tester;
@@ -35,7 +34,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 		var r = tester.getProblems(getRequest(Region.buldreinfo), BULDREINFO_PROBLEM_ID_VISIBLE, false);
 		assertEquals(OK, r.getStatusCode());
 		Problem p = assertInstanceOf(Problem.class, r.getBody());
-		assertFalse(Strings.isNullOrEmpty(p.name()));
+		assertFalse(p.name() == null || p.name().isBlank());
 		assertNull(p.redirectUrl());
 	}
 
@@ -44,7 +43,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 		var r = tester.getProblems(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_PROBLEM_ID, false);
 		assertEquals(OK, r.getStatusCode());
 		Problem p = assertInstanceOf(Problem.class, r.getBody());
-		assertTrue(Strings.isNullOrEmpty(p.name()));
+		assertTrue(p.name() == null || p.name().isBlank());
 		assertNotNull(p.redirectUrl());
 	}
 
@@ -62,7 +61,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 			try {
 				Problem p = problemRepo.getProblem(Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 				assertNotNull(p);
-				assertFalse(Strings.isNullOrEmpty(p.name()));
+				assertFalse(p.name() == null || p.name().isBlank());
 			} catch (SQLException | JsonProcessingException e) {
 				throw new RuntimeException(e);
 			}

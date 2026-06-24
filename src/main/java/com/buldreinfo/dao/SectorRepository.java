@@ -2,6 +2,7 @@ package com.buldreinfo.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,13 +44,6 @@ import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Trail.TrailBuilder;
 import com.buldreinfo.model.Type;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
 
 @Repository
 public class SectorRepository extends BaseRepository {
@@ -78,7 +72,7 @@ public class SectorRepository extends BaseRepository {
 	}
 
 	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
@@ -157,7 +151,7 @@ public class SectorRepository extends BaseRepository {
 			if (s == null) {
 				try {
 					Redirect res = hierarchyRepo.getObject().getCanonicalUrl(setup, 0, reqId, 0);
-					if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+					if (res.redirectUrl() != null && !res.redirectUrl().isBlank()) {
 						return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
 					}
 				} catch (NoSuchElementException _) {
@@ -189,19 +183,19 @@ public class SectorRepository extends BaseRepository {
 			if (!s.problems().isEmpty() && orderByGrade) {
 				Collections.sort(s.problems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());
 			}
-			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, orderByGrade, reqId, shouldUpdateHits, stopwatch);
+			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, orderByGrade, reqId, shouldUpdateHits, Duration.ofNanos(System.nanoTime() - startNanos));
 			return s;
 		}
 	}
 
-	public Multimap<Integer, Trail> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) throws SQLException, JsonProcessingException, BeansException {
-		var stopwatch = Stopwatch.createStarted();
+	public Map<Integer, List<Trail>> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) throws SQLException, JsonProcessingException, BeansException {
+		var startNanos = System.nanoTime();
 		var c = txManager.getConnection();
-		Preconditions.checkArgument(!sectorIds.isEmpty(), "sectorIds is empty");
-		Multimap<Integer, Trail> res = ArrayListMultimap.create();
+		if (sectorIds.isEmpty()) throw new IllegalArgumentException("sectorIds is empty");
+		Map<Integer, List<Trail>> res = new HashMap<>();
 		String inClause = ",?".repeat(sectorIds.size()).substring(1);
 		Map<Integer, TrailBuilder> trailBuilders = new LinkedHashMap<>();
-		Multimap<Integer, Integer> sectorToTrailIds = ArrayListMultimap.create();
+		Map<Integer, List<Integer>> sectorToTrailIds = new HashMap<>();
 
 		String trailSql = String.format("""
 				SELECT st.sector_id, t.id, t.is_descent, t.title, t.description 
@@ -218,7 +212,7 @@ public class SectorRepository extends BaseRepository {
 				while (rst.next()) {
 					int sectorId = rst.getInt("sector_id");
 					int trailId = rst.getInt("id");
-					sectorToTrailIds.put(sectorId, trailId);
+					sectorToTrailIds.computeIfAbsent(sectorId, _ -> new ArrayList<>()).add(trailId);
 					if (!trailBuilders.containsKey(trailId)) {
 						trailBuilders.put(trailId, new TrailBuilder(trailId, rst.getBoolean("is_descent"), rst.getString("title"), rst.getString("description")));
 					}
@@ -268,19 +262,27 @@ public class SectorRepository extends BaseRepository {
 			}
 		}
 
-		Multimap<Integer, Media> trailsMediaMap = mediaRepo.getObject().getMediaTrails(authUserId, trailBuilders.keySet());
+		Map<Integer, List<Media>> trailsMediaMap = mediaRepo.getObject().getMediaTrails(authUserId, trailBuilders.keySet());
 		Map<Integer, Trail> finalTrailsMap = new HashMap<>();
 		for (TrailBuilder b : trailBuilders.values()) {
-			List<Media> trailMediaList = (List<Media>) trailsMediaMap.get(b.id);
+			List<Media> trailMediaList = trailsMediaMap.get(b.id);
 			Trail compiledTrail = Trail.withCalculatedStats(
 					b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, trailMediaList, null
 					);
 			finalTrailsMap.put(b.id, compiledTrail);
 		}
 		for (int sectorId : sectorIds) {
-			for (int trailId : sectorToTrailIds.get(sectorId)) res.put(sectorId, finalTrailsMap.get(trailId));
+			var trailIds = sectorToTrailIds.get(sectorId);
+			if (trailIds != null) {
+				var trails = new ArrayList<Trail>();
+				for (int trailId : trailIds) {
+					var trail = finalTrailsMap.get(trailId);
+					if (trail != null) trails.add(trail);
+				}
+				if (!trails.isEmpty()) res.put(sectorId, trails);
+			}
 		}
-		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), stopwatch);
+		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 
@@ -375,7 +377,7 @@ public class SectorRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(idSector > 0, "idSector=" + idSector);
+		if (idSector <= 0) throw new IllegalArgumentException("idSector=" + idSector);
 
 		try (var ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
 			ps.setInt(1, idSector);
@@ -413,7 +415,7 @@ public class SectorRepository extends BaseRepository {
 		Set<Integer> allSectorsToLock = new TreeSet<>();
 		List<Integer> existingTrailIds = new ArrayList<>();
 		for (Trail t : trails) {
-			Preconditions.checkArgument(t.sectors() != null && !t.sectors().isEmpty(), "sectors cannot be empty or null");
+			if (t.sectors() == null || t.sectors().isEmpty()) throw new IllegalArgumentException("sectors cannot be empty or null");
 			for (var sector : t.sectors()) allSectorsToLock.add(sector.sectorId());
 			if (t.id() > 0) existingTrailIds.add(t.id());
 		}
@@ -588,20 +590,20 @@ public class SectorRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) throw new IllegalArgumentException("Insufficient permissions");
 	}
 
 	protected List<Coordinates> getSectorOutline(int idSector) throws SQLException {
-		Multimap<Integer, Coordinates> idSectorOutline = getSectorOutlines(Collections.singleton(idSector));
+		Map<Integer, List<Coordinates>> idSectorOutline = getSectorOutlines(Collections.singleton(idSector));
 		if (idSectorOutline == null || idSectorOutline.isEmpty()) return null;
-		return Lists.newArrayList(idSectorOutline.get(idSector));
+		return new ArrayList<>(idSectorOutline.getOrDefault(idSector, List.of()));
 	}
 
-	protected Multimap<Integer, Coordinates> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
+	protected Map<Integer, List<Coordinates>> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
 		var c = txManager.getConnection();
-		var stopwatch = Stopwatch.createStarted();
-		Preconditions.checkArgument(!idSectors.isEmpty(), "idSectors is empty");
-		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
+		var startNanos = System.nanoTime();
+		if (idSectors.isEmpty()) throw new IllegalArgumentException("idSectors is empty");
+		Map<Integer, List<Coordinates>> res = new HashMap<>();
 		String in = ",?".repeat(idSectors.size()).substring(1);
 		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM sector_outline so, coordinates c WHERE so.sector_id IN (" + in + ") AND so.coordinates_id=c.id ORDER BY so.sorting";
 		try (var ps = c.prepareStatement(sqlStr)) {
@@ -610,19 +612,19 @@ public class SectorRepository extends BaseRepository {
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					int idSector = rst.getInt("id_sector");
-					res.put(idSector, new Coordinates(rst.getInt("id"), rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")));
+					res.computeIfAbsent(idSector, _ -> new ArrayList<>()).add(new Coordinates(rst.getInt("id"), rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")));
 				}
 			}
 		}
-		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), stopwatch);
+		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 
-	protected Multimap<Integer, SectorProblem> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) throws SQLException {
+	protected Map<Integer, List<SectorProblem>> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) throws SQLException {
 		var c = txManager.getConnection();
-		Preconditions.checkArgument((optAreaId == 0 && optSectorId > 0) || optAreaId > 0 && optSectorId == 0);
-		var stopwatch = Stopwatch.createStarted();
-		Multimap<Integer, SectorProblem> res = LinkedListMultimap.create();
+		if (!((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0))) throw new IllegalArgumentException("Invalid area/sector id combination");
+		var startNanos = System.nanoTime();
+		Map<Integer, List<SectorProblem>> res = new LinkedHashMap<>();
 		String sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
@@ -728,11 +730,11 @@ public class SectorRepository extends BaseRepository {
 							coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
 							new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
 							);
-					res.put(sectorId, p);
+					res.computeIfAbsent(sectorId, _ -> new ArrayList<>()).add(p);
 				}
 			}
 		}
-		logger.debug("getSectorProblems(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), stopwatch);
+		logger.debug("getSectorProblems(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 

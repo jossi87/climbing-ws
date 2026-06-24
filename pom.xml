@@ -205,13 +205,6 @@
             <version>1.5.6</version>
         </dependency>
 
-        <!-- Google Cloud Vision (image classification) -->
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-vision</artifactId>
-            <version>3.91.0</version>
-        </dependency>
-
         <!-- SSH (for backup) -->
         <dependency>
             <groupId>com.hierynomus</groupId>

@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.io.StorageManager;
-import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -98,7 +97,7 @@ public class S3BucketUploadBatch {
 	}
 
 	protected void run() {
-		Preconditions.checkArgument(Files.exists(localMediaRoot), localMediaRoot.toString() + " does not exist");
+		if (!Files.exists(localMediaRoot)) throw new IllegalArgumentException(localMediaRoot.toString() + " does not exist");
 		logger.info("Starting uploading from local directory {} to bucket [{}]", localMediaRoot, StorageManager.BUCKET_NAME);
 		try {
 			try (var stream = Files.walk(localMediaRoot)) {

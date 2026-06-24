@@ -21,7 +21,6 @@ import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 
 public class ImageReader implements AutoCloseable {
 	public static class ImageReaderBuilder {
@@ -121,23 +120,22 @@ public class ImageReader implements AutoCloseable {
 					.GET()
 					.build();
 			HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
-			Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error status: " + response.statusCode());
+			if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("Vimeo API error status: " + response.statusCode());
 			var arr = objectMapper.readTree(response.body());
 	        if (arr.isArray() && !arr.isEmpty()) {
 	            imgUrl = arr.get(0).path("thumbnail_large").asText();
 	        }
 		}
 
-		Preconditions.checkArgument(imgUrl != null, "Could not extract video ID or determine thumbnail URL for: " + embedUrl);
+		if (imgUrl == null) throw new IllegalArgumentException("Could not extract video ID or determine thumbnail URL for: " + embedUrl);
 		
 		URI targetUri = URI.create(imgUrl);
 		String host = targetUri.getHost().toLowerCase();
-		Preconditions.checkArgument(
-			host.endsWith(".youtube.com") || host.equals("youtube.com") ||
-			host.endsWith(".vimeo.com") || host.equals("vimeo.com") ||
-			host.endsWith(".vimeocdn.com") || host.equals("vimeocdn.com"),
-			"Untrusted thumbnail URL origin detected: " + host
-		);
+		if (!host.endsWith(".youtube.com") && !host.equals("youtube.com") &&
+			!host.endsWith(".vimeo.com") && !host.equals("vimeo.com") &&
+			!host.endsWith(".vimeocdn.com") && !host.equals("vimeocdn.com")) {
+			throw new IllegalArgumentException("Untrusted thumbnail URL origin detected: " + host);
+		}
 
 		HttpRequest imgRequest = HttpRequest.newBuilder()
 				.uri(targetUri)
@@ -146,7 +144,7 @@ public class ImageReader implements AutoCloseable {
 				.build();
 
 		HttpResponse<byte[]> imgResponse = GlobalFunctions.HTTP_CLIENT.send(imgRequest, BodyHandlers.ofByteArray());
-		Preconditions.checkArgument(imgResponse.statusCode() == HttpURLConnection.HTTP_OK, "Failed downloading image content stream");
+		if (imgResponse.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("Failed downloading image content stream");
 		
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imgResponse.body())) {
 			return ImageIO.read(bais);

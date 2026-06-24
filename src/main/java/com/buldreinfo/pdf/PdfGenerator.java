@@ -65,9 +65,6 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.model.Tick.TickRepeat;
 import com.buldreinfo.model.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 
 public class PdfGenerator implements AutoCloseable {
 
@@ -233,18 +230,18 @@ public class PdfGenerator implements AutoCloseable {
 		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
 		info.addCell(urlCell);
 
-		if (!Strings.isNullOrEmpty(area.accessClosed()) || !Strings.isNullOrEmpty(area.accessInfo()) || !Strings.isNullOrEmpty(area.comment())) {
+		if ((area.accessClosed() != null && !area.accessClosed().isBlank()) || (area.accessInfo() != null && !area.accessInfo().isBlank()) || (area.comment() != null && !area.comment().isBlank())) {
 			StringBuilder areaInfo = new StringBuilder();
-			if (!Strings.isNullOrEmpty(area.accessClosed())) {
+			if (area.accessClosed() != null && !area.accessClosed().isBlank()) {
 				areaInfo.append("Access closed: ").append(area.accessClosed());
 			}
-			if (!Strings.isNullOrEmpty(area.accessInfo())) {
+			if (area.accessInfo() != null && !area.accessInfo().isBlank()) {
 				if (areaInfo.length() > 0) {
 					areaInfo.append("\n");
 				}
 				areaInfo.append("Access info: ").append(area.accessInfo());
 			}
-			if (!Strings.isNullOrEmpty(area.comment())) {
+			if (area.comment() != null && !area.comment().isBlank()) {
 				if (areaInfo.length() > 0) {
 					areaInfo.append("\n");
 				}
@@ -301,14 +298,14 @@ public class PdfGenerator implements AutoCloseable {
 		info.addCell(urlCell);
 
 		StringBuilder areaInfo = new StringBuilder();
-		if (!Strings.isNullOrEmpty(area.accessClosed())) {
+		if (area.accessClosed() != null && !area.accessClosed().isEmpty()) {
 			areaInfo.append("Access closed: ").append(area.accessClosed());
 		}
-		if (!Strings.isNullOrEmpty(area.accessInfo())) {
+		if (area.accessInfo() != null && !area.accessInfo().isEmpty()) {
 			if (areaInfo.length() > 0) areaInfo.append("\n");
 			areaInfo.append("Access info: ").append(area.accessInfo());
 		}
-		if (!Strings.isNullOrEmpty(area.comment())) {
+		if (area.comment() != null && !area.comment().isEmpty()) {
 			if (areaInfo.length() > 0) areaInfo.append("\n");
 			areaInfo.append(area.comment());
 		}
@@ -318,14 +315,14 @@ public class PdfGenerator implements AutoCloseable {
 		}
 
 		StringBuilder sectorInfo = new StringBuilder();
-		if (!Strings.isNullOrEmpty(sector.accessClosed())) {
+		if (sector.accessClosed() != null && !sector.accessClosed().isEmpty()) {
 			sectorInfo.append("Access closed: ").append(sector.accessClosed());
 		}
-		if (!Strings.isNullOrEmpty(sector.accessInfo())) {
+		if (sector.accessInfo() != null && !sector.accessInfo().isEmpty()) {
 			if (sectorInfo.length() > 0) sectorInfo.append("\n");
 			sectorInfo.append("Access info: ").append(sector.accessInfo());
 		}
-		if (!Strings.isNullOrEmpty(sector.comment())) {
+		if (sector.comment() != null && !sector.comment().isEmpty()) {
 			if (sectorInfo.length() > 0) sectorInfo.append("\n");
 			sectorInfo.append(sector.comment());
 		}
@@ -346,7 +343,7 @@ public class PdfGenerator implements AutoCloseable {
 			info.addCell(createValueCell(fa + " (" + problem.faDateHr() + ")"));
 		}
 
-		if (!Strings.isNullOrEmpty(problem.comment())) {
+		if (problem.comment() != null && !problem.comment().isEmpty()) {
 			info.addCell(createKeyCell("Description"));
 			info.addCell(createValueCell(problem.comment()));
 		}
@@ -434,7 +431,7 @@ public class PdfGenerator implements AutoCloseable {
 				pitchTitle.setLocalDestination(destName);
 				p.add(pitchTitle);
 
-				p.add(new Chunk(Strings.nullToEmpty(section.description()), FONT_REG));
+		p.add(new Chunk(section.description() == null ? "" : section.description(), FONT_REG));
 				pitchCell.addElement(p);
 
 				new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), "Pitch " + section.nr());
@@ -465,7 +462,7 @@ public class PdfGenerator implements AutoCloseable {
 			PdfPCell cell = new PdfPCell(img, true);
 			cell.setBorder(Rectangle.NO_BORDER);
 			cell.setPadding(3f);
-			if (!Strings.isNullOrEmpty(desc)) cell.setCellEvent(new WatermarkedCell(desc));
+			if (desc != null && !desc.isBlank()) cell.setCellEvent(new WatermarkedCell(desc));
 			table.addCell(cell);
 		} catch (Exception e) {
 			logger.error("Failed to add image cell", e);
@@ -494,7 +491,7 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	private void addTextWithLinks(Phrase p, String text, Font textFont) {
-		if (Strings.isNullOrEmpty(text)) {
+		if (text == null || text.isBlank()) {
 			return;
 		}
 		Matcher m = URL_PATTERN.matcher(text);
@@ -774,12 +771,12 @@ public class PdfGenerator implements AutoCloseable {
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
 
-			Multimap<String, SectorProblem> problemsWithCoordinatesGroupedByRock = ArrayListMultimap.create();
+			Map<String, List<SectorProblem>> problemsWithCoordinatesGroupedByRock = new HashMap<>();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.problems()) {
 				if (p.coordinates() != null && p.coordinates().getLatitude() > 0 && p.coordinates().getLongitude() > 0) {
-					if (p.rock() != null) {
-						problemsWithCoordinatesGroupedByRock.put(p.rock(), p);
+				if (p.rock() != null) {
+						problemsWithCoordinatesGroupedByRock.computeIfAbsent(p.rock(), _ -> new ArrayList<>()).add(p);
 					}
 					else {
 						problemsWithoutRock.add(p);
@@ -787,7 +784,7 @@ public class PdfGenerator implements AutoCloseable {
 				}
 			}
 			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
-				Collection<SectorProblem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
+				List<SectorProblem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
 				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
 				markers.add(new Marker(latLng.lat(), latLng.lng(), IconType.ROCK, rock));
 			}
@@ -915,10 +912,10 @@ public class PdfGenerator implements AutoCloseable {
 			final boolean showType = s.problems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
 			document.newPage();
 			document.add(new Paragraph(s.name(), FONT_H2));
-			if (!Strings.isNullOrEmpty(s.accessInfo())) {
+			if (s.accessInfo() != null && !s.accessInfo().isBlank()) {
 				document.add(new Phrase(s.accessInfo(), FONT_BOLD));
 			}
-			if (!Strings.isNullOrEmpty(s.comment())) {
+			if (s.comment() != null && !s.comment().isBlank()) {
 				document.add(new Phrase(s.comment(), FONT_REG));
 			}
 			writeMapSector(s);
@@ -938,15 +935,15 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "Note", null, false);
 
 			for (SectorProblem p : s.problems()) {
-				String description = Strings.emptyToNull(p.comment());
-				if (!Strings.isNullOrEmpty(p.rock())) {
+		String description = (p.comment() == null || p.comment().isBlank()) ? null : p.comment();
+				if (p.rock() != null && !p.rock().isBlank()) {
 					if (description == null) {
 						description = "Rock: " + p.rock();
 					} else {
 						description = "Rock: " + p.rock() + ". " + description;
 					}
 				}
-				if (!Strings.isNullOrEmpty(p.broken())) {
+				if (p.broken() != null && !p.broken().isBlank()) {
 					if (description == null) {
 						description = p.broken();
 					} else {
@@ -1032,7 +1029,7 @@ public class PdfGenerator implements AutoCloseable {
 
 				Phrase pStars = new Phrase(8);
 				appendStarIcons(pStars, t.getStars());
-				if (!Strings.isNullOrEmpty(t.getComment())) {
+				if (t.getComment() != null && !t.getComment().isBlank()) {
 					pStars.add(new Chunk(" ", FONT_REG));
 					addTextWithLinks(pStars, t.getComment(), FONT_REG);
 				}
@@ -1040,7 +1037,7 @@ public class PdfGenerator implements AutoCloseable {
 				if (t.getRepeats() != null) {
 					for (TickRepeat r : t.getRepeats()) {
 						pStars.add(new Chunk("\n \u2022 " + r.date() + ": ", FONT_SMALL));
-						if (!Strings.isNullOrEmpty(r.comment())) {
+						if (r.comment() != null && !r.comment().isBlank()) {
 							addTextWithLinks(pStars, r.comment(), FONT_SMALL);
 						}
 					}

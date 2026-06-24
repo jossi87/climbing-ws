@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -46,10 +47,6 @@ import com.buldreinfo.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
 @Repository
 public class ProblemRepository extends BaseRepository {
@@ -84,7 +81,7 @@ public class ProblemRepository extends BaseRepository {
 	}
 
 	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 
 		if (shouldUpdateHits) {
@@ -228,7 +225,7 @@ public class ProblemRepository extends BaseRepository {
 						var name = rst.getString("name");
 						var comment = rst.getString("description");
 						var faStr = rst.getString("fa");
-						List<User> fa = Strings.isNullOrEmpty(faStr) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
+		List<User> fa = (faStr == null || faStr.isEmpty()) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
 						var lengthMeter = rst.getInt("length_meter");
 						var idCoordinates = rst.getInt("coordinates_id");
 						var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
@@ -253,7 +250,7 @@ public class ProblemRepository extends BaseRepository {
 						var descent = rst.getString("descent");
 
 						var sectionsStr = rst.getString("compiled_sections");
-						List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(objectMapper.readValue("[" + sectionsStr + "]", new TypeReference<List<ProblemSection>>() {}));
+		List<ProblemSection> sections = (sectionsStr == null || sectionsStr.isEmpty()) ? new ArrayList<>() : new ArrayList<>(objectMapper.readValue("[" + sectionsStr + "]", new TypeReference<List<ProblemSection>>() {}));
 
 						if (media != null && !sections.isEmpty()) {
 							for (var section : sections) {
@@ -281,7 +278,7 @@ public class ProblemRepository extends BaseRepository {
 		if (p == null) {
 			try {
 				var res = hierarchyRepo.getObject().getCanonicalUrl(s, 0, 0, reqId);
-				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
 					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
@@ -463,12 +460,14 @@ public class ProblemRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, shouldUpdateHits={}) - duration={} - p.id()={}", authUserId, s.idRegion(), reqId, shouldUpdateHits, stopwatch, p.id());
+		logger.debug("getProblem(authUserId={}, reqRegionId={}, reqId={}, shouldUpdateHits={}) - duration={}ms - p.id()={}", authUserId, s.idRegion(), reqId, shouldUpdateHits, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start), p.id());
 		return p;
 	}
 
 	public List<ProblemSearchResult> getProblemsSearch(Optional<Integer> authUserId, Setup setup, String search) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("User not logged in...");
+		}
 		if (search == null || search.strip().isEmpty()) {
 			return List.of();
 		}
@@ -518,7 +517,7 @@ public class ProblemRepository extends BaseRepository {
 	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) throws SQLException, InterruptedException {
 		var c = txManager.getConnection();
 		final var orderByGrade = s.isBouldering();
-		final var dt = Strings.isNullOrEmpty(p.faDate())? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+		final var dt = (p.faDate() == null || p.faDate().isEmpty())? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		var idProblem = -1;
 		final var isLockedAdmin = p.lockedSuperadmin()? false : p.lockedAdmin();
 		if (p.coordinates() != null) {
@@ -526,7 +525,7 @@ public class ProblemRepository extends BaseRepository {
 				p = p.withCoordinates(null);
 			}
 			else {
-				geoRepo.ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(p.coordinates()));
+				geoRepo.ensureCoordinatesInDbWithElevationAndId(List.of(p.coordinates()));
 			}
 		}
 		sectorRepo.getObject().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
@@ -620,7 +619,9 @@ public class ProblemRepository extends BaseRepository {
 				}
 			}
 			for (var x : p.fa()) {
-				Preconditions.checkArgument(x.id() != 0);
+				if (x.id() == 0) {
+					throw new IllegalArgumentException("FA user id must not be 0");
+				}
 				if (x.id() > 0) {
 					var exists = fas.remove(x.id());
 					if (!exists) {
@@ -632,7 +633,9 @@ public class ProblemRepository extends BaseRepository {
 					}
 				} else {
 					var idUser = userRepo.addUser(null, x.name(), null);
-					Preconditions.checkArgument(idUser > 0);
+					if (idUser <= 0) {
+						throw new IllegalArgumentException("Failed to create user");
+					}
 					try (var ps2 = c.prepareStatement("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)")) {
 						ps2.setInt(1, idProblem);
 						ps2.setInt(2, idUser);
@@ -683,7 +686,7 @@ public class ProblemRepository extends BaseRepository {
 			}
 			if (p.faAid() != null) {
 				var faAid = p.faAid();
-				final var aidDt = Strings.isNullOrEmpty(faAid.date())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+				final var aidDt = (faAid.date() == null || faAid.date().isEmpty())? null : LocalDate.parse(faAid.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				try (var ps = c.prepareStatement("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)")) {
 					ps.setInt(1, idProblem);
 					ps.setObject(2, aidDt);
@@ -697,7 +700,9 @@ public class ProblemRepository extends BaseRepository {
 							if (idUser <= 0) {
 								idUser = userRepo.addUser(null, u.name(), null);
 							}
-							Preconditions.checkArgument(idUser > 0);
+							if (idUser <= 0) {
+								throw new IllegalArgumentException("Failed to create user for faAid");
+							}
 							ps.setInt(1, idProblem);
 							ps.setInt(2, idUser);
 							ps.addBatch();
@@ -716,12 +721,16 @@ public class ProblemRepository extends BaseRepository {
 	}
 
 	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) throws SQLException, JsonProcessingException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("Not logged in");
+		}
 		var c = txManager.getConnection();
 		var idGuestbook = co.id();
 		if (idGuestbook > 0) {
 			var comments = getProblem(authUserId, s, co.idProblem(), false, false).comments();
-			Preconditions.checkArgument(!comments.isEmpty(), "No comment on problem " + co.idProblem());
+			if (comments.isEmpty()) {
+				throw new IllegalArgumentException("No comment on problem " + co.idProblem());
+			}
 			var comment = comments.stream().filter(x -> x.id() == co.id()).findAny().orElseThrow();
 			if (comment.editable()) {
 				if (co.delete()) {
@@ -784,7 +793,7 @@ public class ProblemRepository extends BaseRepository {
 	}
 
 	private List<Neighbour> getProblemNeighbours(Optional<Integer> authUserId, int sectorId, int problemId, String rock) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 		var res = new ArrayList<Neighbour>();
 		if (rock == null) {
@@ -886,7 +895,7 @@ public class ProblemRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getProblemNeighbours(sectorId={}, problemId={}) - res.size={}, duration={}", sectorId, problemId, res.size(), stopwatch);
+		logger.debug("getProblemNeighbours(sectorId={}, problemId={}) - res.size={}, duration={}ms", sectorId, problemId, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
@@ -913,7 +922,9 @@ public class ProblemRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) {
+			throw new IllegalArgumentException("Insufficient permissions");
+		}
 	}
 
 	protected void updateProblemConsensusGrade(int problemId) throws SQLException {

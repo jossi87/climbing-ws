@@ -21,7 +21,6 @@ import com.buldreinfo.controller.AreasController;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.model.Area;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Strings;
 
 public class AreasResourceTest extends BaseResourceTest {
 	@Autowired private AreasController tester;
@@ -34,7 +33,7 @@ public class AreasResourceTest extends BaseResourceTest {
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
 		assertEquals(1, area.size());
 		Area a = (Area) area.iterator().next();
-		assertFalse(Strings.isNullOrEmpty(a.name()));
+		assertFalse(a.name() == null || a.name().isBlank());
 		assertNull(a.redirectUrl());
 	}
 
@@ -45,7 +44,7 @@ public class AreasResourceTest extends BaseResourceTest {
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
 		assertEquals(1, area.size());
 		Area a = (Area) area.iterator().next();
-		assertTrue(Strings.isNullOrEmpty(a.name()));
+		assertTrue(a.name() == null || a.name().isBlank());
 		assertNotNull(a.redirectUrl());
 	}
 
@@ -63,7 +62,7 @@ public class AreasResourceTest extends BaseResourceTest {
 
 				Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
 				assertNotNull(a);
-				assertFalse(Strings.isNullOrEmpty(a.name()));
+				assertFalse(a.name() == null || a.name().isBlank());
 			} catch (SQLException | JsonProcessingException e) {
 				throw new RuntimeException(e);
 			}

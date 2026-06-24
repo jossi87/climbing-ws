@@ -1,71 +1,69 @@
 package com.buldreinfo.service;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-
 import org.springframework.stereotype.Service;
-
+import org.springframework.web.client.RestClient;
 import com.buldreinfo.config.AppConfig;
-import com.google.api.gax.core.NoCredentialsProvider;
-import com.google.cloud.vision.v1.AnnotateImageRequest;
-import com.google.cloud.vision.v1.AnnotateImageResponse;
-import com.google.cloud.vision.v1.ColorInfo;
-import com.google.cloud.vision.v1.EntityAnnotation;
-import com.google.cloud.vision.v1.Feature;
-import com.google.cloud.vision.v1.Image;
-import com.google.cloud.vision.v1.ImageAnnotatorClient;
-import com.google.cloud.vision.v1.ImageAnnotatorSettings;
-import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
-import com.google.protobuf.ByteString;
-
-import jakarta.annotation.PreDestroy;
+import com.buldreinfo.model.MediaObject;
 
 @Service
 public class ImageClassifierService {
-	public record AnalysisResult(String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects) {}
-	private final ImageAnnotatorClient client;
 
-	public ImageClassifierService(AppConfig appConfig) throws Exception {
-		ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
-				.setCredentialsProvider(NoCredentialsProvider.create())
-				.setHeaderProvider(() -> Collections.singletonMap("X-Goog-Api-Key", appConfig.googleApikey()))
-				.build();
-		this.client = ImageAnnotatorClient.create(settings);
-	}
+    public record AnalysisResult(String hexColor, List<String> labels, List<MediaObject> objects) {}
 
-	public AnalysisResult analyze(byte[] imgBytesArray) throws Exception {
-		ByteString imgBytes = ByteString.copyFrom(imgBytesArray);
-		Image img = Image.newBuilder().setContent(imgBytes).build();
+    private final String apiKey;
+    private final RestClient restClient;
 
-		AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
-				.addFeatures(Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION))
-				.addFeatures(Feature.newBuilder().setType(Feature.Type.OBJECT_LOCALIZATION))
-				.addFeatures(Feature.newBuilder().setType(Feature.Type.IMAGE_PROPERTIES))
-				.setImage(img)
-				.build();
+    public ImageClassifierService(AppConfig appConfig) {
+        this.apiKey = appConfig.googleApikey();
+        this.restClient = RestClient.builder()
+                .baseUrl("https://vision.googleapis.com/v1")
+                .defaultHeader("Content-Type", "application/json; charset=utf-8")
+                .build();
+    }
 
-		AnnotateImageResponse res = client.batchAnnotateImages(List.of(request)).getResponsesList().get(0);
+    public AnalysisResult analyze(byte[] imgBytesArray) {
+        String base64 = Base64.getEncoder().encodeToString(imgBytesArray);
+        String jsonRequest = "{\"requests\":[{\"image\":{\"content\":\"" + base64 + "\"},\"features\":[{\"type\":\"IMAGE_PROPERTIES\"}]}]}";
 
-		if (res.hasError()) {
-			throw new RuntimeException("Vision API error: " + res.getError().getMessage());
-		}
+        String responseBody = restClient.post()
+                .uri("/images:annotate?key=" + apiKey)
+                .body(jsonRequest)
+                .retrieve()
+                .body(String.class);
 
-		String hexColor = "#000000";
-		if (res.hasImagePropertiesAnnotation() && !res.getImagePropertiesAnnotation().getDominantColors().getColorsList().isEmpty()) {
-			ColorInfo color = res.getImagePropertiesAnnotation().getDominantColors().getColors(0);
-			hexColor = "#%02x%02x%02x".formatted(
-					(int)color.getColor().getRed(), 
-					(int)color.getColor().getGreen(), 
-					(int)color.getColor().getBlue()
-					);
-		}
-		return new AnalysisResult(hexColor, res.getLabelAnnotationsList(), res.getLocalizedObjectAnnotationsList());
-	}
+        if (responseBody == null || responseBody.contains("\"error\":")) {
+            throw new RuntimeException("API error: " + responseBody);
+        }
 
-	@PreDestroy
-	public void cleanup() {
-		if (client != null) {
-			client.close();
-		}
-	}
+        return new AnalysisResult(parseHexColor(responseBody), Collections.emptyList(), Collections.emptyList());
+    }
+
+    private String parseHexColor(String json) {
+        int r = extractRegex(json, "red");
+        int g = extractRegex(json, "green");
+        int b = extractRegex(json, "blue");
+
+        return String.format("#%02x%02x%02x", r, g, b);
+    }
+
+    private int extractRegex(String json, String key) {
+        int keyIndex = json.indexOf("\"" + key + "\"");
+        if (keyIndex == -1) return 0;
+
+        int colonIndex = json.indexOf(":", keyIndex);
+        int commaIndex = json.indexOf(",", colonIndex);
+        int braceIndex = json.indexOf("}", colonIndex);
+        
+        int end = (commaIndex != -1 && commaIndex < braceIndex) ? commaIndex : braceIndex;
+        
+        String val = json.substring(colonIndex + 1, end).trim();
+        try {
+            return Math.round(Float.parseFloat(val));
+        } catch (NumberFormatException _) {
+            return 0;
+        }
+    }
 }

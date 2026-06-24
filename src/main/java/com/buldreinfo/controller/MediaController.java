@@ -48,7 +48,6 @@ import com.buldreinfo.model.VideoInitResponse;
 import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
-import com.google.common.base.Preconditions;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -208,7 +207,7 @@ public class MediaController extends BaseController {
 	public ResponseEntity<Media> postMediaImage(HttpServletRequest request, 
 			@RequestPart("json") Media m,
 			@RequestPart("file") MultipartFile file) throws Exception {
-		Preconditions.checkArgument(m != null, "Media payload is required");
+		if (m == null) throw new IllegalArgumentException("Media payload is required");
 		String originalFilename = file.getOriginalFilename();
 		StorageType storageType = StorageType.fromFilename(originalFilename)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + originalFilename));
@@ -238,7 +237,7 @@ public class MediaController extends BaseController {
 			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
 			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
 			@RequestBody Media mediaPayload) throws Exception {
-		Preconditions.checkArgument(mediaPayload != null, "Media payload missing");
+		if (mediaPayload == null) throw new IllegalArgumentException("Media payload missing");
 		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			if (mediaRepo.getDailyInstagramScrapeCount(ctx.authUserId()) > 50)
@@ -339,8 +338,8 @@ public class MediaController extends BaseController {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		executeContextualTask(request, ctx -> {
 			Media m = mediaRepo.getMedia(ctx.authUserId(), id);
-			Preconditions.checkArgument(m.isMovie(), "Target is not a video");
-			Preconditions.checkArgument(m.uploadedByMe(), "Permission denied");
+			if (!m.isMovie()) throw new IllegalArgumentException("Target is not a video");
+			if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
 			supplyAsync(() -> { videoService.processVideo(id, m.thumbnailSeconds()); return null; })
 			.exceptionally(ex -> { logger.error("Async video error for id=" + id, ex); return null; });
 			return null;
@@ -358,9 +357,9 @@ public class MediaController extends BaseController {
 	@PostMapping("/video/embed")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<Media> postMediaVideoEmbed(HttpServletRequest request, @RequestBody Media media) throws Exception {
-		Preconditions.checkArgument(media != null && media.embedUrl() != null && !media.embedUrl().isBlank());
+		if (media == null || media.embedUrl() == null || media.embedUrl().isBlank()) throw new IllegalArgumentException();
 		String url = media.embedUrl().toLowerCase();
-		Preconditions.checkArgument(url.contains("youtube.com") || url.contains("youtu.be") || url.contains("vimeo.com"), "Unsupported provider");
+		if (!url.contains("youtube.com") && !url.contains("youtu.be") && !url.contains("vimeo.com")) throw new IllegalArgumentException("Unsupported provider");
 		try { URI.create(media.embedUrl()).toURL(); } catch (Exception e) { throw new IllegalArgumentException("Malformed URL", e); }
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
@@ -381,11 +380,11 @@ public class MediaController extends BaseController {
 	@PostMapping("/video/initiate")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<VideoInitResponse> postMediaVideoInitiate(HttpServletRequest request, @RequestBody VideoInitPayload payload) throws Exception {
-		Preconditions.checkArgument(payload != null && payload.media() != null, "Video payload or media is missing");
-		Preconditions.checkArgument(payload.fileSize() <= StorageManager.MAX_VIDEO_UPLOAD_BYTES, "Video exceeds maximum allowed size");
+		if (payload == null || payload.media() == null) throw new IllegalArgumentException("Video payload or media is missing");
+		if (payload.fileSize() > StorageManager.MAX_VIDEO_UPLOAD_BYTES) throw new IllegalArgumentException("Video exceeds maximum allowed size");
 		StorageType storageType = StorageType.fromMimeType(payload.contentType())
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
-		Preconditions.checkArgument(storageType.isMovie(), "Provided format is not a video type.");
+		if (!storageType.isMovie()) throw new IllegalArgumentException("Provided format is not a video type.");
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			int newMediaId = mediaRepo.addMediaVideoPlaceholder(ctx.authUserId(), payload.media(), storageType);

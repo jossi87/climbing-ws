@@ -3,6 +3,7 @@ package com.buldreinfo.dao;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.ExternalLink;
-import com.google.common.base.Stopwatch;
 
 @Repository
 public class ExternalLinksRepository extends BaseRepository {
@@ -21,7 +21,7 @@ public class ExternalLinksRepository extends BaseRepository {
 	}
 	
 	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 		var res = new ArrayList<ExternalLink>();
 		var sql = """
@@ -77,7 +77,7 @@ public class ExternalLinksRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getExternalLinks(areaId={}, sectorId={}, problemId={}) - res.size()={}, duration={}", areaId, sectorId, problemId, res.size(), stopwatch);
+		logger.debug("getExternalLinks(areaId={}, sectorId={}, problemId={}) - res.size()={}, duration={}ms", areaId, sectorId, problemId, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 	

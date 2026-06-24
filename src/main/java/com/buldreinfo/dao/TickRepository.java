@@ -2,6 +2,7 @@ package com.buldreinfo.dao;
 
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -23,9 +24,6 @@ import com.buldreinfo.model.PublicAscent;
 import com.buldreinfo.model.Tick;
 import com.buldreinfo.model.Tick.TickRepeat;
 import com.buldreinfo.model.Ticks;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
 
 @Repository
 public class TickRepository extends BaseRepository {
@@ -40,7 +38,7 @@ public class TickRepository extends BaseRepository {
 	}
 	
 	public Ticks getTicks(Optional<Integer> authUserId, Setup setup, int page) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		final var take = 200;
 		var skip = (page - 1) * take;
 		var c = txManager.getConnection();
@@ -112,22 +110,26 @@ public class TickRepository extends BaseRepository {
 			}
 		}
 		var numPages = (int) Math.ceil((double) totalCount / take);
-		logger.debug("getTicks(page={}) - totalCount={}, duration={}", page, totalCount, stopwatch);
+		logger.debug("getTicks(page={}) - totalCount={}, duration={}", page, totalCount, Duration.ofNanos(System.nanoTime() - start));
 		return new Ticks(ticks, page, numPages);
 	}
 	
 	public void setTick(Setup setup, Optional<Integer> authUserId, Tick t) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("Not logged in");
+		}
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("DELETE FROM todo WHERE user_id=? AND problem_id=?")) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, t.idProblem());
 			ps.execute();
 		}
-		final var dt = Strings.isNullOrEmpty(t.date()) ? null : LocalDate.parse(t.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+		final var dt = (t.date() == null || t.date().isBlank()) ? null : LocalDate.parse(t.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		logger.debug("setTick(authUserId={}, dt={}, t={}", authUserId, dt, t);
 		if (t.delete()) {
-			Preconditions.checkArgument(t.id() > 0, "Cannot delete a tick without id");
+			if (t.id() <= 0) {
+				throw new IllegalArgumentException("Cannot delete a tick without id");
+			}
 			try (var ps = c.prepareStatement("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?")) {
 				ps.setInt(1, t.id());
 				ps.setInt(2, authUserId.orElseThrow());
@@ -198,7 +200,7 @@ public class TickRepository extends BaseRepository {
 		}
 		if (repeats != null && !repeats.isEmpty()) {
 			for (var r : repeats) {
-				final var dt = Strings.isNullOrEmpty(r.date()) ? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+				final var dt = (r.date() == null || r.date().isBlank()) ? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				if (r.id() > 0) {
 					try (var ps = c.prepareStatement("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")) {
 						ps.setObject(1, dt);

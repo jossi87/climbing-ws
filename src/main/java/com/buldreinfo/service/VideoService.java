@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.io.StorageManager;
-import com.google.common.base.Stopwatch;
 
 @Service
 public class VideoService {
@@ -31,7 +30,7 @@ public class VideoService {
 	}
 
 	public void extractThumbnail(int idMedia, Path src, int thumbnailSeconds) throws Exception {
-		Stopwatch stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
 			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
@@ -51,7 +50,7 @@ public class VideoService {
 		} finally {
 			Files.deleteIfExists(tempThumb);
 		}
-		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
+		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}ms", idMedia, src, thumbnailSeconds, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 	}
 
 	public void processVideo(int idMedia, int thumbnailSeconds) throws Exception {

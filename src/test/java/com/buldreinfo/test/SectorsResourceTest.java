@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.buldreinfo.controller.SectorsController;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.model.Sector;
-import com.google.common.base.Strings;
 
 public class SectorsResourceTest extends BaseResourceTest {
 	@Autowired private SectorsController tester;
@@ -30,7 +29,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 		var r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_SECTOR_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
-		assertFalse(Strings.isNullOrEmpty(s.name()));
+		assertFalse(s.name() == null || s.name().isBlank());
 		assertFalse(s.problems().isEmpty());
 		assertNull(s.redirectUrl());
 	}
@@ -40,7 +39,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 		var r = tester.getSectors(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_SECTOR_ID);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
-		assertTrue(Strings.isNullOrEmpty(s.name()));
+		assertTrue(s.name() == null || s.name().isBlank());
 		assertNotNull(s.redirectUrl());
 	}
 
@@ -58,7 +57,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 			try {
 				Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
 				assertNotNull(s);
-				assertFalse(Strings.isNullOrEmpty(s.name()));
+				assertFalse(s.name() == null || s.name().isBlank());
 			} catch (SQLException e) {
 				throw new RuntimeException(e);
 			}

@@ -54,7 +54,6 @@ public class VardenMaintenanceOrchestrator {
 
 		logger.debug("FixMediaAnalyze started");
 		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, txManager, mediaRepo).run();
-
 		logger.debug("S3BucketUploadBatch started");
 		new S3BucketUploadBatch(LOCAL_MEDIA_ROOT, storage).run();
 

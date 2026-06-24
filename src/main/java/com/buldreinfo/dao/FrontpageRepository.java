@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,7 +25,6 @@ import com.buldreinfo.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Stopwatch;
 
 @Repository
 public class FrontpageRepository extends BaseRepository {
@@ -37,7 +37,7 @@ public class FrontpageRepository extends BaseRepository {
 	}
 
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<FrontpageFirstAscent>();
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -114,12 +114,12 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<FrontpageLastComment>();
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -166,12 +166,12 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<FrontpageRecentAscent>();
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -246,12 +246,12 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}), duration={}", authUserId, setup, stopwatch);
+		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<FrontpageNewestMedia>();
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -306,12 +306,12 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}), duration={}", authUserId, setup, stopwatch);
+		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<FrontpageRandomMedia>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -423,12 +423,12 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageRandomMedia(setup={}) - res.size()={}, duration={}", setup, res.size(), stopwatch);
+		logger.debug("getFrontpageRandomMedia(setup={}) - res.size()={}, duration={}ms", setup, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		FrontpageStats res = null;
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -460,7 +460,7 @@ public class FrontpageRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getFrontpageStats(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		logger.debug("getFrontpageStats(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 }

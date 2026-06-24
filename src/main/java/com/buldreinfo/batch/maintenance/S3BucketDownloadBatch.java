@@ -12,7 +12,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.io.StorageManager;
-import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -78,7 +77,7 @@ public class S3BucketDownloadBatch {
 	}
 
 	protected void run() {
-		Preconditions.checkArgument(Files.exists(localMediaRoot), localMediaRoot.toString() + " does not exist");
+		if (!Files.exists(localMediaRoot)) throw new IllegalArgumentException(localMediaRoot.toString() + " does not exist");
 		logger.info("Starting downloading from bucket [{}] to local directory {}", StorageManager.BUCKET_NAME, localMediaRoot);
 		try {
 			ListObjectsV2Request listRequest = ListObjectsV2Request.builder().bucket(StorageManager.BUCKET_NAME).build();

@@ -30,7 +30,6 @@ import com.buldreinfo.model.Sector;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Preconditions;
 
 public class FillProblems {
 	public static enum T {AID, AIDTRAD, BOLT, BOULDER, ICE, MIXED, TOPROPE, TRAD}
@@ -116,7 +115,6 @@ public class FillProblems {
 		this.userRepo = userRepo;
 		this.regionRepo = regionRepo;
 
-		Preconditions.checkArgument(REGION_ID > 0, "Invalid REGION_ID=" + REGION_ID);
 		this.setup = regionRepo.getSetups().stream()
 				.filter(x -> x.idRegion() == REGION_ID)
 				.findAny()
@@ -124,7 +122,7 @@ public class FillProblems {
 
 		List<Data> data = new ArrayList<>();
 		data.add(new Data(1, "AREA", "SECTOR", "NAME", T.TRAD, "DESCRIPTION", 1, "6+", "USER_1,USER_2&USER_3", "9999-12-31", 999, null)); // TODO
-		Preconditions.checkArgument(data.size() > 0, "Invalid data");
+		if (data.isEmpty()) throw new IllegalArgumentException("Invalid data");
 
 		txManager.executeInTransaction(() -> {
 			for (Data d : data) {

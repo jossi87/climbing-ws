@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,11 +46,6 @@ import com.buldreinfo.model.ProfileTodo.ProfileTodoProblem;
 import com.buldreinfo.model.ProfileTodo.ProfileTodoSector;
 import com.buldreinfo.model.User;
 import com.buldreinfo.model.UserRegion;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.ComparisonChain;
 
 @Repository
 public class UserRepository extends BaseRepository {
@@ -61,7 +57,9 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	public void ensureUserExists(int userId) throws SQLException {
-		Preconditions.checkArgument(userId > 0, "Invalid userId=%s", userId);
+		if (userId <= 0) {
+			throw new IllegalArgumentException("Invalid userId=" + userId);
+		}
 		var c = txManager.getConnection();
 		var exists = false;
 		try (var ps = c.prepareStatement("SELECT id FROM user WHERE id=?")) {
@@ -107,10 +105,7 @@ public class UserRepository extends BaseRepository {
 					int userId = rst.getInt("id");
 					var name = rst.getString("name");
 					var emailsStr = rst.getString("emails");
-					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
-							.trimResults()
-							.omitEmptyStrings()
-							.splitToList(emailsStr);
+					List<String> emails = (emailsStr == null || emailsStr.isBlank()) ? null : List.of(emailsStr.split(";"));
 					int mediaId = rst.getInt("media_id");
 					MediaIdentity mediaIdentity = null;
 					if (mediaId > 0) {
@@ -414,13 +409,13 @@ public class UserRepository extends BaseRepository {
 						boolean lockedAdmin = rst.getBoolean("locked_admin");
 						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
 						var name = rst.getString("name");
-						var comment = rst.getString("description");
-						if (!Strings.isNullOrEmpty(comment)) {
-							comment = "First ascent (AID): " + comment;
-						}
-						else {
-							comment = "First ascent (AID)";
-						}
+					var comment = rst.getString("description");
+					if (comment != null && !comment.isBlank()) {
+						comment = "First ascent (AID): " + comment;
+					}
+					else {
+						comment = "First ascent (AID)";
+					}
 						var date = rst.getString("date");
 						var dateHr = rst.getString("date_hr");
 						var grade = "n/a";
@@ -454,12 +449,16 @@ public class UserRepository extends BaseRepository {
 				idProblemTickMap.get(idProblem).setCoordinates(coordinates);
 			}
 		}
-		res.sort((t1, t2) -> -ComparisonChain
-				.start()
-				.compare(Strings.nullToEmpty(t1.getDate()), Strings.nullToEmpty(t2.getDate()))
-				.compare(t1.getId(), t2.getId())
-				.compare(t1.getIdProblem(), t2.getIdProblem())
-				.result());
+		res.sort((t1, t2) -> {
+			int cmp = (t1.getDate() == null ? "" : t1.getDate()).compareTo(t2.getDate() == null ? "" : t2.getDate());
+			if (cmp == 0) {
+				cmp = Integer.compare(t1.getId(), t2.getId());
+			}
+			if (cmp == 0) {
+				cmp = Integer.compare(t1.getIdProblem(), t2.getIdProblem());
+			}
+			return -cmp;
+		});
 		for (var i = 0; i < res.size(); i++) {
 			res.get(i).setNum(i);
 		}
@@ -467,7 +466,7 @@ public class UserRepository extends BaseRepository {
 	}
 
 	public List<ProfileDiscipline> getProfileDisciplines(Setup setup, int userId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<ProfileDiscipline>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -660,12 +659,12 @@ public class UserRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getProfileDisciplines(userId={}) - res.size()={}, duration={}", userId, res.size(), stopwatch);
+		logger.debug("getProfileDisciplines(userId={}) - res.size()={}, duration={}", userId, res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 	
 	public ProfileIdentity getProfileIdentity(Setup setup, int userId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
 				SELECT u.firstname, 
@@ -712,15 +711,12 @@ public class UserRepository extends BaseRepository {
 						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 					}
 					var emailsStr = rst.getString("emails");
-					List<String> emails = Strings.isNullOrEmpty(emailsStr) ? null : Splitter.on(';')
-							.trimResults()
-							.omitEmptyStrings()
-							.splitToList(emailsStr);
+					List<String> emails = (emailsStr == null || emailsStr.isBlank()) ? null : List.of(emailsStr.split(";"));
 					var userRegions = getUserRegion(userId, setup);
 					var lastLogin = rst.getObject("last_login", LocalDateTime.class);
 					var lastActivity = lastLogin == null ? null : TimeAgo.getTimeAgo(lastLogin.toLocalDate());
 					var res = new ProfileIdentity(userId, firstname, lastname, emailVisibleToAll, themePreference, mediaIdentity, emails, userRegions, lastActivity);
-					logger.debug("getProfileIdentity(authUserId={}) - res={}, duration={}", userId, res, stopwatch);
+					logger.debug("getProfileIdentity(authUserId={}) - res={}, duration={}", userId, res, Duration.ofNanos(System.nanoTime() - start));
 					return res;
 				}
 			}
@@ -729,7 +725,7 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	public ProfileKpis getProfileKpis(int userId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		ProfileKpis res = null;
 		var c = txManager.getConnection();
 		var sqlStr = """
@@ -765,12 +761,12 @@ public class UserRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, stopwatch);
+		logger.debug("getProfileKpis(userId={}) - res={}, duration={}", userId, res, Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 	
 	public ProfileTodo getProfileTodo(Optional<Integer> authUserId, Setup setup, int userId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ProfileTodo(new ArrayList<>());
 		var areaLookup = new HashMap<Integer, ProfileTodoArea>();
 		var sectorLookup = new HashMap<Integer, ProfileTodoSector>();
@@ -867,15 +863,17 @@ public class UserRepository extends BaseRepository {
 			}
 		}
 		res.areas().sort(Comparator.comparing(ProfileTodoArea::name));
-		logger.debug("getProfileTodo(id={}) - duration={}", userId, stopwatch);
+		logger.debug("getProfileTodo(id={}) - duration={}", userId, Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 	
 	public List<User> getUserSearch(Optional<Integer> authUserId, String value) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in...");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("User not logged in...");
+		}
 		var res = new ArrayList<User>();
 		var c = txManager.getConnection();
-		if (!Strings.isNullOrEmpty(value)) {
+		if (value != null && !value.isBlank()) {
 			var searchRegexPattern = "(^|\\W)" + Pattern.quote(value);
 			try (var ps = c.prepareStatement("""
 					SELECT u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name
@@ -1031,9 +1029,15 @@ public class UserRepository extends BaseRepository {
 	}
 
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) throws SQLException {
-		Preconditions.checkArgument(authUserId.orElse(0) == profile.id(), "Wrong input");
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.firstname()), "Firstname cannot be null");
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(profile.lastname()), "Lastname cannot be null");
+		if (authUserId.orElse(0) != profile.id()) {
+			throw new IllegalArgumentException("Wrong input");
+		}
+		if (profile.firstname() == null || profile.firstname().isBlank()) {
+			throw new IllegalArgumentException("Firstname cannot be null");
+		}
+		if (profile.lastname() == null || profile.lastname().isBlank()) {
+			throw new IllegalArgumentException("Lastname cannot be null");
+		}
 		var c = txManager.getConnection();
 		var theme = (profile.themePreference() != null && (profile.themePreference().equals("light") || profile.themePreference().equals("dark"))) ? profile.themePreference() : null;
 		try (var ps = c.prepareStatement("UPDATE user SET firstname=?, lastname=?, email_visible_to_all=?, theme_preference=COALESCE(theme_preference, ?) WHERE id=?")) {
@@ -1051,7 +1055,9 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	public void setThemePreference(Optional<Integer> authUserId, String themePreference) throws SQLException {
-		Preconditions.checkArgument(themePreference != null && (themePreference.equals("light") || themePreference.equals("dark")), "themePreference must be 'light' or 'dark'");
+		if (themePreference == null || (!themePreference.equals("light") && !themePreference.equals("dark"))) {
+			throw new IllegalArgumentException("themePreference must be 'light' or 'dark'");
+		}
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("UPDATE user SET theme_preference=? WHERE id=?")) {
 			ps.setString(1, themePreference);
@@ -1114,7 +1120,9 @@ public class UserRepository extends BaseRepository {
 	}
 
 	private Map<Integer, Coordinates> getProblemCoordinates(Collection<Integer> idProblems) throws SQLException {
-		Preconditions.checkArgument(!idProblems.isEmpty(), "idProblems is empty");
+		if (idProblems.isEmpty()) {
+			throw new IllegalArgumentException("idProblems is empty");
+		}
 		var res = new HashMap<Integer, Coordinates>();
 		var c = txManager.getConnection();
 		var in = ",?".repeat(idProblems.size()).substring(1);
@@ -1139,7 +1147,7 @@ public class UserRepository extends BaseRepository {
 	}
 
 	private List<UserRegion> getUserRegion(int userId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<UserRegion>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -1203,7 +1211,7 @@ public class UserRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getUserRegion() - res.size()={}, duration={}", res.size(), stopwatch);
+		logger.debug("getUserRegion() - res.size()={}, duration={}", res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 	
@@ -1241,8 +1249,10 @@ public class UserRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(id > 0, "id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
-		if (!Strings.isNullOrEmpty(email)) {
+		if (id <= 0) {
+			throw new IllegalArgumentException("id=" + id + ", firstname=" + firstname + ", lastname=" + lastname);
+		}
+		if (email != null && !email.isBlank()) {
 			try (var ps = c.prepareStatement("""
 					INSERT INTO user_email (user_id, email) 
 					VALUES (?, ?) 
@@ -1262,7 +1272,7 @@ public class UserRepository extends BaseRepository {
 	}
 	
 	protected int getExistingOrInsertUser(String name) throws SQLException {
-		if (Strings.isNullOrEmpty(name)) {
+		if (name == null || name.isBlank()) {
 			return USER_ID_UNKNOWN;
 		}
 		var c = txManager.getConnection();
@@ -1275,7 +1285,9 @@ public class UserRepository extends BaseRepository {
 			}
 		}
 		int usId = addUser(null, name, null);
-		Preconditions.checkArgument(usId > 0);
+		if (usId <= 0) {
+			throw new IllegalArgumentException("Failed to create user: " + name);
+		}
 		return usId;
 	}
 }

@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,6 +38,7 @@ import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
+import com.buldreinfo.model.MediaObject;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageService;
@@ -44,13 +46,6 @@ import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.vision.v1.EntityAnnotation;
-import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 
 @Repository
 public class MediaRepository extends BaseRepository {
@@ -84,10 +79,10 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	public int addMediaImage(Optional<Integer> authUserId, Media m, StorageType storageType, Supplier<InputStream> inputStreamSupplier) throws Exception {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkNotNull(storageType, "StorageType is required");
-		Preconditions.checkNotNull(inputStreamSupplier, "InputStreamSupplier is required");
-		Preconditions.checkArgument(!storageType.isMovie(), "Use the video endpoints for video uploads");
+		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
+		if (storageType == null) throw new NullPointerException("StorageType is required");
+		if (inputStreamSupplier == null) throw new NullPointerException("InputStreamSupplier is required");
+		if (storageType.isMovie()) throw new IllegalArgumentException("Use the video endpoints for video uploads");
 
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
@@ -105,7 +100,7 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	public int addMediaVideoEmbed(Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
 		saveMediaContext(idMedia, associations, m, false);
@@ -118,7 +113,7 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	public int addMediaVideoPlaceholder(Optional<Integer> authUserId, Media m, StorageType storageType) throws Exception {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
 		int idMedia = insertMediaMetadata(authUserId.get(), m, storageType);
 		saveMediaContext(idMedia, associations, m, false);
@@ -315,7 +310,7 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		var res = new ArrayList<Media>();
 		var c = txManager.getConnection();
 
@@ -478,7 +473,7 @@ public class MediaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getProfileMedia(reqId={}, captured={}, duration={})", reqId, captured, stopwatch);
+		logger.debug("getProfileMedia(reqId={}, captured={}, duration={})", reqId, captured, Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 
@@ -505,8 +500,8 @@ public class MediaRepository extends BaseRepository {
 		imageService.rotateImage(idMedia, r);
 	}
 
-	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
-		Preconditions.checkArgument(mediaId > 0, "Media id required");
+	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<String> labels, List<MediaObject> objects, boolean failed) throws SQLException {
+		if (mediaId <= 0) throw new IllegalArgumentException("Media id required");
 		var c = txManager.getConnection();
 
 		var exists = false;
@@ -529,7 +524,7 @@ public class MediaRepository extends BaseRepository {
 
 		int focusX = 0;
 		int focusY = 0;
-
+		
 		if (hasPersonObject) {
 			var climber = objects.stream()
 					.filter(obj -> obj.getName().equalsIgnoreCase("Person"))
@@ -574,8 +569,8 @@ public class MediaRepository extends BaseRepository {
 				try (var ps = c.prepareStatement("INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)")) {
 					for (var l : labels) {
 						ps.setInt(1, mediaId);
-						ps.setString(2, l.getDescription());
-						ps.setFloat(3, l.getScore());
+						ps.setString(2, l);
+						ps.setFloat(3, 0f);
 						ps.addBatch();
 					}
 					ps.executeBatch();
@@ -584,17 +579,14 @@ public class MediaRepository extends BaseRepository {
 			if (objects != null && !objects.isEmpty()) {
 				try (var ps = c.prepareStatement("INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
 					for (var obj : objects) {
-						var v = obj.getBoundingPoly().getNormalizedVerticesList();
-						if (v.size() >= 3) {
-							ps.setInt(1, mediaId);
-							ps.setString(2, obj.getName());
-							ps.setFloat(3, obj.getScore());
-							ps.setFloat(4, v.get(0).getX());
-							ps.setFloat(5, v.get(0).getY());
-							ps.setFloat(6, v.get(2).getX());
-							ps.setFloat(7, v.get(2).getY());
-							ps.addBatch();
-						}
+						ps.setInt(1, mediaId);
+						ps.setString(2, obj.getName());
+						ps.setFloat(3, 0f);
+						ps.setFloat(4, 0f);
+						ps.setFloat(5, 0f);
+						ps.setFloat(6, 0f);
+						ps.setFloat(7, 0f);
+						ps.addBatch();
 					}
 					ps.executeBatch();
 				}
@@ -659,7 +651,7 @@ public class MediaRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) throw new IllegalArgumentException("Insufficient permissions");
 
 		MediaAssociation assoc;
 		if (areaId > 0) {
@@ -691,7 +683,7 @@ public class MediaRepository extends BaseRepository {
 		}
 		final var ixToMove = idMediaList.indexOf(id);
 		idMediaList.remove(ixToMove);
-		Preconditions.checkArgument(ixToMove>=0, "Could not find " + id + " in " + idMediaList);
+		if (ixToMove < 0) throw new IllegalArgumentException("Could not find " + id + " in " + idMediaList);
 		if (left) {
 			if (ixToMove == 0) {
 				idMediaList.add(id);
@@ -727,10 +719,10 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	public void updateMedia(Optional<Integer> authUserId, Media m) throws Exception {
-		Preconditions.checkArgument(m.identity() != null && m.identity().id() != 0, "Media id required.");
-		Preconditions.checkArgument(m.photographer() != null && !Strings.isNullOrEmpty(m.photographer().name()), "A valid photographer must be specified to update media context.");
+		if (m.identity() == null || m.identity().id() == 0) throw new IllegalArgumentException("Media id required.");
+		if (m.photographer() == null || m.photographer().name() == null || m.photographer().name().isBlank()) throw new IllegalArgumentException("A valid photographer must be specified to update media context.");
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		final var mediaId = m.identity().id();
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, mediaId);
 		var originalMedia = getMedia(authUserId, m.identity().id());     
@@ -741,7 +733,7 @@ public class MediaRepository extends BaseRepository {
 						: "UPDATE media SET description=?, photographer_user_id=?, thumbnail_seconds=? WHERE id=?";
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement(baseUpdateSql)) {
-			ps.setString(1, Strings.emptyToNull(m.description()));
+			ps.setString(1, m.description() != null && !m.description().isBlank() ? m.description() : null);
 			ps.setInt(2, photographerId);
 			ps.setInt(3, m.thumbnailSeconds());
 			ps.setInt(4, mediaId);
@@ -767,7 +759,7 @@ public class MediaRepository extends BaseRepository {
 		for (int idProblem : problemIdsToUpdate) {
 			activityRepo.fillActivity(idProblem);
 		}
-		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, stopwatch);
+		logger.debug("updateMedia(authUserId={}, m={}) duration={}", authUserId, m, Duration.ofNanos(System.nanoTime() - startNanos));
 	}
 
 	public void upsertMediaSvg(Media m) throws SQLException {
@@ -1003,8 +995,8 @@ public class MediaRepository extends BaseRepository {
 			var sql = "INSERT INTO media_user (media_id, user_id) VALUES (?, ?)";
 			try (var ps = c.prepareStatement(sql)) {
 				for (var u : m.tagged()) {
-					if (isUpdate) {
-						Preconditions.checkArgument(!Strings.isNullOrEmpty(u.name()), "Invalid tagged user: " + u);
+				if (isUpdate) {
+						if (u.name() == null || u.name().isBlank()) throw new IllegalArgumentException("Invalid tagged user: " + u);
 					}
 					int userId = u.id() > 0 ? u.id() : userRepo.getExistingOrInsertUser(u.name());
 					ps.setInt(1, mediaId);
@@ -1163,7 +1155,7 @@ public class MediaRepository extends BaseRepository {
 	}
 
 	protected List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		var res = new ArrayList<Media>();
 		var c = txManager.getConnection();
 		var sql = """
@@ -1299,12 +1291,12 @@ public class MediaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getMediaGuestbook(guestbookId={}) - res.size={}, duration={}", guestbookId, res.size(), stopwatch);
+		logger.debug("getMediaGuestbook(guestbookId={}) - res.size={}, duration={}", guestbookId, res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 
 	protected List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		var c = txManager.getConnection();
 		var sectorMediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> getMediaSector(s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia)), executor);
 
@@ -1470,12 +1462,12 @@ public class MediaRepository extends BaseRepository {
 		if (media.isEmpty()) {
 			media = null;
 		}
-		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), stopwatch);
+		logger.debug("getMediaProblem(areaId={}, sectorId={}, problemId={}, showHiddenMedia={}) - media.size()={}, duration={}", areaId, sectorId, problemId, showHiddenMedia, media == null ? 0 : media.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return media;
 	}
 
 	protected List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
+		var startNanos = System.nanoTime();
 		var initialList = new ArrayList<Media>();
 		var c = txManager.getConnection();
 		var sql = """
@@ -1636,13 +1628,13 @@ public class MediaRepository extends BaseRepository {
 				allMedia = new ArrayList<>(allMedia.stream().filter(m -> m.svgs() == null || m.svgs().isEmpty()).toList());
 			}
 		}
-		logger.debug("getMediaSector(idSector={}, optionalIdProblem={}, inherited={}, enableMoveToIdArea={}, enableMoveIdSector={}, enableMoveIdProblem={}, showHiddenMedia={}) - allMedia.size()={}, duration={}", idSector, optionalIdProblem, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, showHiddenMedia, allMedia.size(), stopwatch);
+		logger.debug("getMediaSector(idSector={}, optionalIdProblem={}, inherited={}, enableMoveToIdArea={}, enableMoveIdSector={}, enableMoveIdProblem={}, showHiddenMedia={}) - allMedia.size()={}, duration={}", idSector, optionalIdProblem, inherited, enableMoveToIdArea, enableMoveToIdSector, enableMoveToIdProblem, showHiddenMedia, allMedia.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return allMedia;
 	}
 
-	protected Multimap<Integer, Media> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException, JsonProcessingException {
-		var stopwatch = Stopwatch.createStarted();
-		Multimap<Integer, Media> res = ArrayListMultimap.create();
+	protected java.util.Map<Integer, java.util.List<Media>> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException, JsonProcessingException {
+		var startNanos = System.nanoTime();
+		var res = new java.util.HashMap<Integer, java.util.List<Media>>();
 		if (trailIds.isEmpty()) {
 			return res;
 		}
@@ -1778,11 +1770,11 @@ public class MediaRepository extends BaseRepository {
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					var trailId = rst.getInt("trail_id");
-					res.put(trailId, Media.fromResultSet(objectMapper, rst, authUserId));
+					res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(objectMapper, rst, authUserId));
 				}
 			}
 		}
-		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), stopwatch);
+		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 }

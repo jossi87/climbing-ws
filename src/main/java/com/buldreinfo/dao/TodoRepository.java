@@ -15,7 +15,6 @@ import com.buldreinfo.model.Todo;
 import com.buldreinfo.model.Todo.TodoProblem;
 import com.buldreinfo.model.Todo.TodoSector;
 import com.buldreinfo.model.User;
-import com.google.common.base.Preconditions;
 
 @Repository
 public class TodoRepository extends BaseRepository {
@@ -98,8 +97,8 @@ public class TodoRepository extends BaseRepository {
 	}
 	
 	public void toggleTodo(Optional<Integer> authUserId, int problemId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "User not logged in");
-		Preconditions.checkArgument(problemId > 0, "Problem id not set");
+		if (authUserId.isEmpty()) throw new IllegalArgumentException("User not logged in");
+		if (problemId <= 0) throw new IllegalArgumentException("Problem id not set");
 		var c = txManager.getConnection();
 		int todoId = -1;
 		try (var ps = c.prepareStatement("SELECT id FROM todo WHERE user_id=? AND problem_id=?")) {

@@ -1,6 +1,7 @@
 package com.buldreinfo.dao;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -24,11 +25,6 @@ import com.buldreinfo.model.Grade;
 import com.buldreinfo.model.LatLng;
 import com.buldreinfo.model.Region;
 import com.buldreinfo.model.Type;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
 
 @Repository
 public class RegionRepository extends BaseRepository {
@@ -39,7 +35,9 @@ public class RegionRepository extends BaseRepository {
 	}
 
 	public void ensureAdminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("Not logged in");
+		}
 		var c = txManager.getConnection();
 		var ok = false;
 		try (var ps = c.prepareStatement("SELECT ur.admin_write, ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
@@ -51,11 +49,15 @@ public class RegionRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) {
+			throw new IllegalArgumentException("Insufficient permissions");
+		}
 	}
 
 	public void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("Not logged in");
+		}
 		var c = txManager.getConnection();
 		var ok = false;
 		try (var ps = c.prepareStatement("SELECT ur.superadmin_write FROM user_region ur WHERE ur.region_id=? AND ur.user_id=?")) {
@@ -67,7 +69,9 @@ public class RegionRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) {
+			throw new IllegalArgumentException("Insufficient permissions");
+		}
 	}
 
 	public List<Integer> getFaYears(int regionId) throws SQLException {
@@ -108,16 +112,16 @@ public class RegionRepository extends BaseRepository {
 		if (!regionLookup.isEmpty()) {
 			var idRegionOutline = getRegionOutlines(regionLookup.keySet());
 			for (int idRegion : idRegionOutline.keySet()) {
-				List<Coordinates> outline = Lists.newArrayList(idRegionOutline.get(idRegion));
+				List<Coordinates> outline = new ArrayList<>(idRegionOutline.get(idRegion));
 				regionLookup.get(idRegion).outline().addAll(outline);
 			}
 		}
-		return Lists.newArrayList(regionLookup.values());
+		return new ArrayList<>(regionLookup.values());
 	}
 
 	@Cacheable(value = CacheConstants.REGION_CACHE_NAME, key = "'setups'")
 	public List<Setup> getSetups() throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<Setup>();
 		var c = txManager.getConnection();
 		var compassDirections = getCompassDirections();
@@ -154,7 +158,7 @@ public class RegionRepository extends BaseRepository {
 						.build());
 			}
 		}
-		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), stopwatch);
+		logger.debug("getSetups() - res.size()={}, duration={}", res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 
@@ -214,11 +218,13 @@ public class RegionRepository extends BaseRepository {
 		return res;
 	}
 
-	private Multimap<Integer, Coordinates> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
-		Preconditions.checkArgument(!idRegions.isEmpty(), "idProblems is empty");
-		var stopwatch = Stopwatch.createStarted();
+	private Map<Integer, List<Coordinates>> getRegionOutlines(Collection<Integer> idRegions) throws SQLException {
+		if (idRegions.isEmpty()) {
+			throw new IllegalArgumentException("idProblems is empty");
+		}
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
-		Multimap<Integer, Coordinates> res = ArrayListMultimap.create();
+		Map<Integer, List<Coordinates>> res = new HashMap<>();
 		var in = ",?".repeat(idRegions.size()).substring(1);
 		var sqlStr = "SELECT ro.region_id id_region, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM region_outline ro, coordinates c WHERE ro.region_id IN (" + in + ") AND ro.coordinates_id=c.id ORDER BY ro.sorting";
 		try (var ps = c.prepareStatement(sqlStr)) {
@@ -234,11 +240,11 @@ public class RegionRepository extends BaseRepository {
 					double longitude = rst.getDouble("longitude");
 					double elevation = rst.getDouble("elevation");
 					var elevationSource = rst.getString("elevation_source");
-					res.put(idRegion, new Coordinates(id, latitude, longitude, elevation, elevationSource));
+					res.computeIfAbsent(idRegion, _ -> new ArrayList<>()).add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
 				}
 			}
 		}
-		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}, duration={}", idRegions.size(), res.size(), stopwatch);
+		logger.debug("getRegionOutlines(idRegions.size()={}) - res.size()={}, duration={}", idRegions.size(), res.size(), Duration.ofNanos(System.nanoTime() - start));
 		return res;
 	}
 }

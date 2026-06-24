@@ -11,6 +11,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,10 +37,6 @@ import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector.SectorProblem;
 import com.buldreinfo.model.Trail;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
 @Repository
 public class AreaRepository extends BaseRepository {
@@ -65,7 +62,7 @@ public class AreaRepository extends BaseRepository {
 	}
 
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException, JsonProcessingException, BeansException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
 			try (var ps = c.prepareStatement("UPDATE area SET hits=hits+1 WHERE id=?")) {
@@ -129,7 +126,7 @@ public class AreaRepository extends BaseRepository {
 		if (a == null) {
 			try {
 				var res = hierarchyRepo.getObject().getCanonicalUrl(setup, reqId, 0, 0);
-				if (!Strings.isNullOrEmpty(res.redirectUrl())) {
+				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
 					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null, null);
 				}
 			} catch (NoSuchElementException _) {
@@ -195,12 +192,12 @@ public class AreaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getArea(authUserId={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, reqId, shouldUpdateHits, stopwatch);
+		logger.debug("getArea(authUserId={}, reqId={}, shouldUpdateHits={}) - duration={}ms", authUserId, reqId, shouldUpdateHits, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return a;
 	}
 
 	public Collection<Area> getAreaList(Optional<Integer> authUserId, int reqIdRegion) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var res = new ArrayList<Area>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -256,13 +253,17 @@ public class AreaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}", authUserId, reqIdRegion, res.size(), stopwatch);
+		logger.debug("getAreaList(authUserId={}, reqIdRegion={}) - res.size()={} - duration={}ms", authUserId, reqIdRegion, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException, JsonProcessingException, BeansException {
-		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
-		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
+		if (authUserId.isEmpty()) {
+			throw new IllegalArgumentException("Not logged in");
+		}
+		if (s.idRegion() <= 0) {
+			throw new IllegalArgumentException("Insufficient credentials");
+		}
 		var c = txManager.getConnection();
 		int idArea = -1;
 		final var isLockedAdmin = a.lockedSuperadmin() ? false : a.lockedAdmin();
@@ -272,7 +273,7 @@ public class AreaRepository extends BaseRepository {
 				a = a.withCoordinates(null);
 			}
 			else {
-				geoRepo.ensureCoordinatesInDbWithElevationAndId(Lists.newArrayList(a.coordinates()));
+				geoRepo.ensureCoordinatesInDbWithElevationAndId(List.of(a.coordinates()));
 			}
 		}
 		if (a.id() > 0) {
@@ -359,7 +360,7 @@ public class AreaRepository extends BaseRepository {
 	}
 
 	private Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) throws SQLException, JsonProcessingException, BeansException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var sectorLookup = new HashMap<Integer, AreaSector>();
 		var c = txManager.getConnection();
 		try (var ps = c.prepareStatement("""
@@ -435,12 +436,12 @@ public class AreaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getAreaSectors(areaId={}, areaName={}) - sectorLookup.size()={}, duration={}", areaId, areaName, sectorLookup.size(), stopwatch);
+		logger.debug("getAreaSectors(areaId={}, areaName={}) - sectorLookup.size()={}, duration={}ms", areaId, areaName, sectorLookup.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return sectorLookup;
 	}
 
 	private void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		var c = txManager.getConnection();
 		var sqlStr = """
 				WITH req AS (
@@ -494,7 +495,7 @@ public class AreaRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("loadSimplifiedGradeCounts(areaId={}, sectorLookup.size()={}) - duration={}", areaId, sectorLookup.size(), stopwatch);
+		logger.debug("loadSimplifiedGradeCounts(areaId={}, sectorLookup.size()={}) - duration={}ms", areaId, sectorLookup.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 	}
 
 	protected void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) throws SQLException {
@@ -515,6 +516,8 @@ public class AreaRepository extends BaseRepository {
 				}
 			}
 		}
-		Preconditions.checkArgument(ok, "Insufficient permissions");
+		if (!ok) {
+			throw new IllegalArgumentException("Insufficient permissions");
+		}
 	}
 }
