@@ -31,7 +31,8 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 				rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
 				);
 
-		User photographer = (!rst.wasNull()) ? User.from(rst.getInt("photographer_id"), rst.getString("photographer_name")) : null;
+		int photographerId = rst.getInt("photographer_id");
+		User photographer = (photographerId > 0) ? User.from(photographerId, rst.getString("photographer_name")) : null;
 
 		List<User> taggedUsers = parseAndSort(rst, "tagged_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())));
 		List<MediaArea> areas = parseAndSort(rst, "areas_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())));
