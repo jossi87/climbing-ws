@@ -1,3 +1,5 @@
+server.servlet.context-path=/
+
 buldreinfo.db.hostname=127.0.0.1
 buldreinfo.db.database=climbing
 buldreinfo.db.username=root
