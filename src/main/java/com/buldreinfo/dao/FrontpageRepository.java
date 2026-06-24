@@ -21,17 +21,19 @@ import com.buldreinfo.model.Frontpage.FrontpageRecentAscent;
 import com.buldreinfo.model.Frontpage.FrontpageStats;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.User;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Repository
 public class FrontpageRepository extends BaseRepository {
+	private final ObjectMapper objectMapper;
 	private static final Logger logger = LogManager.getLogger();
-	private final Gson gson = new Gson();
 	
-	public FrontpageRepository(ClimbingTransactionManager txManager) {
+	public FrontpageRepository(ObjectMapper objectMapper, ClimbingTransactionManager txManager) {
 		super(txManager);
+		this.objectMapper = objectMapper;
 	}
 
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
@@ -308,7 +310,7 @@ public class FrontpageRepository extends BaseRepository {
 		return res;
 	}
 
-	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) throws SQLException {
+	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<FrontpageRandomMedia>();
 		var c = txManager.getConnection();
@@ -415,8 +417,8 @@ public class FrontpageRepository extends BaseRepository {
 					String taggedJson = rst.getString("tagged");
 					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
 					var identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					var photographer = photographerJson == null ? null : gson.fromJson(photographerJson, User.class);
-					List<User> tagged = taggedJson == null ? null : gson.fromJson("[" + taggedJson + "]", new TypeToken<List<User>>(){}.getType());
+					User photographer = photographerJson != null ? objectMapper.readValue(photographerJson, User.class) : null;
+					List<User> tagged = taggedJson != null ? objectMapper.readValue("[" + taggedJson + "]", new TypeReference<List<User>>() {}) : null;
 					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged));
 				}
 			}

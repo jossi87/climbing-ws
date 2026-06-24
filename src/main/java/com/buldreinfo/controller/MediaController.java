@@ -49,7 +49,6 @@ import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
 import com.google.common.base.Preconditions;
-import com.google.gson.Gson;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -207,9 +206,8 @@ public class MediaController extends BaseController {
 	@PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<Media> postMediaImage(HttpServletRequest request, 
-			@RequestPart("json") String json, 
+			@RequestPart("json") Media m,
 			@RequestPart("file") MultipartFile file) throws Exception {
-		Media m = new Gson().fromJson(json, Media.class);
 		Preconditions.checkArgument(m != null, "Media payload is required");
 		String originalFilename = file.getOriginalFilename();
 		StorageType storageType = StorageType.fromFilename(originalFilename)

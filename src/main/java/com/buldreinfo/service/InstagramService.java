@@ -17,19 +17,14 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Service
 public class InstagramService {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
 	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
-	private static final Gson GSON = new GsonBuilder()
-			.disableHtmlEscaping()
-			.create();
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(15))
 			.build();
@@ -47,6 +42,7 @@ public class InstagramService {
 		}
 		return "unknown";
 	}
+	
 	public static URI validateInstagramCdnUrl(String urlString) {
 		if (urlString == null) {
 			throw new IllegalArgumentException("URL cannot be null");
@@ -57,10 +53,13 @@ public class InstagramService {
 		}
 		return URI.create(matcher.group(0));
 	}
+	
 	private final AppConfig appConfig;
+	private final ObjectMapper objectMapper;
 
-	public InstagramService(AppConfig appConfig) {
+	public InstagramService(AppConfig appConfig, ObjectMapper objectMapper) {
 		this.appConfig = appConfig;
+		this.objectMapper = objectMapper;
 	}
 
 	public List<InstagramMedia> resolveMedia(String instagramUrl) throws IOException, InterruptedException {
@@ -77,17 +76,15 @@ public class InstagramService {
 		String apiToken = appConfig.apifyApiToken();
 		String startUrl = "https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/runs?token=" + apiToken;
 
-		JsonObject inputJson = new JsonObject();
-		JsonArray urlsArray = new JsonArray();
-		urlsArray.add(instagramUrl);
-		inputJson.add("urls", urlsArray);
-		inputJson.addProperty("commentsPreviewLimit", 0);
+		ObjectNode inputJson = objectMapper.createObjectNode();
+		inputJson.putArray("urls").add(instagramUrl);
+		inputJson.put("commentsPreviewLimit", 0);
 
 		HttpRequest startRequest = HttpRequest.newBuilder()
 				.uri(URI.create(startUrl))
 				.header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
 				.timeout(Duration.ofSeconds(30))
-				.POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(inputJson), StandardCharsets.UTF_8))
+				.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(inputJson), StandardCharsets.UTF_8))
 				.build();
 
 		HttpResponse<String> startResponse = HTTP_CLIENT.send(startRequest, HttpResponse.BodyHandlers.ofString());
@@ -95,9 +92,9 @@ public class InstagramService {
 			throw new IOException("Failed to initiate Apify actor run. Status: " + startResponse.statusCode() + " URL: " + instagramUrl);
 		}
 
-		JsonObject runData = JsonParser.parseString(startResponse.body()).getAsJsonObject().getAsJsonObject("data");
-		String runId = runData.get("id").getAsString();
-		String defaultDatasetId = runData.get("defaultDatasetId").getAsString();
+		JsonNode runData = objectMapper.readTree(startResponse.body()).path("data");
+		String runId = runData.path("id").asText();
+		String defaultDatasetId = runData.path("defaultDatasetId").asText();
 
 		String runStatusUrl = "https://api.apify.com/v2/actor-runs/" + runId + "?token=" + apiToken;
 		HttpRequest statusRequest = HttpRequest.newBuilder().uri(URI.create(runStatusUrl)).timeout(Duration.ofSeconds(15)).GET().build();
@@ -107,8 +104,8 @@ public class InstagramService {
 			Thread.sleep(2500);
 			HttpResponse<String> statusResponse = HTTP_CLIENT.send(statusRequest, HttpResponse.BodyHandlers.ofString());
 			if (statusResponse.statusCode() == 200) {
-				JsonObject statusData = JsonParser.parseString(statusResponse.body()).getAsJsonObject().getAsJsonObject("data");
-				String status = statusData.get("status").getAsString();
+				JsonNode statusData = objectMapper.readTree(statusResponse.body()).path("data");
+				String status = statusData.path("status").asText();
 
 				if ("SUCCEEDED".equals(status)) {
 					success = true;
@@ -132,23 +129,19 @@ public class InstagramService {
 			throw new IOException("Failed to retrieve populated dataset items. Code: " + datasetResponse.statusCode());
 		}
 
-		JsonArray resultArray = JsonParser.parseString(datasetResponse.body()).getAsJsonArray();
-		if (resultArray == null || resultArray.isEmpty()) {
+		JsonNode resultArray = objectMapper.readTree(datasetResponse.body());
+		if (resultArray.isMissingNode() || resultArray.isEmpty()) {
 			throw new IOException("Apify dataset populated empty on verified run completion for URL: " + instagramUrl);
 		}
 
 		List<InstagramMedia> mediaList = new ArrayList<>();
 		for (int i = 0; i < resultArray.size(); i++) {
-			JsonObject entry = resultArray.get(i).getAsJsonObject();
-			if (entry.has("download_url") && !entry.get("download_url").isJsonNull()) {
-				String cdnUrl = entry.get("download_url").getAsString().replaceAll("&amp;", "&");
-				String mediaType = entry.has("media_type") && !entry.get("media_type").isJsonNull()
-						? entry.get("media_type").getAsString()
-								: "image";
+			JsonNode entry = resultArray.get(i);
+			if (entry.hasNonNull("download_url")) {
+				String cdnUrl = entry.get("download_url").asText().replaceAll("&amp;", "&");
+				String mediaType = entry.hasNonNull("media_type") ? entry.get("media_type").asText() : "image";
 				boolean isVideo = "video".equalsIgnoreCase(mediaType);
-				int apiMediaIndex = entry.has("media_index") && !entry.get("media_index").isJsonNull()
-						? entry.get("media_index").getAsInt()
-								: i;
+				int apiMediaIndex = entry.hasNonNull("media_index") ? entry.get("media_index").asInt() : i;
 
 				mediaList.add(new InstagramMedia(cdnUrl, isVideo, apiMediaIndex));
 			}
