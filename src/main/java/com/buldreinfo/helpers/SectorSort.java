@@ -1,13 +1,11 @@
 package com.buldreinfo.helpers;
 
-import com.google.common.collect.ComparisonChain;
 
 public class SectorSort {
 	public static int sortSector(int sorting1, String name1, int sorting2, String name2) {
-		return ComparisonChain.start()
-				.compare(sorting1, sorting2)
-				.compare(parseName(name1), parseName(name2))
-				.result();
+		int cmp = Integer.compare(sorting1, sorting2);
+		if (cmp != 0) return cmp;
+		return parseName(name1).compareTo(parseName(name2));
 	}
 
 	public static String parseName(String name) {

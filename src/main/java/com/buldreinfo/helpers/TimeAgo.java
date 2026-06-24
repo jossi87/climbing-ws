@@ -4,11 +4,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import com.google.common.collect.Lists;
 
 public class TimeAgo {
-	private static final List<Long> times = Lists.newArrayList(365l, 30l, 7l, 1l);
-	private static final List<String> timesString = Lists.newArrayList("year","month","week","day");
+	private static final List<Long> times = List.of(365L, 30L, 7L, 1L);
+	private static final List<String> timesString = List.of("year","month","week","day");
 
 	public static String getTimeAgo(LocalDate date) {
 		if (date == null || date.getYear() < 1971) {

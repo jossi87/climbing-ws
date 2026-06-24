@@ -22,8 +22,6 @@ import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Activity;
 import com.buldreinfo.model.MediaIdentity;
-import com.google.common.base.Joiner;
-import com.google.common.base.Stopwatch;
 
 @Repository
 public class ActivityRepository extends BaseRepository {
@@ -244,7 +242,6 @@ public class ActivityRepository extends BaseRepository {
 	}
 
 	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Activity>();
 		var faIds = new HashSet<Integer>();
 		var tickIds = new HashSet<Integer>();
@@ -367,7 +364,7 @@ public class ActivityRepository extends BaseRepository {
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
-					""".formatted(Joiner.on(",").join(tickIds)))) {
+					""".formatted(tickIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						var a = activityLookup.get(rst.getInt("id"));
@@ -406,7 +403,7 @@ public class ActivityRepository extends BaseRepository {
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
-								""".formatted(Joiner.on(",").join(repeatIds)))) {
+								""".formatted(repeatIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						var a = activityLookup.get(rst.getInt("id"));
@@ -447,7 +444,7 @@ public class ActivityRepository extends BaseRepository {
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
 					  AND m.deleted_user_id IS NULL
-					""".formatted(Joiner.on(",").join(gbIds)))) {
+					""".formatted(gbIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						var a = activityLookup.get(rst.getInt("id"));
@@ -488,7 +485,7 @@ public class ActivityRepository extends BaseRepository {
 					LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 					WHERE a.id IN (%s)
 					ORDER BY u.firstname, u.lastname
-					""".formatted(Joiner.on(",").join(faIds)))) {
+					""".formatted(faIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						var a = activityLookup.get(rst.getInt("id"));
@@ -532,7 +529,7 @@ public class ActivityRepository extends BaseRepository {
 							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 							WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL
 							ORDER BY mp.sorting
-							""".formatted(Joiner.on(",").join(problemIds)))) {
+							""".formatted(problemIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 						try (var rst = ps.executeQuery()) {
 							while (rst.next()) {
 								int pId = rst.getInt("problem_id");
@@ -565,7 +562,7 @@ public class ActivityRepository extends BaseRepository {
 					LEFT JOIN user u_creator ON m.uploader_user_id=u_creator.id
 					LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id
 					WHERE a.id IN (%s)
-					""".formatted(Joiner.on(",").join(mediaIds)))) {
+					""".formatted(mediaIds.stream().map(String::valueOf).collect(Collectors.joining(","))))) {
 				try (var rst = ps.executeQuery()) {
 					while (rst.next()) {
 						var a = activityLookup.get(rst.getInt("id"));
@@ -580,7 +577,7 @@ public class ActivityRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getActivity(offset={}) - res.size()={}, duration={}", offset, res.size(), stopwatch);
+		logger.debug("getActivity(offset={}) - res.size()={}", offset, res.size());
 		return res;
 	}
 }

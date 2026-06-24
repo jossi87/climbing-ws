@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -15,8 +16,6 @@ import org.springframework.stereotype.Service;
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.Coordinates;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 @Service
 public class ElevationService {
@@ -35,7 +34,7 @@ public class ElevationService {
         this.httpClient = HttpClient.newHttpClient();
     }
     public void fillElevations(List<Coordinates> allCoordinates) throws IOException, InterruptedException {
-        for (List<Coordinates> chunk : Lists.partition(allCoordinates, 500)) {
+        for (List<Coordinates> chunk : partition(allCoordinates, 500)) {
             String locations = chunk.stream()
                     .map(c -> c.getLatitude() + "," + c.getLongitude())
                     .reduce((a, b) -> a + "|" + b)
@@ -44,7 +43,9 @@ public class ElevationService {
             String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", encodedLocations, appConfig.googleApikey());
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Google API error: " + response.statusCode());
+            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                throw new IllegalArgumentException("Google API error: " + response.statusCode());
+            }
             GoogleResponse data = objectMapper.readValue(response.body(), GoogleResponse.class);
             for (ElevationResult res : data.results()) {
                 chunk.stream()
@@ -52,5 +53,13 @@ public class ElevationService {
                     .forEach(c -> c.setElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE));
             }
         }
+    }
+
+    private static <T> List<List<T>> partition(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(list.subList(i, Math.min(i + size, list.size())));
+        }
+        return partitions;
     }
 }

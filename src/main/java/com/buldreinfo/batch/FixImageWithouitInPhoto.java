@@ -19,7 +19,6 @@ import com.buldreinfo.Application;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.io.StorageManager;
-import com.google.common.base.Strings;
 
 public class FixImageWithouitInPhoto {
 	private static Logger logger = LogManager.getLogger();
@@ -72,7 +71,7 @@ public class FixImageWithouitInPhoto {
 		int res = -1;
 		System.out.print(id + " - First part of name (stop loop with \"END\"): ");
 		String name = scanner.nextLine();
-		if (!Strings.isNullOrEmpty(name)) {
+		if (name != null && !name.isBlank()) {
 			if (name.equalsIgnoreCase("end")) {
 				return END_SIGNAL;
 			}
@@ -90,7 +89,7 @@ public class FixImageWithouitInPhoto {
 				}
 			}
 		}
-		if (!Strings.isNullOrEmpty(name) && res == -1) {
+		if (name != null && !name.isBlank() && res == -1) {
 			logger.warn("Could not find: " + name);
 		}
 		return res;

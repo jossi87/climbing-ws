@@ -41,10 +41,6 @@ import com.buldreinfo.model.Top;
 import com.buldreinfo.model.Top.TopRank;
 import com.buldreinfo.model.Top.TopUser;
 import com.buldreinfo.model.Type;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Lists;
 
 @Repository
 public class HierarchyRepository extends BaseRepository {
@@ -118,7 +114,6 @@ public class HierarchyRepository extends BaseRepository {
 	}
 
 	public Collection<DangerousArea> getDangerous(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
 		var sectorLookup = new HashMap<Integer, DangerousSector>();
@@ -188,7 +183,7 @@ public class HierarchyRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getDangerous() - areasLookup.size()={}, duration={}", areasLookup.size(), stopwatch);
+		logger.debug("getDangerous() - areasLookup.size()={}", areasLookup.size());
 		return areasLookup.values();
 	}
 
@@ -250,7 +245,6 @@ public class HierarchyRepository extends BaseRepository {
 	}
 	
 	public Collection<RestrictionsRegion> getRestrictions(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
 		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
@@ -310,12 +304,11 @@ public class HierarchyRepository extends BaseRepository {
 				}
 			}
 		}
-		logger.debug("getRestrictions() - regionsLookup.size()={}, duration={}", regionsLookup.size(), stopwatch);
+		logger.debug("getRestrictions() - regionsLookup.size()={}", regionsLookup.size());
 		return regionsLookup.values();
 	}
 	
 	public List<Search> getSearch(Setup setup, Optional<Integer> authUserId, String search) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		
 		var cleanSearch = search.replaceAll("[^\\p{L}0-9]", "");
@@ -510,7 +503,7 @@ public class HierarchyRepository extends BaseRepository {
 		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
 		res.addAll(users);
 		res.addAll(filteredExternal);
-		logger.debug("getSearch(search={}) - res.size()={}, duration={}", search, res.size(), stopwatch);
+		logger.debug("getSearch(search={}) - res.size()={}", search, res.size());
 		return res;
 	}
 	
@@ -552,11 +545,10 @@ public class HierarchyRepository extends BaseRepository {
 				}
 			}
 		}
-		return Joiner.on("\r\n").join(urls);
+		return String.join("\r\n", urls);
 	}
 
 	public Toc getToc(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
 		var areaLookup = new HashMap<Integer, TocArea>();
@@ -733,12 +725,12 @@ public class HierarchyRepository extends BaseRepository {
 				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}
 		}
-		var res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, Lists.newArrayList(regionLookup.values()));
+		var res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, new ArrayList<>(regionLookup.values()));
 		res.regions().forEach(r -> {
 			r.areas().sort(Comparator.comparing(TocArea::name));
 			r.areas().forEach(TocArea::orderSectors);
 		});
-		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup, stopwatch);
+		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup);
 		return res;
 	}
 
@@ -915,7 +907,9 @@ public class HierarchyRepository extends BaseRepository {
 					""";
 			id = idProblem;
 		}
-		Preconditions.checkArgument(id > 0 && sqlStr != null, "Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		if (id <= 0 || sqlStr == null) {
+			throw new IllegalArgumentException("Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		}
 		Redirect res = null;
 		try (var ps = c.prepareStatement(sqlStr)) {
 			ps.setInt(1, setup.idRegion());

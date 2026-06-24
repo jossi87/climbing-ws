@@ -4,7 +4,6 @@ import java.net.http.HttpClient;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import com.google.common.base.Strings;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -66,7 +65,8 @@ public class GlobalFunctions {
 		if (str == null) {
 			return null;
 		}
-		return Strings.emptyToNull(str.strip());
+		var stripped = str.strip();
+		return stripped.isBlank() ? null : stripped;
 	}
 	
 	private static String removeIllegalCharacters(String str) {

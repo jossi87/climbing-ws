@@ -19,8 +19,7 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
-import com.google.common.net.HttpHeaders;
+import org.springframework.http.HttpHeaders;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -45,7 +44,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
 	private String extractToken(HttpServletRequest request) {
 		String authHeader = request.getHeader(OpenApiConstants.AUTH_HEADER);
-		if (!Strings.isNullOrEmpty(authHeader) && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
+		if (authHeader != null && !authHeader.isBlank() && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
 			return authHeader.substring(OpenApiConstants.BEARER_PREFIX.length());
 		}
 		return request.getParameter(OpenApiConstants.ACCESS_TOKEN_PARAM);
@@ -83,7 +82,7 @@ public class JwtFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String accessToken = extractToken(request);
-		if (!Strings.isNullOrEmpty(accessToken)) {
+		if (accessToken != null && !accessToken.isBlank()) {
 			try {
 				txManager.executeInTransaction(() -> {
 					Setup setup = getSetup(request);

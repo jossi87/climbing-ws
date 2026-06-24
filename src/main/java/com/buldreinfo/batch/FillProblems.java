@@ -31,7 +31,6 @@ import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 public class FillProblems {
 	public static enum T {AID, AIDTRAD, BOLT, BOULDER, ICE, MIXED, TOPROPE, TRAD}
@@ -139,7 +138,7 @@ public class FillProblems {
 
 	private List<User> getFas(String fa) throws SQLException {
 		List<User> res = new ArrayList<>();
-		if (!Strings.isNullOrEmpty(fa)) {
+		if (fa != null && !fa.isBlank()) {
 			String splitter = fa.contains("&")? "&" : ",";
 			for (String userName : fa.split(splitter)) {
 				userName = userName.trim();

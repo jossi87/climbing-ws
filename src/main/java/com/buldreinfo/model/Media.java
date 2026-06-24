@@ -11,8 +11,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie, boolean is360,
 		String dateCreated, String dateTaken, User photographer, List<User> tagged, String description,
@@ -54,14 +52,14 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 
 	private static <T> List<T> parseAndSort(ResultSet rst, String column, ObjectMapper mapper, TypeReference<List<T>> type, Comparator<? super T> comparator) throws SQLException, JsonProcessingException {
 	    String json = rst.getString(column);
-	    if (Strings.isNullOrEmpty(json)) return List.of();
+	    if (json == null || json.isBlank()) return List.of();
 	    List<T> result = new ArrayList<>(mapper.readValue(json, type));
 	    if (comparator != null) result.sort(comparator);
 	    return result;
 	}
 
 	private static List<MediaSvgElement> parseSvgElements(String json, ObjectMapper mapper) throws JsonProcessingException {
-		if (Strings.isNullOrEmpty(json)) return List.of();
+		if (json == null || json.isBlank()) return List.of();
 		JsonNode arr = mapper.readTree(json);
 		List<MediaSvgElement> list = new ArrayList<>();
 		for (JsonNode obj : arr) {
@@ -96,11 +94,15 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			associationCount++;
 		}
 		if (userAvatarId() > 0) {
-			Preconditions.checkArgument(userAvatarId() == authUserId.orElseThrow(), "Cannot associate media to another user's avatar");
+			if (userAvatarId() != authUserId.orElseThrow()) {
+				throw new IllegalArgumentException("Cannot associate media to another user's avatar");
+			}
 			activeAssociation = Association.USER_AVATAR;
 			associationCount++;
 		}
-		Preconditions.checkArgument(associationCount == 1, "Media must be associated with exactly one entity type. Found: " + associationCount);
+		if (associationCount != 1) {
+			throw new IllegalArgumentException("Media must be associated with exactly one entity type. Found: " + associationCount);
+		}
 		return activeAssociation;
 	}
 }

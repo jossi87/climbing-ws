@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -31,9 +33,6 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.MediaSvgElement;
 import com.buldreinfo.model.Svg;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
 
 public class TopoGenerator {
 	private static final Logger logger = LogManager.getLogger();
@@ -42,7 +41,7 @@ public class TopoGenerator {
 	private final static Pattern COORD_PATTERN = Pattern.compile("(-?\\d+\\.?\\d*)\\s*,?\\s*(-?\\d+\\.?\\d*)");
 
 	protected static byte[] generateTopo(StorageManager storage, int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetRes, int highlightProbId, int highlightPitch) throws IOException, TranscoderException, TransformerException {
-		Stopwatch stopwatch = Stopwatch.createStarted();
+		var start = System.nanoTime();
 		int finalWidth = region != null ? region.width() : width;
 		float scale = Math.max(1.0f, (float)targetRes / finalWidth);
 		int exportWidth = (int)(finalWidth * scale);
@@ -66,7 +65,7 @@ public class TopoGenerator {
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, (float)exportHeight);
 				t.addTranscodingHint(SVGAbstractTranscoder.KEY_ALLOW_EXTERNAL_RESOURCES, false);
 				t.transcode(ti, to);
-				logger.debug("generateTopo(mediaId={}, width={}, height={}, mediaSvgs.size()={}, svgs.size()={}, region={}, targetRes={}, highlightProbId={}, highlightPitch={}) - duration={}", mediaId, width, height, mediaSvgs == null ? 0 : mediaSvgs.size(), svgs == null ? 0 : svgs.size(), region, targetRes, highlightProbId, highlightPitch, stopwatch);
+				logger.debug("generateTopo(mediaId={}, width={}, height={}, mediaSvgs.size()={}, svgs.size()={}, region={}, targetRes={}, highlightProbId={}, highlightPitch={}) - duration={}", mediaId, width, height, mediaSvgs == null ? 0 : mediaSvgs.size(), svgs == null ? 0 : svgs.size(), region, targetRes, highlightProbId, highlightPitch, Duration.ofNanos(System.nanoTime() - start));
 				return baos.toByteArray();
 			}
 		}
@@ -98,14 +97,17 @@ public class TopoGenerator {
 		}
 
 		if (svgs != null) {
-			List<Element> textElements = Lists.newArrayList();
+			List<Element> textElements = new ArrayList<>();
 			for (Svg svg : svgs.stream()
-					.sorted((a, b) -> ComparisonChain.start()
-							.compareFalseFirst(a.problemId() == highlightProbId, b.problemId() == highlightProbId)
-							.compareFalseFirst(a.pitch() == highlightPitch, b.pitch() == highlightPitch)
-							.compare(a.nr(), b.nr())
-							.compare(a.pitch(), b.pitch())
-							.result())
+					.sorted((a, b) -> {
+						int cmp = Boolean.compare(b.problemId() == highlightProbId, a.problemId() == highlightProbId);
+						if (cmp != 0) return cmp;
+						cmp = Boolean.compare(b.pitch() == highlightPitch, a.pitch() == highlightPitch);
+						if (cmp != 0) return cmp;
+						cmp = Integer.compare(a.nr(), b.nr());
+						if (cmp != 0) return cmp;
+						return Integer.compare(a.pitch(), b.pitch());
+					})
 					.toList()) {
 				String d = PdfMediaScaler.scalePath(svg.path(), region);
 

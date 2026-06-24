@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -25,8 +26,6 @@ import org.springframework.stereotype.Component;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.infrastructure.CacheConstants;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -174,7 +173,7 @@ public final class StorageManager {
 						return ObjectIdentifier.builder().key(s3Object.key()).build();
 					}).toList();
 
-			for (List<ObjectIdentifier> chunk : Lists.partition(allIdentifiers, 1000)) {
+			for (List<ObjectIdentifier> chunk : partition(allIdentifiers, 1000)) {
 				s3Client.deleteObjects(DeleteObjectsRequest.builder()
 						.bucket(BUCKET_NAME)
 						.delete(Delete.builder().objects(chunk).build()).build());
@@ -189,7 +188,9 @@ public final class StorageManager {
 			int read;
 			while ((read = is.read(buffer)) != -1) {
 				total += read;
-				Preconditions.checkArgument(total <= MAX_IMAGE_UPLOAD_BYTES, "File too large (max %s bytes)", MAX_IMAGE_UPLOAD_BYTES);
+				if (total > MAX_IMAGE_UPLOAD_BYTES) {
+					throw new IllegalArgumentException("File too large (max " + MAX_IMAGE_UPLOAD_BYTES + " bytes)");
+				}
 				os.write(buffer, 0, read);
 			}
 			return os.toByteArray();
@@ -252,5 +253,13 @@ public final class StorageManager {
 				.acl(ObjectCannedACL.PUBLIC_READ).build();
 		cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME).evict(objectKey);
 		s3Client.putObject(putRequest, body);
+	}
+
+	private static <T> List<List<T>> partition(List<T> list, int size) {
+		List<List<T>> partitions = new ArrayList<>();
+		for (int i = 0; i < list.size(); i += size) {
+			partitions.add(list.subList(i, Math.min(i + size, list.size())));
+		}
+		return partitions;
 	}
 }

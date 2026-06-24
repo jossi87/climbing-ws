@@ -29,7 +29,6 @@ import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.Sector;
-import com.google.common.base.Strings;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -143,8 +142,8 @@ public class WithoutJsController extends BaseController {
 
 			if (p.fa() != null && !p.fa().isEmpty()) {
 				String fa = p.fa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
-				description = (!Strings.isNullOrEmpty(description) ? description + " | " : "") + 
-						"First ascent by " + fa + (!Strings.isNullOrEmpty(p.faDateHr()) ? " (" + p.faDate() + ")" : "");
+				description = (description != null && !description.isBlank() ? description + " | " : "") + 
+						"First ascent by " + fa + (p.faDateHr() != null && !p.faDateHr().isBlank() ? " (" + p.faDate() + ")" : "");
 			}
 
 			Media m = (p.media() != null && !p.media().isEmpty()) ? 
@@ -172,7 +171,7 @@ public class WithoutJsController extends BaseController {
 					(setup.isBouldering() ? "Bouldering" : "Climbing"), s.areaName(), s.name(),
 					(s.problems() != null ? s.problems().size() : 0),
 					(setup.isBouldering() ? "boulders" : "routes"),
-					(!Strings.isNullOrEmpty(s.comment()) ? " | " + s.comment() : ""));
+					(s.comment() != null && !s.comment().isBlank() ? " | " + s.comment() : ""));
 			Media m = (s.media() != null && !s.media().isEmpty()) ? s.media().getFirst() : null;
 			return getHtml(setup, setup.url() + "/sector/" + s.id(), title, description,
 					(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
