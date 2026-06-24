@@ -24,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr.Rotation;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.beans.S3KeyGenerator;
@@ -61,8 +62,8 @@ public class MediaRepository extends BaseRepository {
 	private final UserRepository userRepo;
 
 	public MediaRepository(StorageManager storage,
-			ImageService imageService,
-			VideoService videoService,
+			@Lazy ImageService imageService,
+			@Lazy VideoService videoService,
 			ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
