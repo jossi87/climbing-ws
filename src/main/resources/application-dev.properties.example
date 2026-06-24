@@ -7,3 +7,6 @@ buldreinfo.vegvesen-auth=WhateverYouWant
 buldreinfo.akamai-access-key=WhateverYouWant
 buldreinfo.akamai-secret-key=WhateverYouWant
 buldreinfo.apify-api-token=WhateverYouWant
+
+# Swagger: Overriding the absolute paths for local usage (no /api prefix)
+springdoc.swagger-ui.config-url=/v3/api-docs/swagger-config
