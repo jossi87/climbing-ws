@@ -60,10 +60,11 @@ import com.buldreinfo.model.ProblemComment;
 import com.buldreinfo.model.ProblemSection;
 import com.buldreinfo.model.ProblemTick;
 import com.buldreinfo.model.Sector;
-import com.buldreinfo.model.Svg;
-import com.buldreinfo.model.User;
 import com.buldreinfo.model.Sector.SectorProblem;
+import com.buldreinfo.model.Svg;
 import com.buldreinfo.model.Tick.TickRepeat;
+import com.buldreinfo.model.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -173,6 +174,7 @@ public class PdfGenerator implements AutoCloseable {
 
 	private final static int IMAGE_STAR_SIZE = 7;
 	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
+	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final Document document;
 	private final PdfWriter writer;
@@ -183,7 +185,8 @@ public class PdfGenerator implements AutoCloseable {
 
 	private BaseFont watermarkFont;
 
-	public PdfGenerator(StorageManager storage, OutputStream output) {
+	public PdfGenerator(ObjectMapper objectMapper, StorageManager storage, OutputStream output) {
+		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.document = new Document(PageSize.A4, 30, 30, 30, 30);
 		this.writer = PdfWriter.getInstance(document, output);
@@ -674,7 +677,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, false);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -726,7 +729,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, false);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -741,7 +744,7 @@ public class PdfGenerator implements AutoCloseable {
 						outlines.clear();
 						slopes.clear();
 						leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, true);
-						optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+						optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
 						if (optSnapshot.isPresent()) {
 							img = Image.getInstance(optSnapshot.get());
 							cell = new PdfPCell(img, true);
@@ -807,7 +810,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, true);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(leaflet);
+				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);

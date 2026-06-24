@@ -20,20 +20,17 @@ import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
 import com.buldreinfo.helpers.GlobalFunctions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 public class ImageReader implements AutoCloseable {
-
 	public static class ImageReaderBuilder {
 		private byte[] bytes;
 		private String embedVideoUrl;
 		private Rotation rotation;
 
-		public ImageReader build() throws IOException, InterruptedException {
-			return new ImageReader(this);
+		public ImageReader build(ObjectMapper objectMapper) throws IOException, InterruptedException {
+			return new ImageReader(objectMapper, this);
 		}
 
 		public ImageReaderBuilder withBytes(byte[] bytes) {
@@ -52,16 +49,15 @@ public class ImageReader implements AutoCloseable {
 		}
 	}
 	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
-
 	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
-
 	public static ImageReaderBuilder newBuilder() {
 		return new ImageReaderBuilder();
 	}
-
 	private final BufferedImage jpgBufferedImage;
-
-	private ImageReader(ImageReaderBuilder builder) throws IOException, InterruptedException {
+	private final ObjectMapper objectMapper;
+	
+	private ImageReader(ObjectMapper objectMapper, ImageReaderBuilder builder) throws IOException, InterruptedException {
+		this.objectMapper = objectMapper;
 		BufferedImage bufferedImage = null;
 		if (builder.bytes != null) {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(builder.bytes)) {
@@ -126,10 +122,10 @@ public class ImageReader implements AutoCloseable {
 					.build();
 			HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
 			Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "Vimeo API error status: " + response.statusCode());
-			
-			JsonArray arr = new Gson().fromJson(response.body(), JsonArray.class);
-			JsonObject obj = arr.get(0).getAsJsonObject();
-			imgUrl = obj.get("thumbnail_large").getAsString();
+			var arr = objectMapper.readTree(response.body());
+	        if (arr.isArray() && !arr.isEmpty()) {
+	            imgUrl = arr.get(0).path("thumbnail_large").asText();
+	        }
 		}
 
 		Preconditions.checkArgument(imgUrl != null, "Could not extract video ID or determine thumbnail URL for: " + embedUrl);

@@ -8,12 +8,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.ValidationFailedException;
+import com.buldreinfo.service.ElevationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,11 +28,11 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/elevation")
 public class ElevationController extends BaseController {
-	private final AppConfig appConfig;
+	private final ElevationService elevationService;
 
-	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo, AppConfig appConfig) {
+	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo, ElevationService elevationService) {
 		super(txManager, regionRepo);
-		this.appConfig = appConfig;
+		this.elevationService = elevationService;
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
@@ -62,7 +62,7 @@ public class ElevationController extends BaseController {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 			}
 
-			int elevation = GeoHelper.getElevation(appConfig, latitude, longitude);
+			int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
 			return ResponseEntity.ok(String.valueOf(elevation));
 		});
 	}

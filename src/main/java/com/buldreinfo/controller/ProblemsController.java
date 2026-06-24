@@ -29,6 +29,7 @@ import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -45,13 +46,16 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/problems")
 public class ProblemsController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
+	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final AreaRepository areaRepo;
 	private final MediaRepository mediaRepo;
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 
-	public ProblemsController(StorageManager storage,
+	public ProblemsController(
+			ObjectMapper objectMapper,
+			StorageManager storage,
 			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			MediaRepository mediaRepo,
@@ -59,6 +63,7 @@ public class ProblemsController extends BaseController {
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo) {
 		super(txManager, regionRepo);
+		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.mediaRepo = mediaRepo;
@@ -101,7 +106,7 @@ public class ProblemsController extends BaseController {
 	        final var area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), problem.areaId(), shouldUpdateHits);
 	        final var sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), problem.sectorId(), shouldUpdateHits);
 	        return (StreamingResponseBody) output -> {
-	            try (var generator = new PdfGenerator(storage, output)) {
+	            try (var generator = new PdfGenerator(objectMapper, storage, output)) {
 	                generator.writeProblem(ctx.setup(), area, sector, problem);
 	            } catch (Exception e) {
 	                logger.error(e.getMessage(), e);

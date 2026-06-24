@@ -17,12 +17,14 @@ import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class WritePdf {
     public static void main(String[] args) throws Exception {
         var context = new SpringApplicationBuilder(Application.class)
                 .web(WebApplicationType.NONE)
                 .run(args);
+        var objectMapper = context.getBean(ObjectMapper.class);
         var storage = context.getBean(StorageManager.class);
         var txManager = context.getBean(ClimbingTransactionManager.class);
         var areaRepo = context.getBean(AreaRepository.class);
@@ -42,7 +44,7 @@ public class WritePdf {
             var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
             var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
             try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/problem.pdf");
-                    PdfGenerator generator = new PdfGenerator(storage, fos)) {
+                    PdfGenerator generator = new PdfGenerator(objectMapper, storage, fos)) {
                 generator.writeProblem(setup, area, sector, problem);
             }
             var area2 = areaRepo.getArea(setup, authUserId, 2754, shouldUpdateHits);
@@ -52,7 +54,7 @@ public class WritePdf {
                 sectors.add(sectorRepo.getSector(authUserId, false, setup, areaSector.id(), shouldUpdateHits));
             }
             try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/area.pdf");
-                    PdfGenerator generator = new PdfGenerator(storage, fos)) {
+                    PdfGenerator generator = new PdfGenerator(objectMapper, storage, fos)) {
                 generator.writeArea(setup, area2, gradeDist, sectors);
             }
             return null;

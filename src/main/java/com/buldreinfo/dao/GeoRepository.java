@@ -11,20 +11,19 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Repository;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.config.AppConfig;
-import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
+import com.buldreinfo.service.ElevationService;
 
 @Repository
 public class GeoRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
-	private final AppConfig appConfig;
+	private final ElevationService elevationService;
 	
-	public GeoRepository(ClimbingTransactionManager txManager, AppConfig appConfig) {
+	public GeoRepository(ClimbingTransactionManager txManager, ElevationService elevationService) {
 		super(txManager);
-		this.appConfig = appConfig;
+		this.elevationService = elevationService;
 	}
 	
 	private void fillMissingElevations() throws SQLException, InterruptedException {
@@ -44,7 +43,7 @@ public class GeoRepository extends BaseRepository {
 		}
 		if (!coordinatesMissingElevation.isEmpty()) {
 			try {
-				GeoHelper.fillMissingElevations(appConfig, coordinatesMissingElevation);
+				elevationService.fillElevations(coordinatesMissingElevation);
 				try (var ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
 					for (var coord : coordinatesMissingElevation) {
 						ps.setDouble(1, coord.getElevation());

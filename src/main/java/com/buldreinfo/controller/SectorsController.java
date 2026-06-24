@@ -27,6 +27,7 @@ import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,18 +43,22 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/sectors")
 public class SectorsController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
+	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final AreaRepository areaRepo;
 	private final HierarchyRepository hierarchyRepo;
 	private final SectorRepository sectorRepo;
 
-	public SectorsController(StorageManager storage,
+	public SectorsController(
+			ObjectMapper objectMapper,
+			StorageManager storage,
 			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			HierarchyRepository hierarchyRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo) {
 		super(txManager, regionRepo);
+		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.hierarchyRepo = hierarchyRepo;
@@ -93,7 +98,7 @@ public class SectorsController extends BaseController {
 	        final var gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), 0, id);
 	        final Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), sector.areaId(), shouldUpdateHits);
 	        return (StreamingResponseBody) output -> {
-	            try (PdfGenerator generator = new PdfGenerator(storage, output)) {
+	            try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
 	                generator.writeArea(ctx.setup(), area, gradeDistribution, List.of(sector));
 	            } catch (Exception e) {
 	                logger.error(e.getMessage(), e);

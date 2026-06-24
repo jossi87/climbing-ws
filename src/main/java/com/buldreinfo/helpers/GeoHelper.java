@@ -1,15 +1,5 @@
 package com.buldreinfo.helpers;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -19,12 +9,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
+import com.buldreinfo.service.ElevationService;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.gson.stream.JsonReader;
 
 public class GeoHelper {
 	public class GeoPoint {
@@ -110,91 +98,12 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	public static void fillMissingElevations(AppConfig appConfig, List<Coordinates> allCoordinates) throws IOException, InterruptedException {
-		for (List<Coordinates> coordinates : Lists.partition(allCoordinates, 500)) {
-			String locations = null;
-			for (Coordinates coord : coordinates) {
-				String latLng = coord.getLatitude() + "," + coord.getLongitude();
-				if (locations == null) {
-					locations = latLng;
-				}
-				else {
-					locations += "|" + latLng;
-				}
-			}
-			locations = URLEncoder.encode(locations, StandardCharsets.UTF_8); // Encode pipe to avoid java.lang.IllegalArgumentException: Illegal character in query at index 88
-			double latitude = 0, longitude = 0, elevation = 0;
-			try (HttpClient client = HttpClient.newHttpClient()) {
-				String apiKey = appConfig.googleApikey();
-				HttpRequest request = HttpRequest.newBuilder()
-						.uri(URI.create(String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, apiKey)))
-						.GET()
-						.build();
-				HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
-				Preconditions.checkArgument(response.statusCode() == HttpURLConnection.HTTP_OK, "HTTP-" + response.statusCode());
-				try (InputStream is = response.body();
-						InputStreamReader isr = new InputStreamReader(is);
-						JsonReader jsonReader = new JsonReader(isr)) {
-					jsonReader.beginObject();
-					while (jsonReader.hasNext()) {
-						String field = jsonReader.nextName();
-						if (field.equals("results")) {
-							jsonReader.beginArray();
-							while (jsonReader.hasNext()) {
-								jsonReader.beginObject();
-								while (jsonReader.hasNext()) {
-									field = jsonReader.nextName();
-									if (field.equals("elevation")) {
-										elevation = jsonReader.nextDouble();
-									}
-									else if (field.equals("location")) {
-										jsonReader.beginObject();
-										while (jsonReader.hasNext()) {
-											field = jsonReader.nextName();
-											if (field.equals("lat")) {
-												latitude = jsonReader.nextDouble();
-											}
-											else if (field.equals("lng")) {
-												longitude = jsonReader.nextDouble();
-											}
-											else {
-												jsonReader.skipValue();
-											}
-										}
-										jsonReader.endObject();
-									}
-									else {
-										jsonReader.skipValue();
-									}
-								}
-								final double lat = latitude;
-								final double lng = longitude;
-								final double el = elevation;
-								coordinates.stream()
-								.filter(x -> x.getLatitude() == lat && x.getLongitude() == lng)
-								.forEach(x -> x.setElevation(el, Coordinates.ELEVATION_SOURCE_GOOGLE));
-								jsonReader.endObject();
-							}
-							jsonReader.endArray();
-						} else {
-							jsonReader.skipValue();
-						}
-
-					}
-					jsonReader.endObject();
-				}
-			}
-		}
-		logger.debug("fillMissingElevations(allCoordinates.size()={}) - success", allCoordinates.size());
-	}
-	
-	public static int getElevation(AppConfig appConfig, double latitude, double longitude) throws IOException, InterruptedException {
-		List<Coordinates> coordinates = new ArrayList<>();
-		coordinates.add(new Coordinates(latitude, longitude));
-		coordinates.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
-		GeoHelper.fillMissingElevations(appConfig, coordinates);
-		return (int)Math.round(coordinates.getFirst().getElevation());
-	}
+	public static int getElevation(ElevationService elevationService, double latitude, double longitude) throws IOException, InterruptedException {
+        List<Coordinates> coords = new ArrayList<>(List.of(new Coordinates(latitude, longitude)));
+        coords.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
+        elevationService.fillElevations(coords);
+        return (int) Math.round(coords.getFirst().getElevation());
+    }
 	
 	public static double getHaversineDistanceInMeters(double lat1, double lng1, double lat2, double lng2) {
 		final int R = 6371000;

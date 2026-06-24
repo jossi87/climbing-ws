@@ -219,12 +219,6 @@
             <version>0.40.0</version>
         </dependency>
 
-        <!-- JSON processing -->
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
-
         <!-- Guava (utility library) -->
         <dependency>
             <groupId>com.google.guava</groupId>

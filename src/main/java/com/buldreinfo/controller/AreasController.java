@@ -31,6 +31,7 @@ import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,14 +48,23 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/areas")
 public class AreasController extends BaseController {
 	private static final Logger logger = LogManager.getLogger();
+	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final AreaRepository areaRepo;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
-	public AreasController(StorageManager storage, ClimbingTransactionManager txManager, RegionRepository regionRepo, AreaRepository areaRepo, SectorRepository sectorRepo, HierarchyRepository hierarchyRepo) {
+	public AreasController(
+			ObjectMapper objectMapper,
+			StorageManager storage,
+			ClimbingTransactionManager txManager,
+			RegionRepository regionRepo,
+			AreaRepository areaRepo,
+			SectorRepository sectorRepo,
+			HierarchyRepository hierarchyRepo) {
 		super(txManager, regionRepo);
+		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
 		this.regionRepo = regionRepo;
@@ -103,7 +113,7 @@ public class AreasController extends BaseController {
 				sectors.add(sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), sector.id(), shouldUpdateHits));
 			}
 			return (StreamingResponseBody) output -> {
-				try (PdfGenerator generator = new PdfGenerator(storage, output)) {
+				try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
 					generator.writeArea(ctx.setup(), area, gradeDistribution, sectors);
 				} catch (Exception e) {
 					logger.error(e.getMessage(), e);

@@ -19,17 +19,19 @@ import com.buldreinfo.io.ExifReader;
 import com.buldreinfo.io.ImageReader;
 import com.buldreinfo.io.ImageSaver;
 import com.buldreinfo.io.StorageManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ImageService {
 	private static final Logger logger = LogManager.getLogger();
-	
+	private final ObjectMapper objectMapper;
 	private final ImageClassifierService imageClassifierService;
 	private final StorageManager storage;
 	private final ClimbingTransactionManager txManager;
 	private final MediaRepository mediaRepo;
 
-	public ImageService(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo) {
+	public ImageService(ObjectMapper objectMapper, ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo) {
+		this.objectMapper = objectMapper;
 		this.imageClassifierService = imageClassifierService;
 		this.storage = storage;
 		this.txManager = txManager;
@@ -65,7 +67,7 @@ public class ImageService {
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
 				.withRotation(rotation)
-				.build()) {
+				.build(objectMapper)) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();
@@ -100,7 +102,7 @@ public class ImageService {
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
 				.withRotation(exifReader.getRotation())
-				.build()) {
+				.build(objectMapper)) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();
@@ -112,7 +114,7 @@ public class ImageService {
 	}
 
 	public void saveImageFromEmbedVideo(int idMedia, String embedVideoUrl) throws IOException, InterruptedException, SQLException {
-		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build()) {
+		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build(objectMapper)) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();

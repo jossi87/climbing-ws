@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.leafletprint.beans.Leaflet;
 import com.buldreinfo.model.LatLng;
 import com.buldreinfo.model.Sector.SectorProblem;
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Generates map images by calling the sidecar microservice.
@@ -23,7 +23,6 @@ import com.google.gson.Gson;
  */
 public class LeafletPrintGenerator {
 	private static final Logger logger = LogManager.getLogger();
-	private static final Gson gson = new Gson();
 
 	// Internal Docker DNS uses the service name from docker-compose.yml
 	private static final String RENDERER_URL = "http://climbing-leaflet-renderer:3000/render";
@@ -76,9 +75,9 @@ public class LeafletPrintGenerator {
 	/**
 	 * Sends the Leaflet data to the Sidecar Node.js service and returns the PNG bytes.
 	 */
-	public static Optional<byte[]> takeSnapshot(Leaflet leaflet) {
+	public static Optional<byte[]> takeSnapshot(ObjectMapper objectMapper, Leaflet leaflet) {
 		try {
-			String json = gson.toJson(leaflet);
+			String json = objectMapper.writeValueAsString(leaflet);
 
 			HttpRequest request = HttpRequest.newBuilder()
 					.uri(URI.create(RENDERER_URL))
