@@ -32,16 +32,15 @@ import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.JdbcUtils;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.io.ImageHelper;
 import com.buldreinfo.io.StorageManager;
-import com.buldreinfo.io.VideoHelper;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
-import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
+import com.buldreinfo.service.VideoService;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.common.base.Preconditions;
@@ -55,23 +54,26 @@ public class MediaRepository extends BaseRepository {
 	private record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
 	private static final Logger logger = LogManager.getLogger();
 	private final StorageManager storage;
+	private final ImageService imageService;
+	private final VideoService videoService;
 	private final ActivityRepository activityRepo;
 	private final ObjectProvider<ProblemRepository> problemRepo;
 	private final UserRepository userRepo;
-	private final ImageClassifierService imageClassifierService;
 
 	public MediaRepository(StorageManager storage,
+			ImageService imageService,
+			VideoService videoService,
 			ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ObjectProvider<ProblemRepository> problemRepo,
-			UserRepository userRepo,
-			ImageClassifierService imageClassifierService) {
+			UserRepository userRepo) {
 		super(txManager);
 		this.storage = storage;
+		this.imageService = imageService;
+		this.videoService = videoService;
 		this.activityRepo = activityRepo;
 		this.problemRepo = problemRepo;
 		this.userRepo = userRepo;
-		this.imageClassifierService = imageClassifierService;
 	}
 
 	public int addMediaImage(Optional<Integer> authUserId, Media m, StorageType storageType, Supplier<InputStream> inputStreamSupplier) throws Exception {
@@ -90,7 +92,7 @@ public class MediaRepository extends BaseRepository {
 		}
 		try (var is = inputStreamSupplier.get()) {
 			var bytes = storage.readBoundedStream(is);
-			ImageHelper.saveImage(imageClassifierService, storage, txManager, this, idMedia, bytes);
+			imageService.saveImage(idMedia, bytes);
 		}
 		return idMedia;
 	}
@@ -493,7 +495,7 @@ public class MediaRepository extends BaseRepository {
 		case 270 -> Rotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
-		ImageHelper.rotateImage(imageClassifierService, storage, txManager, this, idMedia, r);
+		imageService.rotateImage(idMedia, r);
 	}
 
 	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<EntityAnnotation> labels, List<LocalizedObjectAnnotation> objects, boolean failed) throws SQLException {
@@ -743,7 +745,7 @@ public class MediaRepository extends BaseRepository {
 			var tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
 			try {
 				storage.downloadFile(originalMp4Key, tempOriginal);
-				VideoHelper.extractThumbnail(imageClassifierService, storage, txManager, this, mediaId, tempOriginal, m.thumbnailSeconds());
+				videoService.extractThumbnail(mediaId, tempOriginal, m.thumbnailSeconds());
 				S3KeyGenerator.getGeneratedMediaPrefixes(mediaId).forEach(storage::invalidateCache);
 			} finally {
 				Files.deleteIfExists(tempOriginal);

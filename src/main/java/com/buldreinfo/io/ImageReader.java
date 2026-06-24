@@ -27,35 +27,35 @@ import com.google.gson.JsonObject;
 
 public class ImageReader implements AutoCloseable {
 
-	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
-	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
-
 	public static class ImageReaderBuilder {
 		private byte[] bytes;
 		private String embedVideoUrl;
 		private Rotation rotation;
 
-		protected ImageReader build() throws IOException, InterruptedException {
+		public ImageReader build() throws IOException, InterruptedException {
 			return new ImageReader(this);
 		}
 
-		protected ImageReaderBuilder withBytes(byte[] bytes) {
+		public ImageReaderBuilder withBytes(byte[] bytes) {
 			this.bytes = bytes;
 			return this;
 		}
 
-		protected ImageReaderBuilder withEmbedVideoUrl(String embedVideoUrl) {
+		public ImageReaderBuilder withEmbedVideoUrl(String embedVideoUrl) {
 			this.embedVideoUrl = embedVideoUrl;
 			return this;
 		}
 
-		protected ImageReaderBuilder withRotation(Rotation rotation) {
+		public ImageReaderBuilder withRotation(Rotation rotation) {
 			this.rotation = rotation;
 			return this;
 		}
 	}
+	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
 
-	protected static ImageReaderBuilder newBuilder() {
+	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
+
+	public static ImageReaderBuilder newBuilder() {
 		return new ImageReaderBuilder();
 	}
 
@@ -86,15 +86,15 @@ public class ImageReader implements AutoCloseable {
 		this.jpgBufferedImage = convertToJpg(bufferedImage);
 	}
 
-	public BufferedImage getJpgBufferedImage() {
-		return jpgBufferedImage;
-	}
-
 	@Override
 	public void close() {
 		if (jpgBufferedImage != null) {
 			jpgBufferedImage.flush();
 		}
+	}
+
+	public BufferedImage getJpgBufferedImage() {
+		return jpgBufferedImage;
 	}
 
 	private BufferedImage convertToJpg(BufferedImage b) {

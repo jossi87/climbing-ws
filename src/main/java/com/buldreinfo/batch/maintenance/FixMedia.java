@@ -16,19 +16,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.S3KeyGenerator;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.io.ImageHelper;
-import com.buldreinfo.io.StorageManager;
-import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.ImageService;
 
 public class FixMedia {
 	private record MediaTask(int id, String embedUrl) {}
 	private static final Logger logger = LogManager.getLogger();
-	private final ImageClassifierService imageClassifierService;
-	private final StorageManager storage;
+	private final ImageService imageService;
 	private final ClimbingTransactionManager txManager;
-	private final MediaRepository mediaRepo;
 	private final Path localBucketRoot;
 	private final Path ffmpegPath;
 	private final Path ytDlpPath;
@@ -36,11 +31,9 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	protected FixMedia(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
-		this.imageClassifierService = imageClassifierService;
-		this.storage = storage;
+	protected FixMedia(ImageService imageService, ClimbingTransactionManager txManager, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.imageService = imageService;
 		this.txManager = txManager;
-		this.mediaRepo = mediaRepo;
 		this.localBucketRoot = localBucketRoot;
 		this.ffmpegPath = ffmpegPath;
 		this.ytDlpPath = ytDlpPath;
@@ -85,7 +78,7 @@ public class FixMedia {
 		if (!Files.exists(originalJpg)) {
 			txManager.executeInTransaction(() -> {
                 try {
-                    ImageHelper.saveImageFromEmbedVideo(imageClassifierService, storage, txManager, mediaRepo, id, embedUrl);
+                    imageService.saveImageFromEmbedVideo(id, embedUrl);
                     return null;
                 } catch (Exception e) {
                     throw new RuntimeException(e);

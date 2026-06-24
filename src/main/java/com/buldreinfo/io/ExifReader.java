@@ -31,7 +31,7 @@ public class ExifReader {
 	private final LocalDateTime dateTaken;
 	private final boolean is360;
 	
-	protected ExifReader(byte[] bytes) throws IOException {
+	public ExifReader(byte[] bytes) throws IOException {
 		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
 		if (imageMetadata != null) {
 			this.rotation = getExifOrientation(imageMetadata);
@@ -177,19 +177,19 @@ public class ExifReader {
 		return null;
 	}
 
-	protected LocalDateTime getDateTaken() {
+	public LocalDateTime getDateTaken() {
 		return dateTaken;
 	}
 
-	protected TiffOutputSet getOutputSet() {
+	public TiffOutputSet getOutputSet() {
 		return outputSet;
 	}
 
-	protected Rotation getRotation() {
+	public Rotation getRotation() {
 		return rotation;
 	}
 
-	protected boolean is360() {
+	public boolean is360() {
 		return is360;
 	}
 }

@@ -40,15 +40,14 @@ import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.ValidationFailedException;
-import com.buldreinfo.io.ImageHelper;
 import com.buldreinfo.io.ImageSaver;
 import com.buldreinfo.io.StorageManager;
-import com.buldreinfo.io.VideoHelper;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.VideoInitPayload;
 import com.buldreinfo.model.VideoInitResponse;
+import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
-import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.VideoService;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 
@@ -72,19 +71,21 @@ public class MediaController extends BaseController {
 
 	private static final Logger logger = LogManager.getLogger();
 	private final StorageManager storage;
+	private final ImageService imageService;
+	private final VideoService videoService;
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final ClimbingTransactionManager txManager;
-	private final ImageClassifierService imageClassifierService;
 	private final InstagramService instagramService;
 
-	public MediaController(StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, ImageClassifierService imageClassifierService, InstagramService instagramService) {
+	public MediaController(StorageManager storage, ImageService imageService, VideoService videoService, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, InstagramService instagramService) {
 		super(txManager, regionRepo);
 		this.storage = storage;
+		this.imageService = imageService;
+		this.videoService = videoService;
 		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
-		this.imageClassifierService = imageClassifierService;
 		this.instagramService = instagramService;
 	}
 
@@ -140,9 +141,9 @@ public class MediaController extends BaseController {
 		if (isMovie) {
 			String key = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
 			if (!storage.exists(key)) {
-		        throw new NoSuchElementException("Movie resource not found: " + key);
-		    }
-		    return createRedirect(key, versionStamp);
+				throw new NoSuchElementException("Movie resource not found: " + key);
+			}
+			return createRedirect(key, versionStamp);
 		}
 
 		boolean webP = GlobalFunctions.requestAcceptsWebp(request);
@@ -150,11 +151,11 @@ public class MediaController extends BaseController {
 		String key;
 
 		if (original) {
-		    key = S3KeyGenerator.getOriginalJpg(id);
-		    if (!storage.exists(key)) {
-		        throw new NoSuchElementException("Original JPG not found for id: " + id);
-		    }
-		    return createRedirect(key, versionStamp);
+			key = S3KeyGenerator.getOriginalJpg(id);
+			if (!storage.exists(key)) {
+				throw new NoSuchElementException("Original JPG not found for id: " + id);
+			}
+			return createRedirect(key, versionStamp);
 		}
 
 		if (targetWidth > 0 || minDimension > 0) {
@@ -263,7 +264,7 @@ public class MediaController extends BaseController {
 							}
 						}
 						storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
-						VideoHelper.processVideo(imageClassifierService, storage, txManager, mediaRepo, id, mediaPayload.thumbnailSeconds());
+						videoService.processVideo(id, mediaPayload.thumbnailSeconds());
 					} catch (Exception e) { throw new RuntimeException(e); }
 					return null;
 				}).exceptionally(ex -> { logger.error("Async video save failed", ex); return null; });
@@ -342,7 +343,7 @@ public class MediaController extends BaseController {
 			Media m = mediaRepo.getMedia(ctx.authUserId(), id);
 			Preconditions.checkArgument(m.isMovie(), "Target is not a video");
 			Preconditions.checkArgument(m.uploadedByMe(), "Permission denied");
-			supplyAsync(() -> { VideoHelper.processVideo(imageClassifierService, storage, txManager, mediaRepo, id, m.thumbnailSeconds()); return null; })
+			supplyAsync(() -> { videoService.processVideo(id, m.thumbnailSeconds()); return null; })
 			.exceptionally(ex -> { logger.error("Async video error for id=" + id, ex); return null; });
 			return null;
 		});
@@ -366,7 +367,7 @@ public class MediaController extends BaseController {
 
 		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
 			int newId = mediaRepo.addMediaVideoEmbed(ctx.authUserId(), media, StorageType.MP4);
-			supplyAsync(() -> { ImageHelper.saveImageFromEmbedVideo(imageClassifierService, storage, txManager, mediaRepo, newId, media.embedUrl()); return null; })
+			supplyAsync(() -> { imageService.saveImageFromEmbedVideo(newId, media.embedUrl()); return null; })
 			.exceptionally(ex -> { logger.error("Async embed thumbnail failed for id=" + newId, ex); return null; });
 			return mediaRepo.getMedia(ctx.authUserId(), newId);
 		}));
@@ -452,11 +453,11 @@ public class MediaController extends BaseController {
 	}
 
 	private ResponseEntity<Void> executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) throws Exception {
-	    task.execute(storage);
-	    if (!storage.exists(key)) {
-	        throw new NoSuchElementException("Generated resource not found at key: " + key);
-	    }
-	    return createRedirect(key, version);
+		task.execute(storage);
+		if (!storage.exists(key)) {
+			throw new NoSuchElementException("Generated resource not found at key: " + key);
+		}
+		return createRedirect(key, version);
 	}
 
 	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) throws IOException {

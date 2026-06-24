@@ -1,4 +1,4 @@
-package com.buldreinfo.io;
+package com.buldreinfo.service;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -10,16 +10,33 @@ import javax.imageio.ImageIO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.imgscalr.Scalr.Rotation;
+import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.io.ExifReader;
+import com.buldreinfo.io.ImageReader;
+import com.buldreinfo.io.ImageSaver;
+import com.buldreinfo.io.StorageManager;
 
-public class ImageHelper {
+@Service
+public class ImageService {
 	private static final Logger logger = LogManager.getLogger();
 	
-	private static void analyzeAndSaveAsync(ImageClassifierService imageClassifierService, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, byte[] imgBytes, int width, int height, String logPrefix) {
+	private final ImageClassifierService imageClassifierService;
+	private final StorageManager storage;
+	private final ClimbingTransactionManager txManager;
+	private final MediaRepository mediaRepo;
+
+	public ImageService(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo) {
+		this.imageClassifierService = imageClassifierService;
+		this.storage = storage;
+		this.txManager = txManager;
+		this.mediaRepo = mediaRepo;
+	}
+
+	private void analyzeAndSaveAsync(int idMedia, byte[] imgBytes, int width, int height, String logPrefix) {
 		Thread.startVirtualThread(() -> {
 			try {
 				var result = imageClassifierService.analyze(imgBytes);
@@ -33,14 +50,14 @@ public class ImageHelper {
 		});
 	}
 
-	private static byte[] getJpgBytes(BufferedImage image) throws IOException {
+	private byte[] getJpgBytes(BufferedImage image) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 			ImageIO.write(image, "jpg", baos);
 			return baos.toByteArray();
 		}
 	}
 	
-	public static void rotateImage(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
+	public void rotateImage(int idMedia, Rotation rotation) throws SQLException, IOException, InterruptedException {
 		String originalKey = S3KeyGenerator.getOriginalJpg(idMedia);
 		byte[] bytes = storage.downloadBytes(originalKey);
 		ExifReader exifReader = new ExifReader(bytes);
@@ -58,7 +75,7 @@ public class ImageHelper {
 			mediaRepo.setMediaMetadata(idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			
 			byte[] rotatedBytes = getJpgBytes(image);
-			analyzeAndSaveAsync(imageClassifierService, txManager, mediaRepo, idMedia, rotatedBytes, width, height, " after rotation");
+			analyzeAndSaveAsync(idMedia, rotatedBytes, width, height, " after rotation");
 		} finally {
 			try {
 				S3KeyGenerator.getGeneratedMediaPrefixes(idMedia).forEach(storage::invalidateCache);
@@ -68,17 +85,17 @@ public class ImageHelper {
 		}
 	}
 
-	public static void saveImage(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, BufferedImage bufferedImage) throws SQLException, IOException {
+	public void saveImage(int idMedia, BufferedImage bufferedImage) throws SQLException, IOException {
 		int width = bufferedImage.getWidth();
 		int height = bufferedImage.getHeight();
 		ImageSaver.save(storage, bufferedImage, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia));
 		mediaRepo.setMediaMetadata(idMedia, width, height, null, false);
 		
 		byte[] imgBytes = getJpgBytes(bufferedImage);
-		analyzeAndSaveAsync(imageClassifierService, txManager, mediaRepo, idMedia, imgBytes, width, height, "");
+		analyzeAndSaveAsync(idMedia, imgBytes, width, height, "");
 	}
 
-	public static void saveImage(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
+	public void saveImage(int idMedia, byte[] bytes) throws IOException, SQLException, InterruptedException {
 		ExifReader exifReader = new ExifReader(bytes);
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
@@ -90,11 +107,11 @@ public class ImageHelper {
 			ImageSaver.save(storage, image, S3KeyGenerator.getOriginalJpg(idMedia), S3KeyGenerator.getWebJpg(idMedia), S3KeyGenerator.getWebWebp(idMedia), exifReader.getOutputSet());
 			mediaRepo.setMediaMetadata(idMedia, width, height, exifReader.getDateTaken(), exifReader.is360());
 			
-			analyzeAndSaveAsync(imageClassifierService, txManager, mediaRepo, idMedia, bytes, width, height, "");
+			analyzeAndSaveAsync(idMedia, bytes, width, height, "");
 		}
 	}
 
-	public static void saveImageFromEmbedVideo(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, String embedVideoUrl) throws IOException, InterruptedException, SQLException {
+	public void saveImageFromEmbedVideo(int idMedia, String embedVideoUrl) throws IOException, InterruptedException, SQLException {
 		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build()) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
@@ -103,7 +120,7 @@ public class ImageHelper {
 			mediaRepo.setMediaMetadata(idMedia, width, height, null, false);
 			
 			byte[] imgBytes = getJpgBytes(image);
-			analyzeAndSaveAsync(imageClassifierService, txManager, mediaRepo, idMedia, imgBytes, width, height, "");
+			analyzeAndSaveAsync(idMedia, imgBytes, width, height, "");
 		}
 	}
 }

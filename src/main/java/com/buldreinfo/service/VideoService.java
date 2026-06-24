@@ -1,4 +1,4 @@
-package com.buldreinfo.io;
+package com.buldreinfo.service;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -10,19 +10,27 @@ import javax.imageio.ImageIO;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.dao.MediaRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
-import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.io.StorageManager;
 import com.google.common.base.Stopwatch;
 
-public class VideoHelper {
+@Service
+public class VideoService {
 	private static final Logger logger = LogManager.getLogger();
 	private static final String FFMPEG_DEFAULT = "ffmpeg";
 
-	public static void extractThumbnail(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	private final StorageManager storage;
+	private final ImageService imageService;
+
+	public VideoService(StorageManager storage, ImageService imageService) {
+		this.storage = storage;
+		this.imageService = imageService;
+	}
+
+	public void extractThumbnail(int idMedia, Path src, int thumbnailSeconds) throws Exception {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
@@ -34,7 +42,7 @@ public class VideoHelper {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
 				if (b != null) {
 					try {
-						ImageHelper.saveImage(imageClassifierService, storage, txManager, mediaRepo, idMedia, b);
+						imageService.saveImage(idMedia, b);
 					} finally {
 						b.flush();
 					}
@@ -46,7 +54,7 @@ public class VideoHelper {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}", idMedia, src, thumbnailSeconds, stopwatch);
 	}
 
-	public static void processVideo(ImageClassifierService imageClassifierService, StorageManager storage, ClimbingTransactionManager txManager, MediaRepository mediaRepo, int idMedia, int thumbnailSeconds) throws Exception {
+	public void processVideo(int idMedia, int thumbnailSeconds) throws Exception {
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
 		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
@@ -80,14 +88,14 @@ public class VideoHelper {
 				}
 			}
 			if (needsThumb) {
-				extractThumbnail(imageClassifierService, storage, txManager, mediaRepo, idMedia, tempOriginal, thumbnailSeconds);
+				extractThumbnail(idMedia, tempOriginal, thumbnailSeconds);
 			}
 		} finally {
 			Files.deleteIfExists(tempOriginal);
 		}
 	}
 	
-	private static void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
+	private void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
 		logger.info("Generating MP4: {} -> {}", src, dst);
 		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
 				"-vcodec", "libx264", "-preset", "veryfast", "-crf", "23",
@@ -96,7 +104,7 @@ public class VideoHelper {
 		runCommand(cmd);
 	}
 
-	private static void generateWebm(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
+	private void generateWebm(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
 		logger.info("Generating WebM: {} -> {}", src, dst);
 		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),
 				"-codec:v", "libvpx", "-b:v", "1500k", "-cpu-used", "5", "-deadline", "good",
@@ -104,7 +112,7 @@ public class VideoHelper {
 		runCommand(cmd);
 	}
 
-	private static void runCommand(String[] cmd) throws IOException, InterruptedException {
+	private void runCommand(String[] cmd) throws IOException, InterruptedException {
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		pb.inheritIO();
 		Process p = pb.start();

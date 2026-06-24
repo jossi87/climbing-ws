@@ -20,7 +20,7 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
 import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.AppConfig;
@@ -49,7 +49,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-@Service
+@Component
 public final class StorageManager {
 	public static final String BUCKET_NAME = "climbing-web";
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
