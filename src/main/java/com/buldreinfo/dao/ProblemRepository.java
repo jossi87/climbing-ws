@@ -43,26 +43,28 @@ import com.buldreinfo.model.ProblemTick;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Repository
 public class ProblemRepository extends BaseRepository {
 	private static final Logger logger = LogManager.getLogger();
+	private final ObjectMapper objectMapper;
 	private final ActivityRepository activityRepo;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoRepository geoRepo;
-	private final Gson gson = new Gson();
 	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
 	private final ObjectProvider<MediaRepository> mediaRepo;
 	private final ObjectProvider<SectorRepository> sectorRepo;
 	private final UserRepository userRepo;
 
-	public ProblemRepository(ClimbingTransactionManager txManager,
+	public ProblemRepository(ObjectMapper objectMapper,
+			ClimbingTransactionManager txManager,
 			ActivityRepository activityRepo,
 			ExternalLinksRepository externalLinksRepo,
 			GeoRepository geoRepo,
@@ -71,6 +73,7 @@ public class ProblemRepository extends BaseRepository {
 			ObjectProvider<SectorRepository> sectorRepo,
 			UserRepository userRepo) {
 		super(txManager);
+		this.objectMapper = objectMapper;
 		this.activityRepo = activityRepo;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoRepo = geoRepo;
@@ -80,7 +83,7 @@ public class ProblemRepository extends BaseRepository {
 		this.userRepo = userRepo;
 	}
 
-	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException {
+	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 
@@ -225,7 +228,7 @@ public class ProblemRepository extends BaseRepository {
 						var name = rst.getString("name");
 						var comment = rst.getString("description");
 						var faStr = rst.getString("fa");
-						List<User> fa = Strings.isNullOrEmpty(faStr) ? null : gson.fromJson("[" + faStr + "]", new TypeToken<List<User>>(){});
+						List<User> fa = Strings.isNullOrEmpty(faStr) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
 						var lengthMeter = rst.getInt("length_meter");
 						var idCoordinates = rst.getInt("coordinates_id");
 						var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
@@ -250,7 +253,7 @@ public class ProblemRepository extends BaseRepository {
 						var descent = rst.getString("descent");
 
 						var sectionsStr = rst.getString("compiled_sections");
-						List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(gson.fromJson("[" + sectionsStr + "]", new TypeToken<List<ProblemSection>>(){}));
+						List<ProblemSection> sections = Strings.isNullOrEmpty(sectionsStr) ? new ArrayList<>() : new ArrayList<>(objectMapper.readValue("[" + sectionsStr + "]", new TypeReference<List<ProblemSection>>() {}));
 
 						if (media != null && !sections.isEmpty()) {
 							for (var section : sections) {
@@ -712,7 +715,7 @@ public class ProblemRepository extends BaseRepository {
 		return Redirect.fromIdProblem(idProblem);
 	}
 
-	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) throws SQLException {
+	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) throws SQLException, JsonProcessingException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		var c = txManager.getConnection();
 		var idGuestbook = co.id();

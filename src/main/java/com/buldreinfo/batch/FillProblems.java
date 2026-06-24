@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.BeansException;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 
@@ -28,6 +29,7 @@ import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -171,7 +173,7 @@ public class FillProblems {
 		problemRepo.setProblem(AUTH_USER_ID, setup, p);
 	}
 
-	private int upsertArea(Data d) throws SQLException, InterruptedException {
+	private int upsertArea(Data d) throws SQLException, InterruptedException, JsonProcessingException, BeansException {
 		if (areaCache.containsKey(d.getArea())) {
 			return areaCache.get(d.getArea());
 		}
@@ -187,7 +189,7 @@ public class FillProblems {
 		return r.idArea();
 	}
 
-	private int upsertSector(int idArea, Data d) throws SQLException, InterruptedException {
+	private int upsertSector(int idArea, Data d) throws SQLException, InterruptedException, JsonProcessingException, BeansException {
 		Map<String, Integer> areaSectors = sectorCache.computeIfAbsent(idArea, _ -> new HashMap<>());
 		if (areaSectors.containsKey(d.getSector())) {
 			return areaSectors.get(d.getSector());

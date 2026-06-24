@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Repository;
 
@@ -34,6 +35,7 @@ import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector.SectorProblem;
 import com.buldreinfo.model.Trail;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
@@ -62,7 +64,7 @@ public class AreaRepository extends BaseRepository {
 		this.sectorRepo = sectorRepo;
 	}
 
-	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException {
+	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) throws SQLException, JsonProcessingException, BeansException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
@@ -258,7 +260,7 @@ public class AreaRepository extends BaseRepository {
 		return res;
 	}
 
-	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException {
+	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) throws SQLException, InterruptedException, JsonProcessingException, BeansException {
 		Preconditions.checkArgument(authUserId.isPresent(), "Not logged in");
 		Preconditions.checkArgument(s.idRegion() > 0, "Insufficient credentials");
 		var c = txManager.getConnection();
@@ -356,7 +358,7 @@ public class AreaRepository extends BaseRepository {
 		return Redirect.fromIdArea(idArea);
 	}
 
-	private Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) throws SQLException {
+	private Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) throws SQLException, JsonProcessingException, BeansException {
 		var stopwatch = Stopwatch.createStarted();
 		var sectorLookup = new HashMap<Integer, AreaSector>();
 		var c = txManager.getConnection();

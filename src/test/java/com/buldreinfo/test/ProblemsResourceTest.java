@@ -23,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.buldreinfo.controller.ProblemsController;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.model.Problem;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 
 public class ProblemsResourceTest extends BaseResourceTest {
@@ -62,7 +63,7 @@ public class ProblemsResourceTest extends BaseResourceTest {
 				Problem p = problemRepo.getProblem(Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false, false);
 				assertNotNull(p);
 				assertFalse(Strings.isNullOrEmpty(p.name()));
-			} catch (SQLException e) {
+			} catch (SQLException | JsonProcessingException e) {
 				throw new RuntimeException(e);
 			}
 		});

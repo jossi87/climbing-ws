@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.buldreinfo.controller.AreasController;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.model.Area;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 
 public class AreasResourceTest extends BaseResourceTest {
@@ -63,7 +64,7 @@ public class AreasResourceTest extends BaseResourceTest {
 				Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
 				assertNotNull(a);
 				assertFalse(Strings.isNullOrEmpty(a.name()));
-			} catch (SQLException e) {
+			} catch (SQLException | JsonProcessingException e) {
 				throw new RuntimeException(e);
 			}
 		});

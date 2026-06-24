@@ -42,6 +42,8 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.LocalizedObjectAnnotation;
 import com.google.common.base.Preconditions;
@@ -54,6 +56,7 @@ import com.google.common.collect.Multimap;
 public class MediaRepository extends BaseRepository {
 	private record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final ImageService imageService;
 	private final VideoService videoService;
@@ -61,7 +64,9 @@ public class MediaRepository extends BaseRepository {
 	private final ObjectProvider<ProblemRepository> problemRepo;
 	private final UserRepository userRepo;
 
-	public MediaRepository(StorageManager storage,
+	public MediaRepository(
+			ObjectMapper objectMapper,
+			StorageManager storage,
 			@Lazy ImageService imageService,
 			@Lazy VideoService videoService,
 			ClimbingTransactionManager txManager,
@@ -69,6 +74,7 @@ public class MediaRepository extends BaseRepository {
 			ObjectProvider<ProblemRepository> problemRepo,
 			UserRepository userRepo) {
 		super(txManager);
+		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.imageService = imageService;
 		this.videoService = videoService;
@@ -124,7 +130,7 @@ public class MediaRepository extends BaseRepository {
 		return idMedia;
 	}
 
-	public void deleteMedia(Optional<Integer> authUserId, int idMedia) throws SQLException {
+	public void deleteMedia(Optional<Integer> authUserId, int idMedia) throws SQLException, JsonProcessingException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
 		var idProblems = new ArrayList<Integer>();
 		var c = txManager.getConnection();
@@ -178,7 +184,7 @@ public class MediaRepository extends BaseRepository {
 		return 0;
 	}
 
-	public Media getMedia(Optional<Integer> authUserId, int id) throws SQLException {
+	public Media getMedia(Optional<Integer> authUserId, int id) throws SQLException, JsonProcessingException {
 		var c = txManager.getConnection();
 		var sql = """
 				WITH req AS (
@@ -301,14 +307,14 @@ public class MediaRepository extends BaseRepository {
 			ps.setInt(idx++, id);
 			try (var rst = ps.executeQuery()) {
 				if (rst.next()) {
-					return Media.fromResultSet(rst, authUserId);
+					return Media.fromResultSet(objectMapper, rst, authUserId);
 				}
 			}
 		}
 		throw new NoSuchElementException("Could not find media with id=" + id);
 	}
 
-	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException {
+	public List<Media> getProfileMedia(Optional<Integer> authUserId, int reqId, boolean captured) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Media>();
 		var c = txManager.getConnection();
@@ -468,7 +474,7 @@ public class MediaRepository extends BaseRepository {
 			ps.setInt(2, authUserId.orElse(0));
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.add(Media.fromResultSet(rst, authUserId));
+					res.add(Media.fromResultSet(objectMapper, rst, authUserId));
 				}
 			}
 		}
@@ -488,7 +494,7 @@ public class MediaRepository extends BaseRepository {
 		}
 	}
 
-	public void rotateMedia(Optional<Integer> authUserId, int idMedia, int degrees) throws IOException, SQLException, InterruptedException {
+	public void rotateMedia(Optional<Integer> authUserId, int idMedia, int degrees) throws SQLException, InterruptedException, IOException {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
 		var r = switch (degrees) {
 		case 90 -> Rotation.CW_90;
@@ -840,7 +846,7 @@ public class MediaRepository extends BaseRepository {
 		}
 	}
 
-	private void ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(Optional<Integer> authUserId, int idMedia) throws SQLException {
+	private void ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(Optional<Integer> authUserId, int idMedia) throws SQLException, JsonProcessingException {
 		var m = getMedia(authUserId, idMedia);
 		if (m.uploadedByMe()) {
 			return;
@@ -1010,7 +1016,7 @@ public class MediaRepository extends BaseRepository {
 		}
 	}
 
-	protected List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited) throws SQLException {
+	protected List<Media> getMediaArea(Optional<Integer> authUserId, int id, boolean inherited) throws SQLException, JsonProcessingException {
 		var res = new ArrayList<Media>();
 		var c = txManager.getConnection();
 		var sql = """
@@ -1143,7 +1149,7 @@ public class MediaRepository extends BaseRepository {
 					if (inherited && trivia) {
 						continue; 
 					}
-					var m = Media.fromResultSet(rst, authUserId);
+					var m = Media.fromResultSet(objectMapper, rst, authUserId);
 					res.add(new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -1156,7 +1162,7 @@ public class MediaRepository extends BaseRepository {
 		return res;
 	}
 
-	protected List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) throws SQLException {
+	protected List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var res = new ArrayList<Media>();
 		var c = txManager.getConnection();
@@ -1289,7 +1295,7 @@ public class MediaRepository extends BaseRepository {
 
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					res.add(Media.fromResultSet(rst, authUserId));
+					res.add(Media.fromResultSet(objectMapper, rst, authUserId));
 				}
 			}
 		}
@@ -1297,7 +1303,7 @@ public class MediaRepository extends BaseRepository {
 		return res;
 	}
 
-	protected List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException {
+	protected List<Media> getMediaProblem(Setup s, Optional<Integer> authUserId, int areaId, int sectorId, int problemId, boolean showHiddenMedia) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var c = txManager.getConnection();
 		var sectorMediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> getMediaSector(s, authUserId, sectorId, problemId, true, areaId, 0, problemId, showHiddenMedia)), executor);
@@ -1440,7 +1446,7 @@ public class MediaRepository extends BaseRepository {
 							embedUrl += "#t=" + seconds + "s";
 						}
 					}
-					var m = Media.fromResultSet(rst, authUserId);
+					var m = Media.fromResultSet(objectMapper, rst, authUserId);
 					m = new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
@@ -1468,7 +1474,7 @@ public class MediaRepository extends BaseRepository {
 		return media;
 	}
 
-	protected List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException {
+	protected List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, int enableMoveToIdArea, int enableMoveToIdSector, int enableMoveToIdProblem, boolean showHiddenMedia) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		var initialList = new ArrayList<Media>();
 		var c = txManager.getConnection();
@@ -1602,7 +1608,7 @@ public class MediaRepository extends BaseRepository {
 					var trivia = rst.getBoolean("trivia");
 					if (inherited && trivia) continue; 
 
-					var m = Media.fromResultSet(rst, authUserId);
+					var m = Media.fromResultSet(objectMapper, rst, authUserId);
 
 					initialList.add(new Media(
 							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
@@ -1634,7 +1640,7 @@ public class MediaRepository extends BaseRepository {
 		return allMedia;
 	}
 
-	protected Multimap<Integer, Media> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException {
+	protected Multimap<Integer, Media> getMediaTrails(Optional<Integer> authUserId, Collection<Integer> trailIds) throws SQLException, JsonProcessingException {
 		var stopwatch = Stopwatch.createStarted();
 		Multimap<Integer, Media> res = ArrayListMultimap.create();
 		if (trailIds.isEmpty()) {
@@ -1772,7 +1778,7 @@ public class MediaRepository extends BaseRepository {
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
 					var trailId = rst.getInt("trail_id");
-					res.put(trailId, Media.fromResultSet(rst, authUserId));
+					res.put(trailId, Media.fromResultSet(objectMapper, rst, authUserId));
 				}
 			}
 		}
