@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,6 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpHeaders;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -72,20 +72,18 @@ public class JwtFilter extends OncePerRequestFilter {
 		return map;
 	}
 
-	private Setup getSetup(HttpServletRequest request) throws Exception {
-		return txManager.executeInTransaction(() -> regionRepo.getSetups().stream()
-				.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
-				.findFirst()
-				.orElseThrow());
-	}
-
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String accessToken = extractToken(request);
+
 		if (accessToken != null && !accessToken.isBlank()) {
 			try {
 				txManager.executeInTransaction(() -> {
-					Setup setup = getSetup(request);
+					Setup setup = regionRepo.getSetups().stream()
+							.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
+							.findFirst()
+							.orElseThrow(() -> new RuntimeException("Setup not found for domain: " + request.getServerName()));
+
 					String headerJson = objectMapper.writeValueAsString(getHeaders(request));
 					tokenService.processAuthentication(accessToken, setup, headerJson)
 					.ifPresent(userId -> {
