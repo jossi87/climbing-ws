@@ -624,26 +624,30 @@ public class MediaRepository extends BaseRepository {
 				WITH req AS (
 				  SELECT ? auth_user_id, ? media_id
 				)
-				SELECT ur.admin_write, ur.superadmin_write,
+				SELECT ur.admin_write, ur.superadmin_write, m.uploader_user_id,
 				       MAX(ma.area_id) area_id, MAX(ms.sector_id) sector_id, MAX(mp.problem_id) problem_id, MAX(mt.trail_id) trail_id
 				FROM req
+				JOIN media m ON m.id = req.media_id
 				JOIN area a ON true
-				JOIN sector s ON a.id=s.area_id
-				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
-				LEFT JOIN media_area ma ON a.id=ma.area_id AND ma.media_id=req.media_id
-				LEFT JOIN media_sector ms ON s.id=ms.sector_id AND ms.media_id=req.media_id
-				LEFT JOIN problem p ON s.id=p.sector_id
-				LEFT JOIN media_problem mp ON p.id=mp.problem_id AND mp.media_id=req.media_id
-				LEFT JOIN sector_trail st ON s.id=st.sector_id
-				LEFT JOIN media_trail mt ON st.trail_id=mt.trail_id AND mt.media_id=req.media_id
-				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mt.media_id IS NOT NULL
-				GROUP BY ur.admin_write, ur.superadmin_write
+				JOIN sector s ON a.id = s.area_id
+				JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
+				LEFT JOIN media_area ma ON a.id = ma.area_id AND m.id = ma.media_id
+				LEFT JOIN media_sector ms ON s.id = ms.sector_id AND m.id = ms.media_id
+				LEFT JOIN problem p ON s.id = p.sector_id
+				LEFT JOIN media_problem mp ON p.id = mp.problem_id AND mp.media_id = req.media_id
+				LEFT JOIN sector_trail st ON s.id = st.sector_id
+				LEFT JOIN media_trail mt ON st.trail_id = mt.trail_id AND m.id = mt.media_id
+				WHERE ma.media_id IS NOT NULL 
+				   OR ms.media_id IS NOT NULL 
+				   OR mp.media_id IS NOT NULL 
+				   OR mt.media_id IS NOT NULL
+				GROUP BY ur.admin_write, ur.superadmin_write, m.uploader_user_id
 				""")) {
 			ps.setInt(1, authUserId.orElseThrow());
 			ps.setInt(2, id);
 			try (var rst = ps.executeQuery()) {
 				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
+					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write") || rst.getInt("uploaded_user_id") == authUserId.get();
 					areaId = rst.getInt("area_id");
 					sectorId = rst.getInt("sector_id");
 					problemId = rst.getInt("problem_id");

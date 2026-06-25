@@ -47,7 +47,7 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
         if (origin != null && fetchOrigins().contains(origin)) {
             CorsConfiguration config = new CorsConfiguration();
             config.setAllowedOrigins(List.of(origin));
-            config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+            config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
             config.setAllowedHeaders(List.of("origin", "content-type", "accept", "authorization"));
             config.setExposedHeaders(List.of("Content-Disposition"));
             config.setAllowCredentials(true);
