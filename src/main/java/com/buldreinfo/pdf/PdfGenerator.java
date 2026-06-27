@@ -67,6 +67,7 @@ import com.buldreinfo.model.Sector.SectorProblem;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.model.Tick.TickRepeat;
 import com.buldreinfo.model.User;
+import com.buldreinfo.util.FilenameUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class PdfGenerator implements AutoCloseable {
@@ -632,13 +633,6 @@ public class PdfGenerator implements AutoCloseable {
 		return cell;
 	}
 
-	private String removeIllegalChars(String name) {
-		if (name != null) {
-			return name.replaceAll("[^ÆØÅæøåa-zA-Z0-9]", " ");
-		}
-		return name;
-	}
-
 	private byte[] safeGenerateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetWidth, int highlightProbId, int highlightPitch) {
 		try {
 			return TopoGenerator.generateTopo(storage, mediaId, width, height, mediaSvgs, svgs, region, targetWidth, highlightProbId, highlightPitch);
@@ -669,7 +663,7 @@ public class PdfGenerator implements AutoCloseable {
 					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 				}
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
-					final String name = removeIllegalChars(sector.name());
+					final String name = FilenameUtil.sanitize(sector.name());
 					String label = null;
 					if (useLegend) {
 						label = String.valueOf(legends.size() + 1);
@@ -723,14 +717,14 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
 			}
 			if (problem.coordinates() != null && problem.coordinates().getLatitude() > 0 && problem.coordinates().getLongitude() > 0) {
-				String name = removeIllegalChars(problem.name());
+				String name = FilenameUtil.sanitize(problem.name());
 				markers.add(new Marker(problem.coordinates().getLatitude(), problem.coordinates().getLongitude(), IconType.DEFAULT, name));
 			}
 			if (sector.trails() != null && !sector.trails().isEmpty()) {
 				sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 			}
 			if (sector.outline() != null && !sector.outline().isEmpty()) {
-				String label = removeIllegalChars(sector.name());
+				String label = FilenameUtil.sanitize(sector.name());
 				String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 				outlines.add(new Outline(label, polygonCoords));
 			}
@@ -810,7 +804,7 @@ public class PdfGenerator implements AutoCloseable {
 					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 				}
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
-					final String label = removeIllegalChars(sector.name());
+					final String label = FilenameUtil.sanitize(sector.name());
 					String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -26,6 +27,7 @@ import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.util.FilenameUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,6 +98,7 @@ public class SectorsController {
 		final Sector sector = sectorRepo.getSector(authUserId, false, setup, id, shouldUpdateHits);
 		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
 		final Area area = areaRepo.getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
+		String filename = FilenameUtil.generateFilename(sector.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
 			try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
 				generator.writeArea(setup, area, gradeDistribution, List.of(sector));
@@ -105,7 +108,7 @@ public class SectorsController {
 			}
 		};
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"sector.pdf\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.APPLICATION_PDF)
 				.body(stream);

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
@@ -28,6 +29,7 @@ import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.util.FilenameUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -104,6 +106,7 @@ public class ProblemsController {
 		final var problem = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
 		final var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
 		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
 			try (var generator = new PdfGenerator(objectMapper, storage, output)) {
 				generator.writeProblem(setup, area, sector, problem);
@@ -113,7 +116,7 @@ public class ProblemsController {
 			}
 		};
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"problem.pdf\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.APPLICATION_PDF)
 				.body(stream);

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
@@ -30,6 +31,7 @@ import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.util.FilenameUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -93,30 +95,31 @@ public class AreasController {
 
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
 	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request,  @RequestParam(name = "id") int id) {
-	    if (id <= 0) {
-	        throw new ValidationFailedException("Invalid area id=" + id);
-	    }
-	    var setup = requestContext.getSetup(request);
-	    var authUserId = requestContext.getAuthenticatedUserId();
-	    var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
-	    Area area = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
-	    Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
-	    List<Sector> sectors = area.sectors().stream()
-	            .map(s -> sectorRepo.getSector(authUserId, false, setup, s.id(), shouldUpdateHits))
-	            .toList();
-	    StreamingResponseBody stream = output -> {
-	        try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
-	            generator.writeArea(setup, area, gradeDistribution, sectors);
-	        } catch (Exception e) {
-	            logger.error("PDF generation failed: {}", e.getMessage(), e);
-	            throw new RuntimeException("PDF generation failed", e);
-	        }
-	    };
-	    return ResponseEntity.ok()
-	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"area.pdf\"")
-	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-	            .contentType(MediaType.APPLICATION_PDF)
-	            .body(stream);
+		if (id <= 0) {
+			throw new ValidationFailedException("Invalid area id=" + id);
+		}
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		Area area = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
+		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
+		List<Sector> sectors = area.sectors().stream()
+				.map(s -> sectorRepo.getSector(authUserId, false, setup, s.id(), shouldUpdateHits))
+				.toList();
+		String filename = FilenameUtil.generateFilename(area.name(), StorageType.PDF);
+		StreamingResponseBody stream = output -> {
+			try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
+				generator.writeArea(setup, area, gradeDistribution, sectors);
+			} catch (Exception e) {
+				logger.error("PDF generation failed: {}", e.getMessage(), e);
+				throw new RuntimeException("PDF generation failed", e);
+			}
+		};
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(stream);
 	}
 
 	@Operation(summary = "Update area", responses = {
@@ -134,8 +137,8 @@ public class AreasController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-			regionRepo.ensureAdminWriteRegion(setup, authUserId);
-			var res = areaRepo.setArea(setup, authUserId, a);
-			return ResponseEntity.ok(res);
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		var res = areaRepo.setArea(setup, authUserId, a);
+		return ResponseEntity.ok(res);
 	}
 }

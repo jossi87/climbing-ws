@@ -10,7 +10,8 @@ public enum StorageType {
 	MP4("video/mp4", "mp4"),
 	MOV("video/quicktime", "mov"),
 	MTS("video/mp2t", "mts"),
-	WEBM("video/webm", "webm");
+	WEBM("video/webm", "webm"),
+	PDF("application/pdf", "pdf");
 
 	public static Optional<StorageType> fromFilename(String fileName) {
 		int dotIndex = fileName.lastIndexOf('.');
@@ -56,7 +57,7 @@ public enum StorageType {
 	public boolean isMovie() {
 		return switch (this) {
 		case MP4, MOV, MTS, WEBM -> true;
-		case JPG, PNG, WEBP -> false;
+		case JPG, PNG, WEBP, PDF -> false;
 		};
 	}
 }
