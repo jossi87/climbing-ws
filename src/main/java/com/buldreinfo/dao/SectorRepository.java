@@ -217,6 +217,11 @@ public class SectorRepository {
 		}
 		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
 
+		Integer parkingId = s.parking() == null ? null : s.parking().getId();
+		Integer calcCompass = Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(null);
+		Integer manualCompass = s.wallDirectionManual() != null ? s.wallDirectionManual().id() : null;
+		Integer trashBy = s.trash() ? authUserId.get() : null;
+
 		int idSector;
 		if (s.id() > 0) {
 			ensureAdminWriteSector(authUserId, s.id());
@@ -233,11 +238,9 @@ public class SectorRepository {
 					""")
 			.params(GlobalFunctions.stripString(s.name()), GlobalFunctions.stripString(s.comment()), 
 					GlobalFunctions.stripString(s.accessInfo()), GlobalFunctions.stripString(s.accessClosed()), 
-					s.sunFromHour(), s.sunToHour(), s.parking() == null ? 0 : s.parking().getId(), 
-							isLockedAdmin, s.lockedSuperadmin(), 
-							Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(0),
-							s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0, 
-									s.trash(), s.trash() ? authUserId.get() : 0, s.id(), authUserId.get())
+					s.sunFromHour(), s.sunToHour(), parkingId, 
+					isLockedAdmin, s.lockedSuperadmin(), calcCompass, manualCompass, 
+					s.trash(), trashBy, s.id(), authUserId.get())
 			.update();
 
 			idSector = s.id();
@@ -268,10 +271,8 @@ public class SectorRepository {
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.areaId(), s.name(), GlobalFunctions.stripString(s.comment()), GlobalFunctions.stripString(s.accessInfo()), 
-					GlobalFunctions.stripString(s.accessClosed()), s.parking() == null ? 0 : s.parking().getId(), 
-							isLockedAdmin, s.lockedSuperadmin(), 
-							Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(0),
-							s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0)
+					GlobalFunctions.stripString(s.accessClosed()), parkingId, 
+					isLockedAdmin, s.lockedSuperadmin(), calcCompass, manualCompass)
 			.update(keyHolder, "id");
 			idSector = keyHolder.getKey().intValue();
 		}
