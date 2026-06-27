@@ -1302,7 +1302,6 @@ public class MediaRepository {
 
 	protected List<Media> getMediaSector(Setup s, Optional<Integer> authUserId, int idSector, int optionalIdProblem, boolean inherited, boolean showHiddenMedia) {
 		var startNanos = System.nanoTime();
-		var initialList = new ArrayList<Media>();
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? sector_id
@@ -1423,21 +1422,21 @@ public class MediaRepository {
 				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, ms.sorting, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""";
-		jdbcClient.sql(sql)
+		List<Media> initialList = jdbcClient.sql(sql)
 		.params(authUserId.orElse(0), idSector)
 		.query((rs, _) -> {
 			var trivia = rs.getBoolean("trivia");
 			if (!(inherited && trivia)) {
 				var m = Media.fromResultSet(objectMapper, rs, authUserId);
-				initialList.add(new Media(
+				return new Media(
 						m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
 						m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 						m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 						inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
-						));
+						);
 			}
-			return Void.TYPE;
-		});
+			return null;
+		}).list();
 
 		var allMedia = new ArrayList<Media>();
 		if (!initialList.isEmpty()) {
