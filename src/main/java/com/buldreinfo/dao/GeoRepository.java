@@ -1,101 +1,74 @@
 package com.buldreinfo.dao;
 
-import java.io.IOException;
-import java.sql.SQLException;
-import java.sql.Types;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.service.ElevationService;
 
 @Repository
-public class GeoRepository extends BaseRepository {
-	private static final Logger logger = LogManager.getLogger();
+public class GeoRepository {
+	private final JdbcClient jdbcClient;
 	private final ElevationService elevationService;
-	
-	public GeoRepository(ClimbingTransactionManager txManager, ElevationService elevationService) {
-		super(txManager);
+
+	public GeoRepository(JdbcClient jdbcClient, ElevationService elevationService) {
+		this.jdbcClient = jdbcClient;
 		this.elevationService = elevationService;
 	}
-	
-	private void fillMissingElevations() throws SQLException, InterruptedException {
-		var c = txManager.getConnection();
-		var coordinatesMissingElevation = new ArrayList<Coordinates>();
-		try (var ps = c.prepareStatement("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")) {
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int id = rst.getInt("id");
-					double latitude = rst.getDouble("latitude");
-					double longitude = rst.getDouble("longitude");
-					double elevation = rst.getDouble("elevation");
-					var elevationSource = rst.getString("elevation_source");
-					coordinatesMissingElevation.add(new Coordinates(id, latitude, longitude, elevation, elevationSource));
-				}
-			}
-		}
+
+	private void fillMissingElevations() {
+		var coordinatesMissingElevation = jdbcClient.sql("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")
+				.query((rs, _) -> new Coordinates(
+						rs.getInt("id"), 
+						rs.getDouble("latitude"), 
+						rs.getDouble("longitude"), 
+						rs.getDouble("elevation"), 
+						rs.getString("elevation_source")
+						)).list();
+
 		if (!coordinatesMissingElevation.isEmpty()) {
-			try {
-				elevationService.fillElevations(coordinatesMissingElevation);
-				try (var ps = c.prepareStatement("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")) {
-					for (var coord : coordinatesMissingElevation) {
-						ps.setDouble(1, coord.getElevation());
-						ps.setString(2, coord.getElevationSource());
-						ps.setDouble(3, coord.getId());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
-			} catch (IOException e) {
-				logger.warn(e.getMessage(), e);
+			elevationService.fillElevations(coordinatesMissingElevation);
+			for (var coord : coordinatesMissingElevation) {
+				jdbcClient.sql("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")
+				.param(1, coord.getElevation())
+				.param(2, coord.getElevationSource())
+				.param(3, coord.getId())
+				.update();
 			}
 		}
 	}
 
-	protected void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) throws SQLException, InterruptedException {
-		var c = txManager.getConnection();
-		if (coordinates != null && !coordinates.isEmpty()) {
-			coordinates.forEach(coord -> coord.roundCoordinatesToMaximum10digitsAfterComma());
-			try (var ps = c.prepareStatement("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")) {
-				for (var coord : coordinates) {
-					ps.setDouble(1, coord.getLatitude());
-					ps.setDouble(2, coord.getLongitude());
-					if (coord.getElevationSource() != null) {
-						ps.setDouble(3, coord.getElevation());
-						ps.setString(4, coord.getElevationSource());
-					}
-					else {
-						ps.setNull(3, Types.DOUBLE);
-						ps.setNull(4, Types.VARCHAR);
-					}
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
-		}
-		fillMissingElevations();
+	@Transactional
+	protected void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
 		if (coordinates != null && !coordinates.isEmpty()) {
 			for (var coord : coordinates) {
-				try (var ps = c.prepareStatement("SELECT id, elevation, elevation_source FROM coordinates WHERE latitude=? AND longitude=?")) {
-					ps.setDouble(1, coord.getLatitude());
-					ps.setDouble(2, coord.getLongitude());
-					try (var rst = ps.executeQuery()) {
-						while (rst.next()) {
-							int id = rst.getInt("id");
-							double elevation = rst.getDouble("elevation");
-							var elevationSource = rst.getString("elevation_source");
-							coord.setId(id);
-							coord.setElevation(elevation, elevationSource);
-						}
+				coord.roundCoordinatesToMaximum10digitsAfterComma();
+				jdbcClient.sql("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")
+				.param(1, coord.getLatitude())
+				.param(2, coord.getLongitude())
+				.param(3, coord.getElevationSource() != null ? coord.getElevation() : null)
+				.param(4, coord.getElevationSource() != null ? coord.getElevationSource() : null)
+				.update();
+			}
+
+			fillMissingElevations();
+
+			for (var coord : coordinates) {
+				jdbcClient.sql("SELECT id, elevation, elevation_source FROM coordinates WHERE latitude=? AND longitude=?")
+				.param(1, coord.getLatitude())
+				.param(2, coord.getLongitude())
+				.query(rs -> {
+					if (rs.next()) {
+						coord.setId(rs.getInt("id"));
+						coord.setElevation(rs.getDouble("elevation"), rs.getString("elevation_source"));
 					}
-				}
+					return Void.TYPE;
+				});
 			}
 		}
 	}
@@ -108,6 +81,6 @@ public class GeoRepository extends BaseRepository {
 				.stream()
 				.filter(cd -> cd.id() == id)
 				.findAny()
-				.get();
+				.orElse(null);
 	}
 }

@@ -20,8 +20,8 @@ import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
@@ -41,7 +41,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Without JavaScript")
 @RestController
 @RequestMapping("/without-js")
-public class WithoutJsController extends BaseController {
+public class WithoutJsController {
+	private final RequestContext requestContext;
 	private static final Logger logger = LogManager.getLogger();
 	private static final boolean shouldUpdateHits = false;
 	private final AreaRepository areaRepo;
@@ -49,18 +50,16 @@ public class WithoutJsController extends BaseController {
 	private final ProblemRepository problemRepo;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
-	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 
-	public WithoutJsController(ClimbingTransactionManager txManager,
+	public WithoutJsController(RequestContext requestContext,
 			AreaRepository areaRepo,
 			FrontpageRepository frontpageRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
-		super(txManager, regionRepo);
-		this.txManager = txManager;
+		this.requestContext = requestContext;
 		this.areaRepo = areaRepo;
 		this.frontpageRepo = frontpageRepo;
 		this.problemRepo = problemRepo;
@@ -73,22 +72,22 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_HTML_VALUE, schema = @Schema(implementation = String.class))})
 	})
 	@GetMapping(produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJs(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			var meta = Meta.from(setup, Optional.empty(), txManager, userRepo, regionRepo);
-			var stats = frontpageRepo.getFrontpageStats(Optional.empty(), setup);
-			var randomMedia = frontpageRepo.getFrontpageRandomMedia(setup).stream().findAny().orElse(null);
+	public ResponseEntity<String> getWithoutJs(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var meta = Meta.from(setup, Optional.empty(), userRepo, regionRepo);
+		var stats = frontpageRepo.getFrontpageStats(Optional.empty(), setup);
+		var randomMedia = frontpageRepo.getFrontpageRandomMedia(setup).stream().findAny().orElse(null);
 
-			String description = "%s - %d regions, %d areas, %d %s, %d ticks".formatted(
-					setup.description(), meta.regions().size(), stats.areas(), stats.problems(),
-					(setup.isBouldering() ? "boulders" : "routes"), stats.ticks());
+		String description = "%s - %d regions, %d areas, %d %s, %d ticks".formatted(
+				setup.description(), meta.regions().size(), stats.areas(), stats.problems(),
+				(setup.isBouldering() ? "boulders" : "routes"), stats.ticks());
 
-			return getHtml(setup, setup.url(), setup.title(), description,
-					(randomMedia == null ? 0 : randomMedia.identity().id()),
-					(randomMedia == null ? 0 : randomMedia.identity().versionStamp()),
-					(randomMedia == null ? 0 : randomMedia.width()),
-					(randomMedia == null ? 0 : randomMedia.height()));
-		}));
+		var html = getHtml(setup, setup.url(), setup.title(), description,
+				(randomMedia == null ? 0 : randomMedia.identity().id()),
+				(randomMedia == null ? 0 : randomMedia.identity().versionStamp()),
+				(randomMedia == null ? 0 : randomMedia.width()),
+				(randomMedia == null ? 0 : randomMedia.height()));
+		return ResponseEntity.ok(html);
 	}
 
 	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {
@@ -97,16 +96,16 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/area/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) throws Exception {
+	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			Area a = areaRepo.getArea(setup, Optional.empty(), id, shouldUpdateHits);
-			String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
-			Media m = (a.media() != null && !a.media().isEmpty()) ? a.media().getFirst() : null;
-			return getHtml(setup, setup.url() + "/area/" + a.id(), a.name(), description,
-					(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
-					(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
-		}));
+		var setup = requestContext.getSetup(request);
+		Area a = areaRepo.getArea(setup, Optional.empty(), id, shouldUpdateHits);
+		String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
+		Media m = (a.media() != null && !a.media().isEmpty()) ? a.media().getFirst() : null;
+		var html = getHtml(setup, setup.url() + "/area/" + a.id(), a.name(), description,
+				(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
+				(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
+		return ResponseEntity.ok(html);
 	}
 
 	@Operation(
@@ -128,32 +127,32 @@ public class WithoutJsController extends BaseController {
 			HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @PathVariable int id,
 			@Parameter(description = "Media id", required = false) @PathVariable(required = false) Integer mediaId,
-			@Parameter(description = "Pitch number", required = false) @PathVariable(required = false) Integer pitch) throws Exception {
+			@Parameter(description = "Pitch number", required = false) @PathVariable(required = false) Integer pitch) {
 
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		int mid = (mediaId == null) ? 0 : mediaId;
 		if (mid < 0) throw new ValidationFailedException("Invalid mediaId=" + mid);
 		if (pitch != null) logger.debug("Ignore pitch {}, just return mediaId {}", pitch, mid);
 
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false, shouldUpdateHits);
-			String title = "%s [%s] (%s / %s)".formatted(p.name(), p.grade(), p.areaName(), p.sectorName());
-			String description = p.comment();
+		var setup = requestContext.getSetup(request);
+		Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false, shouldUpdateHits);
+		String title = "%s [%s] (%s / %s)".formatted(p.name(), p.grade(), p.areaName(), p.sectorName());
+		String description = p.comment();
 
-			if (p.fa() != null && !p.fa().isEmpty()) {
-				String fa = p.fa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
-				description = (description != null && !description.isBlank() ? description + " | " : "") + 
-						"First ascent by " + fa + (p.faDateHr() != null && !p.faDateHr().isBlank() ? " (" + p.faDate() + ")" : "");
-			}
+		if (p.fa() != null && !p.fa().isEmpty()) {
+			String fa = p.fa().stream().map(x -> x.name().trim()).collect(Collectors.joining(", "));
+			description = (description != null && !description.isBlank() ? description + " | " : "") + 
+					"First ascent by " + fa + (p.faDateHr() != null && !p.faDateHr().isBlank() ? " (" + p.faDate() + ")" : "");
+		}
 
-			Media m = (p.media() != null && !p.media().isEmpty()) ? 
-					p.media().stream().filter(x -> !x.inherited() && (mid == 0 || x.identity().id() == mid)).findFirst().orElse(p.media().getFirst()) 
-					: null;
+		Media m = (p.media() != null && !p.media().isEmpty()) ? 
+				p.media().stream().filter(x -> !x.inherited() && (mid == 0 || x.identity().id() == mid)).findFirst().orElse(p.media().getFirst()) 
+				: null;
 
-			return getHtml(setup, setup.url() + "/problem/" + p.id(), title, description,
-					(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
-					(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
-		}));
+		var html = getHtml(setup, setup.url() + "/problem/" + p.id(), title, description,
+				(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
+				(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
+		return ResponseEntity.ok(html);
 	}
 
 	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {
@@ -162,21 +161,21 @@ public class WithoutJsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(value = "/sector/{id}", produces = MediaType.TEXT_HTML_VALUE)
-	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) throws Exception {
+	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id, shouldUpdateHits);
-			String title = "%s (%s)".formatted(s.name(), s.areaName());
-			String description = "%s in %s / %s (%d %s)%s".formatted(
-					(setup.isBouldering() ? "Bouldering" : "Climbing"), s.areaName(), s.name(),
-					(s.problems() != null ? s.problems().size() : 0),
-					(setup.isBouldering() ? "boulders" : "routes"),
-					(s.comment() != null && !s.comment().isBlank() ? " | " + s.comment() : ""));
-			Media m = (s.media() != null && !s.media().isEmpty()) ? s.media().getFirst() : null;
-			return getHtml(setup, setup.url() + "/sector/" + s.id(), title, description,
-					(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
-					(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
-		}));
+		var setup = requestContext.getSetup(request);
+		Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id, shouldUpdateHits);
+		String title = "%s (%s)".formatted(s.name(), s.areaName());
+		String description = "%s in %s / %s (%d %s)%s".formatted(
+				(setup.isBouldering() ? "Bouldering" : "Climbing"), s.areaName(), s.name(),
+				(s.problems() != null ? s.problems().size() : 0),
+				(setup.isBouldering() ? "boulders" : "routes"),
+				(s.comment() != null && !s.comment().isBlank() ? " | " + s.comment() : ""));
+		Media m = (s.media() != null && !s.media().isEmpty()) ? s.media().getFirst() : null;
+		var html = getHtml(setup, setup.url() + "/sector/" + s.id(), title, description,
+				(m == null ? 0 : m.identity().id()), (m == null ? 0 : m.identity().versionStamp()),
+				(m == null ? 0 : m.width()), (m == null ? 0 : m.height()));
+		return ResponseEntity.ok(html);
 	}
 
 	private String escapeHtml(String value) {

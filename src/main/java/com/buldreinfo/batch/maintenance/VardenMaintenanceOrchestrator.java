@@ -11,7 +11,6 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 
 import com.buldreinfo.Application;
 import com.buldreinfo.dao.MediaRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.service.ImageClassifierService;
 import com.buldreinfo.service.ImageService;
@@ -29,14 +28,13 @@ public class VardenMaintenanceOrchestrator {
 	private static final String REMOTE_BACKUP_DIR = "/opt/varden-infra/backups";
 	private static final List<Integer> privateEmbeddedVideosToIgnore = List.of(36370, 36374, 36379, 36380, 36381, 36383, 36388);
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		var context = new SpringApplicationBuilder(Application.class)
 				.web(WebApplicationType.NONE)
 				.run(args);
 		var imageService = context.getBean(ImageService.class);
 		var imageClassifierService = context.getBean(ImageClassifierService.class);
 		var storage = context.getBean(StorageManager.class);
-		var txManager = context.getBean(ClimbingTransactionManager.class);
 		var mediaRepo = context.getBean(MediaRepository.class);
 		for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
 			if (!Files.exists(p)) {
@@ -50,10 +48,10 @@ public class VardenMaintenanceOrchestrator {
 		new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT, storage).run();
 
 		logger.debug("Starting FixMedia background embedding sync task.");
-		new FixMedia(imageService, txManager, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+		new FixMedia(mediaRepo, imageService, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
 
 		logger.debug("FixMediaAnalyze started");
-		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, txManager, mediaRepo).run();
+		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, mediaRepo).run();
 		logger.debug("S3BucketUploadBatch started");
 		new S3BucketUploadBatch(LOCAL_MEDIA_ROOT, storage).run();
 

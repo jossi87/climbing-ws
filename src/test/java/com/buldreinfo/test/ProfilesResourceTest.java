@@ -18,7 +18,7 @@ public class ProfilesResourceTest extends BaseResourceTest {
 	@Autowired private ProfilesController tester;
 
 	@Test
-	public void testGetProfile() throws Exception {
+	public void testGetProfile() {
 		var r = tester.getProfiles(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
 		assertEquals(OK, r.getStatusCode());
 		Profile u = assertInstanceOf(Profile.class, r.getBody());
@@ -26,21 +26,21 @@ public class ProfilesResourceTest extends BaseResourceTest {
 	}
 
 	@Test
-	public void testGetProfileAscents() throws Exception {
+	public void testGetProfileAscents() {
 		var r = tester.getProfilesAscents(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(List.class, r.getBody());
 	}
 
 	@Test
-	public void testGetProfileMedia() throws Exception {
-		var r = tester.getProfilesMedia(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN, true);
+	public void testGetProfileMedia() {
+		var r = tester.getProfilesMedia(USER_ID_SUPERADMIN, true);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(List.class, r.getBody());
 	}
 
 	@Test
-	public void testGetProfileTodo() throws Exception {
+	public void testGetProfileTodo() {
 		var r = tester.getProfilesTodo(getRequest(Region.buldreinfo), USER_ID_SUPERADMIN);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(ProfileTodo.class, r.getBody());

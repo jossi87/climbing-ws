@@ -1,6 +1,5 @@
 package com.buldreinfo.dao;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -8,12 +7,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.helpers.TimeAgo;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Frontpage.FrontpageFirstAscent;
 import com.buldreinfo.model.Frontpage.FrontpageLastComment;
 import com.buldreinfo.model.Frontpage.FrontpageNewestMedia;
@@ -27,51 +28,76 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
-public class FrontpageRepository extends BaseRepository {
-	private final ObjectMapper objectMapper;
+public class FrontpageRepository {
 	private static final Logger logger = LogManager.getLogger();
-	
-	public FrontpageRepository(ObjectMapper objectMapper, ClimbingTransactionManager txManager) {
-		super(txManager);
+	private final JdbcClient jdbcClient;
+	private final ObjectMapper objectMapper;
+
+	public FrontpageRepository(JdbcClient jdbcClient, ObjectMapper objectMapper) {
+		this.jdbcClient = jdbcClient;
 		this.objectMapper = objectMapper;
 	}
 
-	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
+	@Transactional(readOnly = true)
+	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
-		var res = new ArrayList<FrontpageFirstAscent>();
-		var c = txManager.getConnection();
-		var sqlStr = """
-				WITH req AS (
-					SELECT ? auth_user_id, ? region_id
-				),
+
+		RowMapper<FrontpageFirstAscent> mapper = (rs, _) -> {
+			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
+			var rawUsers = rs.getString("user_data");
+			List<User> users = new ArrayList<>();
+
+			if (rawUsers != null) {
+				for (String userRecord : rawUsers.split("\\|")) {
+					String[] p = userRecord.split(":");
+					int mediaId = Integer.parseInt(p[2]);
+					MediaIdentity mi = (mediaId > 0) 
+							? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), (p.length > 6 ? p[6] : null)) 
+									: null;
+					users.add(new User(Integer.parseInt(p[0]), p[1], mi));
+				}
+			}
+
+			return new FrontpageFirstAscent(
+					TimeAgo.getTimeAgo(ts.toLocalDate()),
+					rs.getInt("area_id"),
+					rs.getString("area_name"),
+					rs.getInt("problem_id"),
+					rs.getBoolean("problem_locked_admin"),
+					rs.getBoolean("problem_locked_superadmin"),
+					rs.getString("problem_name"),
+					rs.getString("problem_subtype"),
+					rs.getString("grade"),
+					users
+					);
+		};
+
+		List<FrontpageFirstAscent> res = jdbcClient.sql("""
+				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				x AS (
-					SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
-					FROM req
-					CROSS JOIN problem p1
-					JOIN sector s1 ON p1.sector_id = s1.id
-					JOIN area ar1 ON s1.area_id = ar1.id
-					LEFT JOIN user_region ur1 ON (ar1.region_id = ur1.region_id AND ur1.user_id = req.auth_user_id)
-					WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
-					  AND (ar1.region_id = req.region_id OR ur1.user_id IS NOT NULL)
-					  AND ar1.region_id IN (
-						SELECT r.id FROM region r 
-						JOIN region_type rt ON r.id = rt.region_id 
-						WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id)
-					)
-					  AND ar1.trash IS NULL AND ((ar1.locked_admin=0 AND ar1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND ar1.locked_superadmin=0))
-					  AND s1.trash IS NULL AND ((s1.locked_admin=0 AND s1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND s1.locked_superadmin=0))
-					  AND p1.trash IS NULL AND ((p1.locked_admin=0 AND p1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND p1.locked_superadmin=0))
-					ORDER BY p1.fa_date DESC, p1.id DESC LIMIT 8
+				    SELECT p1.id AS problem_id, p1.fa_date AS activity_timestamp
+				    FROM req
+				    CROSS JOIN problem p1
+				    JOIN sector s1 ON p1.sector_id = s1.id
+				    JOIN area ar1 ON s1.area_id = ar1.id
+				    LEFT JOIN user_region ur1 ON (ar1.region_id = ur1.region_id AND ur1.user_id = req.auth_user_id)
+				    WHERE p1.fa_date IS NOT NULL AND p1.trash IS NULL
+				      AND (ar1.region_id = req.region_id OR ur1.user_id IS NOT NULL)
+				      AND ar1.region_id IN (SELECT r.id FROM region r JOIN region_type rt ON r.id = rt.region_id WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+				      AND ar1.trash IS NULL AND ((ar1.locked_admin=0 AND ar1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND ar1.locked_superadmin=0))
+				      AND s1.trash IS NULL AND ((s1.locked_admin=0 AND s1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND s1.locked_superadmin=0))
+				      AND p1.trash IS NULL AND ((p1.locked_admin=0 AND p1.locked_superadmin=0) OR (ur1.superadmin_read=1) OR (ur1.admin_read=1 AND p1.locked_superadmin=0))
+				    ORDER BY p1.fa_date DESC, p1.id DESC LIMIT 8
 				)
 				SELECT 
-					x.activity_timestamp, a.id area_id, a.name area_name,
-					p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
-					g.grade grade,
-					GROUP_CONCAT(
-						DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) 
-						ORDER BY u.firstname ASC, COALESCE(u.lastname,'') ASC 
-						SEPARATOR '|'
-					) user_data
+				    x.activity_timestamp, a.id area_id, a.name area_name,
+				    p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin, ty.subtype problem_subtype,
+				    g.grade grade,
+				    GROUP_CONCAT(
+				        DISTINCT concat(u.id,':',u.firstname,' ',COALESCE(u.lastname,''),':',COALESCE(m.id,0),':',COALESCE(UNIX_TIMESTAMP(m.updated_at),0),':',COALESCE(mma.focus_x,0),':',COALESCE(mma.focus_y,0)) 
+				        ORDER BY u.firstname ASC, COALESCE(u.lastname,'') ASC 
+				        SEPARATOR '|'
+				    ) user_data
 				FROM req
 				CROSS JOIN x
 				JOIN problem p ON x.problem_id = p.id
@@ -89,43 +115,42 @@ public class FrontpageRepository extends BaseRepository {
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY x.activity_timestamp, a.id, a.name, p.id, p.name, p.locked_admin, p.locked_superadmin, ty.subtype, g.grade
 				ORDER BY x.activity_timestamp DESC, p.id DESC
-				         """;
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-					var grade = rst.getString("grade");
-					var users = new ArrayList<User>();
-					var rawUsers = rst.getString("user_data");
-					if (rawUsers != null) {
-						for (var userRecord : rawUsers.split("\\|")) {
-							var p = userRecord.split(":");
-							int mediaId = Integer.parseInt(p[2]);
-							var mi = mediaId > 0 ? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), p.length > 6 ? p[6] : null) : null;
-							users.add(new User(Integer.parseInt(p[0]), p[1], mi));
-						}
-					}
-					res.add(new FrontpageFirstAscent(TimeAgo.getTimeAgo(ts.toLocalDate()), 
-							rst.getInt("area_id"), rst.getString("area_name"),
-							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-							rst.getString("problem_name"), rst.getString("problem_subtype"), grade, users));
-				}
-			}
-		}
+				""")
+				.params(authUserId.orElse(0), setup.idRegion())
+				.query(mapper)
+				.list();
+
 		logger.debug("getFrontpageFirstAscents(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) throws SQLException {
+	@Transactional(readOnly = true)
+	public List<FrontpageLastComment> getFrontpageLastComments(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
-		var res = new ArrayList<FrontpageLastComment>();
-		var c = txManager.getConnection();
-		var sqlStr = """
-				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id
-				)
+
+		RowMapper<FrontpageLastComment> mapper = (rs, _) -> {
+			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
+			int mediaId = rs.getInt("media_id");
+			MediaIdentity mi = (mediaId > 0) 
+					? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
+							: null;
+			User user = new User(rs.getInt("user_id"), rs.getString("user_name"), mi);
+
+			return new FrontpageLastComment(
+					TimeAgo.getTimeAgo(ts.toLocalDate()),
+					rs.getInt("area_id"),
+					rs.getString("area_name"),
+					rs.getInt("problem_id"),
+					rs.getBoolean("problem_locked_admin"),
+					rs.getBoolean("problem_locked_superadmin"),
+					rs.getString("problem_name"),
+					user,
+					rs.getString("message")
+					);
+		};
+
+		List<FrontpageLastComment> res = jdbcClient.sql("""
+				WITH req AS (SELECT ? auth_user_id, ? region_id)
 				SELECT g.post_time AS activity_timestamp, a.id area_id, a.name area_name,
 				       p.id problem_id, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       g.message, u.id user_id, TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))) user_name,
@@ -150,45 +175,56 @@ public class FrontpageRepository extends BaseRepository {
 				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY g.id DESC LIMIT 4
-				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-					int mediaId = rst.getInt("media_id");
-					var mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
-					var user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-					res.add(new FrontpageLastComment(TimeAgo.getTimeAgo(ts.toLocalDate()), rst.getInt("area_id"), rst.getString("area_name"),
-							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-							rst.getString("problem_name"), user, rst.getString("message")));
-				}
-			}
-		}
+				""")
+				.params(authUserId.orElse(0), setup.idRegion())
+				.query(mapper)
+				.list();
+
 		logger.debug("getFrontpageLastComments(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) throws SQLException {
+	@Transactional(readOnly = true)
+	public List<FrontpageRecentAscent> getFrontpageNewestAscents(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
-		var res = new ArrayList<FrontpageRecentAscent>();
-		var c = txManager.getConnection();
-		var sqlStr = """
-				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id
-				),
+
+		RowMapper<FrontpageRecentAscent> mapper = (rs, _) -> {
+			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
+			String tickGrade = rs.getString("tick_grade");
+			if (tickGrade == null) {
+				tickGrade = GradeConverter.NO_PERSONAL_GRADE;
+			}
+
+			int mediaId = rs.getInt("media_id");
+			MediaIdentity mi = (mediaId > 0) 
+					? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
+							: null;
+			User user = new User(rs.getInt("user_id"), rs.getString("user_name"), mi);
+
+			return new FrontpageRecentAscent(
+					TimeAgo.getTimeAgo(ts.toLocalDate()),
+					rs.getInt("area_id"),
+					rs.getString("area_name"),
+					rs.getInt("problem_id"),
+					rs.getBoolean("problem_locked_admin"),
+					rs.getBoolean("problem_locked_superadmin"),
+					rs.getString("problem_name"),
+					rs.getString("problem_subtype"),
+					tickGrade,
+					user,
+					rs.getInt("is_repeat") == 1
+					);
+		};
+
+		List<FrontpageRecentAscent> res = jdbcClient.sql("""
+				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				recent_activity AS (
 				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date,
 				           GREATEST(COALESCE(t.date, '1000-01-01'), COALESCE(tr.date, '1000-01-01')) AS activity_timestamp,
 				           IF(tr.date IS NOT NULL AND (t.date IS NULL OR tr.date > t.date), 1, 0) AS is_repeat
 				    FROM req
 				    CROSS JOIN tick t
-				    LEFT JOIN (
-				        SELECT tick_id, MAX(date) AS date
-				        FROM tick_repeat
-				        GROUP BY tick_id
-				    ) tr ON t.id = tr.tick_id
+				    LEFT JOIN (SELECT tick_id, MAX(date) AS date FROM tick_repeat GROUP BY tick_id) tr ON t.id = tr.tick_id
 				    JOIN problem p ON t.problem_id = p.id
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
@@ -225,39 +261,38 @@ public class FrontpageRepository extends BaseRepository {
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY ra.activity_timestamp DESC, ra.tick_id DESC
-				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var ts = rst.getTimestamp("activity_timestamp").toLocalDateTime();
-					var tickGrade = rst.getString("tick_grade");
-					if (tickGrade == null) {
-						tickGrade = GradeConverter.NO_PERSONAL_GRADE;
-					}
-					var repeat = rst.getInt("is_repeat") == 1; 
-					int mediaId = rst.getInt("media_id");
-					var mi = mediaId > 0 ? new MediaIdentity(mediaId, rst.getLong("media_version_stamp"), rst.getInt("media_focus_x"), rst.getInt("media_focus_y"), rst.getString("media_primary_color_hex")) : null;
-					var user = new User(rst.getInt("user_id"), rst.getString("user_name"), mi);
-					res.add(new FrontpageRecentAscent(TimeAgo.getTimeAgo(ts.toLocalDate()),  rst.getInt("area_id"), rst.getString("area_name"),
-							rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), 
-							rst.getString("problem_name"), rst.getString("problem_subtype"), tickGrade, user, repeat));
-				}
-			}
-		}
+				""")
+				.params(authUserId.orElse(0), setup.idRegion())
+				.query(mapper)
+				.list();
+
 		logger.debug("getFrontpageNewestAscents(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) throws SQLException {
+	@Transactional(readOnly = true)
+	public List<FrontpageNewestMedia> getFrontpageNewestMedia(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
-		var res = new ArrayList<FrontpageNewestMedia>();
-		var c = txManager.getConnection();
-		var sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? region_id
-				),
+
+		RowMapper<FrontpageNewestMedia> mapper = (rs, _) -> new FrontpageNewestMedia(
+				new MediaIdentity(
+						rs.getInt("media_id"),
+						rs.getLong("media_version_stamp"),
+						rs.getInt("focus_x"),
+						rs.getInt("focus_y"),
+						rs.getString("media_primary_color_hex")
+						),
+				rs.getBoolean("is_movie"),
+				rs.getBoolean("is_360"),
+				rs.getInt("problem_id"),
+				rs.getBoolean("problem_locked_admin"),
+				rs.getBoolean("problem_locked_superadmin"),
+				rs.getString("problem_name"),
+				rs.getString("grade")
+				);
+
+		List<FrontpageNewestMedia> res = jdbcClient.sql("""
+				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				m_list AS (
 				  SELECT m.id AS media_id, mp.problem_id
 				  FROM req
@@ -295,37 +330,60 @@ public class FrontpageRepository extends BaseRepository {
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				ORDER BY ml.media_id DESC
 				LIMIT 12
-				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var mi = new MediaIdentity(rst.getInt("media_id"), rst.getLong("media_version_stamp"), rst.getInt("focus_x"), rst.getInt("focus_y"), rst.getString("media_primary_color_hex"));
-					res.add(new FrontpageNewestMedia(mi, rst.getBoolean("is_movie"), rst.getBoolean("is_360"), rst.getInt("problem_id"), rst.getBoolean("problem_locked_admin"), rst.getBoolean("problem_locked_superadmin"), rst.getString("problem_name"), rst.getString("grade")));
-				}
-			}
-		}
+				""")
+				.params(authUserId.orElse(0), setup.idRegion())
+				.query(mapper)
+				.list();
+
 		logger.debug("getFrontpageNewestMedia(authUserId={}, setup={}), duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) throws SQLException, JsonProcessingException {
+	@Transactional(readOnly = true)
+	public List<FrontpageRandomMedia> getFrontpageRandomMedia(Setup setup) {
 		var start = System.nanoTime();
-		var res = new ArrayList<FrontpageRandomMedia>();
-		var c = txManager.getConnection();
-		try (var ps = c.prepareStatement("""
-				WITH req AS (
-				    SELECT ? region_id
-				),
+
+		RowMapper<FrontpageRandomMedia> mapper = (rs, _) -> {
+			try {
+				int idMedia = rs.getInt("id_media");
+				MediaIdentity identity = new MediaIdentity(
+						idMedia,
+						rs.getLong("version_stamp"),
+						rs.getInt("focus_x"),
+						rs.getInt("focus_y"),
+						rs.getString("media_primary_color_hex")
+						);
+
+				String photographerJson = rs.getString("photographer");
+				User photographer = (photographerJson != null) ? objectMapper.readValue(photographerJson, User.class) : null;
+
+				String taggedJson = rs.getString("tagged");
+				List<User> tagged = (taggedJson != null) ? objectMapper.readValue("[" + taggedJson + "]", new TypeReference<>() {}) : null;
+
+				return new FrontpageRandomMedia(
+						identity,
+						rs.getInt("width"),
+						rs.getInt("height"),
+						rs.getInt("id_area"),
+						rs.getString("area"),
+						rs.getInt("id_sector"),
+						rs.getString("sector"),
+						rs.getInt("id_problem"),
+						rs.getString("problem"),
+						rs.getString("grade"),
+						photographer,
+						tagged
+						);
+			} catch (JsonProcessingException e) {
+				throw new RuntimeException("Error parsing JSON in getFrontpageRandomMedia", e);
+			}
+		};
+
+		List<FrontpageRandomMedia> res = jdbcClient.sql("""
+				WITH req AS (SELECT ? region_id),
 				random_id AS (
 				    SELECT id FROM (
-				        SELECT m_sub.id,
-				               mma_sub.is_action_shot,
-				               ROW_NUMBER() OVER (ORDER BY 
-				                   IFNULL(mma_sub.is_action_shot, 0) DESC,
-				                   RAND()
-				               ) as random_rank
+				        SELECT m_sub.id, ROW_NUMBER() OVER (ORDER BY IFNULL(mma_sub.is_action_shot, 0) DESC, RAND()) as random_rank
 				        FROM req
 				        CROSS JOIN media m_sub
 				        JOIN media_problem mp_sub ON m_sub.id=mp_sub.media_id
@@ -337,8 +395,7 @@ public class FrontpageRepository extends BaseRepository {
 				          AND m_sub.deleted_user_id IS NULL
 				          AND a_sub.trash IS NULL AND s_sub.trash IS NULL AND p_sub.trash IS NULL
 				          AND a_sub.access_closed IS NULL AND s_sub.access_closed IS NULL
-				          AND m_sub.is_movie=0 AND m_sub.is_360=0
-				          AND mp_sub.trivia=0
+				          AND m_sub.is_movie=0 AND m_sub.is_360=0 AND mp_sub.trivia=0
 				          AND a_sub.locked_admin=0 AND a_sub.locked_superadmin=0
 				          AND s_sub.locked_admin=0 AND s_sub.locked_superadmin=0
 				          AND p_sub.locked_admin=0 AND p_sub.locked_superadmin=0
@@ -348,37 +405,9 @@ public class FrontpageRepository extends BaseRepository {
 				    LIMIT 20
 				)
 				SELECT m.id id_media, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.width, m.height, 
-				       a.id id_area, a.name area, 
-				       s.id id_sector, s.name sector, 
-				       p.id id_problem, p.name problem,
-				       g.grade grade,
-
-				       IF(u.id IS NULL, NULL, 
-				          CONCAT('{"id":', u.id, 
-				                 ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\"'), 
-				                 '",', IF(ma.id IS NULL, '"mediaIdentity":null', 
-				                          CONCAT('"mediaIdentity":{"id":', ma.id, 
-				                                 ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at), 0), 
-				                                 ',"focusX":', COALESCE(mma_u.focus_x, 0), 
-				                                 ',"focusY":', COALESCE(mma_u.focus_y, 0), 
-				                                 ',"primaryColorHex":"', COALESCE(mma_u.primary_color_hex, ''), '"}')
-				                       ), '}')
-				       ) photographer,
-
-				       GROUP_CONCAT(DISTINCT 
-				           IF(u2.id IS NULL, NULL, 
-				              CONCAT('{"id":', u2.id, 
-				                     ',"name":"', REPLACE(TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '"', '\\"'), 
-				                     '",', IF(ma2.id IS NULL, '"mediaIdentity":null',
-				                              CONCAT('"mediaIdentity":{"id":', ma2.id, 
-				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at), 0), 
-				                                     ',"focusX":', COALESCE(mma_u2.focus_x, 0), 
-				                                     ',"focusY":', COALESCE(mma_u2.focus_y, 0), 
-				                                     ',"primaryColorHex":"', COALESCE(mma_u2.primary_color_hex, ''), '"}')
-				                           ), '}')
-				           ) SEPARATOR ', '
-				       ) tagged
+				       m.width, m.height, a.id id_area, a.name area, s.id id_sector, s.name sector, p.id id_problem, p.name problem, g.grade grade,
+				       IF(u.id IS NULL, NULL, CONCAT('{"id":', u.id, ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))), '"', '\\\\"'), '",', IF(ma.id IS NULL, '"mediaIdentity":null', CONCAT('"mediaIdentity":{"id":', ma.id, ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma.updated_at), 0), ',"focusX":', COALESCE(mma_u.focus_x, 0), ',"focusY":', COALESCE(mma_u.focus_y, 0), ',"primaryColorHex":"', COALESCE(mma_u.primary_color_hex, ''), '"}')), '}')) photographer,
+				       GROUP_CONCAT(DISTINCT IF(u2.id IS NULL, NULL, CONCAT('{"id":', u2.id, ',"name":"', REPLACE(TRIM(CONCAT(u2.firstname, ' ', COALESCE(u2.lastname, ''))), '"', '\\\\"'), '",', IF(ma2.id IS NULL, '"mediaIdentity":null', CONCAT('"mediaIdentity":{"id":', ma2.id, ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(ma2.updated_at), 0), ',"focusX":', COALESCE(mma_u2.focus_x, 0), ',"focusY":', COALESCE(mma_u2.focus_y, 0), ',"primaryColorHex":"', COALESCE(mma_u2.primary_color_hex, ''), '"}')), '}')) SEPARATOR ', ') tagged
 				FROM random_id rid
 				JOIN media m ON rid.id = m.id
 				JOIN media_problem mp ON m.id = mp.media_id AND mp.trivia = 0
@@ -394,47 +423,22 @@ public class FrontpageRepository extends BaseRepository {
 				LEFT JOIN user u2 ON mu.user_id = u2.id
 				LEFT JOIN media ma2 ON u2.media_id = ma2.id
 				LEFT JOIN media_ml_analysis mma_u2 ON ma2.id = mma_u2.media_id
-				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at,
-				         mma.focus_x, mma.focus_y, mma.primary_color_hex, mma_u.focus_x, mma_u.focus_y, g.grade
-				""")) {
-			ps.setInt(1, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idMedia = rst.getInt("id_media");
-					long versionStamp = rst.getLong("version_stamp");
-					int focusX = rst.getInt("focus_x");
-					int focusY = rst.getInt("focus_y");
-					int width = rst.getInt("width");
-					int height = rst.getInt("height");
-					int idArea = rst.getInt("id_area");
-					String area = rst.getString("area");
-					int idSector = rst.getInt("id_sector");
-					String sector = rst.getString("sector");
-					int idProblem = rst.getInt("id_problem");
-					String problem = rst.getString("problem");
-					String grade = rst.getString("grade");
-					String photographerJson = rst.getString("photographer");
-					String taggedJson = rst.getString("tagged");
-					String mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					var identity = new MediaIdentity(idMedia, versionStamp, focusX, focusY, mediaPrimaryColorHex);
-					User photographer = photographerJson != null ? objectMapper.readValue(photographerJson, User.class) : null;
-					List<User> tagged = taggedJson != null ? objectMapper.readValue("[" + taggedJson + "]", new TypeReference<List<User>>() {}) : null;
-					res.add(new FrontpageRandomMedia(identity, width, height, idArea, area, idSector, sector, idProblem, problem, grade, photographer, tagged));
-				}
-			}
-		}
+				GROUP BY m.id, m.updated_at, p.id, p.name, m.photographer_user_id, u.firstname, u.lastname, u.id, ma.id, ma.updated_at, mma.focus_x, mma.focus_y, mma.primary_color_hex, mma_u.focus_x, mma_u.focus_y, g.grade
+				""")
+				.params(setup.idRegion())
+				.query(mapper)
+				.list();
+
 		logger.debug("getFrontpageRandomMedia(setup={}) - res.size()={}, duration={}ms", setup, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) throws SQLException {
+	@Transactional(readOnly = true)
+	public FrontpageStats getFrontpageStats(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
-		FrontpageStats res = null;
-		var c = txManager.getConnection();
-		try (var ps = c.prepareStatement("""
-				WITH req AS (
-				    SELECT ? auth_user_id, ? region_id
-				)
+
+		FrontpageStats res = jdbcClient.sql("""
+				WITH req AS (SELECT ? auth_user_id, ? region_id)
 				SELECT COUNT(DISTINCT a.id) areas,
 				       COUNT(DISTINCT p.id) problems,
 				       COUNT(DISTINCT t.id) ticks
@@ -448,18 +452,15 @@ public class FrontpageRepository extends BaseRepository {
 				LEFT JOIN tick t ON p.id=t.problem_id
 				WHERE rt.type_id IN (SELECT x.type_id FROM region_type x WHERE x.region_id=req.region_id)
 				  AND (a.region_id=req.region_id OR ur.user_id IS NOT NULL)
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areas = rst.getInt("areas");
-					int problems = rst.getInt("problems");
-					int ticks = rst.getInt("ticks");
-					res = new FrontpageStats(areas, problems, ticks);
-				}
-			}
-		}
+				""")
+				.params(authUserId.orElse(0), setup.idRegion())
+				.query((rs, _) -> new FrontpageStats(
+						rs.getInt("areas"),
+						rs.getInt("problems"),
+						rs.getInt("ticks")
+						))
+				.single();
+
 		logger.debug("getFrontpageStats(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}

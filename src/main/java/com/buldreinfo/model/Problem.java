@@ -19,23 +19,17 @@ public record Problem(String redirectUrl, int areaId, boolean areaLockedAdmin, b
 	public record ProblemTodo(int idUser, MediaIdentity mediaIdentity, String name) {}
 	public record Neighbour(int id, int nr, String name, String grade, boolean ticked, boolean todo) {}
 
-	public void addComment(ProblemComment comment) {
-		this.comments.add(comment);
-	}
+	public Problem withTicks(List<ProblemTick> newTicks) {
+        return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates, media, numTicks, stars, ticked, newTicks, todos, comments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);
+    }
 
-	public void addSection(int id, int nr, String description, String grade, List<Media> media) {
-		this.sections.add(new ProblemSection(id, nr, description, grade, media));
-	}
+    public Problem withComments(List<ProblemComment> newComments) {
+        return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates, media, numTicks, stars, ticked, ticks, todos, newComments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);
+    }
 
-	public ProblemTick addTick(int id, int idUser, MediaIdentity mediaIdentity, String date, String name, String suggestedGrade, boolean noPersonalGrade, String comment, double stars, boolean writable) {
-		ProblemTick t = new ProblemTick(id, idUser, mediaIdentity, date, name, suggestedGrade, noPersonalGrade, comment, stars, writable);
-		this.ticks.add(t);
-		return t;
-	}
-
-	public void addTodo(int idUser, MediaIdentity mediaIdentity, String name) {
-		this.todos.add(new ProblemTodo(idUser, mediaIdentity, name));
-	}
+    public Problem withTodos(List<ProblemTodo> newTodos) {
+        return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, coordinates, media, numTicks, stars, ticked, ticks, newTodos, comments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);
+    }
 
 	public Problem withCoordinates(Coordinates newCoordinates) {
 		return new Problem(redirectUrl, areaId, areaLockedAdmin, areaLockedSuperadmin, areaName, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, sectorId, sectorLockedAdmin, sectorLockedSuperadmin, sectorName, sectorAccessInfo, sectorAccessClosed, sectorSunFromHour, sectorSunToHour, sectorParking, sectorOutline, sectorWallDirectionCalculated, sectorWallDirectionManual, trails, neighbours, id, broken, trash, lockedAdmin, lockedSuperadmin, nr, name, rock, comment, grade, originalGrade, faDate, faDateHr, fa, lengthMeter, newCoordinates, media, numTicks, stars, ticked, ticks, todos, comments, t, sections, todo, externalLinks, pageViews, faAid, trivia, triviaMedia, startingAltitude, aspect, descent);

@@ -11,11 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.User;
 
@@ -27,16 +26,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "Users")
 @RestController
 @RequestMapping("/users")
-public class UsersController extends BaseController {
+public class UsersController {
+	private final RequestContext requestContext;
 	private final UserRepository userRepo;
 
-	public UsersController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo);
+	public UsersController(RequestContext requestContext, UserRepository userRepo) {
+		this.requestContext = requestContext;
 		this.userRepo = userRepo;
 	}
 
@@ -47,12 +46,12 @@ public class UsersController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<User>> getUsersSearch(HttpServletRequest request,
-			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
+	public ResponseEntity<List<User>> getUsersSearch(@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) {
 		if (value == null || value.isBlank()) {
 			throw new ValidationFailedException("Search keyword is required");
 		}
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> userRepo.getUserSearch(ctx.authUserId(), value)));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(userRepo.getUserSearch(authUserId, value));
 	}
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {
@@ -61,8 +60,9 @@ public class UsersController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/ticks", produces = OpenApiConstants.APPLICATION_XLSX)
-	public ResponseEntity<byte[]> getUsersTicks(HttpServletRequest request) throws Exception {
-		byte[] bytes = executeContextualTask(request, ctx -> userRepo.getUserTicks(ctx.authUserId()));
+	public ResponseEntity<byte[]> getUsersTicks() {
+		var authUserId = requestContext.getAuthenticatedUserId();
+		byte[] bytes = userRepo.getUserTicks(authUserId);
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
@@ -78,15 +78,11 @@ public class UsersController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/regions")
-	public ResponseEntity<Void> postUserRegions(HttpServletRequest request,
-			@Parameter(description = "Region id", required = true) @RequestParam(name = "regionId") int regionId,
-			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @RequestParam(name = "delete") boolean delete) throws Exception {
+	public ResponseEntity<Void> postUserRegions(@Parameter(description = "Region id", required = true) @RequestParam(name = "regionId") int regionId,
+			@Parameter(description = "Delete (TRUE=hide, FALSE=show)", required = true) @RequestParam(name = "delete") boolean delete) {
 		if (regionId <= 0) throw new ValidationFailedException("Invalid regionId=" + regionId);
-		executeContextualTask(request, ctx -> {
-			userRepo.setUserRegion(ctx.authUserId(), regionId, delete);
-			return null;
-		});
-
+		var authUserId = requestContext.getAuthenticatedUserId();
+		userRepo.setUserRegion(authUserId, regionId, delete);
 		return ResponseEntity.ok().build();
 	}
 }

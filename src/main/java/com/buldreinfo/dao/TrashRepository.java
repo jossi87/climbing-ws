@@ -1,25 +1,26 @@
 package com.buldreinfo.dao;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Trash;
 
 @Repository
-public class TrashRepository extends BaseRepository {
-	public TrashRepository(ClimbingTransactionManager txManager) {
-		super(txManager);
+public class TrashRepository {
+	private final JdbcClient jdbcClient;
+
+	public TrashRepository(JdbcClient jdbcClient) {
+		this.jdbcClient = jdbcClient;
 	}
-	
-	public List<Trash> getTrash(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var res = new ArrayList<Trash>();
-		var c = txManager.getConnection();
+
+	@Transactional(readOnly = true)
+	public List<Trash> getTrash(Optional<Integer> authUserId, Setup setup) {
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -135,29 +136,34 @@ public class TrashRepository extends BaseRepository {
 
 				ORDER BY trash DESC
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElseThrow());
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					int sectorId = rst.getInt("sector_id");
-					int problemId = rst.getInt("problem_id");
-					int mediaId = rst.getInt("media_id");
-					var name = rst.getString("name");
-					var when = rst.getString("trash");
-					var by = rst.getString("trash_by");
-					res.add(new Trash(areaId, sectorId, problemId, mediaId, name, when, by));
-				}
-			}
-		}
-		return res;
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, authUserId.orElseThrow())
+				.param(2, setup.idRegion())
+				.query((rs, _) -> new Trash(
+						rs.getInt("area_id"),
+						rs.getInt("sector_id"),
+						rs.getInt("problem_id"),
+						rs.getInt("media_id"),
+						rs.getString("name"),
+						rs.getString("trash"),
+						rs.getString("trash_by")
+						)).list();
 	}
-	
-	public void trashRecover(int idArea, int idSector, int idProblem, int idMedia) throws SQLException {
-		var c = txManager.getConnection();
+
+	@Transactional
+	public void trashRecover(int idArea, int idSector, int idProblem, int idMedia) {
+		long positiveCount = Stream.of(idArea, idSector, idProblem, idMedia)
+				.filter(id -> id > 0)
+				.count();
+
+		if (positiveCount != 1) {
+			throw new IllegalArgumentException("Exactly one parameter must be positive.");
+		}
+
 		String sqlStr = null;
 		int id = 0;
+
 		if (idMedia > 0) {
 			sqlStr = "UPDATE media SET deleted_user_id=NULL, deleted_timestamp=NULL WHERE id=?";
 			id = idMedia;
@@ -174,9 +180,11 @@ public class TrashRepository extends BaseRepository {
 			sqlStr = "UPDATE problem SET trash=NULL, trash_by=NULL WHERE id=?";
 			id = idProblem;
 		}
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, id);
-			ps.execute();
+
+		if (sqlStr != null) {
+			jdbcClient.sql(sqlStr)
+			.param(1, id)
+			.update();
 		}
 	}
 }

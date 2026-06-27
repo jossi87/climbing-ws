@@ -1,6 +1,5 @@
 package com.buldreinfo.dao;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -11,19 +10,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.HitsFormatter;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.DangerousArea;
-import com.buldreinfo.model.DangerousArea.DangerousProblem;
-import com.buldreinfo.model.DangerousArea.DangerousSector;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Redirect;
@@ -43,34 +42,30 @@ import com.buldreinfo.model.Top.TopUser;
 import com.buldreinfo.model.Type;
 
 @Repository
-public class HierarchyRepository extends BaseRepository {
+public class HierarchyRepository {
 	private static final Logger logger = LogManager.getLogger();
+	private final JdbcClient jdbcClient;
 	private final GeoRepository geoRepo;
 	private final ObjectProvider<SectorRepository> sectorRepo;
-	
-	public HierarchyRepository(ClimbingTransactionManager txManager, GeoRepository geoRepo, ObjectProvider<SectorRepository> sectorRepo) {
-		super(txManager);
+
+	public HierarchyRepository(JdbcClient jdbcClient, GeoRepository geoRepo, ObjectProvider<SectorRepository> sectorRepo) {
+		this.jdbcClient = jdbcClient;
 		this.geoRepo = geoRepo;
 		this.sectorRepo = sectorRepo;
 	}
-	
-	public Collection<GradeDistribution> getContentGraph(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var c = txManager.getConnection();
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
-		var sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? region_id
-				),
+
+	@Transactional(readOnly = true)
+	public Collection<GradeDistribution> getContentGraph(Optional<Integer> authUserId, Setup setup) {
+		String sql = """
+				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id 
-				  FROM req 
+				  SELECT DISTINCT tgs.grade_system_id FROM req 
 				  JOIN region_type rt ON req.region_id = rt.region_id 
 				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
 				),
 				x AS (
 				  SELECT g.label_major g_base, r.id region_id, r.name region, COALESCE(ty.subtype,'Boulder') t, COUNT(DISTINCT p.id) num
-				  FROM req
-				  JOIN region r ON 1=1
+				  FROM req JOIN region r ON 1=1
 				  JOIN region_type rt ON r.id = rt.region_id
 				  JOIN area a ON r.id = a.region_id
 				  JOIN sector s ON a.id = s.area_id
@@ -85,111 +80,113 @@ public class HierarchyRepository extends BaseRepository {
 				  GROUP BY r.id, r.name, g.label_major, ty.subtype
 				)
 				SELECT g.label_major grade, clr.hex_code color, x.region_id, x.region, x.t, COALESCE(x.num, 0) num
-				FROM req
-				JOIN target_systems ts ON 1=1
-				JOIN (
-				  SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort 
-				  FROM grade GROUP BY label_major, grade_system_id, grade_color_id
-				) g ON g.grade_system_id = ts.grade_system_id
+				FROM req JOIN target_systems ts ON 1=1
+				JOIN (SELECT label_major, grade_system_id, grade_color_id, MIN(weight) sort FROM grade GROUP BY label_major, grade_system_id, grade_color_id) g ON g.grade_system_id = ts.grade_system_id
 				JOIN grade_color clr ON g.grade_color_id = clr.id
 				LEFT JOIN x ON g.label_major = x.g_base
 				ORDER BY g.sort, x.region, x.t
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var label = rst.getString("grade");
-					var color = rst.getString("color");
-					var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
-					int regionId = rst.getInt("region_id");
-					if (!rst.wasNull()) {
-						dist.addSector(regionId, rst.getString("region"), rst.getString("t"), rst.getInt("num"));
+
+		return jdbcClient.sql(sql)
+				.param(1, authUserId.orElse(0))
+				.param(2, setup.idRegion())
+				.query(rs -> {
+					Map<String, GradeDistribution> res = new LinkedHashMap<>();
+					while (rs.next()) {
+						var label = rs.getString("grade");
+						var color = rs.getString("color");
+						var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+						int regionId = rs.getInt("region_id");
+						if (!rs.wasNull()) {
+							dist.addSector(regionId, rs.getString("region"), rs.getString("t"), rs.getInt("num"));
+						}
 					}
-				}
-			}
-		}
-		return res.values();
+					return res.values();
+				});
 	}
 
-	public Collection<DangerousArea> getDangerous(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		var c = txManager.getConnection();
-		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
-		var sectorLookup = new HashMap<Integer, DangerousSector>();
-		try (var ps = c.prepareStatement("""
+	@Transactional(readOnly = true)
+	public Collection<DangerousArea> getDangerous(Setup setup, Optional<Integer> authUserId) {
+		String sql = """
+				WITH req AS (SELECT ? auth_user_id, ? id_region)
 				SELECT a.id area_id, a.name area_name, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour,
 				       s.id sector_id, s.name sector_name, s.compass_direction_id_calculated sector_compass_direction_id_calculated, s.compass_direction_id_manual sector_compass_direction_id_manual, s.locked_admin sector_locked_admin, s.locked_superadmin sector_locked_superadmin, s.sun_from_hour sector_sun_from_hour, s.sun_to_hour sector_sun_to_hour,
 				       p.id problem_id, p.broken problem_broken, p.nr problem_nr, gr.grade problem_grade, p.name problem_name, p.locked_admin problem_locked_admin, p.locked_superadmin problem_locked_superadmin,
 				       TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, DATE_FORMAT(g.post_time,'%Y.%m.%d') post_time, g.message
-				FROM area a
+				FROM req JOIN area a ON true
 				JOIN region_type rt ON a.region_id=rt.region_id
 				JOIN sector s ON a.id=s.area_id
 				JOIN problem p ON s.id=p.sector_id
 				JOIN grade gr ON p.grade_id=gr.id
 				JOIN guestbook g ON p.id=g.problem_id AND g.danger=1 AND g.id IN (SELECT MAX(id) id FROM guestbook WHERE danger=1 OR resolved=1 GROUP BY problem_id)
 				JOIN user u ON g.user_id=u.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=?)
-				  AND (a.region_id=? OR ur.user_id IS NOT NULL)
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
+				WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id=req.id_region)
+				  AND (a.region_id=req.id_region OR ur.user_id IS NOT NULL)
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				GROUP BY a.id, a.name, a.locked_admin, a.locked_superadmin, a.sun_from_hour, a.sun_to_hour,
 				         s.id, s.name, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.locked_admin, s.locked_superadmin, s.sun_from_hour, s.sun_to_hour,
 				         p.id, p.broken, p.nr, gr.grade, p.name, p.locked_admin, p.locked_superadmin,
 				         u.firstname, u.lastname, g.post_time, g.message
 				ORDER BY a.name, s.name, p.nr
-				""")) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int areaId = rst.getInt("area_id");
-					var a = areasLookup.get(areaId);
-					if (a == null) {
-						var areaName = rst.getString("area_name");
-						var areaLockedAdmin = rst.getBoolean("area_locked_admin");
-						var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						int areaSunFromHour = rst.getInt("area_sun_from_hour");
-						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new DangerousArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
-						areasLookup.put(areaId, a);
+				""";
+
+		return jdbcClient.sql(sql)
+				.param(1, authUserId.orElse(0))
+				.param(2, setup.idRegion())
+				.query(rs -> {
+					Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
+					Map<Integer, DangerousArea.DangerousSector> sectorLookup = new HashMap<>();
+
+					while (rs.next()) {
+						int areaId = rs.getInt("area_id");
+						String areaName = rs.getString("area_name");
+						boolean areaLockedAdmin = rs.getBoolean("area_locked_admin");
+						boolean areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
+						int areaSunFromHour = rs.getInt("area_sun_from_hour");
+						int areaSunToHour = rs.getInt("area_sun_to_hour");
+
+						int sectorId = rs.getInt("sector_id");
+						String sectorName = rs.getString("sector_name");
+						int sectorCompassCalculated = rs.getInt("sector_compass_direction_id_calculated");
+						int sectorCompassManual = rs.getInt("sector_compass_direction_id_manual");
+						boolean sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
+						boolean sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
+						int sectorSunFromHour = rs.getInt("sector_sun_from_hour");
+						int sectorSunToHour = rs.getInt("sector_sun_to_hour");
+
+						int problemId = rs.getInt("problem_id");
+						String problemBroken = rs.getString("problem_broken");
+						int problemNr = rs.getInt("problem_nr");
+						String problemGrade = rs.getString("problem_grade");
+						String problemName = rs.getString("problem_name");
+						boolean problemLockedAdmin = rs.getBoolean("problem_locked_admin");
+						boolean problemLockedSuperadmin = rs.getBoolean("problem_locked_superadmin");
+						String postName = rs.getString("name");
+						String postTime = rs.getString("post_time");
+						String message = rs.getString("message");
+
+						DangerousArea a = areasLookup.get(areaId);
+						if (a == null) {
+							a = new DangerousArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+							areasLookup.put(areaId, a);
+						}
+
+						DangerousArea.DangerousSector s = sectorLookup.get(sectorId);
+						if (s == null) {
+							s = new DangerousArea.DangerousSector(sectorId, sectorName, geoRepo.getCompassDirection(setup, sectorCompassCalculated), geoRepo.getCompassDirection(setup, sectorCompassManual), sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
+							a.sectors().add(s);
+							sectorLookup.put(sectorId, s);
+						}
+
+						s.problems().add(new DangerousArea.DangerousProblem(problemId, problemBroken, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade, postName, postTime, message));
 					}
-					int sectorId = rst.getInt("sector_id");
-					var s = sectorLookup.get(sectorId);
-					if (s == null) {
-						var sectorName = rst.getString("sector_name");
-						var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-						var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
-						var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-						var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
-						int sectorSunToHour = rst.getInt("sector_sun_to_hour");
-						s = new DangerousSector(sectorId, sectorName, sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
-						a.sectors().add(s);
-						sectorLookup.put(sectorId, s);
-					}
-					int id = rst.getInt("problem_id");
-					var broken = rst.getString("problem_broken");
-					int nr = rst.getInt("problem_nr");
-					var grade = rst.getString("problem_grade");
-					var lockedAdmin = rst.getBoolean("problem_locked_admin");
-					var lockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-					var name = rst.getString("problem_name");
-					var postBy = rst.getString("name");
-					var postWhen = rst.getString("post_time");
-					var postTxt = rst.getString("message");
-					s.problems().add(new DangerousProblem(id, broken, lockedAdmin, lockedSuperadmin, nr, name, grade, postBy, postWhen, postTxt));
-				}
-			}
-		}
-		logger.debug("getDangerous() - areasLookup.size()={}", areasLookup.size());
-		return areasLookup.values();
+					return areasLookup.values();
+				});
 	}
 
-	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) throws SQLException {
-		var c = txManager.getConnection();
-		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+	@Transactional(readOnly = true)
+	public Collection<GradeDistribution> getGradeDistribution(Optional<Integer> authUserId, int optionalAreaId, int optionalSectorId) {
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? sector_id, ? area_id
@@ -225,29 +222,28 @@ public class HierarchyRepository extends BaseRepository {
 				LEFT JOIN x ON g.label_major = x.g_base
 				ORDER BY g.sort, x.sorting, x.sector, x.t
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, optionalSectorId);
-			ps.setInt(3, optionalAreaId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var label = rst.getString("grade");
-					var color = rst.getString("color");
-					var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
-					int sectorId = rst.getInt("sector_id");
-					if (!rst.wasNull()) {
-						dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, authUserId.orElse(0))
+				.param(2, optionalSectorId)
+				.param(3, optionalAreaId)
+				.query(rst -> {
+					Map<String, GradeDistribution> res = new LinkedHashMap<>();
+					while (rst.next()) {
+						var label = rst.getString("grade");
+						var color = rst.getString("color");
+						var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+						int sectorId = rst.getInt("sector_id");
+						if (!rst.wasNull()) {
+							dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
+						}
 					}
-				}
-			}
-		}
-		return res.values();
+					return res.values();
+				});
 	}
-	
-	public Collection<RestrictionsRegion> getRestrictions(Setup setup, Optional<Integer> authUserId) throws SQLException {
-		var c = txManager.getConnection();
-		Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
-		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
+
+	@Transactional(readOnly = true)
+	public Collection<RestrictionsRegion> getRestrictions(Setup setup, Optional<Integer> authUserId) {
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? user_id, ? region_id
@@ -269,223 +265,218 @@ public class HierarchyRepository extends BaseRepository {
 				GROUP BY r.id, r.name, a.id, a.locked_admin, a.locked_superadmin, a.name, a.access_closed, a.access_info, a.last_updated, s.id, s.locked_admin, s.locked_superadmin, s.name, s.access_closed, s.access_info, s.last_updated
 				ORDER BY r.name, a.name, s.name
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int regionId = rst.getInt("region_id");
-					var r = regionsLookup.get(regionId);
-					if (r == null) {
-						var name = rst.getString("region_name");
-						r = new RestrictionsRegion(regionId, name, new ArrayList<>());
-						regionsLookup.put(regionId, r);
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, authUserId.orElse(0))
+				.param(2, setup.idRegion())
+				.query(rst -> {
+					Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
+					Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
+					while (rst.next()) {
+						int regionId = rst.getInt("region_id");
+						var r = regionsLookup.get(regionId);
+						if (r == null) {
+							var name = rst.getString("region_name");
+							r = new RestrictionsRegion(regionId, name, new ArrayList<>());
+							regionsLookup.put(regionId, r);
+						}
+						int areaId = rst.getInt("area_id");
+						var a = areasLookup.get(areaId);
+						if (a == null) {
+							var name = rst.getString("area_name");
+							var lockedAdmin = rst.getBoolean("area_locked_admin");
+							var lockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+							var accessClosed = rst.getString("area_access_closed");
+							var accessInfo = rst.getString("area_access_info");
+							a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, new ArrayList<>());
+							r.areas().add(a);
+							areasLookup.put(areaId, a);
+						}
+						int sectorId = rst.getInt("sector_id");
+						var name = rst.getString("sector_name");
+						var lockedAdmin = rst.getBoolean("sector_locked_admin");
+						var lockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+						var accessClosed = rst.getString("sector_access_closed");
+						var accessInfo = rst.getString("sector_access_info");
+						var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo);
+						a.sectors().add(s);
 					}
-					int areaId = rst.getInt("area_id");
-					var a = areasLookup.get(areaId);
-					if (a == null) {
-						var name = rst.getString("area_name");
-						var lockedAdmin = rst.getBoolean("area_locked_admin");
-						var lockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						var accessClosed = rst.getString("area_access_closed");
-						var accessInfo = rst.getString("area_access_info");
-						a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, new ArrayList<>());
-						r.areas().add(a);
-						areasLookup.put(areaId, a);
-					}
-					int sectorId = rst.getInt("sector_id");
-					var name = rst.getString("sector_name");
-					var lockedAdmin = rst.getBoolean("sector_locked_admin");
-					var lockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-					var accessClosed = rst.getString("sector_access_closed");
-					var accessInfo = rst.getString("sector_access_info");
-					var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo);
-					a.sectors().add(s);
-				}
-			}
-		}
-		logger.debug("getRestrictions() - regionsLookup.size()={}", regionsLookup.size());
-		return regionsLookup.values();
+					return regionsLookup.values();
+				});
 	}
-	
-	public List<Search> getSearch(Setup setup, Optional<Integer> authUserId, String search) throws SQLException {
-		var c = txManager.getConnection();
-		
+
+	@Transactional(readOnly = true)
+	public List<Search> getSearch(Setup setup, Optional<Integer> authUserId, String search) {
 		var cleanSearch = search.replaceAll("[^\\p{L}0-9]", "");
 		var wildCardSearch = "%" + cleanSearch + "%";
-		
+
 		var areas = new ArrayList<Search>();
 		var externalAreas = new ArrayList<Search>();
 		var sectors = new ArrayList<Search>();
 		var problems = new ArrayList<Search>();
 		var users = new ArrayList<Search>();
 		var areaIdsVisible = new HashSet<Integer>();
+
 		var sqlStr = """
-			    WITH req AS (
-			      SELECT ? auth_user_id, ? region_id, ? search_term
-			    ),
-			    ranked_area_media AS (
-			       SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-			              ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.is_movie, ma.sorting, m.id DESC) rn
-			       FROM media_area ma
-			       JOIN media m ON ma.media_id=m.id AND m.deleted_user_id IS NULL
-			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-			    ),
-			    ranked_sector_media AS (
-			       SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-			              ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_movie, ms.sorting, m.id DESC) rn
-			       FROM media_sector ms
-			       JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
-			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-			    ),
-			    ranked_problem_media AS (
-			       SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-			              ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.is_movie, mp.sorting, m.id DESC) rn
-			       FROM media_problem mp
-			       JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
-			       LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-			       WHERE mp.trivia=0
-			    )
-			    (SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
-			            ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
-			            a.hits, NULL external_url,
-			            a.locked_admin, a.locked_superadmin
-			     FROM req
-			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-			     JOIN area a ON r.id=a.region_id
-			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-			     WHERE REGEXP_REPLACE(a.name, '[^[:alnum:]]', '') LIKE req.search_term
-			       AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-			     GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
-			     ORDER BY a.hits DESC, a.name LIMIT 8)
-			    UNION ALL
-			    (SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
-			            ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
-			            a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
-			            a_ext.locked_admin, a_ext.locked_superadmin
-			     FROM req
-			     JOIN region_type rt ON rt.region_id=req.region_id
-			     JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
-			     JOIN region r_ext ON rt_ext.region_id=r_ext.id AND r_ext.id != req.region_id
-			     JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
-			     LEFT JOIN ranked_area_media ma_ext ON a_ext.id=ma_ext.area_id AND ma_ext.rn=1
-			     LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
-			     WHERE ur_check.region_id IS NULL
-			       AND REGEXP_REPLACE(a_ext.name, '[^[:alnum:]]', '') LIKE req.search_term
-			     GROUP BY a_ext.id, r_ext.name, r_ext.url, ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
-			     ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
-			    UNION ALL
-			    (SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
-			            COALESCE(ms.media_id,ma.media_id) media_id, COALESCE(ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
-			            s.hits, NULL external_url,
-			            s.locked_admin, s.locked_superadmin
-			     FROM req
-			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-			     JOIN area a ON r.id=a.region_id
-			     JOIN sector s ON a.id=s.area_id
-			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-			     LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
-			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-			     WHERE REGEXP_REPLACE(s.name, '[^[:alnum:]]', '') LIKE req.search_term
-			       AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-			     GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
-			                          ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
-			                          ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
-			     ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
-			    UNION ALL
-			    (SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
-			            COALESCE(mp.media_id,ms.media_id,ma.media_id) media_id, COALESCE(mp.media_version_stamp,ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(mp.media_focus_x,ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(mp.media_focus_y,ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(mp.media_primary_color_hex,ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
-			            p.hits, NULL external_url,
-			            p.locked_admin, p.locked_superadmin
-			     FROM req
-			     JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
-			     JOIN area a ON r.id=a.region_id
-			     JOIN sector s ON a.id=s.area_id
-			     JOIN problem p ON s.id=p.sector_id
-			     JOIN grade g ON p.consensus_grade_id = g.id
-			     LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
-			     LEFT JOIN ranked_problem_media mp ON p.id=mp.problem_id AND mp.rn=1
-			     LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
-			     LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
-			     WHERE (REGEXP_REPLACE(p.name, '[^[:alnum:]]', '') LIKE req.search_term OR REGEXP_REPLACE(p.rock, '[^[:alnum:]]', '') LIKE req.search_term)
-			       AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-			     GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
-			                          mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
-			                          ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
-			                          ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
-			     ORDER BY p.hits DESC, p.name LIMIT 8)
-			    UNION ALL
-			    (SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
-			            m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-			            0 hits, NULL external_url,
-			            0 locked_admin, 0 locked_superadmin
-			     FROM req
-			     JOIN user u ON REGEXP_REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '[^[:alnum:]]', '') LIKE req.search_term
-			     LEFT JOIN media m ON u.media_id=m.id
-			     LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-			     ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
-			    """;
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			ps.setString(3, wildCardSearch);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var type = rst.getString("result_type");
-					int id = rst.getInt("id");
-					var title = rst.getString("title");
-					var subTitle = rst.getString("sub_title");
-					var breadcrumb = rst.getString("breadcrumb");
-					long hits = rst.getLong("hits");
-					var pageViews = HitsFormatter.formatHits(hits);
-					var lockedAdmin = rst.getBoolean("locked_admin");
-					var lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int mediaId = rst.getInt("media_id");
-					MediaIdentity mediaIdentity = null;
-					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
-					}
-					switch (type) {
-					case "AREA" -> {
-						areaIdsVisible.add(id);
-						areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-					}
-					case "EXTERNAL" -> {
-						externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
-					}
-					case "SECTOR" -> {
-						sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-					}
-					case "PROBLEM" -> {
-						problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-					}
-					case "USER" -> {
-						users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-					}
-					default -> throw new IllegalArgumentException("Invalid type: " + type);
-					}
+				WITH req AS (
+				  SELECT ? auth_user_id, ? region_id, ? search_term
+				),
+				ranked_area_media AS (
+				   SELECT ma.area_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				          ROW_NUMBER() OVER (PARTITION BY ma.area_id ORDER BY m.is_movie, ma.sorting, m.id DESC) rn
+				   FROM media_area ma
+				   JOIN media m ON ma.media_id=m.id AND m.deleted_user_id IS NULL
+				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				),
+				ranked_sector_media AS (
+				   SELECT ms.sector_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				          ROW_NUMBER() OVER (PARTITION BY ms.sector_id ORDER BY m.is_movie, ms.sorting, m.id DESC) rn
+				   FROM media_sector ms
+				   JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
+				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				),
+				ranked_problem_media AS (
+				   SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				          ROW_NUMBER() OVER (PARTITION BY mp.problem_id ORDER BY m.is_movie, mp.sorting, m.id DESC) rn
+				   FROM media_problem mp
+				   JOIN media m ON mp.media_id=m.id AND m.deleted_user_id IS NULL
+				   LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				   WHERE mp.trivia=0
+				)
+				(SELECT 'AREA' result_type, a.id, a.name title, NULL sub_title, r.name breadcrumb, 
+				        ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex,
+				        a.hits, NULL external_url,
+				        a.locked_admin, a.locked_superadmin
+				 FROM req
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+				 JOIN area a ON r.id=a.region_id
+				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+				 WHERE REGEXP_REPLACE(a.name, '[^[:alnum:]]', '') LIKE req.search_term
+				   AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				 GROUP BY a.id, r.name, ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex, a.hits, a.locked_admin, a.locked_superadmin
+				 ORDER BY a.hits DESC, a.name LIMIT 8)
+				UNION ALL
+				(SELECT 'EXTERNAL' result_type, a_ext.id, a_ext.name title, NULL sub_title, r_ext.name breadcrumb, 
+				        ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex,
+				        a_ext.hits, CONCAT(r_ext.url, '/area/', a_ext.id) external_url,
+				        a_ext.locked_admin, a_ext.locked_superadmin
+				 FROM req
+				 JOIN region_type rt ON rt.region_id=req.region_id
+				 JOIN region_type rt_ext ON rt_ext.type_id=rt_ext.type_id
+				 JOIN region r_ext ON rt_ext.region_id=r_ext.id AND r_ext.id != req.region_id
+				 JOIN area a_ext ON r_ext.id=a_ext.region_id AND a_ext.locked_admin=0 AND a_ext.locked_superadmin=0
+				 LEFT JOIN ranked_area_media ma_ext ON a_ext.id=ma_ext.area_id AND ma_ext.rn=1
+				 LEFT JOIN user_region ur_check ON r_ext.id=ur_check.region_id AND ur_check.user_id=req.auth_user_id
+				 WHERE ur_check.region_id IS NULL
+				   AND REGEXP_REPLACE(a_ext.name, '[^[:alnum:]]', '') LIKE req.search_term
+				 GROUP BY a_ext.id, r_ext.name, r_ext.url, ma_ext.media_id, ma_ext.media_version_stamp, ma_ext.media_focus_x, ma_ext.media_focus_y, ma_ext.media_primary_color_hex, a_ext.hits, a_ext.locked_admin, a_ext.locked_superadmin
+				 ORDER BY a_ext.hits DESC, a_ext.name LIMIT 3)
+				UNION ALL
+				(SELECT 'SECTOR' result_type, s.id, s.name title, NULL sub_title, a.name breadcrumb,
+				        COALESCE(ms.media_id,ma.media_id) media_id, COALESCE(ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
+				        s.hits, NULL external_url,
+				        s.locked_admin, s.locked_superadmin
+				 FROM req
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+				 JOIN area a ON r.id=a.region_id
+				 JOIN sector s ON a.id=s.area_id
+				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				 LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
+				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+				 WHERE REGEXP_REPLACE(s.name, '[^[:alnum:]]', '') LIKE req.search_term
+				   AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				 GROUP BY s.id, a.name, s.hits, s.locked_admin, s.locked_superadmin,
+				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
+				                      ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
+				 ORDER BY s.hits DESC, a.name, s.name LIMIT 8)
+				UNION ALL
+				(SELECT 'PROBLEM' result_type, p.id, p.name title, g.grade sub_title, CONCAT(a.name, ' / ', s.name, CASE WHEN p.rock IS NOT NULL THEN CONCAT(' (', p.rock,')') ELSE '' END) breadcrumb,
+				        COALESCE(mp.media_id,ms.media_id,ma.media_id) media_id, COALESCE(mp.media_version_stamp,ms.media_version_stamp,ma.media_version_stamp) media_version_stamp, COALESCE(mp.media_focus_x,ms.media_focus_x,ma.media_focus_x) media_focus_x, COALESCE(mp.media_focus_y,ms.media_focus_y,ma.media_focus_y) media_focus_y, COALESCE(mp.media_primary_color_hex,ms.media_primary_color_hex,ma.media_primary_color_hex) media_primary_color_hex,
+				        p.hits, NULL external_url,
+				        p.locked_admin, p.locked_superadmin
+				 FROM req
+				 JOIN region r ON r.id = req.region_id OR r.id IN (SELECT rt.region_id FROM region_type rt WHERE rt.type_id IN (SELECT type_id FROM region_type WHERE region_id = req.region_id))
+				 JOIN area a ON r.id=a.region_id
+				 JOIN sector s ON a.id=s.area_id
+				 JOIN problem p ON s.id=p.sector_id
+				 JOIN grade g ON p.consensus_grade_id = g.id
+				 LEFT JOIN user_region ur ON r.id=ur.region_id AND ur.user_id=req.auth_user_id
+				 LEFT JOIN ranked_problem_media mp ON p.id=mp.problem_id AND mp.rn=1
+				 LEFT JOIN ranked_sector_media ms ON s.id=ms.sector_id AND ms.rn=1
+				 LEFT JOIN ranked_area_media ma ON a.id=ma.area_id AND ma.rn=1
+				 WHERE (REGEXP_REPLACE(p.name, '[^[:alnum:]]', '') LIKE req.search_term OR REGEXP_REPLACE(p.rock, '[^[:alnum:]]', '') LIKE req.search_term)
+				   AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				 GROUP BY p.id, a.name, s.name, g.grade, p.hits, p.locked_admin, p.locked_superadmin,
+				                      mp.media_id, mp.media_version_stamp, mp.media_focus_x, mp.media_focus_y, mp.media_primary_color_hex,
+				                      ms.media_id, ms.media_version_stamp, ms.media_focus_x, ms.media_focus_y, ms.media_primary_color_hex,
+				                      ma.media_id, ma.media_version_stamp, ma.media_focus_x, ma.media_focus_y, ma.media_primary_color_hex
+				 ORDER BY p.hits DESC, p.name LIMIT 8)
+				UNION ALL
+				(SELECT 'USER' result_type, u.id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) title, NULL sub_title, NULL breadcrumb,
+				        m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_y, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				        0 hits, NULL external_url,
+				        0 locked_admin, 0 locked_superadmin
+				 FROM req
+				 JOIN user u ON REGEXP_REPLACE(CONCAT(u.firstname, COALESCE(u.lastname,'')), '[^[:alnum:]]', '') LIKE req.search_term
+				 LEFT JOIN media m ON u.media_id=m.id
+				 LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				 ORDER BY TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) LIMIT 8)
+				""";
+
+		jdbcClient.sql(sqlStr)
+		.param(1, authUserId.orElse(0))
+		.param(2, setup.idRegion())
+		.param(3, wildCardSearch)
+		.query(rst -> {
+			while (rst.next()) {
+				var type = rst.getString("result_type");
+				int id = rst.getInt("id");
+				var title = rst.getString("title");
+				var subTitle = rst.getString("sub_title");
+				var breadcrumb = rst.getString("breadcrumb");
+				long hits = rst.getLong("hits");
+				var pageViews = HitsFormatter.formatHits(hits);
+				var lockedAdmin = rst.getBoolean("locked_admin");
+				var lockedSuperadmin = rst.getBoolean("locked_superadmin");
+
+				int mediaId = rst.getInt("media_id");
+				MediaIdentity mediaIdentity = null;
+				if (mediaId > 0) {
+					long mediaVersionStamp = rst.getLong("media_version_stamp");
+					int mediaFocusX = rst.getInt("media_focus_x");
+					int mediaFocusY = rst.getInt("media_focus_y");
+					var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+					mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
+				}
+
+				switch (type) {
+				case "AREA" -> {
+					areaIdsVisible.add(id);
+					areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				}
+				case "EXTERNAL" -> externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				case "SECTOR" -> sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				case "PROBLEM" -> problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				case "USER" -> users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+				default -> throw new IllegalArgumentException("Invalid type: " + type);
 				}
 			}
-		}
+			return areas;
+		});
+
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
 			if (problems.size() > 5) {
 				problems.removeLast();
-			}
-			else if (areas.size() > 2) {
+			} else if (areas.size() > 2) {
 				areas.removeLast();
-			}
-			else if (sectors.size() > 2) {
+			} else if (sectors.size() > 2) {
 				sectors.removeLast();
-			}
-			else if (users.size() > 1) {
+			} else if (users.size() > 1) {
 				users.removeLast();
 			}
 		}
+
 		var filteredExternal = externalAreas.stream()
 				.filter(ea -> {
 					try {
@@ -496,6 +487,7 @@ public class HierarchyRepository extends BaseRepository {
 						return true;
 					}
 				}).toList();
+
 		var res = new ArrayList<Search>();
 		res.addAll(areas);
 		res.addAll(sectors);
@@ -503,12 +495,13 @@ public class HierarchyRepository extends BaseRepository {
 		res.sort((r1, r2) -> Long.compare(r2.hits(), r1.hits()));
 		res.addAll(users);
 		res.addAll(filteredExternal);
+
 		logger.debug("getSearch(search={}) - res.size()={}", search, res.size());
 		return res;
 	}
-	
-	public String getSitemapTxt(Setup setup) throws SQLException {
-		var c = txManager.getConnection();
+
+	@Transactional(readOnly = true)
+	public String getSitemapTxt(Setup setup) {
 		var urls = new ArrayList<String>();
 		urls.add(setup.url());
 		urls.add(setup.url() + "/about");
@@ -525,35 +518,69 @@ public class HierarchyRepository extends BaseRepository {
 		urls.add(setup.url() + "/regions/climbing");
 		urls.add(setup.url() + "/regions/ice");
 		urls.add(setup.url() + "/webcams");
-		try (var ps = c.prepareStatement("SELECT f.user_id FROM area a, sector s, problem p, fa f WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=f.problem_id GROUP BY f.user_id UNION SELECT t.user_id FROM area a, sector s, problem p, tick t WHERE a.region_id=? AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0 AND p.id=t.problem_id GROUP BY t.user_id")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int userId = rst.getInt("user_id");
-					urls.add(setup.url() + "/user/" + userId);
-				}
-			}
-		}
-		try (var ps = c.prepareStatement("SELECT CONCAT('/area/', a.id) suffix FROM region r, area a WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 UNION SELECT CONCAT('/sector/', s.id) url FROM region r, area a, sector s WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 UNION SELECT CONCAT('/problem/', p.id) url FROM region r, area a, sector s, problem p WHERE r.id=? AND r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0 AND a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0 AND s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0")) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, setup.idRegion());
-			ps.setInt(3, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					urls.add(setup.url() + rst.getString("suffix"));
-				}
-			}
-		}
+
+		var sql1 = """
+				WITH req AS (
+					SELECT ? id_region
+				)
+				SELECT f.user_id
+				FROM req
+				JOIN area a ON req.id_region=a.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				JOIN fa f ON p.id=f.problem_id
+				WHERE a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0
+				GROUP BY f.user_id
+				UNION
+				SELECT t.user_id
+				FROM req
+				JOIN area a ON req.id_region=a.region_id
+				JOIN sector s ON a.id=s.area_id
+				JOIN problem p ON s.id=p.sector_id
+				JOIN tick t ON p.id=t.problem_id
+				WHERE a.locked_admin=0 AND a.locked_superadmin=0 AND s.locked_admin=0 AND s.locked_superadmin=0 AND p.locked_admin=0 AND p.locked_superadmin=0
+				GROUP BY t.user_id
+				""";
+
+		urls.addAll(jdbcClient.sql(sql1)
+				.param(1, setup.idRegion())
+				.query((rs, _) -> setup.url() + "/user/" + rs.getInt("user_id"))
+				.list());
+
+		var sql2 = """
+				WITH req AS (
+					SELECT ? id_region
+				)
+				SELECT CONCAT('/area/', a.id) suffix
+				FROM req
+				JOIN region r ON req.id_region=r.id
+				JOIN area a ON r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0
+				UNION
+				SELECT CONCAT('/sector/', s.id) url
+				FROM req
+				JOIN region r ON req.id_region=r.id
+				JOIN area a ON r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0
+				JOIN sector s ON a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0
+				UNION
+				SELECT CONCAT('/problem/', p.id) url
+				FROM req
+				JOIN region r ON req.id_region=r.id
+				JOIN area a ON r.id=a.region_id AND a.locked_admin=0 AND a.locked_superadmin=0
+				JOIN sector s ON a.id=s.area_id AND s.locked_admin=0 AND s.locked_superadmin=0
+				JOIN problem p ON s.id=p.sector_id AND p.locked_admin=0 AND p.locked_superadmin=0
+				""";
+
+		urls.addAll(jdbcClient.sql(sql2)
+				.param(1, setup.idRegion())
+				.query((rs, _) -> setup.url() + rs.getString("suffix"))
+				.list());
+
 		return String.join("\r\n", urls);
 	}
 
-	public Toc getToc(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var c = txManager.getConnection();
-		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
-		var areaLookup = new HashMap<Integer, TocArea>();
-		var sectorLookup = new HashMap<Integer, TocSector>();
-		var numProblems = 0;
+	@Transactional(readOnly = true)
+	public Toc getToc(Optional<Integer> authUserId, Setup setup) {
+		var start = System.nanoTime();
 		var sqlStr = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? region_id
@@ -645,98 +672,104 @@ public class HierarchyRepository extends BaseRepository {
 				LEFT JOIN todo ON p.pid = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
 				ORDER BY p.region_name, p.area_name, p.sector_sorting, p.sector_name, p.nr
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int regionId = rst.getInt("region_id");
-					var r = regionLookup.get(regionId);
-					if (r == null) {
-						var regionName = rst.getString("region_name");
-						r = new TocRegion(regionId, regionName, new ArrayList<>());
-						regionLookup.put(regionId, r);
+
+		Map<Integer, TocRegion> regionLookup = new LinkedHashMap<>();
+		var areaLookup = new HashMap<Integer, TocArea>();
+		var sectorLookup = new HashMap<Integer, TocSector>();
+		int[] numProblems = {0};
+
+		jdbcClient.sql(sqlStr)
+				.param(1, authUserId.orElse(0))
+				.param(2, setup.idRegion())
+				.query(rst -> {
+					while (rst.next()) {
+						int regionId = rst.getInt("region_id");
+						var r = regionLookup.get(regionId);
+						if (r == null) {
+							var regionName = rst.getString("region_name");
+							r = new TocRegion(regionId, regionName, new ArrayList<>());
+							regionLookup.put(regionId, r);
+						}
+						int areaId = rst.getInt("area_id");
+						var a = areaLookup.get(areaId);
+						if (a == null) {
+							var areaUrl = rst.getString("area_url");
+							var areaName = rst.getString("area_name");
+							int areaidCoordinates = rst.getInt("area_coordinates_id");
+							var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"), rst.getString("area_elevation_source"));
+							var areaLockedAdmin = rst.getBoolean("area_locked_admin");
+							var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
+							int areaSunFromHour = rst.getInt("area_sun_from_hour");
+							int areaSunToHour = rst.getInt("area_sun_to_hour");
+							a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+							r.areas().add(a);
+							areaLookup.put(areaId, a);
+						}
+						int sectorId = rst.getInt("sector_id");
+						var s = sectorLookup.get(sectorId);
+						if (s == null) {
+							var sectorUrl = rst.getString("sector_url");
+							var sectorName = rst.getString("sector_name");
+							int sectorSorting = rst.getInt("sector_sorting");
+							int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
+							int sectorSunToHour = rst.getInt("sector_sun_to_hour");
+							int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
+							var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
+							var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
+							var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
+							var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
+							var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
+							s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
+							a.sectors().add(s);
+							sectorLookup.put(sectorId, s);
+						}
+						int id = rst.getInt("id");
+						var url = rst.getString("url");
+						var broken = rst.getString("broken");
+						var lockedAdmin = rst.getBoolean("locked_admin");
+						var lockedSuperadmin = rst.getBoolean("locked_superadmin");
+						int nr = rst.getInt("nr");
+						var name = rst.getString("name");
+						var description = rst.getString("description");
+						int lengthMeter = rst.getInt("length_meter");
+						int startingAltitude = rst.getInt("starting_altitude");
+						int idCoordinates = rst.getInt("coordinates_id");
+						var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
+						var grade = rst.getString("grade");
+						var faUser = rst.getString("fa_user");
+						int faYear = rst.getInt("fa_year");
+						var ffaUser = rst.getString("ffa_user");
+						int ffaYear = rst.getInt("ffa_year");
+						int numTicks = rst.getInt("num_ticks");
+						double stars = rst.getDouble("stars");
+						var ticked = rst.getBoolean("ticked");
+						var todo = rst.getBoolean("todo");
+						var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
+						int numPitches = rst.getInt("num_pitches");
+						var p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
+						s.problems().add(p);
+						numProblems[0]++;
 					}
-					int areaId = rst.getInt("area_id");
-					var a = areaLookup.get(areaId);
-					if (a == null) {
-						var areaUrl = rst.getString("area_url");
-						var areaName = rst.getString("area_name");
-						int areaidCoordinates = rst.getInt("area_coordinates_id");
-						var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"), rst.getString("area_elevation_source"));
-						var areaLockedAdmin = rst.getBoolean("area_locked_admin");
-						var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						int areaSunFromHour = rst.getInt("area_sun_from_hour");
-						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
-						r.areas().add(a);
-						areaLookup.put(areaId, a);
-					}
-					int sectorId = rst.getInt("sector_id");
-					var s = sectorLookup.get(sectorId);
-					if (s == null) {
-						var sectorUrl = rst.getString("sector_url");
-						var sectorName = rst.getString("sector_name");
-						int sectorSorting = rst.getInt("sector_sorting");
-						int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
-						int sectorSunToHour = rst.getInt("sector_sun_to_hour");
-						int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-						var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-						var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-						var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
-						var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-						var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
-						a.sectors().add(s);
-						sectorLookup.put(sectorId, s);
-					}
-					int id = rst.getInt("id");
-					var url = rst.getString("url");
-					var broken = rst.getString("broken");
-					var lockedAdmin = rst.getBoolean("locked_admin");
-					var lockedSuperadmin = rst.getBoolean("locked_superadmin");
-					int nr = rst.getInt("nr");
-					var name = rst.getString("name");
-					var description = rst.getString("description");
-					int lengthMeter = rst.getInt("length_meter");
-					int startingAltitude = rst.getInt("starting_altitude");
-					int idCoordinates = rst.getInt("coordinates_id");
-					var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					var grade = rst.getString("grade");
-					var faUser = rst.getString("fa_user");
-					int faYear = rst.getInt("fa_year");
-					var ffaUser = rst.getString("ffa_user");
-					int ffaYear = rst.getInt("ffa_year");
-					int numTicks = rst.getInt("num_ticks");
-					double stars = rst.getDouble("stars");
-					var ticked = rst.getBoolean("ticked");
-					var todo = rst.getBoolean("todo");
-					var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-					int numPitches = rst.getInt("num_pitches");
-					var p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
-					s.problems().add(p);
-					numProblems++;
-				}
-			}
-		}
+					return regionLookup.values();
+				});
+
 		if (!sectorLookup.isEmpty()) {
 			var idSectorOutline = sectorRepo.getObject().getSectorOutlines(sectorLookup.keySet());
 			for (var idSector : idSectorOutline.keySet()) {
 				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}
 		}
-		var res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems, new ArrayList<>(regionLookup.values()));
+		var res = new Toc(regionLookup.size(), areaLookup.size(), sectorLookup.size(), numProblems[0], new ArrayList<>(regionLookup.values()));
 		res.regions().forEach(r -> {
 			r.areas().sort(Comparator.comparing(TocArea::name));
 			r.areas().forEach(TocArea::orderSectors);
 		});
-		logger.debug("getToc(authUserId={}, setup={}) - duration={}", authUserId, setup);
+		logger.debug("getToc(authUserId={}, setup={}) - duration={}ms", authUserId, setup, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
 
-	public List<TocPitch> getTocPitches(Optional<Integer> authUserId, Setup setup) throws SQLException {
-		var c = txManager.getConnection();
-		var res = new ArrayList<TocPitch>();
+	@Transactional(readOnly = true)
+	public List<TocPitch> getTocPitches(Optional<Integer> authUserId, Setup setup) {
 		var sqlStr = """
 				SELECT r.name region_name, CONCAT(r.url,'/problem/',p.id) url, a.name area_name, s.name sector_name, p.name problem_name, ps.nr pitch, g.grade, ps.description
 				FROM area a INNER JOIN region r ON a.region_id=r.id
@@ -754,29 +787,30 @@ public class HierarchyRepository extends BaseRepository {
 				GROUP BY r.name, r.url, p.id, a.name, s.name, p.name, ps.nr, g.grade, ps.description
 				ORDER BY r.name, a.name, s.sorting, s.name, p.nr, ps.nr
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, authUserId.orElse(0));
-			ps.setInt(3, setup.idRegion());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					var regionName = rst.getString("region_name");
-					var url = rst.getString("url");
-					var areaName = rst.getString("area_name");
-					var sectorName = rst.getString("sector_name");
-					var problemName = rst.getString("problem_name");
-					int pitch = rst.getInt("pitch");
-					var grade = rst.getString("grade");
-					var description = rst.getString("description");
-					res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, grade, description));
-				}
-			}
-		}
-		return res;
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, setup.idRegion())
+				.param(2, authUserId.orElse(0))
+				.param(3, setup.idRegion())
+				.query(rst -> {
+					var res = new ArrayList<TocPitch>();
+					while (rst.next()) {
+						var regionName = rst.getString("region_name");
+						var url = rst.getString("url");
+						var areaName = rst.getString("area_name");
+						var sectorName = rst.getString("sector_name");
+						var problemName = rst.getString("problem_name");
+						int pitch = rst.getInt("pitch");
+						var grade = rst.getString("grade");
+						var description = rst.getString("description");
+						res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, grade, description));
+					}
+					return res;
+				});
 	}
 
-	public Top getTop(Optional<Integer> authUserId, int areaId, int sectorId) throws SQLException {
-		var c = txManager.getConnection();
+	@Transactional(readOnly = true)
+	public Top getTop(Optional<Integer> authUserId, int areaId, int sectorId) {
 		var columnCondition = (sectorId > 0) ? "s.id" : "a.id";
 		int filterId = (sectorId > 0) ? sectorId : areaId;
 		var sqlStr = """
@@ -831,52 +865,56 @@ public class HierarchyRepository extends BaseRepository {
 				GROUP BY u.id, u.firstname, u.lastname, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, tp.sum
 				ORDER BY percentage DESC, name ASC
 				""".formatted(columnCondition);
-		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
-		var uniqueUserIds = new HashSet<Integer>();
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, filterId);
-			ps.setInt(2, filterId);
-			ps.setInt(3, filterId);
-			ps.setInt(4, filterId);
-			try (var rst = ps.executeQuery()) {
-				var prevPercentage = -1.0;
-				var rank = 0;
-				while (rst.next()) {
-					int userId = rst.getInt("user_id");
-					uniqueUserIds.add(userId);
-					var name = rst.getString("name");
-					int mediaId = rst.getInt("media_id");
-					MediaIdentity mediaIdentity = null;
-					if (mediaId > 0) {
-						long mediaVersionStamp = rst.getLong("media_version_stamp");
-						int mediaFocusX = rst.getInt("media_focus_x");
-						int mediaFocusY = rst.getInt("media_focus_y");
-						var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-						mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, filterId)
+				.param(2, filterId)
+				.param(3, filterId)
+				.param(4, filterId)
+				.query(rst -> {
+					Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
+					var uniqueUserIds = new HashSet<Integer>();
+					var prevPercentage = -1.0;
+					var rank = 0;
+
+					while (rst.next()) {
+						int userId = rst.getInt("user_id");
+						uniqueUserIds.add(userId);
+						var name = rst.getString("name");
+						int mediaId = rst.getInt("media_id");
+						MediaIdentity mediaIdentity = null;
+
+						if (mediaId > 0) {
+							long mediaVersionStamp = rst.getLong("media_version_stamp");
+							int mediaFocusX = rst.getInt("media_focus_x");
+							int mediaFocusY = rst.getInt("media_focus_y");
+							var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
+							mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
+						}
+
+						var percentage = rst.getDouble("percentage");
+						if (prevPercentage != percentage) {
+							rank++;
+						}
+						prevPercentage = percentage;
+						var mine = authUserId.orElse(0) == userId;
+
+						var top = topByPercentage.get(percentage);
+						if (top == null) {
+							top = new TopRank(rank, percentage, new ArrayList<>());
+							topByPercentage.put(percentage, top);
+						}
+						top.users().add(new TopUser(userId, name, mediaIdentity, mine));
 					}
-					var percentage = rst.getDouble("percentage");
-					if (prevPercentage != percentage) {
-						rank++;
-					}
-					prevPercentage = percentage;
-					var mine = authUserId.orElse(0) == userId;
-					var top = topByPercentage.get(percentage);
-					if (top == null) {
-						top = new TopRank(rank, percentage, new ArrayList<>());
-						topByPercentage.put(percentage, top);
-					}
-					top.users().add(new TopUser(userId, name, mediaIdentity, mine));
-				}
-			}
-		}
-		var rows = topByPercentage.values();
-		return new Top(rows, uniqueUserIds.size());
+
+					return new Top(topByPercentage.values(), uniqueUserIds.size());
+				});
 	}
 
-	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) throws SQLException {
-		var c = txManager.getConnection();
-		String sqlStr = null;
-		int id = 0;
+	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) {
+		String sqlStr;
+		int id;
+
 		if (idArea > 0) {
 			sqlStr = """
 					SELECT CONCAT(r.url,'/area/',a.id) url
@@ -907,22 +945,16 @@ public class HierarchyRepository extends BaseRepository {
 					""";
 			id = idProblem;
 		}
-		if (id <= 0 || sqlStr == null) {
+		else {
 			throw new IllegalArgumentException("Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
 		}
-		Redirect res = null;
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, setup.idRegion());
-			ps.setInt(2, id);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res = Redirect.fromRedirectUrl(rst.getString("url"));
-				}
-			}
-		}
-		if (res == null) {
-			throw new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		}
-		return res;
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, setup.idRegion())
+				.param(2, id)
+				.query(String.class)
+				.optional()
+				.map(Redirect::fromRedirectUrl)
+				.orElseThrow(() -> new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem));
 	}
 }

@@ -1,5 +1,4 @@
 package com.buldreinfo.helpers;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -97,7 +96,7 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	public static int getElevation(ElevationService elevationService, double latitude, double longitude) throws IOException, InterruptedException {
+	public static int getElevation(ElevationService elevationService, double latitude, double longitude) {
         List<Coordinates> coords = new ArrayList<>(List.of(new Coordinates(latitude, longitude)));
         coords.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
         elevationService.fillElevations(coords);

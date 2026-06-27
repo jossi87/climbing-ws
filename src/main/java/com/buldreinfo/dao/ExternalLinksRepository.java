@@ -1,29 +1,27 @@
 package com.buldreinfo.dao;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.ExternalLink;
 
 @Repository
-public class ExternalLinksRepository extends BaseRepository {
+public class ExternalLinksRepository {
 	private static final Logger logger = LogManager.getLogger();
-	
-	public ExternalLinksRepository(ClimbingTransactionManager txManager) {
-		super(txManager);
+	private final JdbcClient jdbcClient;
+
+	public ExternalLinksRepository(JdbcClient jdbcClient) {
+		this.jdbcClient = jdbcClient;
 	}
-	
-	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) throws SQLException {
+
+	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) {
 		var start = System.nanoTime();
-		var c = txManager.getConnection();
-		var res = new ArrayList<ExternalLink>();
 		var sql = """
 				WITH req AS (
 				    SELECT ? AS req_area_id, ? AS req_sector_id, ? AS req_problem_id
@@ -67,61 +65,63 @@ public class ExternalLinksRepository extends BaseRepository {
 				CROSS JOIN req r
 				ORDER BY u.title
 				""";
-		try (var ps = c.prepareStatement(sql)) {
-			ps.setInt(1, areaId);
-			ps.setInt(2, sectorId);
-			ps.setInt(3, problemId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					res.add(new ExternalLink(rst.getInt("id"), rst.getString("url"), rst.getString("title"), rst.getBoolean("is_inherited")));
-				}
-			}
-		}
+
+		var res = jdbcClient.sql(sql)
+				.param(1, areaId)
+				.param(2, sectorId)
+				.param(3, problemId)
+				.query((rs, _) -> new ExternalLink(
+						rs.getInt("id"),
+						rs.getString("url"),
+						rs.getString("title"),
+						rs.getBoolean("is_inherited")
+						)).list();
+
 		logger.debug("getExternalLinks(areaId={}, sectorId={}, problemId={}) - res.size()={}, duration={}ms", areaId, sectorId, problemId, res.size(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return res;
 	}
-	
-	protected void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) throws SQLException {
+
+	protected void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) {
 		if (areaId <= 0 && sectorId <= 0 && problemId <= 0) {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}
-		var c = txManager.getConnection();
+
 		var previousLinks = getExternalLinks(areaId, sectorId, problemId).stream()
 				.filter(x -> !x.inherited())
 				.toList();
+
 		var toRemove = previousLinks.stream()
 				.filter(l -> newLinks == null || newLinks.stream().filter(x -> x.id() == l.id()).findAny().isEmpty())
 				.toList();
+
 		if (!toRemove.isEmpty()) {
-			try (var ps = c.prepareStatement("DELETE FROM external_link WHERE id=?")) {
-				for (var link : toRemove) {
-					ps.setInt(1, link.id());
-					ps.addBatch();
-				}
-				ps.executeBatch();
-			}
+			var idsToRemove = toRemove.stream().map(ExternalLink::id).toList();
+			jdbcClient.sql("DELETE FROM external_link WHERE id IN (:ids)")
+			.param("ids", idsToRemove)
+			.update();
 		}
+
 		if (newLinks != null) {
 			var newLinksUpdate = newLinks.stream()
 					.filter(l -> !l.inherited() && l.id() != 0)
 					.toList();
+
 			var newLinksCreate = newLinks.stream()
 					.filter(l -> !l.inherited() && l.id() == 0)
 					.toList();
-			if (!newLinksUpdate.isEmpty()) {
-				try (var ps = c.prepareStatement("UPDATE external_link SET url=?, title=? WHERE id=?")) {
-					for (var l : newLinksUpdate) {
-						ps.setString(1, l.url());
-						ps.setString(2, l.title());
-						ps.setInt(3, l.id());
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
+
+			for (var l : newLinksUpdate) {
+				jdbcClient.sql("UPDATE external_link SET url=?, title=? WHERE id=?")
+				.param(1, l.url())
+				.param(2, l.title())
+				.param(3, l.id())
+				.update();
 			}
+
 			if (!newLinksCreate.isEmpty()) {
 				String junctionSql;
 				int targetId;
+
 				if (areaId > 0) {
 					junctionSql = "INSERT INTO external_link_area (external_link_id, area_id) VALUES (?, ?)";
 					targetId = areaId;
@@ -132,23 +132,20 @@ public class ExternalLinksRepository extends BaseRepository {
 					junctionSql = "INSERT INTO external_link_problem (external_link_id, problem_id) VALUES (?, ?)";
 					targetId = problemId;
 				}
-				try (var ps = c.prepareStatement("INSERT INTO external_link (url, title) VALUES (?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS);
-						var psJunction = c.prepareStatement(junctionSql)) {
-					for (var l : newLinksCreate) {
-						ps.setString(1, l.url());
-						ps.setString(2, l.title());
-						ps.addBatch();
+
+				for (var l : newLinksCreate) {
+					var keyHolder = new GeneratedKeyHolder();
+					jdbcClient.sql("INSERT INTO external_link (url, title) VALUES (?, ?)")
+					.param(1, l.url())
+					.param(2, l.title())
+					.update(keyHolder, "id");
+
+					if (keyHolder.getKey() != null) {
+						jdbcClient.sql(junctionSql)
+						.param(1, keyHolder.getKey().intValue())
+						.param(2, targetId)
+						.update();
 					}
-					ps.executeBatch();
-					try (var rst = ps.getGeneratedKeys()) {
-						while (rst != null && rst.next()) {
-							var externalLinkId = rst.getInt(1);
-							psJunction.setInt(1, externalLinkId);
-							psJunction.setInt(2, targetId);
-							psJunction.addBatch();
-						}
-					}
-					psJunction.executeBatch();
 				}
 			}
 		}

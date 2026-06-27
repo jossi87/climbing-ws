@@ -14,7 +14,7 @@ public class ActivityResourceTest extends BaseResourceTest {
     @Autowired private ActivityController tester;
 
     @Test
-    public void testGetActivity() throws Exception {
+    public void testGetActivity() {
         var r1 = tester.getActivity(getRequest(Region.buldreinfo), 0, 0, 0, true, true, true, true, 0);
         assertTrue(r1.getStatusCode() == OK);
         assertTrue(r1.getBody() != null);

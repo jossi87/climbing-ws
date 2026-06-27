@@ -1,10 +1,8 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,14 +14,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.S3KeyGenerator;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
+import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.service.ImageService;
 
 public class FixMedia {
 	private record MediaTask(int id, String embedUrl) {}
 	private static final Logger logger = LogManager.getLogger();
+	private final MediaRepository mediaRepo;
 	private final ImageService imageService;
-	private final ClimbingTransactionManager txManager;
 	private final Path localBucketRoot;
 	private final Path ffmpegPath;
 	private final Path ytDlpPath;
@@ -31,9 +29,9 @@ public class FixMedia {
 	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	protected FixMedia(ImageService imageService, ClimbingTransactionManager txManager, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+	protected FixMedia(MediaRepository mediaRepo, ImageService imageService, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.mediaRepo = mediaRepo;
 		this.imageService = imageService;
-		this.txManager = txManager;
 		this.localBucketRoot = localBucketRoot;
 		this.ffmpegPath = ffmpegPath;
 		this.ytDlpPath = ytDlpPath;
@@ -44,7 +42,7 @@ public class FixMedia {
 		return localBucketRoot.resolve(s3Key);
 	}
 
-	private void processTask(MediaTask task) throws Exception {
+	private void processTask(MediaTask task) throws InterruptedException, IOException {
 		int id = task.id();
 		String embedUrl = task.embedUrl();
 		Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
@@ -76,14 +74,11 @@ public class FixMedia {
 		}
 
 		if (!Files.exists(originalJpg)) {
-			txManager.executeInTransaction(() -> {
-                try {
-                    imageService.saveImageFromEmbedVideo(id, embedUrl);
-                    return null;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            try {
+                imageService.saveImageFromEmbedVideo(id, embedUrl);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 		}
 
 		if (!Files.exists(originalJpg) && !privateEmbeddedVideosToIgnore.contains(id)) {
@@ -91,20 +86,10 @@ public class FixMedia {
 		}
 	}
 
-	protected void run() throws Exception {
-		List<MediaTask> tasks = new ArrayList<>();
-		txManager.executeInTransaction(() -> {
-			String sqlStr = "SELECT id, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL";
-			var c = txManager.getConnection();
-			try (PreparedStatement ps = c.prepareStatement(sqlStr);
-					ResultSet rst = ps.executeQuery()) {
-				while (rst.next()) {
-					tasks.add(new MediaTask(rst.getInt("id"), rst.getString("embed_url")));
-				}
-			} catch (SQLException e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
-		});
+	protected void run() {
+		List<MediaTask> tasks = mediaRepo.getMediaEmbedUrls().entrySet().stream()
+		        .map(entry -> new MediaTask(entry.getKey(), entry.getValue()))
+		        .toList();
 		for (MediaTask task : tasks) {
 			executor.submit(() -> {
 				try {

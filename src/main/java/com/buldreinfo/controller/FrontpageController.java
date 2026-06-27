@@ -1,5 +1,7 @@
 package com.buldreinfo.controller;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -7,9 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.FrontpageRepository;
-import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.Frontpage;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,11 +22,12 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/frontpage")
-public class FrontpageController extends BaseController {
+public class FrontpageController {
 	private final FrontpageRepository frontpageRepo;
+	private final RequestContext requestContext;
 
-	public FrontpageController(ClimbingTransactionManager txManager, FrontpageRepository frontpageRepo, RegionRepository regionRepo) {
-		super(txManager, regionRepo);
+	public FrontpageController(RequestContext requestContext, FrontpageRepository frontpageRepo) {
+		this.requestContext = requestContext;
 		this.frontpageRepo = frontpageRepo;
 	}
 
@@ -37,23 +39,23 @@ public class FrontpageController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Frontpage> getFrontpage(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			var stats = supplyAsync(() -> frontpageRepo.getFrontpageStats(ctx.authUserId(), ctx.setup()));
-			var randomMedia = supplyAsync(() -> frontpageRepo.getFrontpageRandomMedia(ctx.setup()));
-			var firstAscents = supplyAsync(() -> frontpageRepo.getFrontpageFirstAscents(ctx.authUserId(), ctx.setup()));
-			var newestComments = supplyAsync(() -> frontpageRepo.getFrontpageNewestAscents(ctx.authUserId(), ctx.setup()));
-			var newestMedia = supplyAsync(() -> frontpageRepo.getFrontpageNewestMedia(ctx.authUserId(), ctx.setup()));
-			var lastComments = supplyAsync(() -> frontpageRepo.getFrontpageLastComments(ctx.authUserId(), ctx.setup()));
-
-			return new Frontpage(
-					stats.join(),
-					randomMedia.join(),
-					firstAscents.join(),
-					newestComments.join(),
-					newestMedia.join(),
-					lastComments.join()
-					);
-		}));
+	public ResponseEntity<Frontpage> getFrontpage(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var userId = requestContext.getAuthenticatedUserId();
+		var statsFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageStats(userId, setup));
+		var randomMediaFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageRandomMedia(setup));
+		var firstAscentsFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageFirstAscents(userId, setup));
+		var newestCommentsFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageNewestAscents(userId, setup));
+		var newestMediaFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageNewestMedia(userId, setup));
+		var lastCommentsFuture = CompletableFuture.supplyAsync(() -> frontpageRepo.getFrontpageLastComments(userId, setup));
+		CompletableFuture.allOf(statsFuture, randomMediaFuture, firstAscentsFuture, newestCommentsFuture, newestMediaFuture, lastCommentsFuture).join();
+		return ResponseEntity.ok(new Frontpage(
+				statsFuture.join(),
+				randomMediaFuture.join(),
+				firstAscentsFuture.join(),
+				newestCommentsFuture.join(),
+				newestMediaFuture.join(),
+				lastCommentsFuture.join()
+				));
 	}
 }

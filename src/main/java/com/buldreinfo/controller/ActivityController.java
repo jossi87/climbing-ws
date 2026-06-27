@@ -10,10 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.ActivityRepository;
-import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.infrastructure.ValidationFailedException;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
+import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.Activity;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,11 +28,12 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Activity")
 @RestController
 @RequestMapping("/activity")
-public class ActivityController extends BaseController {
+public class ActivityController {
+	private final RequestContext requestContext;
 	private final ActivityRepository activityRepo;
 
-	public ActivityController(ClimbingTransactionManager txManager, ActivityRepository activityRepo, RegionRepository regionRepo) {
-		super(txManager, regionRepo);
+	public ActivityController(RequestContext requestContext, ActivityRepository activityRepo) {
+		this.requestContext = requestContext;
 		this.activityRepo = activityRepo;
 	}
 
@@ -52,10 +52,12 @@ public class ActivityController extends BaseController {
 			@Parameter(description = "Include comments") @RequestParam(name = "comments", defaultValue = "false") boolean comments,
 			@Parameter(description = "Include ticks (public ascents)") @RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
 			@Parameter(description = "Include new media") @RequestParam(name = "media", defaultValue = "false") boolean media,
-			@Parameter(description = "Offset (see more)") @RequestParam(name = "offset", defaultValue = "0") int offset) throws Exception {
+			@Parameter(description = "Offset (see more)") @RequestParam(name = "offset", defaultValue = "0") int offset) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
 		if (lowerGrade < 0) throw new ValidationFailedException("lowerGrade cannot be negative");
 		if (offset < 0) throw new ValidationFailedException("offset cannot be negative");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> activityRepo.getActivity(ctx.setup(), ctx.authUserId(), idArea, idSector, lowerGrade, fa, comments, ticks, media, offset)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(activityRepo.getActivity(setup, authUserId, idArea, idSector, lowerGrade, fa, comments, ticks, media, offset));
 	}
 }

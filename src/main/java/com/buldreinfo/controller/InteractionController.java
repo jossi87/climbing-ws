@@ -20,8 +20,8 @@ import com.buldreinfo.dao.TickRepository;
 import com.buldreinfo.dao.TodoRepository;
 import com.buldreinfo.dao.TrashRepository;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.DangerousArea;
@@ -48,7 +48,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "Interaction")
 @RestController
-public class InteractionController extends BaseController {
+public class InteractionController {
+	private final RequestContext requestContext;
 	private final HierarchyRepository hierarchyRepo;
 	private final ProblemRepository problemRepo;
 	private final RegionRepository regionRepo;
@@ -58,7 +59,7 @@ public class InteractionController extends BaseController {
 	private final TrashRepository trashRepo;
 	private final UserRepository userRepo;
 
-	public InteractionController(ClimbingTransactionManager txManager,
+	public InteractionController(RequestContext requestContext,
 			HierarchyRepository hierarchyRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo,
@@ -67,7 +68,7 @@ public class InteractionController extends BaseController {
 			TodoRepository todoRepo,
 			TrashRepository trashRepo,
 			UserRepository userRepo) {
-		super(txManager, regionRepo);
+		this.requestContext = requestContext;
 		this.hierarchyRepo = hierarchyRepo;
 		this.problemRepo = problemRepo;
 		this.regionRepo = regionRepo;
@@ -85,8 +86,10 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/dangerous", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<DangerousArea>> getDangerous(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getDangerous(ctx.setup(), ctx.authUserId())));
+	public ResponseEntity<Collection<DangerousArea>> getDangerous(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getDangerous(setup, authUserId));
 	}
 
 	@Operation(summary = "Get permissions", responses = {
@@ -96,11 +99,11 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/permissions", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<PermissionUser>> getPermissions(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());
-			return userRepo.getPermissions(ctx.setup(), ctx.authUserId());
-		}));
+	public ResponseEntity<List<PermissionUser>> getPermissions(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		return ResponseEntity.ok(userRepo.getPermissions(setup, authUserId));
 	}
 
 	@Operation(summary = "Get areas and sectors with restrictions", responses = {
@@ -110,8 +113,10 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/restrictions", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<RestrictionsRegion>> getRestrictions(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getRestrictions(ctx.setup(), ctx.authUserId())));
+	public ResponseEntity<Collection<RestrictionsRegion>> getRestrictions(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getRestrictions(setup, authUserId));
 	}
 
 	@Operation(summary = "Get ticks (public ascents)", responses = {
@@ -123,9 +128,11 @@ public class InteractionController extends BaseController {
 	@GetMapping(value = "/ticks", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Ticks> getTicks(HttpServletRequest request,
 			@Parameter(description = "Page (ticks ordered descending, 0 returns first page)", required = false) @RequestParam(name = "page", defaultValue = "0") int page
-			) throws Exception {
+			) {
 		if (page < 1) throw new ValidationFailedException("Invalid page index (must be >= 1)");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> tickRepo.getTicks(ctx.authUserId(), ctx.setup(), page)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(tickRepo.getTicks(authUserId, setup, page));
 	}
 
 	@Operation(summary = "Get todo on Area/Sector", responses = {
@@ -135,12 +142,12 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/todo", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Todo> getTodo(HttpServletRequest request,
-			@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
+	public ResponseEntity<Todo> getTodo(@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
 			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector
-			) throws Exception {
+			) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> todoRepo.getTodo(ctx.authUserId(), ctx.setup(), idArea, idSector)));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(todoRepo.getTodo(authUserId, idArea, idSector));
 	}
 
 	@Operation(summary = "Get top on Area/Sector", responses = {
@@ -150,12 +157,12 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/top", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Top> getTop(HttpServletRequest request,
-			@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
+	public ResponseEntity<Top> getTop(@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
 			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector
-			) throws Exception {
+			) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getTop(ctx.authUserId(), idArea, idSector)));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getTop(authUserId, idArea, idSector));
 	}
 
 	@Operation(summary = "Get trash", responses = {
@@ -165,11 +172,11 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/trash", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Trash>> getTrash(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());
-			return trashRepo.getTrash(ctx.authUserId(), ctx.setup());
-		}));
+	public ResponseEntity<List<Trash>> getTrash(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		return ResponseEntity.ok(trashRepo.getTrash(authUserId, setup));
 	}
 
 	@Operation(summary = "Update comment", responses = {
@@ -181,11 +188,13 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(value = "/comments", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Integer> postComments(HttpServletRequest request, @RequestBody Comment co) throws Exception {
+	public ResponseEntity<Integer> postComments(HttpServletRequest request, @RequestBody Comment co) {
 		if (co == null || co.idProblem() <= 0 || (!co.delete() && (co.comment() == null || co.comment().strip().isEmpty()))) {
 			throw new ValidationFailedException("Comment payload invalid");
 		}
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.upsertComment(ctx.authUserId(), ctx.setup(), co)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(problemRepo.upsertComment(authUserId, setup, co));
 	}
 
 	@Operation(summary = "Update user privileges", responses = {
@@ -197,13 +206,12 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/permissions")
-	public ResponseEntity<Void> postPermissions(HttpServletRequest request, @RequestBody PermissionUser u) throws Exception {
+	public ResponseEntity<Void> postPermissions(HttpServletRequest request, @RequestBody PermissionUser u) {
 		if (u == null || u.userId() <= 0) throw new ValidationFailedException("Invalid userId");
-		executeContextualTask(request, ctx -> {
-			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());
-			userRepo.upsertPermissionUser(ctx.setup(), u);
-			return null;
-		});
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		userRepo.upsertPermissionUser(setup, u);
 		return ResponseEntity.ok().build();
 	}
 
@@ -214,9 +222,11 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Search>> postSearch(HttpServletRequest request, @RequestBody SearchRequest sr) throws Exception {
+	public ResponseEntity<List<Search>> postSearch(HttpServletRequest request, @RequestBody SearchRequest sr) {
 		if (sr == null || sr.value() == null || sr.value().strip().isEmpty()) throw new ValidationFailedException("Search criteria missing");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getSearch(ctx.setup(), ctx.authUserId(), sr.value().trim())));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getSearch(setup, authUserId, sr.value().trim()));
 	}
 
 	@Operation(summary = "Update tick (public ascent)", responses = {
@@ -227,12 +237,11 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/ticks")
-	public ResponseEntity<Void> postTicks(HttpServletRequest request, @RequestBody Tick t) throws Exception {
+	public ResponseEntity<Void> postTicks(HttpServletRequest request, @RequestBody Tick t) {
 		if (t == null || t.idProblem() <= 0) throw new ValidationFailedException("Invalid idProblem");
-		executeContextualTask(request, ctx -> {
-			tickRepo.setTick(ctx.setup(), ctx.authUserId(), t);
-			return null;
-		});
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		tickRepo.setTick(setup, authUserId, t);
 		return ResponseEntity.ok().build();
 	}
 
@@ -244,12 +253,10 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping("/todo")
-	public ResponseEntity<Void> postTodo(HttpServletRequest request, @RequestParam(name = "idProblem") int idProblem) throws Exception {
+	public ResponseEntity<Void> postTodo(@RequestParam(name = "idProblem") int idProblem) {
 		if (idProblem <= 0) throw new ValidationFailedException("Invalid idProblem");
-		executeContextualTask(request, ctx -> {
-			todoRepo.toggleTodo(ctx.authUserId(), idProblem);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		todoRepo.toggleTodo(authUserId, idProblem);
 		return ResponseEntity.ok().build();
 	}
 
@@ -262,12 +269,10 @@ public class InteractionController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(value = "/trails", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Void> postTrails(HttpServletRequest request, @RequestBody List<Trail> trails) throws Exception {
+	public ResponseEntity<Void> postTrails(@RequestBody List<Trail> trails) {
 		if (trails == null || trails.isEmpty()) throw new ValidationFailedException("Trails empty");
-		executeContextualTask(request, ctx -> {
-			sectorRepo.upsertTrails(ctx.authUserId(), trails);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		sectorRepo.upsertTrails(authUserId, trails);
 		return ResponseEntity.ok().build();
 	}
 
@@ -285,17 +290,16 @@ public class InteractionController extends BaseController {
 			@RequestParam(name = "idSector", defaultValue = "0") int idSector,
 			@RequestParam(name = "idProblem", defaultValue = "0") int idProblem,
 			@RequestParam(name = "idMedia", defaultValue = "0") int idMedia
-			) throws Exception {
+			) {
 		boolean isValid = (idArea > 0 && idSector == 0 && idProblem == 0 && idMedia == 0) ||
 				(idArea == 0 && idSector > 0 && idProblem == 0 && idMedia == 0) ||
 				(idArea == 0 && idSector == 0 && idProblem > 0 && idMedia == 0) ||
 				(idArea == 0 && idSector == 0 && idProblem == 0 && idMedia > 0);
 		if (!isValid) throw new ValidationFailedException("Invalid arguments");
-		executeContextualTask(request, ctx -> {
-			regionRepo.ensureSuperadminWriteRegion(ctx.setup(), ctx.authUserId());
-			trashRepo.trashRecover(idArea, idSector, idProblem, idMedia);
-			return null;
-		});
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureSuperadminWriteRegion(setup, authUserId);
+		trashRepo.trashRecover(idArea, idSector, idProblem, idMedia);
 		return ResponseEntity.ok().build();
 	}
 }

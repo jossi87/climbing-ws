@@ -1,6 +1,7 @@
 package com.buldreinfo.controller;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,10 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.MediaRepository;
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Profile;
@@ -36,12 +36,13 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Profiles")
 @RestController
 @RequestMapping("/profiles")
-public class ProfilesController extends BaseController {
+public class ProfilesController {
+	private final RequestContext requestContext;
 	private final MediaRepository mediaRepo;
 	private final UserRepository userRepo;
 
-	public ProfilesController(ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo);
+	public ProfilesController(RequestContext requestContext, MediaRepository mediaRepo, UserRepository userRepo) {
+		this.requestContext = requestContext;
 		this.mediaRepo = mediaRepo;
 		this.userRepo = userRepo;
 	}
@@ -54,16 +55,14 @@ public class ProfilesController extends BaseController {
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Profile> getProfiles(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int reqUserId) throws Exception {
+			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int reqUserId) {
 		if (reqUserId <= 0) throw new ValidationFailedException("Invalid user id=" + reqUserId);
-
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			userRepo.ensureUserExists(reqUserId);
-			var identity = supplyAsync(() -> userRepo.getProfileIdentity(setup, reqUserId));
-			var kpis = supplyAsync(() -> userRepo.getProfileKpis(reqUserId));
-			var disciplines = supplyAsync(() -> userRepo.getProfileDisciplines(setup, reqUserId));
-			return new Profile(identity.join(), kpis.join(), disciplines.join());
-		}));
+		userRepo.ensureUserExists(reqUserId);
+		var setup = requestContext.getSetup(request);
+		var identityFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileIdentity(setup, reqUserId));
+		var kpisFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileKpis(reqUserId));
+		var disciplinesFuture = CompletableFuture.supplyAsync(() -> userRepo.getProfileDisciplines(setup, reqUserId));
+		return ResponseEntity.ok(new Profile(identityFuture.join(), kpisFuture.join(), disciplinesFuture.join()));
 	}
 
 	@Operation(summary = "Get profile ascents", responses = {
@@ -74,13 +73,12 @@ public class ProfilesController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/ascents", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) throws Exception {
+			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			userRepo.ensureUserExists(id);
-			return userRepo.getProfileAscents(ctx.authUserId(), ctx.setup(), id);
-		}));
+		userRepo.ensureUserExists(id);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, setup, id));
 	}
 
 	@Operation(summary = "Get profile media by user id", responses = {
@@ -91,15 +89,12 @@ public class ProfilesController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Media>> getProfilesMedia(HttpServletRequest request,
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id,
-			@Parameter(description = "FALSE = tagged media, TRUE = captured media") @RequestParam(name = "captured", defaultValue = "false") boolean captured) throws Exception {
+	public ResponseEntity<List<Media>> getProfilesMedia(@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id,
+			@Parameter(description = "FALSE = tagged media, TRUE = captured media") @RequestParam(name = "captured", defaultValue = "false") boolean captured) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			userRepo.ensureUserExists(id);
-			return mediaRepo.getProfileMedia(ctx.authUserId(), id, captured);
-		}));
+		userRepo.ensureUserExists(id);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(mediaRepo.getProfileMedia(authUserId, id, captured));
 	}
 
 	@Operation(summary = "Get profile todo", responses = {
@@ -111,13 +106,12 @@ public class ProfilesController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/todo", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ProfileTodo> getProfilesTodo(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) throws Exception {
+			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			userRepo.ensureUserExists(id);
-			return userRepo.getProfileTodo(ctx.authUserId(), ctx.setup(), id);
-		}));
+		userRepo.ensureUserExists(id);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, setup, id));
 	}
 
 	@Operation(summary = "Update profile identity", responses = {
@@ -128,12 +122,10 @@ public class ProfilesController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(value = "/identity")
-	public ResponseEntity<Void> postProfilesIdentity(HttpServletRequest request, @RequestBody ProfileIdentity profile) throws Exception {
+	public ResponseEntity<Void> postProfilesIdentity(@RequestBody ProfileIdentity profile) {
 		if (profile == null) throw new ValidationFailedException("Profile identity payload is missing");
-		executeContextualTask(request, ctx -> {
-			userRepo.setProfile(ctx.authUserId(), profile);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+			userRepo.setProfile(authUserId, profile);
 		return ResponseEntity.ok().build();
 	}
 
@@ -145,15 +137,12 @@ public class ProfilesController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(value = "/theme")
-	public ResponseEntity<Void> postProfilesTheme(HttpServletRequest request, 
-			@Parameter(description = "Theme preference", required = true) @RequestParam(name = "themePreference") String themePreference) throws Exception {
+	public ResponseEntity<Void> postProfilesTheme(@Parameter(description = "Theme preference", required = true) @RequestParam(name = "themePreference") String themePreference) {
 		if (themePreference == null || (!themePreference.equals("light") && !themePreference.equals("dark"))) {
 			throw new ValidationFailedException("Invalid theme preference. Must be 'light' or 'dark'.");
 		}
-		executeContextualTask(request, ctx -> {
-			userRepo.setThemePreference(ctx.authUserId(), themePreference);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+			userRepo.setThemePreference(authUserId, themePreference);
 		return ResponseEntity.ok().build();
 	}
 }

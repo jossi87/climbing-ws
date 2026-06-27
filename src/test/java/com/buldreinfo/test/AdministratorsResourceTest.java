@@ -14,7 +14,7 @@ public class AdministratorsResourceTest extends BaseResourceTest {
 	@Autowired private AdministratorsController tester;
 
 	@Test
-	public void getAdministrators() throws Exception {
+	public void getAdministrators() {
 		var r = tester.getAdministrators(getRequest(Region.buldreinfo));
 		assertTrue(r.getStatusCode() == OK);
 		assertTrue(r.getBody() != null);

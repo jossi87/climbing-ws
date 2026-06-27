@@ -1,13 +1,10 @@
 package com.buldreinfo.batch;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.buldreinfo.Application;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 
 public class MergeUsers {
 	// WITH u AS (SELECT TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) nm FROM user u GROUP BY TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))) HAVING COUNT(TRIM(CONCAT(firstname,' ',COALESCE(lastname,''))))>1) SELECT u2.* FROM u, user u2 WHERE u.nm=TRIM(CONCAT(u2.firstname,' ',COALESCE(u2.lastname,''))) ORDER BY u2.firstname, u2.lastname
@@ -30,80 +27,35 @@ public class MergeUsers {
 	private final static int USER_ID_DELETE = -1;
 	private final static int USER_ID_KEEP = -2;
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		var context = new SpringApplicationBuilder(Application.class)
-                .web(WebApplicationType.NONE)
-                .run(args);
-        var txManager = context.getBean(ClimbingTransactionManager.class);
-        txManager.executeInTransaction(() -> {
-			try {
-				var c = txManager.getConnection();
-				// guestbook
-				try (PreparedStatement ps = c.prepareStatement("UPDATE guestbook SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// media
-				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				try (PreparedStatement ps = c.prepareStatement("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// media_user
-				try (PreparedStatement ps = c.prepareStatement("UPDATE media_user SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// fa
-				try (PreparedStatement ps = c.prepareStatement("UPDATE fa SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// fa_aid_user
-				try (PreparedStatement ps = c.prepareStatement("UPDATE fa_aid_user SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// tick
-				try (PreparedStatement ps = c.prepareStatement("UPDATE tick SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// user_email
-				try (PreparedStatement ps = c.prepareStatement("UPDATE user_email SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// user_login
-				try (PreparedStatement ps = c.prepareStatement("UPDATE user_login SET user_id=? WHERE user_id=?")) {
-					ps.setInt(1, USER_ID_KEEP);
-					ps.setInt(2, USER_ID_DELETE);
-					ps.execute();
-				}
-				// user
-				try (PreparedStatement ps = c.prepareStatement("DELETE FROM user WHERE id=?")) {
-					ps.setInt(1, USER_ID_DELETE);
-					ps.execute();
-				}
-			} catch (SQLException e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
+				.web(WebApplicationType.NONE)
+				.run(args);
+
+		var jdbcClient = context.getBean(JdbcClient.class);
+		var transactionTemplate = context.getBean(TransactionTemplate.class);
+
+		transactionTemplate.executeWithoutResult(_ -> {
+			// guestbook
+			jdbcClient.sql("UPDATE guestbook SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// media
+			jdbcClient.sql("UPDATE media SET photographer_user_id=? WHERE photographer_user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			jdbcClient.sql("UPDATE media SET uploader_user_id=? WHERE uploader_user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			jdbcClient.sql("UPDATE media SET deleted_user_id=? WHERE deleted_user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// media_user
+			jdbcClient.sql("UPDATE media_user SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// fa
+			jdbcClient.sql("UPDATE fa SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// fa_aid_user
+			jdbcClient.sql("UPDATE fa_aid_user SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// tick
+			jdbcClient.sql("UPDATE tick SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// user_email
+			jdbcClient.sql("UPDATE user_email SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// user_login
+			jdbcClient.sql("UPDATE user_login SET user_id=? WHERE user_id=?").params(USER_ID_KEEP, USER_ID_DELETE).update();
+			// user
+			jdbcClient.sql("DELETE FROM user WHERE id=?").param(USER_ID_DELETE).update();
 		});
 	}
 }

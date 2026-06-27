@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
-import java.sql.SQLException;
 import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -20,14 +19,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.buldreinfo.controller.AreasController;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.model.Area;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class AreasResourceTest extends BaseResourceTest {
 	@Autowired private AreasController tester;
 	@Autowired private AreaRepository areaRepo;
 
 	@Test
-	public void testGetArea() throws Exception {
+	public void testGetArea() {
 		var r = tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_AREA_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
@@ -38,7 +36,7 @@ public class AreasResourceTest extends BaseResourceTest {
 	}
 
 	@Test
-	public void testGetAreaDifferentRegion() throws Exception {
+	public void testGetAreaDifferentRegion() {
 		var r = tester.getAreas(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_AREA_ID);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> area = assertInstanceOf(Collection.class, r.getBody());
@@ -49,28 +47,22 @@ public class AreasResourceTest extends BaseResourceTest {
 	}
 
 	@Test
-	public void testGetAreaHidden() throws Exception {
+	public void testGetAreaHidden() {
 		assertThrows(NoSuchElementException.class, () -> {
 			tester.getAreas(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_AREA_ID);
 		});
 
 		var setup = getSetup(Region.buldreinfo);
-		txManager.executeInTransaction(() -> {
-			try {
-				assertThrows(NoSuchElementException.class, () -> 
-				areaRepo.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false));
+		assertThrows(NoSuchElementException.class, () -> 
+		areaRepo.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false));
 
-				Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
-				assertNotNull(a);
-				assertFalse(a.name() == null || a.name().isBlank());
-			} catch (SQLException | JsonProcessingException e) {
-				throw new RuntimeException(e);
-			}
-		});
+		Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
+		assertNotNull(a);
+		assertFalse(a.name() == null || a.name().isBlank());
 	}
 
 	@Test
-	public void testGetAreas() throws Exception {
+	public void testGetAreas() {
 		var r = tester.getAreas(getRequest(Region.buldreinfo), 0);
 		assertEquals(OK, r.getStatusCode());
 		Collection<?> areas = assertInstanceOf(Collection.class, r.getBody());

@@ -29,13 +29,13 @@ public class VideoService {
 		this.imageService = imageService;
 	}
 
-	public void extractThumbnail(int idMedia, Path src, int thumbnailSeconds) throws Exception {
+	public void extractThumbnail(int idMedia, Path src, int thumbnailSeconds) throws IOException, InterruptedException {
 		var start = System.nanoTime();
 		Path tempThumb = Files.createTempFile("thumb-" + idMedia, ".jpg");
 		try {
 			String seekFlag = thumbnailSeconds < 0 ? "-sseof" : "-ss";
 			String[] cmd = {FFMPEG_DEFAULT, "-y", "-nostdin", seekFlag, String.valueOf(thumbnailSeconds), "-i", src.toString(), 
-							"-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
+					"-t", "00:00:01", "-r", "1", "-f", "mjpeg", tempThumb.toString()};
 			runCommand(cmd);
 			if (Files.exists(tempThumb) && Files.size(tempThumb) > 0) {
 				BufferedImage b = ImageIO.read(tempThumb.toFile());
@@ -53,7 +53,7 @@ public class VideoService {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}ms", idMedia, src, thumbnailSeconds, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 	}
 
-	public void processVideo(int idMedia, int thumbnailSeconds) throws Exception {
+	public void processVideo(int idMedia, int thumbnailSeconds) throws IOException {
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
 		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
@@ -89,11 +89,18 @@ public class VideoService {
 			if (needsThumb) {
 				extractThumbnail(idMedia, tempOriginal, thumbnailSeconds);
 			}
+		} catch (Exception e) {
+			// Log the error here or let the ExceptionHandler catch it
+			throw new RuntimeException("Video processing failed for id=" + idMedia, e);
 		} finally {
-			Files.deleteIfExists(tempOriginal);
+			try {
+				Files.deleteIfExists(tempOriginal);
+			} catch (IOException e) {
+				logger.error("Finalize failed, count not delete " + tempOriginal.toString(), e);
+			}
 		}
 	}
-	
+
 	private void generateMp4(String ffmpegPath, Path src, Path dst) throws IOException, InterruptedException {
 		logger.info("Generating MP4: {} -> {}", src, dst);
 		String[] cmd = {ffmpegPath, "-y", "-nostdin", "-i", src.toString(),

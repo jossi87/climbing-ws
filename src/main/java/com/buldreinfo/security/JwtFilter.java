@@ -17,7 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -31,13 +30,11 @@ public class JwtFilter extends OncePerRequestFilter {
 	private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of("user-agent", "x-forwarded-for", "x-real-ip", "cf-connecting-ip", "accept-language", "origin", "referer");
 	private static final Set<String> REDACTED_HEADER_NAMES = Set.of(OpenApiConstants.AUTH_HEADER.toLowerCase(Locale.ROOT), "cookie", "set-cookie", "x-api-key");
 	private final ObjectMapper objectMapper;
-	private final ClimbingTransactionManager txManager;
 	private final RegionRepository regionRepo;
 	private final TokenService tokenService;
 
-	public JwtFilter(ObjectMapper objectMapper, ClimbingTransactionManager txManager, TokenService tokenService, RegionRepository regionRepo) {
+	public JwtFilter(ObjectMapper objectMapper, TokenService tokenService, RegionRepository regionRepo) {
 		this.objectMapper = objectMapper;
-		this.txManager = txManager;
 		this.tokenService = tokenService;
 		this.regionRepo = regionRepo;
 	}
@@ -78,19 +75,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
 		if (accessToken != null && !accessToken.isBlank()) {
 			try {
-				txManager.executeInTransaction(() -> {
-					Setup setup = regionRepo.getSetups().stream()
-							.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
-							.findFirst()
-							.orElseThrow(() -> new RuntimeException("Setup not found for domain: " + request.getServerName()));
+				Setup setup = regionRepo.getSetups().stream()
+						.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
+						.findFirst()
+						.orElseThrow(() -> new RuntimeException("Setup not found for domain: " + request.getServerName()));
 
-					String headerJson = objectMapper.writeValueAsString(getHeaders(request));
-					tokenService.processAuthentication(accessToken, setup, headerJson)
-					.ifPresent(userId -> {
-						UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
-						SecurityContextHolder.getContext().setAuthentication(auth);
-					});
-					return null;
+				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
+				tokenService.processAuthentication(accessToken, setup, headerJson)
+				.ifPresent(userId -> {
+					UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+					SecurityContextHolder.getContext().setAuthentication(auth);
 				});
 			} catch (Exception e) {
 				logger.error("JWT Authentication failed", e);

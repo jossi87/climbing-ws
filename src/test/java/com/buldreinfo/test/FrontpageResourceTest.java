@@ -12,7 +12,7 @@ public class FrontpageResourceTest extends BaseResourceTest {
 	@Autowired private FrontpageController tester;
 
 	@Test
-	public void testGetFrontpage() throws Exception {
+	public void testGetFrontpage() {
 		var r = tester.getFrontpage(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}

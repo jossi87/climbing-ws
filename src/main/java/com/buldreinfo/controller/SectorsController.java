@@ -17,10 +17,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
@@ -41,7 +40,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Sectors")
 @RestController
 @RequestMapping("/sectors")
-public class SectorsController extends BaseController {
+public class SectorsController {
+	private final RequestContext requestContext;
 	private static final Logger logger = LogManager.getLogger();
 	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
@@ -49,15 +49,13 @@ public class SectorsController extends BaseController {
 	private final HierarchyRepository hierarchyRepo;
 	private final SectorRepository sectorRepo;
 
-	public SectorsController(
+	public SectorsController(RequestContext requestContext,
 			ObjectMapper objectMapper,
 			StorageManager storage,
-			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			HierarchyRepository hierarchyRepo,
-			RegionRepository regionRepo,
 			SectorRepository sectorRepo) {
-		super(txManager, regionRepo);
+		this.requestContext = requestContext;
 		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
@@ -74,43 +72,43 @@ public class SectorsController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Sector> getSectors(HttpServletRequest request,
-			@Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
+			@Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			return sectorRepo.getSector(ctx.authUserId(), ctx.setup().isBouldering(), ctx.setup(), id, shouldUpdateHits);
-		}));
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(sectorRepo.getSector(authUserId, setup.isBouldering(), setup, id, shouldUpdateHits));
 	}
 
 	@Operation(summary = "Get sector PDF by id", responses = {
-	        @ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE)}),
-	        @ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE)}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-	public ResponseEntity<StreamingResponseBody> getSectorsPdf(HttpServletRequest request, @Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) throws Exception {
-	    if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
-	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
-	        final Sector sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), id, shouldUpdateHits);
-	        final var gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), 0, id);
-	        final Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), sector.areaId(), shouldUpdateHits);
-	        return (StreamingResponseBody) output -> {
-	            try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
-	                generator.writeArea(ctx.setup(), area, gradeDistribution, List.of(sector));
-	            } catch (Exception e) {
-	                logger.error(e.getMessage(), e);
-	                throw new RuntimeException(e.getMessage(), e);
-	            }
-	        };
-	    });
-	    return ResponseEntity.ok()
-	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"sector.pdf\"")
-	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-	            .contentType(MediaType.APPLICATION_PDF)
-	            .body(stream);
+	public ResponseEntity<StreamingResponseBody> getSectorsPdf(HttpServletRequest request, @Parameter(description = "Sector id", required = true) @RequestParam(name = "id") int id) {
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		final Sector sector = sectorRepo.getSector(authUserId, false, setup, id, shouldUpdateHits);
+		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
+		final Area area = areaRepo.getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
+		StreamingResponseBody stream = output -> {
+			try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
+				generator.writeArea(setup, area, gradeDistribution, List.of(sector));
+			} catch (Exception e) {
+				logger.error(e.getMessage(), e);
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		};
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"sector.pdf\"")
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(stream);
 	}
 
 	@Operation(summary = "Update sector", responses = {
@@ -122,10 +120,11 @@ public class SectorsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Redirect> postSectors(HttpServletRequest request, @RequestBody Sector s) throws Exception {
+	public ResponseEntity<Redirect> postSectors(HttpServletRequest request, @RequestBody Sector s) {
 		if (s == null || s.name() == null || s.name().strip().isEmpty()) throw new ValidationFailedException("Sector name invalid");
 		if (s.areaId() <= 0) throw new ValidationFailedException("Invalid areaId=" + s.areaId());
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> sectorRepo.setSector(ctx.authUserId(), ctx.setup(), s)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(sectorRepo.setSector(authUserId, setup, s));
 	}
 }

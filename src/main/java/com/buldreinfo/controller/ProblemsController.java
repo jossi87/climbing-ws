@@ -18,10 +18,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Problem;
@@ -44,8 +43,9 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Problems")
 @RestController
 @RequestMapping("/problems")
-public class ProblemsController extends BaseController {
+public class ProblemsController {
 	private static final Logger logger = LogManager.getLogger();
+	private final RequestContext requestContext;
 	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final AreaRepository areaRepo;
@@ -53,16 +53,14 @@ public class ProblemsController extends BaseController {
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 
-	public ProblemsController(
+	public ProblemsController(RequestContext requestContext,
 			ObjectMapper objectMapper,
 			StorageManager storage,
-			ClimbingTransactionManager txManager,
 			AreaRepository areaRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
-			RegionRepository regionRepo,
 			SectorRepository sectorRepo) {
-		super(txManager, regionRepo);
+		this.requestContext = requestContext;
 		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
@@ -81,44 +79,44 @@ public class ProblemsController extends BaseController {
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Problem> getProblems(HttpServletRequest request,
 			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id,
-			@Parameter(description = "Include hidden media") @RequestParam(name = "showHiddenMedia", defaultValue = "false") boolean showHiddenMedia) throws Exception {
+			@Parameter(description = "Include hidden media") @RequestParam(name = "showHiddenMedia", defaultValue = "false") boolean showHiddenMedia) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			return problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, showHiddenMedia, shouldUpdateHits);
-		}));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		return ResponseEntity.ok(problemRepo.getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits));
 	}
 
 	@Operation(summary = "Get problem PDF by id", responses = {
-	        @ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-	        @ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-	        @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
 	public ResponseEntity<StreamingResponseBody> getProblemsPdf(HttpServletRequest request, 
-	        @Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) throws Exception {
-	    if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-	    StreamingResponseBody stream = executeContextualTask(request, ctx -> {
-	        boolean shouldUpdateHits = isHitTrackingEnabled(request);
-	        final var problem = problemRepo.getProblem(ctx.authUserId(), ctx.setup(), id, false, shouldUpdateHits);
-	        final var area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), problem.areaId(), shouldUpdateHits);
-	        final var sector = sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), problem.sectorId(), shouldUpdateHits);
-	        return (StreamingResponseBody) output -> {
-	            try (var generator = new PdfGenerator(objectMapper, storage, output)) {
-	                generator.writeProblem(ctx.setup(), area, sector, problem);
-	            } catch (Exception e) {
-	                logger.error(e.getMessage(), e);
-	                throw new RuntimeException(e.getMessage(), e);
-	            }
-	        };
-	    });
-	    return ResponseEntity.ok()
-	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"problem.pdf\"")
-	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-	            .contentType(MediaType.APPLICATION_PDF)
-	            .body(stream);
+			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) {
+		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		final var problem = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
+		final var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
+		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+		StreamingResponseBody stream = output -> {
+			try (var generator = new PdfGenerator(objectMapper, storage, output)) {
+				generator.writeProblem(setup, area, sector, problem);
+			} catch (Exception e) {
+				logger.error(e.getMessage(), e);
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		};
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"problem.pdf\"")
+				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(stream);
 	}
 
 	@Operation(summary = "Search for problem", responses = {
@@ -129,9 +127,11 @@ public class ProblemsController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<List<ProblemSearchResult>> getProblemsSearch(HttpServletRequest request,
-			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) throws Exception {
+			@Parameter(description = "Search keyword", required = true) @RequestParam(name = "value") String value) {
 		if (value == null || value.isBlank()) throw new ValidationFailedException("Search keyword is required");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.getProblemsSearch(ctx.authUserId(), ctx.setup(), value)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(problemRepo.getProblemsSearch(authUserId, setup, value));
 	}
 
 	@Operation(summary = "Update problem", responses = {
@@ -143,26 +143,24 @@ public class ProblemsController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Redirect> postProblems(HttpServletRequest request, @RequestBody Problem p) throws Exception {
+	public ResponseEntity<Redirect> postProblems(HttpServletRequest request, @RequestBody Problem p) {
 		if (p == null || p.name() == null || p.name().strip().isEmpty()) throw new ValidationFailedException("Problem name invalid");
 		if (p.sectorId() <= 0) throw new ValidationFailedException("Invalid sectorId=" + p.sectorId());
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> problemRepo.setProblem(ctx.authUserId(), ctx.setup(), p)));
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(problemRepo.setProblem(authUserId, setup, p));
 	}
 
 	@PostMapping(value = "/svg")
-	public ResponseEntity<Void> postProblemsSvg(HttpServletRequest request,
-			@RequestParam(name = "problemId") int problemId,
+	public ResponseEntity<Void> postProblemsSvg(@RequestParam(name = "problemId") int problemId,
 			@RequestParam(name = "pitch") int pitch,
 			@RequestParam(name = "mediaId") int mediaId,
-			@RequestBody Svg svg) throws Exception {
+			@RequestBody Svg svg) {
 		if (problemId <= 0) throw new ValidationFailedException("Invalid problemId=" + problemId);
 		if (mediaId <= 0) throw new ValidationFailedException("Invalid mediaId=" + mediaId);
 		if (svg == null) throw new ValidationFailedException("Svg payload missing");
-		executeContextualTask(request, ctx -> {
-			mediaRepo.upsertSvg(ctx.authUserId(), problemId, pitch, mediaId, svg);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaRepo.upsertSvg(authUserId, problemId, pitch, mediaId, svg);
 		return ResponseEntity.ok().build();
 	}
 }

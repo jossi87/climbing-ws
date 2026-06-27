@@ -19,37 +19,37 @@ public class InteractionResourceTest extends BaseResourceTest {
 	@Autowired private InteractionController tester;
 
 	@Test
-	public void testGetDangerous() throws Exception {
+	public void testGetDangerous() {
 		var r = tester.getDangerous(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
-	public void testGetRestrictions() throws Exception {
+	public void testGetRestrictions() {
 		var r = tester.getRestrictions(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
-	public void testGetTicks() throws Exception {
+	public void testGetTicks() {
 		var r = tester.getTicks(getRequest(Region.buldreinfo), 1);
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(Ticks.class, r.getBody());
 	}
 
 	@Test
-	public void testGetTop() throws Exception {
-		var r1 = tester.getTop(getRequest(Region.brattelinjer), 2738, 0); // Dale
+	public void testGetTop() {
+		var r1 = tester.getTop(2738, 0); // Dale
 		assertEquals(OK, r1.getStatusCode());
 		assertInstanceOf(Top.class, r1.getBody());
 
-		var r2 = tester.getTop(getRequest(Region.brattelinjer), 0, 2857); // Dale / Hovedveggen
+		var r2 = tester.getTop(0, 2857); // Dale / Hovedveggen
 		assertEquals(OK, r2.getStatusCode());
 		assertInstanceOf(Top.class, r2.getBody());
 	}
 
 	@Test
-	public void testPostSearch() throws Exception {
+	public void testPostSearch() {
 		var r1 = tester.postSearch(getRequest(Region.brattelinjer), new SearchRequest("rock'n roll"));
 		assertEquals(OK, r1.getStatusCode());
 		List<?> res1 = assertInstanceOf(List.class, r1.getBody());

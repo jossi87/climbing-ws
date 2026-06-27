@@ -2,6 +2,8 @@ package com.buldreinfo.model;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -25,38 +27,43 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 	}
 	public enum Association{ AREAS, GUESTBOOK, PROBLEMS, SECTORS, TRAILS, USER_AVATAR }
 
-	public static Media fromResultSet(ObjectMapper objectMapper, ResultSet rst, Optional<Integer> authUserId) throws SQLException, JsonProcessingException {
-		MediaIdentity identity = new MediaIdentity(
-				rst.getInt("id"), rst.getLong("version_stamp"), rst.getInt("focus_x"), 
-				rst.getInt("focus_y"), rst.getString("media_primary_color_hex")
-				);
+	public static Media fromResultSet(ObjectMapper objectMapper, ResultSet rs, Optional<Integer> authUserId) throws SQLException {
+		try {
+			MediaIdentity identity = new MediaIdentity(
+					rs.getInt("id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), 
+					rs.getInt("focus_y"), rs.getString("media_primary_color_hex")
+					);
 
-		int photographerId = rst.getInt("photographer_id");
-		User photographer = (photographerId > 0) ? User.from(photographerId, rst.getString("photographer_name")) : null;
+			int photographerId = rs.getInt("photographer_id");
+			User photographer = (photographerId > 0) ? User.from(photographerId, rs.getString("photographer_name")) : null;
 
-		List<User> taggedUsers = parseAndSort(rst, "tagged_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())));
-		List<MediaArea> areas = parseAndSort(rst, "areas_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())));
-		List<MediaSector> sectors = parseAndSort(rst, "sectors_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(MediaSector::sectorName, Comparator.nullsLast(Comparator.naturalOrder())));
-		List<MediaProblem> problems = parseAndSort(rst, "problems_json", objectMapper, new TypeReference<>() {}, 
-				Comparator.comparingLong(MediaProblem::milliseconds).thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())));
-		List<MediaTrail> trails = parseAndSort(rst, "trails_json", objectMapper, new TypeReference<>() {}, Comparator.comparingInt(MediaTrail::trailId));
-		List<Svg> svgsList = parseAndSort(rst, "svgs_table_json", objectMapper, new TypeReference<>() {}, null);
+			List<User> taggedUsers = parseAndSort(rs, "tagged_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(User::name, Comparator.nullsLast(Comparator.naturalOrder())));
+			List<MediaArea> areas = parseAndSort(rs, "areas_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(MediaArea::areaName, Comparator.nullsLast(Comparator.naturalOrder())));
+			List<MediaSector> sectors = parseAndSort(rs, "sectors_json", objectMapper, new TypeReference<>() {}, Comparator.comparing(MediaSector::sectorName, Comparator.nullsLast(Comparator.naturalOrder())));
+			List<MediaProblem> problems = parseAndSort(rs, "problems_json", objectMapper, new TypeReference<>() {}, 
+					Comparator.comparingLong(MediaProblem::milliseconds).thenComparing(MediaProblem::problemName, Comparator.nullsLast(Comparator.naturalOrder())));
+			List<MediaTrail> trails = parseAndSort(rs, "trails_json", objectMapper, new TypeReference<>() {}, Comparator.comparingInt(MediaTrail::trailId));
+			List<Svg> svgsList = parseAndSort(rs, "svgs_table_json", objectMapper, new TypeReference<>() {}, null);
 
-		return new Media(identity, rst.getInt("uploader_user_id") == authUserId.orElse(0), 
-				rst.getInt("width"), rst.getInt("height"), rst.getBoolean("is_movie"), rst.getBoolean("is_360"),
-				rst.getString("date_created"), rst.getString("date_taken"), 
-				photographer, taggedUsers, rst.getString("description"),
-				parseSvgElements(rst.getString("svgs_json"), objectMapper), 0, svgsList, rst.getString("embed_url"), 
-				rst.getInt("thumbnail_seconds"), false, areas, sectors, problems, trails, rst.getInt("guestbook_id"), 0
-				);
+			return new Media(identity, rs.getInt("uploader_user_id") == authUserId.orElse(0), 
+					rs.getInt("width"), rs.getInt("height"), rs.getBoolean("is_movie"), rs.getBoolean("is_360"),
+					formatLocalDate(rs.getObject("date_created", LocalDateTime.class)),
+					formatLocalDate(rs.getObject("date_taken", LocalDateTime.class)), 
+					photographer, taggedUsers, rs.getString("description"),
+					parseSvgElements(rs.getString("svgs_json"), objectMapper), 0, svgsList, rs.getString("embed_url"), 
+					rs.getInt("thumbnail_seconds"), false, areas, sectors, problems, trails, rs.getInt("guestbook_id"), 0
+					);
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("Failed to map Media from ResultSet", e);
+		}
 	}
 
 	private static <T> List<T> parseAndSort(ResultSet rst, String column, ObjectMapper mapper, TypeReference<List<T>> type, Comparator<? super T> comparator) throws SQLException, JsonProcessingException {
-	    String json = rst.getString(column);
-	    if (json == null || json.isBlank()) return List.of();
-	    List<T> result = new ArrayList<>(mapper.readValue(json, type));
-	    if (comparator != null) result.sort(comparator);
-	    return result;
+		String json = rst.getString(column);
+		if (json == null || json.isBlank()) return List.of();
+		List<T> result = new ArrayList<>(mapper.readValue(json, type));
+		if (comparator != null) result.sort(comparator);
+		return result;
 	}
 
 	private static List<MediaSvgElement> parseSvgElements(String json, ObjectMapper mapper) throws JsonProcessingException {
@@ -105,5 +112,9 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			throw new IllegalArgumentException("Media must be associated with exactly one entity type. Found: " + associationCount);
 		}
 		return activeAssociation;
+	}
+	
+	private static String formatLocalDate(LocalDateTime dt) {
+	    return dt == null ? null : dt.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
 	}
 }

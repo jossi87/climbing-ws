@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
 
-import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -25,7 +24,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 	@Autowired private SectorRepository sectorRepo;
 
 	@Test
-	public void testGetSector() throws Exception {
+	public void testGetSector() {
 		var r = tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_SECTOR_ID_VISIBLE);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
@@ -35,7 +34,7 @@ public class SectorsResourceTest extends BaseResourceTest {
 	}
 
 	@Test
-	public void testGetSectorDifferentRegion() throws Exception {
+	public void testGetSectorDifferentRegion() {
 		var r = tester.getSectors(getRequest(Region.brattelinjer), BRATTELINJER_DIFFERENT_REGION_SECTOR_ID);
 		assertEquals(OK, r.getStatusCode());
 		Sector s = assertInstanceOf(Sector.class, r.getBody());
@@ -44,23 +43,16 @@ public class SectorsResourceTest extends BaseResourceTest {
 	}
 
 	@Test
-	public void testGetSectorHidden() throws Exception {
+	public void testGetSectorHidden() {
 		assertThrows(NoSuchElementException.class, () -> {
 			tester.getSectors(getRequest(Region.buldreinfo), BULDREINFO_HIDDEN_SECTOR_ID);
 		});
 
 		var setup = getSetup(Region.buldreinfo);
-		txManager.executeInTransaction(() -> {
-			assertThrows(NoSuchElementException.class, () -> 
-			sectorRepo.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false));
-
-			try {
-				Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
-				assertNotNull(s);
-				assertFalse(s.name() == null || s.name().isBlank());
-			} catch (SQLException e) {
-				throw new RuntimeException(e);
-			}
-		});
+		assertThrows(NoSuchElementException.class, () -> 
+		sectorRepo.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false));
+		Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+		assertNotNull(s);
+		assertFalse(s.name() == null || s.name().isBlank());
 	}
 }

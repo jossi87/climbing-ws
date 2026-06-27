@@ -1,6 +1,7 @@
 package com.buldreinfo.pdf;
 
 import java.awt.Color;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openpdf.text.Anchor;
+import org.openpdf.text.BadElementException;
 import org.openpdf.text.Chunk;
 import org.openpdf.text.Document;
 import org.openpdf.text.Element;
@@ -201,250 +204,258 @@ public class PdfGenerator implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		document.close();
 	}
 
-	public void writeArea(Setup setup, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) throws Exception {
-		mediaIdProcessed.clear();
-		pageEvent.setHeaderText(area.name());
-		document.add(new Paragraph(area.name(), FONT_H1));
-		writeMapArea(area, sectors);
+	public void writeArea(Setup setup, Area area, Collection<GradeDistribution> gradeDistribution, List<Sector> sectors) {
+		try {
+			mediaIdProcessed.clear();
+			pageEvent.setHeaderText(area.name());
+			document.add(new Paragraph(area.name(), FONT_H1));
+			writeMapArea(area, sectors);
 
-		PdfPTable info = new PdfPTable(new float[]{1.5f, 8.5f});
-		info.setWidthPercentage(100);
-		info.setSpacingBefore(15f);
-		info.setSpacingAfter(15f);
+			PdfPTable info = new PdfPTable(new float[]{1.5f, 8.5f});
+			info.setWidthPercentage(100);
+			info.setSpacingBefore(15f);
+			info.setSpacingAfter(15f);
 
-		info.addCell(createKeyCell("Generated"));
-		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
+			info.addCell(createKeyCell("Generated"));
+			info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String areaUrl = setup.url() + "/area/" + area.id();
-		info.addCell(createKeyCell("URL"));
-		Anchor anchor = new Anchor(areaUrl, FONT_LINK);
-		anchor.setReference(areaUrl);
-		PdfPCell urlCell = new PdfPCell(anchor);
-		urlCell.setBorder(Rectangle.BOTTOM);
-		urlCell.setBorderColor(Color.LIGHT_GRAY);
-		urlCell.setPadding(6f);
-		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
-		info.addCell(urlCell);
+			String areaUrl = setup.url() + "/area/" + area.id();
+			info.addCell(createKeyCell("URL"));
+			Anchor anchor = new Anchor(areaUrl, FONT_LINK);
+			anchor.setReference(areaUrl);
+			PdfPCell urlCell = new PdfPCell(anchor);
+			urlCell.setBorder(Rectangle.BOTTOM);
+			urlCell.setBorderColor(Color.LIGHT_GRAY);
+			urlCell.setPadding(6f);
+			urlCell.setVerticalAlignment(Element.ALIGN_TOP);
+			info.addCell(urlCell);
 
-		if ((area.accessClosed() != null && !area.accessClosed().isBlank()) || (area.accessInfo() != null && !area.accessInfo().isBlank()) || (area.comment() != null && !area.comment().isBlank())) {
-			StringBuilder areaInfo = new StringBuilder();
-			if (area.accessClosed() != null && !area.accessClosed().isBlank()) {
-				areaInfo.append("Access closed: ").append(area.accessClosed());
-			}
-			if (area.accessInfo() != null && !area.accessInfo().isBlank()) {
-				if (areaInfo.length() > 0) {
-					areaInfo.append("\n");
+			if ((area.accessClosed() != null && !area.accessClosed().isBlank()) || (area.accessInfo() != null && !area.accessInfo().isBlank()) || (area.comment() != null && !area.comment().isBlank())) {
+				StringBuilder areaInfo = new StringBuilder();
+				if (area.accessClosed() != null && !area.accessClosed().isBlank()) {
+					areaInfo.append("Access closed: ").append(area.accessClosed());
 				}
-				areaInfo.append("Access info: ").append(area.accessInfo());
-			}
-			if (area.comment() != null && !area.comment().isBlank()) {
-				if (areaInfo.length() > 0) {
-					areaInfo.append("\n");
+				if (area.accessInfo() != null && !area.accessInfo().isBlank()) {
+					if (areaInfo.length() > 0) {
+						areaInfo.append("\n");
+					}
+					areaInfo.append("Access info: ").append(area.accessInfo());
 				}
-				areaInfo.append(area.comment());
+				if (area.comment() != null && !area.comment().isBlank()) {
+					if (areaInfo.length() > 0) {
+						areaInfo.append("\n");
+					}
+					areaInfo.append(area.comment());
+				}
+				info.addCell(createKeyCell("Description"));
+				info.addCell(createValueCell(areaInfo.toString()));
 			}
-			info.addCell(createKeyCell("Description"));
-			info.addCell(createValueCell(areaInfo.toString()));
-		}
 
-		if (info.getRows().size() > 0) {
-			document.add(info);
-		}
+			if (info.getRows().size() > 0) {
+				document.add(info);
+			}
 
-		if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-			byte[] png = GradeDistributionGenerator.write(gradeDistribution);
-			Image img = Image.getInstance(png);
-			img.scaleToFit(150, 150);
-			document.add(img);
-		}
+			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
+				byte[] png = GradeDistributionGenerator.write(gradeDistribution);
+				Image img = Image.getInstance(png);
+				img.scaleToFit(150, 150);
+				document.add(img);
+			}
 
-		if (area.media() != null && !area.media().isEmpty()) {
-			writeMediaGrid(area.media(), 0, 3, 600);
-		}
+			if (area.media() != null && !area.media().isEmpty()) {
+				writeMediaGrid(area.media(), 0, 3, 600);
+			}
 
-		writeSectors(setup, sectors);
+			writeSectors(setup, sectors);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	public void writeProblem(Setup setup, Area area, Sector sector, Problem problem) throws Exception {
-		mediaIdProcessed.clear();
+	public void writeProblem(Setup setup, Area area, Sector sector, Problem problem) {
+		try {
+			mediaIdProcessed.clear();
 
-		String headerTitle = String.format("%s / %s / #%d %s [%s]", area.name(), sector.name(), problem.nr(), problem.name(), problem.grade());
-		pageEvent.setHeaderText(headerTitle);
+			String headerTitle = String.format("%s / %s / #%d %s [%s]", area.name(), sector.name(), problem.nr(), problem.name(), problem.grade());
+			pageEvent.setHeaderText(headerTitle);
 
-		document.add(new Paragraph(headerTitle, FONT_H1));
-		writeMapProblem(area, sector, problem);
+			document.add(new Paragraph(headerTitle, FONT_H1));
+			writeMapProblem(area, sector, problem);
 
-		PdfPTable info = new PdfPTable(new float[]{1.5f, 8.5f});
-		info.setWidthPercentage(100);
-		info.setSpacingBefore(15f);
-		info.setSpacingAfter(15f);
+			PdfPTable info = new PdfPTable(new float[]{1.5f, 8.5f});
+			info.setWidthPercentage(100);
+			info.setSpacingBefore(15f);
+			info.setSpacingAfter(15f);
 
-		info.addCell(createKeyCell("Generated"));
-		info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
+			info.addCell(createKeyCell("Generated"));
+			info.addCell(createValueCell(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
 
-		String problemUrl = setup.url() + "/problem/" + problem.id();
-		info.addCell(createKeyCell("URL"));
-		Anchor anchor = new Anchor(problemUrl, FONT_LINK);
-		anchor.setReference(problemUrl);
-		PdfPCell urlCell = new PdfPCell(anchor);
-		urlCell.setBorder(Rectangle.BOTTOM);
-		urlCell.setBorderColor(Color.LIGHT_GRAY);
-		urlCell.setPadding(6f);
-		urlCell.setVerticalAlignment(Element.ALIGN_TOP);
-		info.addCell(urlCell);
+			String problemUrl = setup.url() + "/problem/" + problem.id();
+			info.addCell(createKeyCell("URL"));
+			Anchor anchor = new Anchor(problemUrl, FONT_LINK);
+			anchor.setReference(problemUrl);
+			PdfPCell urlCell = new PdfPCell(anchor);
+			urlCell.setBorder(Rectangle.BOTTOM);
+			urlCell.setBorderColor(Color.LIGHT_GRAY);
+			urlCell.setPadding(6f);
+			urlCell.setVerticalAlignment(Element.ALIGN_TOP);
+			info.addCell(urlCell);
 
-		StringBuilder areaInfo = new StringBuilder();
-		if (area.accessClosed() != null && !area.accessClosed().isEmpty()) {
-			areaInfo.append("Access closed: ").append(area.accessClosed());
-		}
-		if (area.accessInfo() != null && !area.accessInfo().isEmpty()) {
-			if (areaInfo.length() > 0) areaInfo.append("\n");
-			areaInfo.append("Access info: ").append(area.accessInfo());
-		}
-		if (area.comment() != null && !area.comment().isEmpty()) {
-			if (areaInfo.length() > 0) areaInfo.append("\n");
-			areaInfo.append(area.comment());
-		}
-		if (!areaInfo.isEmpty()) {
-			info.addCell(createKeyCell("Area"));
-			info.addCell(createValueCell(areaInfo.toString()));
-		}
-
-		StringBuilder sectorInfo = new StringBuilder();
-		if (sector.accessClosed() != null && !sector.accessClosed().isEmpty()) {
-			sectorInfo.append("Access closed: ").append(sector.accessClosed());
-		}
-		if (sector.accessInfo() != null && !sector.accessInfo().isEmpty()) {
-			if (sectorInfo.length() > 0) sectorInfo.append("\n");
-			sectorInfo.append("Access info: ").append(sector.accessInfo());
-		}
-		if (sector.comment() != null && !sector.comment().isEmpty()) {
-			if (sectorInfo.length() > 0) sectorInfo.append("\n");
-			sectorInfo.append(sector.comment());
-		}
-		if (!sectorInfo.isEmpty()) {
-			info.addCell(createKeyCell("Sector"));
-			info.addCell(createValueCell(sectorInfo.toString()));
-		}
-
-		if (problem.faAid() != null) {
-			String aide = problem.faAid().users().stream().map(User::name).collect(Collectors.joining(", "));
-			info.addCell(createKeyCell("FA (Aid)"));
-			info.addCell(createValueCell(aide + " (" + problem.faAid().dateHr() + ")"));
-		}
-
-		String fa = problem.fa().stream().map(User::name).collect(Collectors.joining(", "));
-		if (!fa.isEmpty()) {
-			info.addCell(createKeyCell("First Ascent"));
-			info.addCell(createValueCell(fa + " (" + problem.faDateHr() + ")"));
-		}
-
-		if (problem.comment() != null && !problem.comment().isEmpty()) {
-			info.addCell(createKeyCell("Description"));
-			info.addCell(createValueCell(problem.comment()));
-		}
-		if (problem.lengthMeter() != 0) {
-			info.addCell(createKeyCell("Length"));
-			info.addCell(createValueCell(problem.lengthMeter() + "m"));
-		}
-		document.add(info);
-
-		List<Media> combinedMedia = new ArrayList<>();
-		if (area.media() != null) combinedMedia.addAll(area.media());
-		if (sector.media() != null) combinedMedia.addAll(sector.media());
-		if (sector.trails() != null) {
-			for (var trail : sector.trails()) {
-				if (trail.media() != null) {
-					combinedMedia.addAll(trail.media());
-				}
+			StringBuilder areaInfo = new StringBuilder();
+			if (area.accessClosed() != null && !area.accessClosed().isEmpty()) {
+				areaInfo.append("Access closed: ").append(area.accessClosed());
 			}
-		}
-		if (problem.media() != null) {
-			for (Media m : problem.media()) {
-				boolean isPitchMedia = m.svgs() != null && m.svgs().stream().anyMatch(s -> s.problemId() == problem.id() && s.pitch() > 0);
-				if (!isPitchMedia) {
-					combinedMedia.add(m);
-				}
+			if (area.accessInfo() != null && !area.accessInfo().isEmpty()) {
+				if (areaInfo.length() > 0) areaInfo.append("\n");
+				areaInfo.append("Access info: ").append(area.accessInfo());
 			}
-		}
-		writeMediaGrid(combinedMedia, problem.id(), 3, 600);
+			if (area.comment() != null && !area.comment().isEmpty()) {
+				if (areaInfo.length() > 0) areaInfo.append("\n");
+				areaInfo.append(area.comment());
+			}
+			if (!areaInfo.isEmpty()) {
+				info.addCell(createKeyCell("Area"));
+				info.addCell(createValueCell(areaInfo.toString()));
+			}
 
-		if (problem.sections() != null && !problem.sections().isEmpty()) {
-			PdfOutline rootOutline = writer.getRootOutline();
-			List<CompletableFuture<Void>> preFlightFutures = new ArrayList<>();
-			for (ProblemSection section : problem.sections()) {
-				for (Media m : problem.media()) {
-					if (m.svgs() == null) continue;
-					List<Svg> pitchSvgs = m.svgs().stream()
-							.filter(s -> s.problemId() == problem.id() && s.pitch() == section.nr())
-							.collect(Collectors.toList());
-					
-					if (!pitchSvgs.isEmpty()) {
-						String cacheKey = section.nr() + "_" + m.identity().id();
-						preFlightFutures.add(CompletableFuture.supplyAsync(() -> {
-							PdfMediaScaler.MediaRegion reg = null;
-							try {
-								reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
-							} catch (Exception e) {
-								logger.warn(e.getMessage(), e);
-							}
-							return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.id(), section.nr());
-						}).thenAccept(bytes -> {
-							if (bytes != null) {
-								synchronized(preRenderedPitchAssets) {
-									preRenderedPitchAssets.put(cacheKey, bytes);
-								}
-							}
-						}));
+			StringBuilder sectorInfo = new StringBuilder();
+			if (sector.accessClosed() != null && !sector.accessClosed().isEmpty()) {
+				sectorInfo.append("Access closed: ").append(sector.accessClosed());
+			}
+			if (sector.accessInfo() != null && !sector.accessInfo().isEmpty()) {
+				if (sectorInfo.length() > 0) sectorInfo.append("\n");
+				sectorInfo.append("Access info: ").append(sector.accessInfo());
+			}
+			if (sector.comment() != null && !sector.comment().isEmpty()) {
+				if (sectorInfo.length() > 0) sectorInfo.append("\n");
+				sectorInfo.append(sector.comment());
+			}
+			if (!sectorInfo.isEmpty()) {
+				info.addCell(createKeyCell("Sector"));
+				info.addCell(createValueCell(sectorInfo.toString()));
+			}
+
+			if (problem.faAid() != null) {
+				String aide = problem.faAid().users().stream().map(User::name).collect(Collectors.joining(", "));
+				info.addCell(createKeyCell("FA (Aid)"));
+				info.addCell(createValueCell(aide + " (" + problem.faAid().dateHr() + ")"));
+			}
+
+			String fa = problem.fa().stream().map(User::name).collect(Collectors.joining(", "));
+			if (!fa.isEmpty()) {
+				info.addCell(createKeyCell("First Ascent"));
+				info.addCell(createValueCell(fa + " (" + problem.faDateHr() + ")"));
+			}
+
+			if (problem.comment() != null && !problem.comment().isEmpty()) {
+				info.addCell(createKeyCell("Description"));
+				info.addCell(createValueCell(problem.comment()));
+			}
+			if (problem.lengthMeter() != 0) {
+				info.addCell(createKeyCell("Length"));
+				info.addCell(createValueCell(problem.lengthMeter() + "m"));
+			}
+			document.add(info);
+
+			List<Media> combinedMedia = new ArrayList<>();
+			if (area.media() != null) combinedMedia.addAll(area.media());
+			if (sector.media() != null) combinedMedia.addAll(sector.media());
+			if (sector.trails() != null) {
+				for (var trail : sector.trails()) {
+					if (trail.media() != null) {
+						combinedMedia.addAll(trail.media());
 					}
 				}
 			}
-			try {
-				CompletableFuture.allOf(preFlightFutures.toArray(new CompletableFuture[0])).get();
-			} catch (Exception e) {
-				logger.error("Error during multi-pitch parallel execution pre-flight", e);
+			if (problem.media() != null) {
+				for (Media m : problem.media()) {
+					boolean isPitchMedia = m.svgs() != null && m.svgs().stream().anyMatch(s -> s.problemId() == problem.id() && s.pitch() > 0);
+					if (!isPitchMedia) {
+						combinedMedia.add(m);
+					}
+				}
 			}
+			writeMediaGrid(combinedMedia, problem.id(), 3, 600);
 
-			for (ProblemSection section : problem.sections()) {
-				PdfPTable pitchWrapper = new PdfPTable(1);
-				pitchWrapper.setWidthPercentage(100);
-				pitchWrapper.setSpacingBefore(10f);
+			if (problem.sections() != null && !problem.sections().isEmpty()) {
+				PdfOutline rootOutline = writer.getRootOutline();
+				List<CompletableFuture<Void>> preFlightFutures = new ArrayList<>();
+				for (ProblemSection section : problem.sections()) {
+					for (Media m : problem.media()) {
+						if (m.svgs() == null) continue;
+						List<Svg> pitchSvgs = m.svgs().stream()
+								.filter(s -> s.problemId() == problem.id() && s.pitch() == section.nr())
+								.collect(Collectors.toList());
 
-				PdfPCell pitchCell = new PdfPCell();
-				pitchCell.setBorder(Rectangle.LEFT);
-				pitchCell.setBorderWidthLeft(1.5f);
-				pitchCell.setBorderColorLeft(Color.LIGHT_GRAY);
-				pitchCell.setPaddingLeft(10f);
-				pitchCell.setPaddingBottom(10f);
-				pitchCell.setBorderWidthRight(0);
-				pitchCell.setBorderWidthTop(0);
-				pitchCell.setBorderWidthBottom(0);
+						if (!pitchSvgs.isEmpty()) {
+							String cacheKey = section.nr() + "_" + m.identity().id();
+							preFlightFutures.add(CompletableFuture.supplyAsync(() -> {
+								PdfMediaScaler.MediaRegion reg = null;
+								try {
+									reg = PdfMediaScaler.calculateMediaRegion(pitchSvgs.get(0).path(), m.width(), m.height());
+								} catch (Exception e) {
+									logger.warn(e.getMessage(), e);
+								}
+								return safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), reg, 1200, problem.id(), section.nr());
+							}).thenAccept(bytes -> {
+								if (bytes != null) {
+									synchronized(preRenderedPitchAssets) {
+										preRenderedPitchAssets.put(cacheKey, bytes);
+									}
+								}
+							}));
+						}
+					}
+				}
+				try {
+					CompletableFuture.allOf(preFlightFutures.toArray(new CompletableFuture[0])).get();
+				} catch (Exception e) {
+					logger.error("Error during multi-pitch parallel execution pre-flight", e);
+				}
 
-				Paragraph p = new Paragraph(8);
+				for (ProblemSection section : problem.sections()) {
+					PdfPTable pitchWrapper = new PdfPTable(1);
+					pitchWrapper.setWidthPercentage(100);
+					pitchWrapper.setSpacingBefore(10f);
 
-				String destName = "pitch_" + problem.id() + "_" + section.nr();
-				Chunk pitchTitle = new Chunk("Pitch " + section.nr() + " (" + section.grade() + "): ", FONT_BOLD);
-				pitchTitle.setLocalDestination(destName);
-				p.add(pitchTitle);
+					PdfPCell pitchCell = new PdfPCell();
+					pitchCell.setBorder(Rectangle.LEFT);
+					pitchCell.setBorderWidthLeft(1.5f);
+					pitchCell.setBorderColorLeft(Color.LIGHT_GRAY);
+					pitchCell.setPaddingLeft(10f);
+					pitchCell.setPaddingBottom(10f);
+					pitchCell.setBorderWidthRight(0);
+					pitchCell.setBorderWidthTop(0);
+					pitchCell.setBorderWidthBottom(0);
 
-		p.add(new Chunk(section.description() == null ? "" : section.description(), FONT_REG));
-				pitchCell.addElement(p);
+					Paragraph p = new Paragraph(8);
 
-				new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), "Pitch " + section.nr());
+					String destName = "pitch_" + problem.id() + "_" + section.nr();
+					Chunk pitchTitle = new Chunk("Pitch " + section.nr() + " (" + section.grade() + "): ", FONT_BOLD);
+					pitchTitle.setLocalDestination(destName);
+					p.add(pitchTitle);
 
-				PdfPTable grid = createPitchGrid(problem, section);
-				pitchCell.addElement(grid);
+					p.add(new Chunk(section.description() == null ? "" : section.description(), FONT_REG));
+					pitchCell.addElement(p);
 
-				pitchWrapper.addCell(pitchCell);
-				document.add(pitchWrapper);
+					new PdfOutline(rootOutline, PdfAction.gotoLocalPage(destName, false), "Pitch " + section.nr());
+
+					PdfPTable grid = createPitchGrid(problem, section);
+					pitchCell.addElement(grid);
+
+					pitchWrapper.addCell(pitchCell);
+					document.add(pitchWrapper);
+				}
+				preRenderedPitchAssets.clear();
 			}
-			preRenderedPitchAssets.clear();
+			writeTicksAndComments(problem);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
-		writeTicksAndComments(problem);
 	}
 
 	private void addDummyCell(PdfPTable table) {
@@ -511,7 +522,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void appendStarIcons(Phrase phrase, double stars) throws Exception {
+	private void appendStarIcons(Phrase phrase, double stars) throws BadElementException, IOException {
 		for (int i = 0; i < 3; i++) {
 			Image star = Image.getInstance(PdfGenerator.class.getResource(stars >= i + 1 ? "filled-star.png" : (stars >= i + 0.5 ? "star-half-empty.png" : "star.png")));
 			star.scaleAbsolute(IMAGE_STAR_SIZE, IMAGE_STAR_SIZE);
@@ -529,85 +540,85 @@ public class PdfGenerator implements AutoCloseable {
 		return cell;
 	}
 
-	private PdfPTable createPitchGrid(Problem problem, ProblemSection section) throws Exception {
-	    int cols = 3;
-	    PdfPTable mainTable = new PdfPTable(cols);
-	    mainTable.setWidthPercentage(100);
-	    mainTable.setSpacingBefore(5f);
+	private PdfPTable createPitchGrid(Problem problem, ProblemSection section) throws InterruptedException, ExecutionException {
+		int cols = 3;
+		PdfPTable mainTable = new PdfPTable(cols);
+		mainTable.setWidthPercentage(100);
+		mainTable.setSpacingBefore(5f);
 
-	    List<PdfPTable> columnTables = new ArrayList<>();
-	    for (int i = 0; i < cols; i++) {
-	        PdfPTable colTable = new PdfPTable(1);
-	        colTable.setWidthPercentage(100);
-	        columnTables.add(colTable);
-	    }
+		List<PdfPTable> columnTables = new ArrayList<>();
+		for (int i = 0; i < cols; i++) {
+			PdfPTable colTable = new PdfPTable(1);
+			colTable.setWidthPercentage(100);
+			columnTables.add(colTable);
+		}
 
-	    int[] colCounts = new int[cols];
-	    int imageIndex = 0;
+		int[] colCounts = new int[cols];
+		int imageIndex = 0;
 
-	    for (Media m : problem.media()) {
-	        if (m.svgs() == null) continue;
-	        String cacheKey = section.nr() + "_" + m.identity().id();
-	        byte[] data = preRenderedPitchAssets.get(cacheKey);
-	        
-	        if (data != null) {
-	            int targetCol = imageIndex % cols;
-	            addImageCell(columnTables.get(targetCol), data, "");
-	            colCounts[targetCol]++;
-	            imageIndex++;
-	        }
-	    }
+		for (Media m : problem.media()) {
+			if (m.svgs() == null) continue;
+			String cacheKey = section.nr() + "_" + m.identity().id();
+			byte[] data = preRenderedPitchAssets.get(cacheKey);
 
-	    if (section.media() != null) {
-	        List<CompletableFuture<byte[]>> sectionFutures = new ArrayList<>();
-	        List<Media> toProcess = new ArrayList<>();
-	        for (Media m : section.media()) {
-	            if (!mediaIdProcessed.contains(m.identity().id())) {
-	                toProcess.add(m);
-	                
-	                boolean hasOverlays = (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty()) || (m.svgs() != null && !m.svgs().isEmpty());
-	                
-	                if (hasOverlays) {
-	                    sectionFutures.add(CompletableFuture.supplyAsync(() -> 
-	                        safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), null, 600, 0, 0)
-	                    ));
-	                } else {
-	                    sectionFutures.add(CompletableFuture.supplyAsync(() -> {
-	                        try {
-	                            String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
-	                            return storage.downloadBytes(s3Key);
-	                        } catch (Exception e) {
-	                            logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
-	                            return null;
-	                        }
-	                    }));
-	                }
-	                mediaIdProcessed.add(m.identity().id());
-	            }
-	        }
-	        for (int i = 0; i < sectionFutures.size(); i++) {
-	            byte[] data = sectionFutures.get(i).get();
-	            if (data != null) {
-	                int targetCol = imageIndex % cols;
-	                addImageCell(columnTables.get(targetCol), data, toProcess.get(i).description());
-	                colCounts[targetCol]++;
-	                imageIndex++;
-	            }
-	        }
-	    }
+			if (data != null) {
+				int targetCol = imageIndex % cols;
+				addImageCell(columnTables.get(targetCol), data, "");
+				colCounts[targetCol]++;
+				imageIndex++;
+			}
+		}
 
-	    for (int i = 0; i < cols; i++) {
-	        PdfPTable colTable = columnTables.get(i);
-	        if (colCounts[i] == 0) addDummyCell(colTable);
+		if (section.media() != null) {
+			List<CompletableFuture<byte[]>> sectionFutures = new ArrayList<>();
+			List<Media> toProcess = new ArrayList<>();
+			for (Media m : section.media()) {
+				if (!mediaIdProcessed.contains(m.identity().id())) {
+					toProcess.add(m);
 
-	        PdfPCell colWrapper = new PdfPCell();
-	        colWrapper.setBorder(Rectangle.NO_BORDER);
-	        colWrapper.setPadding(0);
-	        colWrapper.addElement(colTable);
-	        mainTable.addCell(colWrapper);
-	    }
+					boolean hasOverlays = (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty()) || (m.svgs() != null && !m.svgs().isEmpty());
 
-	    return mainTable;
+					if (hasOverlays) {
+						sectionFutures.add(CompletableFuture.supplyAsync(() -> 
+						safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), m.svgs(), null, 600, 0, 0)
+								));
+					} else {
+						sectionFutures.add(CompletableFuture.supplyAsync(() -> {
+							try {
+								String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
+								return storage.downloadBytes(s3Key);
+							} catch (Exception e) {
+								logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
+								return null;
+							}
+						}));
+					}
+					mediaIdProcessed.add(m.identity().id());
+				}
+			}
+			for (int i = 0; i < sectionFutures.size(); i++) {
+				byte[] data = sectionFutures.get(i).get();
+				if (data != null) {
+					int targetCol = imageIndex % cols;
+					addImageCell(columnTables.get(targetCol), data, toProcess.get(i).description());
+					colCounts[targetCol]++;
+					imageIndex++;
+				}
+			}
+		}
+
+		for (int i = 0; i < cols; i++) {
+			PdfPTable colTable = columnTables.get(i);
+			if (colCounts[i] == 0) addDummyCell(colTable);
+
+			PdfPCell colWrapper = new PdfPCell();
+			colWrapper.setBorder(Rectangle.NO_BORDER);
+			colWrapper.setPadding(0);
+			colWrapper.addElement(colTable);
+			mainTable.addCell(colWrapper);
+		}
+
+		return mainTable;
 	}
 
 	private PdfPCell createValueCell(String text) {
@@ -775,7 +786,7 @@ public class PdfGenerator implements AutoCloseable {
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.problems()) {
 				if (p.coordinates() != null && p.coordinates().getLatitude() > 0 && p.coordinates().getLongitude() > 0) {
-				if (p.rock() != null) {
+					if (p.rock() != null) {
 						problemsWithCoordinatesGroupedByRock.computeIfAbsent(p.rock(), _ -> new ArrayList<>()).add(p);
 					}
 					else {
@@ -824,90 +835,90 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeMediaGrid(List<Media> media, int probId, int cols, int targetWidth) throws Exception {
-	    if (media == null || media.isEmpty()) {
-	        return;
-	    }
+	private void writeMediaGrid(List<Media> media, int probId, int cols, int targetWidth) throws InterruptedException, ExecutionException, BadElementException, IOException {
+		if (media == null || media.isEmpty()) {
+			return;
+		}
 
-	    PdfPTable mainTable = new PdfPTable(cols);
-	    mainTable.setWidthPercentage(100);
+		PdfPTable mainTable = new PdfPTable(cols);
+		mainTable.setWidthPercentage(100);
 
-	    List<PdfPTable> columnTables = new ArrayList<>();
-	    for (int i = 0; i < cols; i++) {
-	        PdfPTable colTable = new PdfPTable(1);
-	        colTable.setWidthPercentage(100);
-	        columnTables.add(colTable);
-	    }
+		List<PdfPTable> columnTables = new ArrayList<>();
+		for (int i = 0; i < cols; i++) {
+			PdfPTable colTable = new PdfPTable(1);
+			colTable.setWidthPercentage(100);
+			columnTables.add(colTable);
+		}
 
-	    List<CompletableFuture<byte[]>> futures = new ArrayList<>();
-	    List<Media> toProcess = new ArrayList<>();
-	    
-	    for (Media m : media) {
-	        if (mediaIdProcessed.contains(m.identity().id())) continue;
-	        toProcess.add(m);
-	        
-	        List<Svg> svgs = m.svgs() != null 
-	            ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) 
-	            : null;
-	            
-	        boolean hasOverlays = (svgs != null && !svgs.isEmpty()) || (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty());
+		List<CompletableFuture<byte[]>> futures = new ArrayList<>();
+		List<Media> toProcess = new ArrayList<>();
 
-	        if (hasOverlays) {
-	            futures.add(CompletableFuture.supplyAsync(() -> 
-	                safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)
-	            ));
-	        } else {
-	            futures.add(CompletableFuture.supplyAsync(() -> {
-	                try {
-	                    String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
-	                    return storage.downloadBytes(s3Key);
-	                } catch (Exception e) {
-	                    logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
-	                    return null;
-	                }
-	            }));
-	        }
-	        mediaIdProcessed.add(m.identity().id());
-	    }
+		for (Media m : media) {
+			if (mediaIdProcessed.contains(m.identity().id())) continue;
+			toProcess.add(m);
 
-	    int[] colCounts = new int[cols];
-	    int imageIndex = 0;
+			List<Svg> svgs = m.svgs() != null 
+					? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) 
+							: null;
 
-	    for (int i = 0; i < futures.size(); i++) {
-	        byte[] data = futures.get(i).get();
-	        if (data != null) {
-	            Media m = toProcess.get(i);
-	            long uniqueProblems = (m.svgs() == null || probId != 0) ? 0 : m.svgs().stream().map(Svg::problemId).distinct().count();
-	            if (uniqueProblems > 5) {
-	                Image img = Image.getInstance(data);
-	                PdfPCell cell = new PdfPCell(img, true);
-	                cell.setBorder(Rectangle.NO_BORDER);
-	                cell.setColspan(cols);
-	                mainTable.addCell(cell);
-	            } else {
-	                int targetCol = imageIndex % cols;
-	                addImageCell(columnTables.get(targetCol), data, m.description());
-	                colCounts[targetCol]++;
-	                imageIndex++;
-	            }
-	        }
-	    }
+			boolean hasOverlays = (svgs != null && !svgs.isEmpty()) || (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty());
 
-	    for (int i = 0; i < cols; i++) {
-	        PdfPTable colTable = columnTables.get(i);
-	        if (colCounts[i] == 0) addDummyCell(colTable);
+			if (hasOverlays) {
+				futures.add(CompletableFuture.supplyAsync(() -> 
+				safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)
+						));
+			} else {
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());
+						return storage.downloadBytes(s3Key);
+					} catch (Exception e) {
+						logger.error("Failed to fetch image via storage manager for media " + m.identity().id(), e);
+						return null;
+					}
+				}));
+			}
+			mediaIdProcessed.add(m.identity().id());
+		}
 
-	        PdfPCell colWrapper = new PdfPCell();
-	        colWrapper.setBorder(Rectangle.NO_BORDER);
-	        colWrapper.setPadding(0);
-	        colWrapper.addElement(colTable);
-	        mainTable.addCell(colWrapper);
-	    }
+		int[] colCounts = new int[cols];
+		int imageIndex = 0;
 
-	    document.add(mainTable);
+		for (int i = 0; i < futures.size(); i++) {
+			byte[] data = futures.get(i).get();
+			if (data != null) {
+				Media m = toProcess.get(i);
+				long uniqueProblems = (m.svgs() == null || probId != 0) ? 0 : m.svgs().stream().map(Svg::problemId).distinct().count();
+				if (uniqueProblems > 5) {
+					Image img = Image.getInstance(data);
+					PdfPCell cell = new PdfPCell(img, true);
+					cell.setBorder(Rectangle.NO_BORDER);
+					cell.setColspan(cols);
+					mainTable.addCell(cell);
+				} else {
+					int targetCol = imageIndex % cols;
+					addImageCell(columnTables.get(targetCol), data, m.description());
+					colCounts[targetCol]++;
+					imageIndex++;
+				}
+			}
+		}
+
+		for (int i = 0; i < cols; i++) {
+			PdfPTable colTable = columnTables.get(i);
+			if (colCounts[i] == 0) addDummyCell(colTable);
+
+			PdfPCell colWrapper = new PdfPCell();
+			colWrapper.setBorder(Rectangle.NO_BORDER);
+			colWrapper.setPadding(0);
+			colWrapper.addElement(colTable);
+			mainTable.addCell(colWrapper);
+		}
+
+		document.add(mainTable);
 	}
 
-	private void writeSectors(Setup setup, List<Sector> sectors) throws Exception {
+	private void writeSectors(Setup setup, List<Sector> sectors) throws BadElementException, IOException, InterruptedException, ExecutionException {
 		for (Sector s : sectors) {
 			final boolean showType = s.problems().stream().filter(p -> p.t().subType() != null).findAny().isPresent();
 			document.newPage();
@@ -935,7 +946,7 @@ public class PdfGenerator implements AutoCloseable {
 			addTableCell(table, FONT_BOLD, "Note", null, false);
 
 			for (SectorProblem p : s.problems()) {
-		String description = (p.comment() == null || p.comment().isBlank()) ? null : p.comment();
+				String description = (p.comment() == null || p.comment().isBlank()) ? null : p.comment();
 				if (p.rock() != null && !p.rock().isBlank()) {
 					if (description == null) {
 						description = "Rock: " + p.rock();
@@ -961,24 +972,24 @@ public class PdfGenerator implements AutoCloseable {
 				List<String> parts = new ArrayList<>();
 
 				if (p.faUser() != null && !p.faUser().isEmpty()) {
-				    String faPart = p.faUser();
-				    if (p.faYear() > 0) {
-				        faPart += " (" + p.faYear() + ")";
-				    }
-				    parts.add(faPart);
+					String faPart = p.faUser();
+					if (p.faYear() > 0) {
+						faPart += " (" + p.faYear() + ")";
+					}
+					parts.add(faPart);
 				}
 
 				if (p.ffaUser() != null && !p.ffaUser().isEmpty()) {
-				    String ffaPart = p.ffaUser();
-				    if (p.ffaYear() > 0) {
-				        ffaPart += " (" + p.ffaYear() + ")";
-				    }
-				    
-				    if (!parts.isEmpty()) {
-				        parts.add("FFA: " + ffaPart);
-				    } else {
-				        parts.add(ffaPart);
-				    }
+					String ffaPart = p.ffaUser();
+					if (p.ffaYear() > 0) {
+						ffaPart += " (" + p.ffaYear() + ")";
+					}
+
+					if (!parts.isEmpty()) {
+						parts.add("FFA: " + ffaPart);
+					} else {
+						parts.add(ffaPart);
+					}
 				}
 				String fa = String.join(", ", parts);
 				addTableCell(table, FONT_REG, fa, null, p.ticked());
@@ -1009,7 +1020,7 @@ public class PdfGenerator implements AutoCloseable {
 		}
 	}
 
-	private void writeTicksAndComments(Problem p) throws Exception {
+	private void writeTicksAndComments(Problem p) throws BadElementException, IOException {
 		if (p.ticks() != null && !p.ticks().isEmpty()) {
 			document.add(new Paragraph("Ascents", FONT_H2));
 			PdfPTable table = new PdfPTable(new float[]{1.0f, 1.3f, 4.5f});

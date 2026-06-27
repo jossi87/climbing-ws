@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.service.VegvesenService;
 import com.buldreinfo.service.VegvesenService.Webcam;
@@ -24,20 +22,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Webcam")
 @RestController
 @RequestMapping("/webcams")
-public class WebcamsController extends BaseController {
+public class WebcamsController {
 	private final VegvesenService vegvesenService;
 
-    public WebcamsController(ClimbingTransactionManager txManager, RegionRepository regionRepo, VegvesenService vegvesenService) {
-        super(txManager, regionRepo);
-        this.vegvesenService = vegvesenService;
-    }
+	public WebcamsController(VegvesenService vegvesenService) {
+		this.vegvesenService = vegvesenService;
+	}
 
-    @Operation(summary = "Get webcams", responses = {
-            @ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))}),
-            @ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-    })
-    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<Webcam>> getCameras() throws Exception {
-        return ResponseEntity.ok(vegvesenService.getCameras());
-    }
+	@Operation(summary = "Get webcams", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Webcam.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<List<Webcam>> getCameras() {
+		return ResponseEntity.ok(vegvesenService.getCameras());
+	}
 }

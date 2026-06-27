@@ -1,6 +1,7 @@
 package com.buldreinfo.service;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -13,6 +14,7 @@ import java.util.List;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
@@ -43,26 +45,30 @@ public class VegvesenService {
 		this.appConfig = appConfig;
 	}
 
-	public List<Webcam> getCameras() throws Exception {
-		String encodedAuth = Base64.getEncoder().encodeToString(appConfig.vegvesenAuth().getBytes(StandardCharsets.UTF_8));
-		HttpRequest request = HttpRequest.newBuilder()
-				.uri(URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"))
-				.header("Authorization", "Basic " + encodedAuth)
-				.GET()
-				.build();
-		HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-		if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("HTTP-" + response.statusCode());
-		try (InputStream is = new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8))) {
-			return parseCameras(is);
+	public List<Webcam> getCameras() {
+		try {
+			String encodedAuth = Base64.getEncoder().encodeToString(appConfig.vegvesenAuth().getBytes(StandardCharsets.UTF_8));
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create("https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"))
+					.header("Authorization", "Basic " + encodedAuth)
+					.GET()
+					.build();
+			HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("HTTP-" + response.statusCode());
+			try (InputStream is = new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8))) {
+				return parseCameras(is);
+			}
+		} catch (IOException | XMLStreamException | InterruptedException e) {
+			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 
-	private String getText(XMLEventReader reader) throws Exception {
+	private String getText(XMLEventReader reader) throws XMLStreamException {
 		XMLEvent event = reader.nextEvent();
 		return event.isCharacters() ? event.asCharacters().getData() : "";
 	}
 
-	private List<Webcam> parseCameras(InputStream is) throws Exception {
+	private List<Webcam> parseCameras(InputStream is) throws XMLStreamException {
 		List<Webcam> cameras = new ArrayList<>();
 		XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);

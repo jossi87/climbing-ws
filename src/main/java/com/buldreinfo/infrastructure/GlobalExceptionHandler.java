@@ -1,13 +1,13 @@
 package com.buldreinfo.infrastructure;
 
 import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -25,13 +25,13 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Object> handleException(Throwable e) {
 		Throwable cause = unwrap(e);
 		logger.error("Error occurred: {}", cause.getMessage(), cause);
-		
+
 		return switch (cause) {
 		case IllegalArgumentException iae -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", getBadRequestMessage(iae)));
 		case HttpMessageNotReadableException _ -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Malformed JSON request payload"));
 		case ValidationFailedException vfe -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", vfe.getMessage()));
 		case NoSuchElementException _ -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
-		case SQLException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
+		case DataAccessException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
 		case JsonProcessingException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal JSON processing error"));
 		default -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "An unexpected error occurred"));
 		};
@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<Object> handleNotFound(@SuppressWarnings("unused") NoResourceFoundException ex) {
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "The requested resource was not found."));
 	}
 
 	private String getBadRequestMessage(IllegalArgumentException e) {

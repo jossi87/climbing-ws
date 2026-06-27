@@ -1,6 +1,5 @@
 package com.buldreinfo.controller;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -22,8 +21,8 @@ import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
@@ -46,8 +45,9 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Areas")
 @RestController
 @RequestMapping("/areas")
-public class AreasController extends BaseController {
+public class AreasController {
 	private static final Logger logger = LogManager.getLogger();
+	private final RequestContext requestContext;
 	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
 	private final AreaRepository areaRepo;
@@ -55,15 +55,14 @@ public class AreasController extends BaseController {
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
-	public AreasController(
+	public AreasController(RequestContext requestContext,
 			ObjectMapper objectMapper,
 			StorageManager storage,
-			ClimbingTransactionManager txManager,
 			RegionRepository regionRepo,
 			AreaRepository areaRepo,
 			SectorRepository sectorRepo,
 			HierarchyRepository hierarchyRepo) {
-		super(txManager, regionRepo);
+		this.requestContext = requestContext;
 		this.objectMapper = objectMapper;
 		this.storage = storage;
 		this.areaRepo = areaRepo;
@@ -81,51 +80,43 @@ public class AreasController extends BaseController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Collection<Area>> getAreas(HttpServletRequest request,
-			@Parameter(description = "Area id", required = false) @RequestParam(name = "id", defaultValue = "0") int id) throws Exception {
+			@Parameter(description = "Area id", required = false) @RequestParam(name = "id", defaultValue = "0") int id) {
 		if (id < 0) {
 			throw new ValidationFailedException("Invalid id=" + id);
 		}
-		return executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			var res = id > 0 ? Collections.singleton(areaRepo.getArea(ctx.setup(), ctx.authUserId(), id, shouldUpdateHits)) : areaRepo.getAreaList(ctx.authUserId(), ctx.setup().idRegion());
-			return ResponseEntity.ok(res);
-		});
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+		var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id, shouldUpdateHits)) : areaRepo.getAreaList(authUserId, setup.idRegion());
+		return ResponseEntity.ok(res);
 	}
 
-	@Operation(summary = "Get area PDF by id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request, @Parameter(description = "Area id", required = true) @RequestParam(name = "id") int id) throws Exception {
-		if (id <= 0) {
-			throw new ValidationFailedException("Invalid area id=" + id);
-		}
-		StreamingResponseBody stream = executeContextualTask(request, ctx -> {
-			boolean shouldUpdateHits = isHitTrackingEnabled(request);
-			Area area = areaRepo.getArea(ctx.setup(), ctx.authUserId(), id, shouldUpdateHits);
-			Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(ctx.authUserId(), area.id(), 0);
-			List<Sector> sectors = new ArrayList<>();
-			for (Area.AreaSector sector : area.sectors()) {
-				sectors.add(sectorRepo.getSector(ctx.authUserId(), false, ctx.setup(), sector.id(), shouldUpdateHits));
-			}
-			return (StreamingResponseBody) output -> {
-				try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
-					generator.writeArea(ctx.setup(), area, gradeDistribution, sectors);
-				} catch (Exception e) {
-					logger.error(e.getMessage(), e);
-					throw new RuntimeException(e.getMessage(), e);
-				}
-			};
-		});
-		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"area.pdf\"")
-				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-				.contentType(MediaType.APPLICATION_PDF)
-				.body(stream);
+	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request,  @RequestParam(name = "id") int id) {
+	    if (id <= 0) {
+	        throw new ValidationFailedException("Invalid area id=" + id);
+	    }
+	    var setup = requestContext.getSetup(request);
+	    var authUserId = requestContext.getAuthenticatedUserId();
+	    var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
+	    Area area = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
+	    Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
+	    List<Sector> sectors = area.sectors().stream()
+	            .map(s -> sectorRepo.getSector(authUserId, false, setup, s.id(), shouldUpdateHits))
+	            .toList();
+	    StreamingResponseBody stream = output -> {
+	        try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
+	            generator.writeArea(setup, area, gradeDistribution, sectors);
+	        } catch (Exception e) {
+	            logger.error("PDF generation failed: {}", e.getMessage(), e);
+	            throw new RuntimeException("PDF generation failed", e);
+	        }
+	    };
+	    return ResponseEntity.ok()
+	            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"area.pdf\"")
+	            .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+	            .contentType(MediaType.APPLICATION_PDF)
+	            .body(stream);
 	}
 
 	@Operation(summary = "Update area", responses = {
@@ -137,14 +128,14 @@ public class AreasController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Redirect> postAreas(HttpServletRequest request, @RequestBody Area a) throws Exception {
+	public ResponseEntity<Redirect> postAreas(HttpServletRequest request, @RequestBody Area a) {
 		if (a == null || a.name() == null || a.name().strip().isEmpty()) {
 			throw new ValidationFailedException("Area name is missing or invalid");
 		}
-		return executeContextualTask(request, ctx -> {
-			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());
-			var res = areaRepo.setArea(ctx.setup(), ctx.authUserId(), a);
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+			regionRepo.ensureAdminWriteRegion(setup, authUserId);
+			var res = areaRepo.setArea(setup, authUserId, a);
 			return ResponseEntity.ok(res);
-		});
 	}
 }

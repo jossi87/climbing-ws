@@ -15,26 +15,26 @@ public class MetaResourceTest extends BaseResourceTest {
 	@Autowired private MetaController tester;
 
 	@Test
-	public void testGetMeta() throws Exception {
+	public void testGetMeta() {
 		var r = tester.getMeta(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(Meta.class, r.getBody());
 	}
 
 	@Test
-	public void testGetRobotsTxt() throws Exception {
+	public void testGetRobotsTxt() {
 		var r = tester.getRobotsTxt(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
-	public void testGetSitemapTxt() throws Exception {
+	public void testGetSitemapTxt() {
 		var r = tester.getSitemapTxt(getRequest(Region.brattelinjer));
 		assertEquals(OK, r.getStatusCode());
 	}
 
 	@Test
-	public void testGetToc() throws Exception {
+	public void testGetToc() {
 		var r = tester.getToc(getRequest(Region.buldreinfo));
 		assertEquals(OK, r.getStatusCode());
 		assertInstanceOf(Toc.class, r.getBody());

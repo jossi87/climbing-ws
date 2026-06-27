@@ -8,10 +8,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.Administrator;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +24,12 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Admin")
 @RestController
 @RequestMapping("/administrators")
-public class AdministratorsController extends BaseController {
+public class AdministratorsController {
+	private final RequestContext requestContext;
 	private final UserRepository userRepo;
 
-	public AdministratorsController(ClimbingTransactionManager txManager, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo);
+	public AdministratorsController(RequestContext requestContext, UserRepository userRepo) {
+		this.requestContext = requestContext;
 		this.userRepo = userRepo;
 	}
 
@@ -38,7 +38,8 @@ public class AdministratorsController extends BaseController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Administrator>> getAdministrators(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executePublicTask(request, setup -> userRepo.getAdministrators(setup)));
+	public ResponseEntity<List<Administrator>> getAdministrators(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		return ResponseEntity.ok(userRepo.getAdministrators(setup));
 	}
 }

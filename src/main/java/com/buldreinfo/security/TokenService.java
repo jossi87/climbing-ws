@@ -10,6 +10,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import com.auth0.jwk.InvalidPublicKeyException;
+import com.auth0.jwk.JwkException;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
 import com.auth0.jwt.JWT;
@@ -81,7 +83,7 @@ public class TokenService {
         }
     }
 
-    private Auth0Profile verifyAndLoad(String accessToken) throws Exception {
+    private Auth0Profile verifyAndLoad(String accessToken) throws InvalidPublicKeyException, JwkException {
         DecodedJWT jwt = JWT.decode(accessToken);
         RSAPublicKey publicKey = (RSAPublicKey) jwkProvider.get(jwt.getKeyId()).getPublicKey();
         Algorithm algorithm = Algorithm.RSA256(publicKey, null);

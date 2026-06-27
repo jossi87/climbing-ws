@@ -8,10 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.helpers.GeoHelper;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.service.ElevationService;
 
@@ -22,16 +21,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "Elevation")
 @RestController
 @RequestMapping("/elevation")
-public class ElevationController extends BaseController {
+public class ElevationController {
+	private final RequestContext requestContext;
 	private final ElevationService elevationService;
 
-	public ElevationController(ClimbingTransactionManager txManager, RegionRepository regionRepo, ElevationService elevationService) {
-		super(txManager, regionRepo);
+	public ElevationController(RequestContext requestContext, ElevationService elevationService) {
+		this.requestContext = requestContext;
 		this.elevationService = elevationService;
 	}
 
@@ -43,9 +42,9 @@ public class ElevationController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<String> getElevation(HttpServletRequest request,
+	public ResponseEntity<String> getElevation(
 			@Parameter(description = "Latitude (-90 to 90)", required = true) @RequestParam(name = "latitude") double latitude,
-			@Parameter(description = "Longitude (-180 to 180)", required = true) @RequestParam(name = "longitude") double longitude) throws Exception {
+			@Parameter(description = "Longitude (-180 to 180)", required = true) @RequestParam(name = "longitude") double longitude) {
 
 		if (latitude < -90 || latitude > 90) {
 			throw new ValidationFailedException("Invalid latitude: must be between -90 and 90");
@@ -56,14 +55,11 @@ public class ElevationController extends BaseController {
 		if (latitude == 0.0 && longitude == 0.0) {
 			throw new ValidationFailedException("Invalid coordinates (0,0)");
 		}
-
-		return executeContextualTask(request, ctx -> {
-			if (ctx.authUserId().isEmpty()) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-			}
-
-			int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
-			return ResponseEntity.ok(String.valueOf(elevation));
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		if (authUserId.isEmpty()) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+		}
+		int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
+		return ResponseEntity.ok(String.valueOf(elevation));
 	}
 }

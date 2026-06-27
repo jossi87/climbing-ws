@@ -15,8 +15,8 @@ public class MediaResourceTest extends BaseResourceTest {
 	@Autowired private MediaController tester;
 
 	@Test
-	public void testGetMedia() throws Exception {
-		var r = tester.getMedia(getRequest(Region.buldreinfo), BULDREINFO_MEDIA_ID_WITH_CHAPTERS);
+	public void testGetMedia() {
+		var r = tester.getMedia(BULDREINFO_MEDIA_ID_WITH_CHAPTERS);
 		assertEquals(OK, r.getStatusCode());
 		Media m = assertInstanceOf(Media.class, r.getBody());
 		assertFalse(m.problems().isEmpty());

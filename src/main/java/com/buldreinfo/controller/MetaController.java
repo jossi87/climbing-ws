@@ -1,6 +1,7 @@
 package com.buldreinfo.controller;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -16,8 +17,8 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
@@ -35,15 +36,14 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "Meta")
 @RestController
-public class MetaController extends BaseController {
+public class MetaController {
+	private final RequestContext requestContext;
 	private final HierarchyRepository hierarchyRepo;
-	private final ClimbingTransactionManager txManager;
 	private final UserRepository userRepo;
 	private final RegionRepository regionRepo;
 
-	public MetaController(ClimbingTransactionManager txManager, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo) {
-		super(txManager, regionRepo);
-		this.txManager = txManager;
+	public MetaController(RequestContext requestContext, HierarchyRepository hierarchyRepo, RegionRepository regionRepo, UserRepository userRepo) {
+		this.requestContext = requestContext;
 		this.hierarchyRepo = hierarchyRepo;
 		this.userRepo = userRepo;
 		this.regionRepo = regionRepo;
@@ -56,18 +56,16 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/grade/distribution", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(HttpServletRequest request,
-			@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
-			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector
-			) throws Exception {
+	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
+			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector) {
 		if (idArea < 0 || idSector < 0) {
 			throw new ValidationFailedException("IDs cannot be negative");
 		}
 		if (idArea == 0 && idSector == 0) {
 			throw new ValidationFailedException("Either idArea or idSector must be greater than 0");
 		}
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getGradeDistribution(ctx.authUserId(), idArea, idSector)));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector));
 	}
 
 	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {
@@ -77,9 +75,10 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/graph", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<GradeDistribution>> getGraph(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> 
-		hierarchyRepo.getContentGraph(ctx.authUserId(), ctx.setup())));
+	public ResponseEntity<Collection<GradeDistribution>> getGraph(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getContentGraph(authUserId, setup));
 	}
 
 	@Operation(summary = "Get metadata", responses = {
@@ -89,23 +88,25 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/meta", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Meta> getMeta(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> Meta.from(ctx.setup(), ctx.authUserId(), txManager, userRepo, regionRepo)));
+	public ResponseEntity<Meta> getMeta(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo));
 	}
 
 	@Operation(summary = "Get robots.txt")
 	@GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<String> getRobotsTxt(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executePublicTask(request, setup -> {
-			var lines = List.of("User-agent: *", "Disallow: */pdf", "Sitemap: " + setup.url() + "/sitemap.txt");
-			return String.join("\r\n", lines);
-		}));
+	public ResponseEntity<String> getRobotsTxt(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var lines = List.of("User-agent: *", "Disallow: */pdf", "Sitemap: " + setup.url() + "/sitemap.txt");
+		return ResponseEntity.ok(String.join("\r\n", lines));
 	}
 
 	@Operation(summary = "Get sitemap.txt")
 	@GetMapping(value = "/sitemap.txt", produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<String> getSitemapTxt(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executePublicTask(request, setup -> hierarchyRepo.getSitemapTxt(setup)));
+	public ResponseEntity<String> getSitemapTxt(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		return ResponseEntity.ok(hierarchyRepo.getSitemapTxt(setup));
 	}
 
 	@Operation(summary = "Get table of contents (all problems)", responses = {
@@ -115,8 +116,10 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/toc", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Toc> getToc(HttpServletRequest request) throws Exception {
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> hierarchyRepo.getToc(ctx.authUserId(), ctx.setup())));
+	public ResponseEntity<Toc> getToc(HttpServletRequest request) {
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(hierarchyRepo.getToc(authUserId, setup));
 	}
 
 	@Operation(summary = "Get table of contents as Excel (xlsx)", responses = {
@@ -125,10 +128,12 @@ public class MetaController extends BaseController {
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/toc/xlsx", produces = OpenApiConstants.APPLICATION_XLSX)
-	public ResponseEntity<byte[]> getTocXlsx(HttpServletRequest request) throws Exception {
-		byte[] bytes = executeContextualTask(request, ctx -> {
-			var toc = hierarchyRepo.getToc(ctx.authUserId(), ctx.setup());
-			var pitches = hierarchyRepo.getTocPitches(ctx.authUserId(), ctx.setup());
+	public ResponseEntity<byte[]> getTocXlsx(HttpServletRequest request) {
+		byte[] bytes = null;
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+			var toc = hierarchyRepo.getToc(authUserId, setup);
+			var pitches = hierarchyRepo.getTocPitches(authUserId, setup);
 			try (var workbook = new ExcelWorkbook()) {
 				try (var sheet = workbook.addSheet("TOC")) {
 					for (var r : toc.regions()) {
@@ -148,8 +153,8 @@ public class MetaController extends BaseController {
 									sheet.writeInt("STARTING_ALTITUDE", p.startingAltitude());
 									String type = p.t().type() + (p.t().subType() != null ? " (" + p.t().subType() + ")" : "");
 									sheet.writeString("TYPE", type);
-									if (!ctx.setup().isBouldering()) sheet.writeInt("PITCHES", p.numPitches() > 0 ? p.numPitches() : 1);
-									if (ctx.setup().isBouldering()) {
+									if (!setup.isBouldering()) sheet.writeInt("PITCHES", p.numPitches() > 0 ? p.numPitches() : 1);
+									if (setup.isBouldering()) {
 										sheet.writeString("FA_USER", p.ffaUser());
 										sheet.writeInt("FA_YEAR", p.ffaYear());
 									} else {
@@ -182,10 +187,11 @@ public class MetaController extends BaseController {
 				}
 				try (var os = new ByteArrayOutputStream()) {
 					workbook.write(os);
-					return os.toByteArray();
+					bytes = os.toByteArray();
 				}
+			} catch (IOException e) {
+				throw new RuntimeException(e.getMessage(), e);
 			}
-		});
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)

@@ -6,27 +6,26 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 import javax.imageio.ImageIO;
 
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.imgscalr.Scalr;
+import org.springframework.core.task.TaskExecutor;
 
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.controller.BaseController;
 
 public class ImageSaver {
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 
-	public static void save(StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP) {
-		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, null).execute(storage);
+	public static void save(TaskExecutor taskExecutor, StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, null).execute(taskExecutor, storage);
 	}
 
-	public static void save(StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
-		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, metadata).execute(storage);
+	public static void save(TaskExecutor taskExecutor, StorageManager storage, BufferedImage bufferedImage, String keyOriginalJpg, String keyWebJpg, String keyWebWebP, TiffOutputSet metadata) {
+		new ImageSaver(bufferedImage, keyOriginalJpg, keyWebJpg, keyWebWebP, metadata).execute(taskExecutor, storage);
 	}
 
 	private final BufferedImage bufferedImage;
@@ -59,8 +58,7 @@ public class ImageSaver {
 		return rgbImage;
 	}
 
-	private void execute(StorageManager storage) {
-		Executor executor = BaseController.executor;
+	private void execute(TaskExecutor taskExecutor, StorageManager storage) {
 
 		var originalFuture = CompletableFuture.runAsync(() -> {
 			try {
@@ -77,7 +75,7 @@ public class ImageSaver {
 			} catch (Exception e) {
 				throw new RuntimeException("Original upload failed: " + e.getMessage(), e);
 			}
-		}, executor);
+		}, taskExecutor);
 
 		var webFuture = CompletableFuture.runAsync(() -> {
 			try {
@@ -97,7 +95,7 @@ public class ImageSaver {
 			} catch (Exception e) {
 				throw new RuntimeException("Web upload failed: " + e.getMessage(), e);
 			}
-		}, executor);
+		}, taskExecutor);
 
 		CompletableFuture.allOf(originalFuture, webFuture).join();
 	}

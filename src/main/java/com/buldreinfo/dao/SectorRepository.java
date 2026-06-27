@@ -1,7 +1,5 @@
 package com.buldreinfo.dao;
 
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -21,20 +20,20 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.HitsFormatter;
-import com.buldreinfo.helpers.JdbcUtils;
 import com.buldreinfo.helpers.SectorSort;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.MediaSector;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
@@ -43,26 +42,29 @@ import com.buldreinfo.model.Sector.SectorProblemOrder;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Trail.TrailBuilder;
 import com.buldreinfo.model.Type;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 @Repository
-public class SectorRepository extends BaseRepository {
+public class SectorRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private final ObjectProvider<AreaRepository> areaRepo;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoRepository geoRepo;
 	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
+	private final JdbcClient jdbcClient;
+	private final JdbcTemplate jdbcTemplate;
 	private final ObjectProvider<MediaRepository> mediaRepo;
 	private final ObjectProvider<SectorRepository> sectorRepo;
 
-	public SectorRepository(ClimbingTransactionManager txManager,
+	public SectorRepository(JdbcClient jdbcClient,
+			JdbcTemplate jdbcTemplate,
 			ObjectProvider<AreaRepository> areaRepo,
 			ExternalLinksRepository externalLinksRepo,
 			GeoRepository geoRepo,
 			ObjectProvider<HierarchyRepository> hierarchyRepo,
 			ObjectProvider<MediaRepository> mediaRepo,
 			ObjectProvider<SectorRepository> sectorRepo) {
-		super(txManager);
+		this.jdbcClient = jdbcClient;
+		this.jdbcTemplate = jdbcTemplate;
 		this.areaRepo = areaRepo;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoRepo = geoRepo;
@@ -71,28 +73,22 @@ public class SectorRepository extends BaseRepository {
 		this.sectorRepo = sectorRepo;
 	}
 
-	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) throws SQLException {
+	@Transactional
+	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) {
 		var startNanos = System.nanoTime();
-		var c = txManager.getConnection();
 		if (shouldUpdateHits) {
-			try (var ps = c.prepareStatement("UPDATE sector SET hits=hits+1 WHERE id=?")) {
-				ps.setInt(1, reqId);
-				ps.execute();
-			}
+			jdbcClient.sql("UPDATE sector SET hits=hits+1 WHERE id=?").param(1, reqId).update();
 		}
 
 		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-			var outlineFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.getObject().getSectorOutline(reqId)), executor);
-			var trailsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.getObject().getSectorTrails(authUserId, Collections.singleton(reqId))), executor);
-			var mediaFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> mediaRepo.getObject().getMediaSector(setup, authUserId, reqId, 0, false, 0, 0, 0, false)), executor);
-			var linksFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> externalLinksRepo.getExternalLinks(0, reqId, 0)), executor);
-			var problemsFuture = CompletableFuture.supplyAsync(() -> executeConcurrentTask(() -> sectorRepo.getObject().getSectorProblems(setup, authUserId, 0, reqId)), executor);
+			var outlineFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorOutline(reqId), executor);
+			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorTrails(authUserId, Collections.singleton(reqId)), executor);
+			var mediaFuture = CompletableFuture.supplyAsync(() -> mediaRepo.getObject().getMediaSector(setup, authUserId, reqId, 0, false, false), executor);
+			var linksFuture = CompletableFuture.supplyAsync(() -> externalLinksRepo.getExternalLinks(0, reqId, 0), executor);
+			var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorProblems(setup, authUserId, 0, reqId), executor);
 
-			Sector s = null;
-			try (var ps = c.prepareStatement("""
-					WITH req AS (
-						SELECT ? region_id, ? auth_user_id, ? sector_id
-					)
+			Sector s = jdbcClient.sql("""
+					WITH req AS (SELECT ? region_id, ? auth_user_id, ? sector_id)
 					SELECT a.id area_id, a.locked_admin area_locked_admin, a.locked_superadmin area_locked_superadmin, a.access_info area_access_info, a.access_closed area_access_closed, a.no_dogs_allowed area_no_dogs_allowed, a.sun_from_hour area_sun_from_hour, a.sun_to_hour area_sun_to_hour, a.name area_name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
 					FROM req
 					JOIN sector s ON req.sector_id=s.id
@@ -105,475 +101,300 @@ public class SectorRepository extends BaseRepository {
 					  AND (r.id=req.region_id OR ur.user_id IS NOT NULL)
 					  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 					GROUP BY a.id, a.locked_admin, a.locked_superadmin, a.access_info, a.access_closed, a.no_dogs_allowed, a.sun_from_hour, a.sun_to_hour, a.name, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual, s.hits
-					""")) {
-				ps.setInt(1, setup.idRegion());
-				ps.setInt(2, authUserId.orElse(0));
-				ps.setInt(3, reqId);
-				try (var rst = ps.executeQuery()) {
-					while (rst.next()) {
-						int areaId = rst.getInt("area_id");
-						boolean areaLockedAdmin = rst.getBoolean("area_locked_admin");
-						boolean areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-						String areaAccessInfo = rst.getString("area_access_info");
-						String areaAccessClosed = rst.getString("area_access_closed");
-						boolean areaNoDogsAllowed = rst.getBoolean("area_no_dogs_allowed");
-						int areaSunFromHour = rst.getInt("area_sun_from_hour");
-						int areaSunToHour = rst.getInt("area_sun_to_hour");
-						String areaName = rst.getString("area_name");
-						boolean lockedAdmin = rst.getBoolean("locked_admin");
-						boolean lockedSuperadmin = rst.getBoolean("locked_superadmin");
-						String name = rst.getString("name");
-						String comment = rst.getString("description");
-						String accessInfo = rst.getString("access_info");
-						String accessClosed = rst.getString("access_closed");
-						int sunFromHour = rst.getInt("sun_from_hour");
-						int sunToHour = rst.getInt("sun_to_hour");
-						int idCoordinates = rst.getInt("coordinates_id");
-						Coordinates parking = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-						CompassDirection wallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_calculated"));
-						CompassDirection wallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("compass_direction_id_manual"));
-						String pageViews = HitsFormatter.formatHits(rst.getLong("hits"));
+					""")
+					.params(setup.idRegion(), authUserId.orElse(0), reqId)
+					.query((rs, _) -> {
+						int cid = rs.getInt("coordinates_id");
+						var parking = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+						var mediaRes = mediaFuture.join();
+						var partitioned = Optional.ofNullable(mediaRes).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.sectors().stream().anyMatch(MediaSector::trivia)));
+						return new Sector(null, orderByGrade, rs.getInt("area_id"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), rs.getString("area_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, outlineFuture.join(), geoRepo.getCompassDirection(setup, rs.getInt("compass_direction_id_calculated")), geoRepo.getCompassDirection(setup, rs.getInt("compass_direction_id_manual")), trailsFuture.join().get(reqId), partitioned.get(false), partitioned.get(true), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksFuture.join(), HitsFormatter.formatHits(rs.getLong("hits")));
+					}).optional().orElse(null);
 
-						var allMedia = mediaFuture.join();
-						var partitioned = Optional.ofNullable(allMedia)
-								.orElse(List.of())
-								.stream()
-								.collect(Collectors.partitioningBy(
-										x -> x.sectors().stream().anyMatch(MediaSector::trivia)
-										));
-						List<Media> triviaMedia = partitioned.get(true);
-						List<Media> media = partitioned.get(false);
-
-						s = new Sector(null, orderByGrade, areaId, areaLockedAdmin, areaLockedSuperadmin, areaAccessInfo, areaAccessClosed, areaNoDogsAllowed, areaSunFromHour, areaSunToHour, areaName, reqId, false, lockedAdmin, lockedSuperadmin, name, comment, accessInfo, accessClosed, sunFromHour, sunToHour, parking, outlineFuture.join(), wallDirectionCalculated, wallDirectionManual, trailsFuture.join().get(reqId), media, triviaMedia, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksFuture.join(), pageViews);
-					}
-				}
-			}
 			if (s == null) {
 				try {
-					Redirect res = hierarchyRepo.getObject().getCanonicalUrl(setup, 0, reqId, 0);
+					var res = hierarchyRepo.getObject().getCanonicalUrl(setup, 0, reqId, 0);
 					if (res.redirectUrl() != null && !res.redirectUrl().isBlank()) {
 						return new Sector(res.redirectUrl(), false, 0, false, false, null, null, false, 0, 0, null, 0, false, false, false, null, null, null, null, 0, 0, null, null, null, null, null, null, null, null, null, null, null, null);
 					}
-				} catch (NoSuchElementException _) {
-				}
-			}
-			if (s == null) {
+				} catch (Exception _) {}
 				throw new NoSuchElementException("Could not find sector with id=" + reqId);
 			}
-			try (var ps = c.prepareStatement("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")) {
-				ps.setInt(1, authUserId.orElse(0));
-				ps.setInt(2, s.areaId());
-				try (var rst = ps.executeQuery()) {
-					while (rst.next()) {
-						s.sectors().add(new Sector.SectorJump(rst.getInt("id"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"), rst.getString("name"), rst.getInt("sorting")));
-					}
-				}
-			}
-			if (s.sectors() != null) {
-				s.sectors().sort((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
-			}
-			var problemsMap = problemsFuture.join();
-			var sectorProblems = problemsMap.get(reqId);
-			if (sectorProblems != null) {
-				for (SectorProblem sp : sectorProblems) {
+
+			s.sectors().addAll(
+				    jdbcClient.sql("SELECT s.id, s.locked_admin, s.locked_superadmin, s.name, s.sorting FROM ((area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?) WHERE a.id=? AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) GROUP BY s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.sorting ORDER BY s.sorting, s.name")
+				    .params(authUserId.orElse(0), s.areaId())
+				    .query((rs, _) -> new Sector.SectorJump(
+				            rs.getInt("id"), 
+				            rs.getBoolean("locked_admin"), 
+				            rs.getBoolean("locked_superadmin"), 
+				            rs.getString("name"), 
+				            rs.getInt("sorting")
+				    ))
+				    .list()
+				);
+
+			s.sectors().sort((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()));
+			Optional.ofNullable(problemsFuture.join().get(reqId)).ifPresent(spList -> {
+				for (SectorProblem sp : spList) {
 					s.problems().add(sp);
 					s.problemOrder().add(new Sector.SectorProblemOrder(sp.id(), sp.name(), sp.nr()));
 				}
-			}
-			if (!s.problems().isEmpty() && orderByGrade) {
-				Collections.sort(s.problems(), Comparator.comparing(SectorProblem::gradeWeight).reversed());
-			}
+			});
+
+			if (orderByGrade) s.problems().sort(Comparator.comparing(SectorProblem::gradeWeight).reversed());
 			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, orderByGrade, reqId, shouldUpdateHits, Duration.ofNanos(System.nanoTime() - startNanos));
 			return s;
 		}
 	}
 
-	public Map<Integer, List<Trail>> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) throws SQLException, JsonProcessingException, BeansException {
-		var startNanos = System.nanoTime();
-		var c = txManager.getConnection();
+	@Transactional(readOnly = true)
+	public Map<Integer, List<Trail>> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) {
 		if (sectorIds.isEmpty()) throw new IllegalArgumentException("sectorIds is empty");
+
+		var trailBuilders = new LinkedHashMap<Integer, TrailBuilder>();
+		var sectorToTrailIds = new HashMap<Integer, List<Integer>>();
+
+		var inClause = Collections.nCopies(sectorIds.size(), "?").stream().collect(Collectors.joining(","));
+		jdbcClient.sql("SELECT st.sector_id, t.id, t.is_descent, t.title, t.description FROM sector_trail st JOIN trail t ON st.trail_id = t.id WHERE st.sector_id IN (" + inClause + ") AND t.trash IS NULL ORDER BY t.is_descent, t.title")
+		.params(new ArrayList<>(sectorIds))
+		.query(rs -> {
+			while (rs.next()) {
+				int sid = rs.getInt("sector_id");
+				int tid = rs.getInt("id");
+				var isDescent = rs.getBoolean("is_descent");
+				var title = rs.getString("title");
+				var description = rs.getString("description");
+				sectorToTrailIds.computeIfAbsent(sid, _ -> new ArrayList<>()).add(tid);
+				trailBuilders.computeIfAbsent(tid, id -> new TrailBuilder(id, isDescent, title, description));
+			}
+			return Void.TYPE;
+		});
+
+		if (trailBuilders.isEmpty()) return new HashMap<>();
+
+		var trailIdsList = new ArrayList<>(trailBuilders.keySet());
+		var pathInClause = Collections.nCopies(trailBuilders.size(), "?").stream().collect(Collectors.joining(","));
+		
+		jdbcClient.sql("SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_coordinate tc JOIN coordinates c ON tc.coordinates_id = c.id WHERE tc.trail_id IN (" + pathInClause + ") ORDER BY tc.trail_id, tc.sorting")
+		.params(trailIdsList)
+		.query(rs -> {
+			while (rs.next()) {
+				trailBuilders.get(rs.getInt("trail_id")).path.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")));
+			}
+			return Void.TYPE;
+		});
+
+		jdbcClient.sql("SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_marker tm JOIN coordinates c ON tm.coordinates_id = c.id WHERE tm.trail_id IN (" + pathInClause + ")")
+		.params(trailIdsList)
+		.query(rs -> {
+			while (rs.next()) {
+				trailBuilders.get(rs.getInt("trail_id")).markers.add(new Trail.TrailMarker(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")), rs.getString("label")));
+			}
+			return Void.TYPE;
+		});
+
+		var mediaMap = mediaRepo.getObject().getMediaTrails(authUserId, trailIdsList);
+		var finalTrailsMap = new HashMap<Integer, Trail>();
+		trailBuilders.values().forEach(b -> 
+		finalTrailsMap.put(b.id, Trail.withCalculatedStats(b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, mediaMap.get(b.id), null))
+				);
+
 		Map<Integer, List<Trail>> res = new HashMap<>();
-		String inClause = ",?".repeat(sectorIds.size()).substring(1);
-		Map<Integer, TrailBuilder> trailBuilders = new LinkedHashMap<>();
-		Map<Integer, List<Integer>> sectorToTrailIds = new HashMap<>();
-
-		String trailSql = String.format("""
-				SELECT st.sector_id, t.id, t.is_descent, t.title, t.description 
-				FROM sector_trail st
-				JOIN trail t ON st.trail_id = t.id
-				WHERE st.sector_id IN (%s) AND t.trash IS NULL
-				ORDER BY t.is_descent, t.title
-				""", inClause);
-
-		try (var ps = c.prepareStatement(trailSql)) {
-			int paramIdx = 1;
-			for (int idSector : sectorIds) ps.setInt(paramIdx++, idSector);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int sectorId = rst.getInt("sector_id");
-					int trailId = rst.getInt("id");
-					sectorToTrailIds.computeIfAbsent(sectorId, _ -> new ArrayList<>()).add(trailId);
-					if (!trailBuilders.containsKey(trailId)) {
-						trailBuilders.put(trailId, new TrailBuilder(trailId, rst.getBoolean("is_descent"), rst.getString("title"), rst.getString("description")));
-					}
-				}
+		sectorIds.forEach(sid -> {
+			var tIds = sectorToTrailIds.get(sid);
+			if (tIds != null) {
+				var trails = tIds.stream().map(finalTrailsMap::get).filter(Objects::nonNull).toList();
+				if (!trails.isEmpty()) res.put(sid, trails);
 			}
-		}
-		if (trailBuilders.isEmpty()) return res;
-		String pathInClause = ",?".repeat(trailBuilders.size()).substring(1);
-		String pathSql = String.format("""
-				SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
-				FROM trail_coordinate tc
-				JOIN coordinates c ON tc.coordinates_id = c.id
-				WHERE tc.trail_id IN (%s) 
-				ORDER BY tc.trail_id, tc.sorting
-				""", pathInClause);
+		});
 
-		try (var ps = c.prepareStatement(pathSql)) {
-			int paramIdx = 1;
-			for (int trailId : trailBuilders.keySet()) ps.setInt(paramIdx++, trailId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int trailId = rst.getInt("trail_id");
-					trailBuilders.get(trailId).path.add(new Coordinates(
-							rst.getInt("id"), rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")
-							));
-				}
-			}
-		}
-		String markerSql = String.format("""
-				SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
-				FROM trail_marker tm
-				JOIN coordinates c ON tm.coordinates_id = c.id
-				WHERE tm.trail_id IN (%s)
-				""", pathInClause);
-
-		try (var ps = c.prepareStatement(markerSql)) {
-			int paramIdx = 1;
-			for (int trailId : trailBuilders.keySet()) ps.setInt(paramIdx++, trailId);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int trailId = rst.getInt("trail_id");
-					Coordinates markerCoords = new Coordinates(
-							rst.getInt("id"), rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")
-							);
-					trailBuilders.get(trailId).markers.add(new Trail.TrailMarker(markerCoords, rst.getString("label")));
-				}
-			}
-		}
-
-		Map<Integer, List<Media>> trailsMediaMap = mediaRepo.getObject().getMediaTrails(authUserId, trailBuilders.keySet());
-		Map<Integer, Trail> finalTrailsMap = new HashMap<>();
-		for (TrailBuilder b : trailBuilders.values()) {
-			List<Media> trailMediaList = trailsMediaMap.get(b.id);
-			Trail compiledTrail = Trail.withCalculatedStats(
-					b.id, b.isDescent, false, b.title, b.description, b.path, b.markers, trailMediaList, null
-					);
-			finalTrailsMap.put(b.id, compiledTrail);
-		}
-		for (int sectorId : sectorIds) {
-			var trailIds = sectorToTrailIds.get(sectorId);
-			if (trailIds != null) {
-				var trails = new ArrayList<Trail>();
-				for (int trailId : trailIds) {
-					var trail = finalTrailsMap.get(trailId);
-					if (trail != null) trails.add(trail);
-				}
-				if (!trails.isEmpty()) res.put(sectorId, trails);
-			}
-		}
-		logger.debug("getSectorTrails(sectorIds.size()={}) - res.size()={}, duration={}", sectorIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 
-	public Redirect setSector(Optional<Integer> authUserId, Setup setup, Sector s) throws SQLException, InterruptedException {
-		var c = txManager.getConnection();
-		int idSector = -1;
-		final boolean isLockedAdmin = s.lockedSuperadmin() ? false : s.lockedAdmin();
-		boolean setPermissionRecursive = false;
-		List<Coordinates> allCoordinates = new ArrayList<>();
-		if (s.outline() != null && !s.outline().isEmpty()) {
-			allCoordinates.addAll(s.outline());
-		}
-		if (s.parking() != null) {
-			if (s.parking().getLatitude() == 0 || s.parking().getLongitude() == 0) {
-				s = s.withParking(null);
-			}
-			else {
-				allCoordinates.add(s.parking());
-			}
-		}
-		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoordinates);
+	@Transactional
+	public Redirect setSector(Optional<Integer> authUserId, Setup setup, Sector s) {
+		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
 
+		final boolean isLockedAdmin = !s.lockedSuperadmin() && s.lockedAdmin();
+		boolean setPermissionRecursive = false;
+		List<Coordinates> allCoords = new ArrayList<>();
+
+		if (s.outline() != null && !s.outline().isEmpty()) allCoords.addAll(s.outline());
+		if (s.parking() != null) {
+			if (s.parking().getLatitude() == 0 || s.parking().getLongitude() == 0) s = s.withParking(null);
+			else allCoords.add(s.parking());
+		}
+		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
+
+		int idSector;
 		if (s.id() > 0) {
 			ensureAdminWriteSector(authUserId, s.id());
-			Sector currSector = getSector(authUserId, false, setup, s.id(), false);
-			setPermissionRecursive = currSector.lockedAdmin() != isLockedAdmin || currSector.lockedSuperadmin() != s.lockedSuperadmin();
-			try (var ps = c.prepareStatement("UPDATE sector s, area a, user_region ur SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? AND (ur.admin_write=1 OR ur.superadmin_write=1)")) {
-				ps.setString(1, GlobalFunctions.stripString(s.name()));
-				ps.setString(2, GlobalFunctions.stripString(s.comment()));
-				ps.setString(3, GlobalFunctions.stripString(s.accessInfo()));
-				ps.setString(4, GlobalFunctions.stripString(s.accessClosed()));
-				JdbcUtils.setNullablePositiveDouble(ps, 5, s.sunFromHour());
-				JdbcUtils.setNullablePositiveDouble(ps, 6, s.sunToHour());
-				JdbcUtils.setNullablePositiveInteger(ps, 7, s.parking() == null ? 0 : s.parking().getId());
-				ps.setBoolean(8, isLockedAdmin);
-				ps.setBoolean(9, s.lockedSuperadmin());
-				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
-				JdbcUtils.setNullablePositiveInteger(ps, 10, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
-				JdbcUtils.setNullablePositiveInteger(ps, 11, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
-				ps.setBoolean(12, s.trash());
-				ps.setInt(13, s.trash() ? authUserId.orElseThrow() : 0);
-				ps.setInt(14, s.id());
-				ps.setInt(15, authUserId.orElseThrow());
-				int res = ps.executeUpdate();
-				if (res != 1) {
-					throw new SQLException("Insufficient credentials");
-				}
-			}
+			var curr = getSector(authUserId, false, setup, s.id(), false);
+			setPermissionRecursive = curr.lockedAdmin() != isLockedAdmin || curr.lockedSuperadmin() != s.lockedSuperadmin();
+
+			jdbcClient.sql("""
+					UPDATE sector s, area a, user_region ur 
+					SET s.name=?, s.description=?, s.access_info=?, s.access_closed=?, s.sun_from_hour=?, s.sun_to_hour=?, 
+					    s.parking_coordinates_id=?, s.locked_admin=?, s.locked_superadmin=?, s.compass_direction_id_calculated=?, 
+					    s.compass_direction_id_manual=?, s.trash=CASE WHEN ? THEN NOW() ELSE NULL END, s.trash_by=? 
+					WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? 
+					  AND (ur.admin_write=1 OR ur.superadmin_write=1)
+					""")
+			.params(GlobalFunctions.stripString(s.name()), GlobalFunctions.stripString(s.comment()), 
+					GlobalFunctions.stripString(s.accessInfo()), GlobalFunctions.stripString(s.accessClosed()), 
+					s.sunFromHour(), s.sunToHour(), s.parking() == null ? 0 : s.parking().getId(), 
+							isLockedAdmin, s.lockedSuperadmin(), 
+							Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(0),
+							s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0, 
+									s.trash(), s.trash() ? authUserId.get() : 0, s.id(), authUserId.get())
+			.update();
+
 			idSector = s.id();
+			if (s.problemOrder() != null) setSectorProblemOrder(s.problemOrder());
 
-			if (s.problemOrder() != null) {
-				setSectorProblemOrder(s.problemOrder());
-			}
-
-			String sqlStr = null;
 			if (setPermissionRecursive) {
-				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?";
-				try (var ps = c.prepareStatement(sqlStr)) {
-					ps.setBoolean(1, isLockedAdmin);
-					ps.setBoolean(2, s.lockedSuperadmin());
-					ps.setBoolean(3, isLockedAdmin);
-					ps.setBoolean(4, s.lockedSuperadmin());
-					ps.setInt(5, idSector);
-					ps.execute();
-				}
+				jdbcClient.sql("""
+						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id 
+						SET a.last_updated=now(), s.last_updated=now(), s.locked_admin=?, s.locked_superadmin=?, 
+						    p.last_updated=now(), p.locked_admin=?, p.locked_superadmin=? WHERE s.id=?
+						""")
+				.params(isLockedAdmin, s.lockedSuperadmin(), isLockedAdmin, s.lockedSuperadmin(), idSector)
+				.update();
 			} else {
-				sqlStr = "UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?";
-				try (var ps = c.prepareStatement(sqlStr)) {
-					ps.setInt(1, idSector);
-					ps.execute();
-				}
+				jdbcClient.sql("""
+						UPDATE (area a INNER JOIN sector s ON a.id=s.area_id) LEFT JOIN problem p ON s.id=p.sector_id 
+						SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE s.id=?
+						""")
+				.param(1, idSector)
+				.update();
 			}
 		} else {
 			areaRepo.getObject().ensureAdminWriteArea(authUserId, s.areaId());
-			try (var ps = c.prepareStatement("INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", Statement.RETURN_GENERATED_KEYS)) {
-				ps.setInt(1, s.areaId());
-				ps.setString(2, s.name());
-				ps.setString(3, GlobalFunctions.stripString(s.comment()));
-				ps.setString(4, GlobalFunctions.stripString(s.accessInfo()));
-				ps.setString(5, GlobalFunctions.stripString(s.accessClosed()));
-				JdbcUtils.setNullablePositiveInteger(ps, 6, s.parking() == null ? 0 : s.parking().getId());
-				ps.setBoolean(7, isLockedAdmin);
-				ps.setBoolean(8, s.lockedSuperadmin());
-				CompassDirection calculatedWallDirection = GeoHelper.calculateCompassDirection(setup, s.outline());
-				JdbcUtils.setNullablePositiveInteger(ps, 9, calculatedWallDirection != null ? calculatedWallDirection.id() : 0);
-				JdbcUtils.setNullablePositiveInteger(ps, 10, s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0);
-				ps.executeUpdate();
-				try (var rst = ps.getGeneratedKeys()) {
-					if (rst != null && rst.next()) {
-						idSector = rst.getInt(1);
-					}
-				}
-			}
+			var keyHolder = new GeneratedKeyHolder();
+			jdbcClient.sql("""
+					INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, 
+					locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) 
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+					""")
+			.params(s.areaId(), s.name(), GlobalFunctions.stripString(s.comment()), GlobalFunctions.stripString(s.accessInfo()), 
+					GlobalFunctions.stripString(s.accessClosed()), s.parking() == null ? 0 : s.parking().getId(), 
+							isLockedAdmin, s.lockedSuperadmin(), 
+							Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(0),
+							s.wallDirectionManual() != null ? s.wallDirectionManual().id() : 0)
+			.update(keyHolder, "id");
+			idSector = keyHolder.getKey().intValue();
 		}
-		if (idSector <= 0) throw new IllegalArgumentException("idSector=" + idSector);
 
-		try (var ps = c.prepareStatement("DELETE FROM sector_outline WHERE sector_id=?")) {
-			ps.setInt(1, idSector);
-			ps.execute();
-		}
+		jdbcClient.sql("DELETE FROM sector_outline WHERE sector_id=?").param(1, idSector).update();
 		if (s.outline() != null && !s.outline().isEmpty()) {
-			try (var ps = c.prepareStatement("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")) {
-				int sorting = 0;
-				for (Coordinates coord : s.outline()) {
-					sorting++;
-					ps.setInt(1, idSector);
-					ps.setInt(2, coord.getId());
-					ps.setInt(3, sorting);
-					ps.addBatch();
-				}
-				ps.executeBatch();
+			int[] sorting = {0};
+			for (Coordinates coord : s.outline()) {
+				jdbcClient.sql("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")
+				.params(idSector, coord.getId(), ++sorting[0])
+				.update();
 			}
 		}
 
 		externalLinksRepo.upsertExternalLinks(s.externalLinks(), 0, idSector, 0);
-		Redirect res = null;
-		if (s.trash()) {
-			res = Redirect.fromIdArea(s.areaId());
-		}
-		else {
-			res = Redirect.fromIdSector(idSector);
-		}
-		logger.debug("setSector() - res={}", res);
-		return res;
+		return s.trash() ? Redirect.fromIdArea(s.areaId()) : Redirect.fromIdSector(idSector);
 	}
 
-	public void upsertTrails(Optional<Integer> authUserId, List<Trail> trails) throws SQLException, InterruptedException {
-		var c = txManager.getConnection();
+	@Transactional
+	public void upsertTrails(Optional<Integer> authUserId, List<Trail> trails) {
 		if (trails == null || trails.isEmpty()) return;
+
 		Set<Integer> allSectorsToLock = new TreeSet<>();
 		List<Integer> existingTrailIds = new ArrayList<>();
 		for (Trail t : trails) {
 			if (t.sectors() == null || t.sectors().isEmpty()) throw new IllegalArgumentException("sectors cannot be empty or null");
-			for (var sector : t.sectors()) allSectorsToLock.add(sector.sectorId());
+			t.sectors().forEach(sec -> allSectorsToLock.add(sec.sectorId()));
 			if (t.id() > 0) existingTrailIds.add(t.id());
 		}
+
 		if (!existingTrailIds.isEmpty()) {
 			existingTrailIds.sort(Comparator.naturalOrder());
-			String sql = "SELECT sector_id FROM sector_trail WHERE trail_id = ?";
-			try (var ps = c.prepareStatement(sql)) {
-				for (int trailId : existingTrailIds) {
-					ps.setInt(1, trailId);
-					try (var rst = ps.executeQuery()) {
-						while (rst.next()) allSectorsToLock.add(rst.getInt("sector_id"));
-					}
+			var inClause = Collections.nCopies(existingTrailIds.size(), "?").stream().collect(Collectors.joining(","));
+			jdbcClient.sql("SELECT sector_id FROM sector_trail WHERE trail_id IN (" + inClause + ")")
+			.params(existingTrailIds)
+			.query(rs -> {
+				while (rs.next()) { 
+					allSectorsToLock.add(rs.getInt("sector_id"));
 				}
-			}
+				return Void.TYPE;
+			});
 		}
-		for (int sectorId : allSectorsToLock) ensureAdminWriteSector(authUserId, sectorId);
+
+		allSectorsToLock.forEach(id -> ensureAdminWriteSector(authUserId, id));
+
 		for (Trail t : trails) {
 			if (t.path() != null && t.path().size() >= 2 && t.sectors() != null && !t.sectors().isEmpty()) {
-				String parkingSql = """
-							SELECT c.latitude, c.longitude 
-							FROM sector s
-							JOIN coordinates c ON s.parking_coordinates_id = c.id
-							WHERE s.id IN (%s)
-							LIMIT 1
-						""".formatted(",?".repeat(t.sectors().size()).substring(1));
-				try (var ps = c.prepareStatement(parkingSql)) {
-					int pIdx = 1;
-					for (Trail.TrailSector sector : t.sectors()) ps.setInt(pIdx++, sector.sectorId());
-					try (var rst = ps.executeQuery()) {
-						if (rst.next()) {
-							double parkingLat = rst.getDouble("latitude");
-							double parkingLng = rst.getDouble("longitude");
-							Coordinates firstCoord = t.path().getFirst();
-							Coordinates lastCoord = t.path().getLast();
-							double distToStart = GeoHelper.getHaversineDistanceInMeters(parkingLat, parkingLng, firstCoord.getLatitude(), firstCoord.getLongitude());
-							double distToEnd = GeoHelper.getHaversineDistanceInMeters(parkingLat, parkingLng, lastCoord.getLatitude(), lastCoord.getLongitude());
-							boolean shouldReverse = false;
-							if (t.isDescent()) {
-								if (distToStart < distToEnd) shouldReverse = true;
-							} else {
-								if (distToEnd < distToStart) shouldReverse = true;
-							}
-							if (shouldReverse) {
-								Collections.reverse(t.path());
-								if (t.markers() != null && !t.markers().isEmpty()) Collections.reverse(t.markers());
-							}
+				var inClause = Collections.nCopies(t.sectors().size(), "?").stream().collect(Collectors.joining(","));
+				jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (" + inClause + ") LIMIT 1")
+				.params(t.sectors().stream().map(Trail.TrailSector::sectorId).toList())
+				.query(rs -> {
+					if (rs.next()) {
+						double distToStart = GeoHelper.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getFirst().getLatitude(), t.path().getFirst().getLongitude());
+						double distToEnd = GeoHelper.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getLast().getLatitude(), t.path().getLast().getLongitude());
+						boolean shouldReverse = t.isDescent() ? (distToStart < distToEnd) : (distToEnd < distToStart);
+						if (shouldReverse) {
+							Collections.reverse(t.path());
+							if (t.markers() != null) Collections.reverse(t.markers());
 						}
 					}
-				}
+					return Void.TYPE;
+				});
 			}
 		}
-		List<Coordinates> allCoordinatesGlobal = new ArrayList<>();
-		for (Trail t : trails) {
-			if (t.path() != null) allCoordinatesGlobal.addAll(t.path());
-			if (t.markers() != null) {
-				for (Trail.TrailMarker marker : t.markers()) if (marker.coordinates() != null) allCoordinatesGlobal.add(marker.coordinates());
-			}
-		}
-		if (!allCoordinatesGlobal.isEmpty()) {
-			allCoordinatesGlobal.sort((c1, c2) -> {
-				if (c1.getId() != c2.getId()) return Integer.compare(c1.getId(), c2.getId());
-				int latCompare = Double.compare(c1.getLatitude(), c2.getLatitude());
-				if (latCompare != 0) return latCompare;
-				return Double.compare(c1.getLongitude(), c2.getLongitude());
-			});
-			geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoordinatesGlobal);
-		}
-		List<Trail> sortedTrails = new ArrayList<>(trails);
-		sortedTrails.sort(Comparator.comparingInt(Trail::id));
-		for (Trail t : sortedTrails) {
+
+		List<Coordinates> allCoords = new ArrayList<>();
+		trails.forEach(t -> {
+			if (t.path() != null) allCoords.addAll(t.path());
+			if (t.markers() != null) t.markers().forEach(m -> { if (m.coordinates() != null) allCoords.add(m.coordinates()); });
+		});
+		if (!allCoords.isEmpty()) geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
+
+		for (Trail t : trails.stream().sorted(Comparator.comparingInt(Trail::id)).toList()) {
+			int trailId = t.id();
 			if (t.delete()) {
-				String sql = "UPDATE trail SET trash = NOW(), trash_by = ? WHERE id = ?";
-				try (var ps = c.prepareStatement(sql)) {
-					ps.setInt(1, authUserId.orElseThrow());
-					ps.setInt(2, t.id());
-					ps.executeUpdate();
-				}
+				jdbcClient.sql("UPDATE trail SET trash = NOW(), trash_by = ? WHERE id = ?").params(authUserId.orElseThrow(), trailId).update();
 				continue;
 			}
-			int trailId = t.id();
+
 			if (trailId > 0) {
-				String sql = "UPDATE trail SET is_descent = ?, title = ?, description = ?, trash = NULL, trash_by = 0 WHERE id = ?";
-				try (var ps = c.prepareStatement(sql)) {
-					ps.setBoolean(1, t.isDescent());
-					ps.setString(2, t.title());
-					ps.setString(3, t.description());
-					ps.setInt(4, trailId);
-					ps.executeUpdate();
-				}
+				jdbcClient.sql("UPDATE trail SET is_descent = ?, title = ?, description = ?, trash = NULL, trash_by = 0 WHERE id = ?")
+				.params(t.isDescent(), t.title(), t.description(), trailId).update();
 			} else {
-				String sql = "INSERT INTO trail (is_descent, title, description) VALUES (?, ?, ?)";
-				try (var ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-					ps.setBoolean(1, t.isDescent());
-					ps.setString(2, t.title());
-					ps.setString(3, t.description());
-					ps.executeUpdate();
-					try (var rs = ps.getGeneratedKeys()) {
-						if (rs.next()) trailId = rs.getInt(1);
-					}
-				}
+				var keyHolder = new GeneratedKeyHolder();
+				jdbcClient.sql("INSERT INTO trail (is_descent, title, description) VALUES (?, ?, ?)")
+				.params(t.isDescent(), t.title(), t.description())
+				.update(keyHolder, "id");
+				trailId = keyHolder.getKey().intValue();
 			}
-			try (var ps = c.prepareStatement("DELETE FROM trail_coordinate WHERE trail_id = ?")) {
-				ps.setInt(1, trailId);
-				ps.executeUpdate();
+
+			jdbcClient.sql("DELETE FROM trail_coordinate WHERE trail_id = ?").param(1, trailId).update();
+			if (t.path() != null) {
+				int[] sort = {0};
+				for (Coordinates coord : t.path()) 
+					jdbcClient.sql("INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)").params(trailId, coord.getId(), sort[0]++).update();
 			}
-			if (t.path() != null && !t.path().isEmpty()) {
-				String sql = "INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)";
-				try (var ps = c.prepareStatement(sql)) {
-					int sorting = 0;
-					for (Coordinates coord : t.path()) {
-						ps.setInt(1, trailId);
-						ps.setInt(2, coord.getId());
-						ps.setInt(3, sorting++);
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
+
+			jdbcClient.sql("DELETE FROM trail_marker WHERE trail_id = ?").param(1, trailId).update();
+			if (t.markers() != null) {
+				for (Trail.TrailMarker m : t.markers()) 
+					if (m.coordinates() != null) jdbcClient.sql("INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)").params(trailId, m.coordinates().getId(), m.label()).update();
 			}
-			try (var ps = c.prepareStatement("DELETE FROM trail_marker WHERE trail_id = ?")) {
-				ps.setInt(1, trailId);
-				ps.executeUpdate();
-			}
-			if (t.markers() != null && !t.markers().isEmpty()) {
-				String sql = "INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)";
-				try (var ps = c.prepareStatement(sql)) {
-					for (Trail.TrailMarker marker : t.markers()) {
-						if (marker.coordinates() != null) {
-							ps.setInt(1, trailId);
-							ps.setInt(2, marker.coordinates().getId());
-							ps.setString(3, marker.label());
-							ps.addBatch();
-						}
-					}
-					ps.executeBatch();
-				}
-			}
-			try (var ps = c.prepareStatement("DELETE FROM sector_trail WHERE trail_id = ?")) {
-				ps.setInt(1, trailId);
-				ps.executeUpdate();
-			}
-			if (t.sectors() != null && !t.sectors().isEmpty()) {
-				String sql = "INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)";
-				try (var ps = c.prepareStatement(sql)) {
-					for (Trail.TrailSector sector : t.sectors()) {
-						ps.setInt(1, sector.sectorId());
-						ps.setInt(2, trailId);
-						ps.addBatch();
-					}
-					ps.executeBatch();
-				}
+
+			jdbcClient.sql("DELETE FROM sector_trail WHERE trail_id = ?").param(1, trailId).update();
+			if (t.sectors() != null) {
+				for (Trail.TrailSector s : t.sectors()) 
+					jdbcClient.sql("INSERT INTO sector_trail (sector_id, trail_id) VALUES (?, ?)").params(s.sectorId(), trailId).update();
 			}
 		}
 	}
 
-	protected void ensureAdminWriteSector(Optional<Integer> authUserId, int sectorId) throws SQLException {
-		var c = txManager.getConnection();
-		boolean ok = false;
-		try (var ps = c.prepareStatement("""
+	protected void ensureAdminWriteSector(Optional<Integer> authUserId, int sectorId) {
+		boolean ok = jdbcClient.sql("""
 				SELECT ur.admin_write, ur.superadmin_write
 				FROM user_region ur
 				JOIN area a ON ur.region_id=a.region_id
@@ -581,118 +402,92 @@ public class SectorRepository extends BaseRepository {
 				WHERE s.id=?
 				  AND ur.user_id=?
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				""")) {
-			ps.setInt(1, sectorId);
-			ps.setInt(2, authUserId.orElseThrow());
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					ok = rst.getBoolean("admin_write") || rst.getBoolean("superadmin_write");
-				}
-			}
+				""")
+				.params(sectorId, authUserId.orElseThrow())
+				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
+				.optional()
+				.orElse(false);
+
+		if (!ok) {
+			throw new IllegalArgumentException("Insufficient permissions");
 		}
-		if (!ok) throw new IllegalArgumentException("Insufficient permissions");
 	}
 
-	protected List<Coordinates> getSectorOutline(int idSector) throws SQLException {
+	protected List<Coordinates> getSectorOutline(int idSector) {
 		Map<Integer, List<Coordinates>> idSectorOutline = getSectorOutlines(Collections.singleton(idSector));
-		if (idSectorOutline == null || idSectorOutline.isEmpty()) return null;
+		if (idSectorOutline == null || idSectorOutline.isEmpty()) { 
+			return null;
+		}
 		return new ArrayList<>(idSectorOutline.getOrDefault(idSector, List.of()));
 	}
 
-	protected Map<Integer, List<Coordinates>> getSectorOutlines(Collection<Integer> idSectors) throws SQLException {
-		var c = txManager.getConnection();
-		var startNanos = System.nanoTime();
+	protected Map<Integer, List<Coordinates>> getSectorOutlines(Collection<Integer> idSectors) {
 		if (idSectors.isEmpty()) throw new IllegalArgumentException("idSectors is empty");
-		Map<Integer, List<Coordinates>> res = new HashMap<>();
-		String in = ",?".repeat(idSectors.size()).substring(1);
-		String sqlStr = "SELECT so.sector_id id_sector, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM sector_outline so, coordinates c WHERE so.sector_id IN (" + in + ") AND so.coordinates_id=c.id ORDER BY so.sorting";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			int parameterIndex = 1;
-			for (int idSector : idSectors) ps.setInt(parameterIndex++, idSector);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int idSector = rst.getInt("id_sector");
-					res.computeIfAbsent(idSector, _ -> new ArrayList<>()).add(new Coordinates(rst.getInt("id"), rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source")));
-				}
+
+		String inClause = "?,".repeat(idSectors.size());
+		inClause = inClause.substring(0, inClause.length() - 1);
+
+		return jdbcClient.sql("""
+				SELECT so.sector_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source 
+				FROM sector_outline so 
+				JOIN coordinates c ON so.coordinates_id = c.id 
+				WHERE so.sector_id IN (%s) 
+				ORDER BY so.sorting
+				""".formatted(inClause))
+		.params(new ArrayList<>(idSectors))
+		.query(rs -> {
+			var res = new HashMap<Integer, List<Coordinates>>();
+			while (rs.next()) {
+				res.computeIfAbsent(rs.getInt("sector_id"), _ -> new ArrayList<>())
+				.add(new Coordinates(
+						rs.getInt("id"), 
+						rs.getDouble("latitude"), 
+						rs.getDouble("longitude"), 
+						rs.getDouble("elevation"), 
+						rs.getString("elevation_source")
+						));
 			}
-		}
-		logger.debug("getSectorOutlines(idSectors.size()={}) - res.size()={}, duration={}", idSectors.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
-		return res;
+			return res;
+		});
 	}
 
-	protected Map<Integer, List<SectorProblem>> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) throws SQLException {
-		var c = txManager.getConnection();
-		if (!((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0))) throw new IllegalArgumentException("Invalid area/sector id combination");
-		var startNanos = System.nanoTime();
-		Map<Integer, List<SectorProblem>> res = new LinkedHashMap<>();
-		String sqlStr = """
+	protected Map<Integer, List<SectorProblem>> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) {
+		if (!((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0))) {
+			throw new IllegalArgumentException("Invalid area/sector id combination");
+		}
+
+		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
 				),
 				filtered_problems AS (
-				    SELECT p.*, ur.admin_read, ur.superadmin_read
+				    SELECT p.*
 				    FROM problem p
-				    CROSS JOIN req
 				    JOIN sector s ON s.id = p.sector_id
 				    JOIN area a ON s.area_id = a.id
-				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = req.auth_user_id
-				    WHERE ((req.area_id > 0 AND a.id = req.area_id) OR (req.sector_id > 0 AND p.sector_id = req.sector_id))
+				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
+				    WHERE (( (SELECT area_id FROM req) > 0 AND a.id = (SELECT area_id FROM req)) 
+				        OR ((SELECT sector_id FROM req) > 0 AND p.sector_id = (SELECT sector_id FROM req)))
 				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
 				),
 				fa_agg AS (
-				    SELECT f.problem_id,
-				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
+				    SELECT f.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
 				           MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
-				    FROM fa f
-				    JOIN user u ON f.user_id = u.id
-				    WHERE f.problem_id IN (SELECT id FROM filtered_problems)
-				    GROUP BY f.problem_id
+				    FROM fa f JOIN user u ON f.user_id = u.id WHERE f.problem_id IN (SELECT id FROM filtered_problems) GROUP BY f.problem_id
 				),
 				fa_aid_agg AS (
-				    SELECT a.problem_id,
-				           GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names,
-				           YEAR(a.aid_date) fa_aid_date
-				    FROM fa_aid a
-				    JOIN fa_aid_user au ON a.problem_id=au.problem_id
-				    JOIN user u ON au.user_id = u.id
-				    WHERE a.problem_id IN (SELECT id FROM filtered_problems)
-				    GROUP BY a.problem_id, a.aid_date
+				    SELECT a.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names, YEAR(a.aid_date) fa_aid_date
+				    FROM fa_aid a JOIN fa_aid_user au ON a.problem_id=au.problem_id JOIN user u ON au.user_id = u.id WHERE a.problem_id IN (SELECT id FROM filtered_problems) GROUP BY a.problem_id, a.aid_date
 				),
 				tick_agg AS (
-				    SELECT t.problem_id,
-				           COUNT(t.id) AS total_ticks,
-				           ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars,
-				           MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
-				    FROM tick t
-				    WHERE t.problem_id IN (SELECT id FROM filtered_problems)
-				    GROUP BY t.problem_id
+				    SELECT t.problem_id, COUNT(t.id) AS total_ticks, ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars, MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
+				    FROM tick t WHERE t.problem_id IN (SELECT id FROM filtered_problems) GROUP BY t.problem_id
 				),
 				media_agg AS (
-				    SELECT mp.problem_id,
-				           COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images,
-				           COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
-				    FROM media_problem mp
-				    JOIN media m ON mp.media_id = m.id
-				    WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL
-				    AND mp.problem_id IN (SELECT id FROM filtered_problems)
-				    GROUP BY mp.problem_id
+				    SELECT mp.problem_id, COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images, COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
+				    FROM media_problem mp JOIN media m ON mp.media_id = m.id WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL AND mp.problem_id IN (SELECT id FROM filtered_problems) GROUP BY mp.problem_id
 				)
-				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description,
-				       fa_aid.fa_aid_names fa_user, fa_aid.fa_aid_date fa_year,
-				       fa.fa_names ffa_user, YEAR(p.fa_date) ffa_year,
-				       ty.id AS type_id, ty.type, ty.subtype,
-				       g.weight AS problem_grade_weight, g.grade AS problem_grade,
-				       COALESCE(t.total_ticks, 0) AS total_ticks,
-				       COALESCE(t.avg_stars, 0) AS stars,
-				       GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked,
-				       CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo,
-				       gb.danger,
-				       p.length_meter,
-				       co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source,
-				       (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches,
-				       COALESCE(m.num_images, 0) AS num_images,
-				       COALESCE(m.num_movies, 0) AS num_movies,
-				       CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
+				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, ty.type, ty.subtype, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
 				FROM filtered_problems p
 				JOIN grade g ON p.consensus_grade_id = g.id
 				JOIN type ty ON p.type_id = ty.id
@@ -702,61 +497,54 @@ public class SectorRepository extends BaseRepository {
 				LEFT JOIN tick_agg t ON p.id = t.problem_id
 				LEFT JOIN media_agg m ON p.id = m.problem_id
 				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
-				LEFT JOIN LATERAL (
-				    SELECT danger 
-				    FROM guestbook 
-				    WHERE problem_id = p.id 
-				    AND (danger = 1 OR resolved = 1)
-				    ORDER BY id DESC
-				    LIMIT 1
-				) gb ON TRUE
+				LEFT JOIN LATERAL (SELECT danger FROM guestbook WHERE problem_id = p.id AND (danger = 1 OR resolved = 1) ORDER BY id DESC LIMIT 1) gb ON TRUE
 				ORDER BY p.nr
 				""";
-		try (var ps = c.prepareStatement(sqlStr)) {
-			ps.setInt(1, authUserId.orElse(0));
-			ps.setInt(2, optAreaId);
-			ps.setInt(3, optSectorId);
-			ps.setInt(4, setup.isBouldering() ? 0 : 1);
-			try (var rst = ps.executeQuery()) {
-				while (rst.next()) {
-					int sectorId = rst.getInt("sector_id");
-					int idCoordinates = rst.getInt("coordinates_id");
-					Coordinates coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-					var p = new SectorProblem(rst.getInt("id"), rst.getString("broken"), rst.getBoolean("locked_admin"), rst.getBoolean("locked_superadmin"),
-							rst.getInt("nr"), rst.getString("name"), rst.getString("rock"), rst.getString("description"),
-							rst.getInt("problem_grade_weight"), rst.getString("problem_grade"), 
-							rst.getString("fa_user"), rst.getInt("fa_year"), rst.getString("ffa_user"), rst.getInt("ffa_year"), 
-							rst.getInt("length_meter"), rst.getInt("num_pitches"), rst.getInt("num_images") > 0, rst.getInt("num_movies") > 0, rst.getBoolean("has_topo"),
-							coordinates, rst.getInt("total_ticks"), rst.getDouble("stars"), rst.getBoolean("ticked"), rst.getBoolean("todo"),
-							new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype")), rst.getBoolean("danger")
-							);
-					res.computeIfAbsent(sectorId, _ -> new ArrayList<>()).add(p);
-				}
+
+		Map<Integer, List<SectorProblem>> res = new LinkedHashMap<>();
+		jdbcClient.sql(sql)
+		.params(authUserId.orElse(0), optAreaId, optSectorId, setup.isBouldering() ? 0 : 1)
+		.query(rs -> {
+			while (rs.next()) {
+				int sid = rs.getInt("sector_id");
+				int cid = rs.getInt("coordinates_id");
+				var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+
+				var p = new SectorProblem(
+						rs.getInt("id"), rs.getString("broken"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
+						rs.getInt("nr"), rs.getString("name"), rs.getString("rock"), rs.getString("description"),
+						rs.getInt("weight"), rs.getString("grade"), rs.getString("fa_aid_names"), rs.getInt("fa_aid_date"),
+						rs.getString("fa_names"), rs.getInt("ffa_year"), rs.getInt("length_meter"), rs.getInt("num_pitches"),
+						rs.getInt("num_images") > 0, rs.getInt("num_movies") > 0, rs.getBoolean("has_topo"), coords,
+						rs.getInt("total_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), rs.getBoolean("todo"),
+						new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), rs.getBoolean("danger")
+						);
+				res.computeIfAbsent(sid, _ -> new ArrayList<>()).add(p);
 			}
-		}
-		logger.debug("getSectorProblems(optAreaId={}, optSectorId={}) - res.size()={}, duration={}", optAreaId, optSectorId, res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
+			return res;
+		});
+
 		return res;
 	}
 
-	protected void setSectorProblemOrder(List<SectorProblemOrder> lst) throws SQLException {
-		var c = txManager.getConnection();
-		if (!lst.isEmpty()) {
-			try (var ps = c.prepareStatement("UPDATE problem SET nr=? WHERE id=?")) {
-				for (SectorProblemOrder x : lst) {
-					ps.setInt(1, x.nr());
-					ps.setInt(2, x.id());
-					ps.addBatch();
+	protected void setSectorProblemOrder(List<SectorProblemOrder> lst) {
+		if (lst == null || lst.isEmpty()) return;
+		jdbcTemplate.batchUpdate(
+				"UPDATE problem SET nr=? WHERE id=?",
+				lst,
+				100,
+				(ps, item) -> {
+					ps.setInt(1, item.nr());
+					ps.setInt(2, item.id());
 				}
-				ps.executeBatch();
-			}
-		}
+				);
 	}
 
-	protected void tryFixSectorOrdering(int sectorId, int problemId, int problemNewNr) throws SQLException {
-		var c = txManager.getConnection();
+	protected void tryFixSectorOrdering(int sectorId, int problemId, int problemNewNr) {
 		List<SectorProblemOrder> lst = new ArrayList<>();
+
 		if (problemId > 0) {
-			String sqlStr = """
+			jdbcClient.sql("""
 					WITH x AS (
 					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
 					  FROM problem p
@@ -764,30 +552,24 @@ public class SectorRepository extends BaseRepository {
 					  GROUP BY p.sector_id
 					)
 					SELECT p.id
-					FROM problem p_input, x,
-					     problem p
+					FROM problem p_input, x, problem p
 					WHERE p_input.id=? AND p_input.nr!=?
 					  AND p_input.sector_id=x.sector_id AND x.num_problems=x.max_num
 					  AND p_input.sector_id=p.sector_id
 					  AND p.id!=p_input.id
 					ORDER BY p.nr
-					""";
-			try (var ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				ps.setInt(2, problemId);
-				ps.setInt(3, problemNewNr);
-				try (var rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) ++nr;
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
+					""")
+			.params(sectorId, problemId, problemNewNr)
+			.query(rs -> {
+				int nr = 0;
+				while (rs.next()) {
+					if (++nr == problemNewNr) nr++;
+					lst.add(new SectorProblemOrder(rs.getInt("id"), null, nr));
 				}
-			}
-		}
-		else if (problemNewNr != 0) {
-			String sqlStr = """
+				return Void.TYPE;
+			});
+		} else if (problemNewNr != 0) {
+			jdbcClient.sql("""
 					WITH x AS (
 					  SELECT p.sector_id, COUNT(p.id) num_problems, MAX(p.nr) max_num
 					  FROM problem p
@@ -799,19 +581,18 @@ public class SectorRepository extends BaseRepository {
 					WHERE x.num_problems=x.max_num
 					  AND x.sector_id=p.sector_id
 					ORDER BY p.nr
-					""";
-			try (var ps = c.prepareStatement(sqlStr)) {
-				ps.setInt(1, sectorId);
-				try (var rst = ps.executeQuery()) {
-					int nr = 0;
-					while (rst.next()) {
-						if (++nr == problemNewNr) ++nr;
-						int id = rst.getInt("id");
-						lst.add(new SectorProblemOrder(id, null, nr));
-					}
+					""")
+			.param(1, sectorId)
+			.query(rs -> {
+				int nr = 0;
+				while (rs.next()) {
+					if (++nr == problemNewNr) nr++;
+					lst.add(new SectorProblemOrder(rs.getInt("id"), null, nr));
 				}
-			}
+				return Void.TYPE;
+			});
 		}
+
 		setSectorProblemOrder(lst);
 	}
 }

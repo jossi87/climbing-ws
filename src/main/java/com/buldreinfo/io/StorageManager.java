@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,22 +86,28 @@ public final class StorageManager {
 		if (s3Presigner != null) s3Presigner.close();
 	}
 
-	public byte[] downloadBytes(String objectKey) throws IOException {
+	public byte[] downloadBytes(String objectKey) {
 		try (var response = s3Client.getObject(createGetRequest(objectKey))) {
 			return response.readAllBytes();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
 		}
 	}
 
-	public void downloadFile(String objectKey, Path destination) throws IOException {
+	public void downloadFile(String objectKey, Path destination) {
 		try (var s3Stream = s3Client.getObject(createGetRequest(objectKey))) {
 			Files.copy(s3Stream, destination, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
 		}
 	}
 
-	public BufferedImage downloadImage(String objectKey) throws IOException {
+	public BufferedImage downloadImage(String objectKey) {
 		byte[] data = downloadBytes(objectKey);
 		try (var is = new ByteArrayInputStream(data)) {
 			return ImageIO.read(is);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
 		}
 	}
 
@@ -181,7 +188,7 @@ public final class StorageManager {
 		}
 	}
 
-	public byte[] readBoundedStream(InputStream is) throws IOException {
+	public byte[] readBoundedStream(InputStream is) {
 		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
 			byte[] buffer = new byte[16 * 1024];
 			long total = 0;
@@ -194,6 +201,8 @@ public final class StorageManager {
 				os.write(buffer, 0, read);
 			}
 			return os.toByteArray();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
 		}
 	}
 
@@ -202,45 +211,53 @@ public final class StorageManager {
 		uploadRequestBody(objectKey, RequestBody.fromBytes(data), type);
 	}
 
-	public void uploadFile(String objectKey, Path path, StorageType type) throws IOException {
-		if (Files.size(path) == 0) throw new IllegalArgumentException("File is empty for key: " + objectKey);
-		uploadRequestBody(objectKey, RequestBody.fromFile(path), type);
+	public void uploadFile(String objectKey, Path path, StorageType type) {
+		try {
+			if (Files.size(path) == 0) throw new IllegalArgumentException("File is empty for key: " + objectKey);
+			uploadRequestBody(objectKey, RequestBody.fromFile(path), type);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
+		}
 	}
 
-	public void uploadImage(String objectKey, BufferedImage image, StorageType type) throws IOException {
-		boolean shouldCompress = objectKey.startsWith("web/");
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
-		Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
-		if (!writers.hasNext()) throw new IOException("No writer found for type: " + type.getExtension());
-		ImageWriter writer = writers.next();
-		try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
-			writer.setOutput(ios);
-			ImageWriteParam param = writer.getDefaultWriteParam();
-			if (shouldCompress && param.canWriteCompressed()) {
-				param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-				if (type == StorageType.WEBP) {
-					String[] types = param.getCompressionTypes();
-					if (types != null) {
-						for (String t : types) {
-							if (t.equalsIgnoreCase("Lossy")) {
-								param.setCompressionType(t);
-								break;
+	public void uploadImage(String objectKey, BufferedImage image, StorageType type) {
+		try {
+			boolean shouldCompress = objectKey.startsWith("web/");
+			ByteArrayOutputStream os = new ByteArrayOutputStream();
+			Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
+			if (!writers.hasNext()) throw new IOException("No writer found for type: " + type.getExtension());
+			ImageWriter writer = writers.next();
+			try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
+				writer.setOutput(ios);
+				ImageWriteParam param = writer.getDefaultWriteParam();
+				if (shouldCompress && param.canWriteCompressed()) {
+					param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+					if (type == StorageType.WEBP) {
+						String[] types = param.getCompressionTypes();
+						if (types != null) {
+							for (String t : types) {
+								if (t.equalsIgnoreCase("Lossy")) {
+									param.setCompressionType(t);
+									break;
+								}
 							}
 						}
+						param.setCompressionQuality(0.75f);
+					} else {
+						String[] types = param.getCompressionTypes();
+						if (types != null && types.length > 0) param.setCompressionType(types[0]);
+						param.setCompressionQuality(0.80f);
 					}
-					param.setCompressionQuality(0.75f);
-				} else {
-					String[] types = param.getCompressionTypes();
-					if (types != null && types.length > 0) param.setCompressionType(types[0]);
-					param.setCompressionQuality(0.80f);
 				}
+				writer.write(null, new IIOImage(image, null, null), param);
+				ios.flush();
+			} finally {
+				writer.dispose();
 			}
-			writer.write(null, new IIOImage(image, null, null), param);
-			ios.flush();
-		} finally {
-			writer.dispose();
+			uploadBytes(objectKey, os.toByteArray(), type);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e.getMessage(), e);
 		}
-		uploadBytes(objectKey, os.toByteArray(), type);
 	}
 
 	private GetObjectRequest createGetRequest(String objectKey) {

@@ -4,9 +4,11 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
@@ -37,8 +39,8 @@ import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.helpers.GlobalFunctions;
-import com.buldreinfo.infrastructure.ClimbingTransactionManager;
 import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.ImageSaver;
 import com.buldreinfo.io.StorageManager;
@@ -61,27 +63,25 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "Media")
 @RestController
 @RequestMapping("/media")
-public class MediaController extends BaseController {
+public class MediaController {
 	@FunctionalInterface
 	private interface ImageTask {
-		void execute(StorageManager storage) throws Exception;
+		void execute(StorageManager storage);
 	}
-
 	private static final Logger logger = LogManager.getLogger();
+	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final ImageService imageService;
 	private final VideoService videoService;
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
-	private final ClimbingTransactionManager txManager;
 	private final InstagramService instagramService;
 
-	public MediaController(StorageManager storage, ImageService imageService, VideoService videoService, ClimbingTransactionManager txManager, MediaRepository mediaRepo, RegionRepository regionRepo, InstagramService instagramService) {
-		super(txManager, regionRepo);
+	public MediaController(RequestContext requestContext, StorageManager storage, ImageService imageService, VideoService videoService, MediaRepository mediaRepo, RegionRepository regionRepo, InstagramService instagramService) {
+		this.requestContext = requestContext;
 		this.storage = storage;
 		this.imageService = imageService;
 		this.videoService = videoService;
-		this.txManager = txManager;
 		this.mediaRepo = mediaRepo;
 		this.regionRepo = regionRepo;
 		this.instagramService = instagramService;
@@ -96,12 +96,10 @@ public class MediaController extends BaseController {
 	})
 	@DeleteMapping
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> deleteMedia(HttpServletRequest request, @RequestParam(name = "id") int id) throws Exception {
+	public ResponseEntity<Void> deleteMedia(@RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		executeContextualTask(request, ctx -> {
-			mediaRepo.deleteMedia(ctx.authUserId(), id);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaRepo.deleteMedia(authUserId, id);
 		return ResponseEntity.ok().build();
 	}
 
@@ -113,9 +111,10 @@ public class MediaController extends BaseController {
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Media> getMedia(HttpServletRequest request, @RequestParam(name = "idMedia") int idMedia) throws Exception {
+	public ResponseEntity<Media> getMedia(@RequestParam(name = "idMedia") int idMedia) {
 		if (idMedia <= 0) throw new ValidationFailedException("Invalid idMedia=" + idMedia);
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> mediaRepo.getMedia(ctx.authUserId(), idMedia)));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, idMedia));
 	}
 
 	@Operation(summary = "Get media file by id", responses = {
@@ -134,7 +133,7 @@ public class MediaController extends BaseController {
 			@RequestParam(name = "x", defaultValue = "0") int x,
 			@RequestParam(name = "y", defaultValue = "0") int y,
 			@RequestParam(name = "width", defaultValue = "0") int width,
-			@RequestParam(name = "height", defaultValue = "0") int height) throws Exception {
+			@RequestParam(name = "height", defaultValue = "0") int height) {
 
 		if (isMovie) {
 			String key = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
@@ -182,16 +181,13 @@ public class MediaController extends BaseController {
 	})
 	@PatchMapping("/order")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> patchMediaOrder(HttpServletRequest request,
-			@RequestParam(name = "id") int id,
+	public ResponseEntity<Void> patchMediaOrder(@RequestParam(name = "id") int id,
 			@RequestParam(name = "left", defaultValue = "false") boolean left,
-			@RequestParam(name = "right", defaultValue = "false") boolean right) throws Exception {
+			@RequestParam(name = "right", defaultValue = "false") boolean right) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		if (!(left ^ right)) throw new ValidationFailedException("Specify either 'left' or 'right', not both.");
-		executeContextualTask(request, ctx -> {
-			mediaRepo.shiftMediaPosition(ctx.authUserId(), id, left, right);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaRepo.shiftMediaPosition(authUserId, id, left, right);
 		return ResponseEntity.ok().build();
 	}
 
@@ -204,23 +200,20 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Media> postMediaImage(HttpServletRequest request, 
-			@RequestPart("json") Media m,
-			@RequestPart("file") MultipartFile file) throws Exception {
+	public ResponseEntity<Media> postMediaImage(@RequestPart("json") Media m, @RequestPart("file") MultipartFile file) {
 		if (m == null) throw new IllegalArgumentException("Media payload is required");
 		String originalFilename = file.getOriginalFilename();
 		StorageType storageType = StorageType.fromFilename(originalFilename)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + originalFilename));
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			int newMediaId = mediaRepo.addMediaImage(ctx.authUserId(), m, storageType, () -> {
-				try {
-					return file.getInputStream();
-				} catch (IOException e) {
-					throw new RuntimeException("Failed to get InputStream from multipart file", e);
-				}
-			});
-			return mediaRepo.getMedia(ctx.authUserId(), newMediaId);
-		}));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		int newMediaId = mediaRepo.addMediaImage(authUserId, m, storageType, () -> {
+			try {
+				return file.getInputStream();
+			} catch (IOException e) {
+				throw new RuntimeException("Failed to get InputStream from multipart file", e);
+			}
+		});
+		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newMediaId));
 	}
 
 	@Operation(summary = "Commit verified Instagram media to application storage", responses = {
@@ -232,58 +225,63 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/instagram-save")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Media> postMediaInstagramSave(HttpServletRequest request,
-			@RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
+	public ResponseEntity<Media> postMediaInstagramSave(@RequestHeader("X-Selected-Cdn-Url") String selectedCdnUrl,
 			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
 			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
-			@RequestBody Media mediaPayload) throws Exception {
+			@RequestBody Media mediaPayload) {
 		if (mediaPayload == null) throw new IllegalArgumentException("Media payload missing");
 		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			if (mediaRepo.getDailyInstagramScrapeCount(ctx.authUserId()) > 50)
-				throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
+		var authUserId = requestContext.getAuthenticatedUserId();
+		if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50)
+			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
 
-			mediaPayload.ensureCorrectMediaAssociations(ctx.authUserId());
-			if (isVideo) {
-				int id = mediaRepo.addMediaVideoPlaceholder(ctx.authUserId(), mediaPayload, StorageType.MP4);
-				supplyAsync(() -> {
-					try {
-						byte[] videoData;
-						try (InputStream is = validatedUri.toURL().openStream()) {
+		mediaPayload.ensureCorrectMediaAssociations(authUserId);
+		if (isVideo) {
+			int id = mediaRepo.addMediaVideoPlaceholder(authUserId, mediaPayload, StorageType.MP4);
+			CompletableFuture.runAsync(() -> {
+				try {
+					byte[] videoData;
+					try (InputStream is = validatedUri.toURL().openStream()) {
+						videoData = storage.readBoundedStream(is);
+					} catch (IOException e) {
+						logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
+						List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
+						InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+						mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
+						try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
 							videoData = storage.readBoundedStream(is);
-						} catch (IOException e) {
-							logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
-							List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-							InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
-							txManager.executeInTransaction(() -> { mediaRepo.logInstagramScrape(ctx.authUserId(), mediaPayload.embedUrl(), fresh.size()); return null; });
-							try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-								videoData = storage.readBoundedStream(is);
-							}
 						}
-						storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
-						videoService.processVideo(id, mediaPayload.thumbnailSeconds());
-					} catch (Exception e) { throw new RuntimeException(e); }
-					return null;
-				}).exceptionally(ex -> { logger.error("Async video save failed", ex); return null; });
-				return mediaRepo.getMedia(ctx.authUserId(), id);
-			}
-
-			byte[] imageData;
-			try (InputStream is = validatedUri.toURL().openStream()) {
-				imageData = storage.readBoundedStream(is);
-			} catch (IOException e) {
-				logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
-				List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-				InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
-				mediaRepo.logInstagramScrape(ctx.authUserId(), mediaPayload.embedUrl(), fresh.size());
-				try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
-					imageData = storage.readBoundedStream(is);
+					}
+					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
+					videoService.processVideo(id, mediaPayload.thumbnailSeconds());
+				} catch (IOException e) {
+					throw new RuntimeException(e);
 				}
+			})
+			.exceptionally(ex -> { 
+				logger.error("Async video save failed", ex);
+				return null; 
+			});
+			return ResponseEntity.ok(mediaRepo.getMedia(authUserId, id));
+		}
+
+		byte[] imageData;
+		try (InputStream is = validatedUri.toURL().openStream()) {
+			imageData = storage.readBoundedStream(is);
+		} catch (IOException e) {
+			logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
+			List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
+			InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+			mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
+			try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
+				imageData = storage.readBoundedStream(is);
+			} catch (IOException ex) {
+				throw new UncheckedIOException(ex.getMessage(), ex);
 			}
-			final byte[] finalData = imageData;
-			int newId = mediaRepo.addMediaImage(ctx.authUserId(), mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalData));
-			return mediaRepo.getMedia(ctx.authUserId(), newId);
-		}));
+		}
+		final byte[] finalData = imageData;
+		int newId = mediaRepo.addMediaImage(authUserId, mediaPayload, StorageType.JPG, () -> new ByteArrayInputStream(finalData));
+		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newId));
 	}
 
 	@Operation(summary = "Scrape Instagram URL metadata for frontend preview box", responses = {
@@ -295,15 +293,14 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/instagram-scrape")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<List<InstagramService.InstagramMedia>> postMediaInstagramScrape(HttpServletRequest request, @RequestParam(name = "url") String url) throws Exception {
+	public ResponseEntity<List<InstagramService.InstagramMedia>> postMediaInstagramScrape(@RequestParam(name = "url") String url) {
 		if (url == null || url.isBlank()) throw new ValidationFailedException("Instagram URL is required");
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			if (mediaRepo.getDailyInstagramScrapeCount(ctx.authUserId()) > 50)
-				throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
-			List<InstagramService.InstagramMedia> list = instagramService.resolveMedia(url);
-			mediaRepo.logInstagramScrape(ctx.authUserId(), url, list.size());
-			return list;
-		}));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50)
+			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
+		List<InstagramService.InstagramMedia> list = instagramService.resolveMedia(url);
+		mediaRepo.logInstagramScrape(authUserId, url, list.size());
+		return ResponseEntity.ok(list);
 	}
 
 	@Operation(summary = "Update Media SVG", responses = {
@@ -315,13 +312,12 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/svg")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> postMediaSvg(HttpServletRequest request, @RequestBody Media m) throws Exception {
+	public ResponseEntity<Void> postMediaSvg(HttpServletRequest request, @RequestBody Media m) {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) throw new ValidationFailedException("Invalid media payload");
-		executeContextualTask(request, ctx -> {
-			regionRepo.ensureAdminWriteRegion(ctx.setup(), ctx.authUserId());
-			mediaRepo.upsertMediaSvg(m);
-			return null;
-		});
+		var setup = requestContext.getSetup(request);
+		var authUserId = requestContext.getAuthenticatedUserId();
+		regionRepo.ensureAdminWriteRegion(setup, authUserId);
+		mediaRepo.upsertMediaSvg(m);
 		return ResponseEntity.ok().build();
 	}
 
@@ -334,15 +330,22 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/video/{id}/complete")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> postMediaVideoComplete(HttpServletRequest request, @PathVariable(name = "id") int id) throws Exception {
+	public ResponseEntity<Void> postMediaVideoComplete(@PathVariable(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
-		executeContextualTask(request, ctx -> {
-			Media m = mediaRepo.getMedia(ctx.authUserId(), id);
-			if (!m.isMovie()) throw new IllegalArgumentException("Target is not a video");
-			if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
-			supplyAsync(() -> { videoService.processVideo(id, m.thumbnailSeconds()); return null; })
-			.exceptionally(ex -> { logger.error("Async video error for id=" + id, ex); return null; });
-			return null;
+		var authUserId = requestContext.getAuthenticatedUserId();
+		Media m = mediaRepo.getMedia(authUserId, id);
+		if (!m.isMovie()) throw new IllegalArgumentException("Target is not a video");
+		if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
+		CompletableFuture.runAsync(() -> {
+			try {
+				videoService.processVideo(id, m.thumbnailSeconds());
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		})
+		.exceptionally(ex -> { 
+			logger.error("Async video error for id=" + id, ex);
+			return null; 
 		});
 		return ResponseEntity.ok().build();
 	}
@@ -356,18 +359,25 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/video/embed")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Media> postMediaVideoEmbed(HttpServletRequest request, @RequestBody Media media) throws Exception {
+	public ResponseEntity<Media> postMediaVideoEmbed(@RequestBody Media media) {
 		if (media == null || media.embedUrl() == null || media.embedUrl().isBlank()) throw new IllegalArgumentException();
 		String url = media.embedUrl().toLowerCase();
 		if (!url.contains("youtube.com") && !url.contains("youtu.be") && !url.contains("vimeo.com")) throw new IllegalArgumentException("Unsupported provider");
 		try { URI.create(media.embedUrl()).toURL(); } catch (Exception e) { throw new IllegalArgumentException("Malformed URL", e); }
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			int newId = mediaRepo.addMediaVideoEmbed(ctx.authUserId(), media, StorageType.MP4);
-			supplyAsync(() -> { imageService.saveImageFromEmbedVideo(newId, media.embedUrl()); return null; })
-			.exceptionally(ex -> { logger.error("Async embed thumbnail failed for id=" + newId, ex); return null; });
-			return mediaRepo.getMedia(ctx.authUserId(), newId);
-		}));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		int newId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
+		CompletableFuture.runAsync(() -> {
+			try {
+				imageService.saveImageFromEmbedVideo(newId, media.embedUrl());
+			} catch (IOException | InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		})
+		.exceptionally(ex -> { 
+			logger.error("Async embed thumbnail failed for id=" + newId, ex);
+			return null; 
+		});
+		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newId));
 	}
 
 	@Operation(summary = "Initiate video upload to get a presigned storage URL", responses = {
@@ -379,22 +389,20 @@ public class MediaController extends BaseController {
 	})
 	@PostMapping("/video/initiate")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<VideoInitResponse> postMediaVideoInitiate(HttpServletRequest request, @RequestBody VideoInitPayload payload) throws Exception {
+	public ResponseEntity<VideoInitResponse> postMediaVideoInitiate(@RequestBody VideoInitPayload payload) {
 		if (payload == null || payload.media() == null) throw new IllegalArgumentException("Video payload or media is missing");
 		if (payload.fileSize() > StorageManager.MAX_VIDEO_UPLOAD_BYTES) throw new IllegalArgumentException("Video exceeds maximum allowed size");
 		StorageType storageType = StorageType.fromMimeType(payload.contentType())
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
 		if (!storageType.isMovie()) throw new IllegalArgumentException("Provided format is not a video type.");
-
-		return ResponseEntity.ok(executeContextualTask(request, ctx -> {
-			int newMediaId = mediaRepo.addMediaVideoPlaceholder(ctx.authUserId(), payload.media(), storageType);
-			String presignedUrl = storage.generatePresignedPutUrl(
-					S3KeyGenerator.getOriginalMp4(newMediaId),
-					storageType.getMimeType(),
-					payload.fileSize()
-					);
-			return new VideoInitResponse(newMediaId, presignedUrl);
-		}));
+		var authUserId = requestContext.getAuthenticatedUserId();
+		int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
+		String presignedUrl = storage.generatePresignedPutUrl(
+				S3KeyGenerator.getOriginalMp4(newMediaId),
+				storageType.getMimeType(),
+				payload.fileSize()
+				);
+		return ResponseEntity.ok(new VideoInitResponse(newMediaId, presignedUrl));
 	}
 
 	@Operation(summary = "Update media", responses = {
@@ -406,14 +414,12 @@ public class MediaController extends BaseController {
 	})
 	@PutMapping
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> putMedia(HttpServletRequest request, @RequestBody Media m) throws Exception {
+	public ResponseEntity<Void> putMedia(@RequestBody Media m) {
 		if (m == null || m.identity() == null || m.identity().id() <= 0) {
 			throw new ValidationFailedException("Invalid mediaId");
 		}
-		executeContextualTask(request, ctx -> {
-			mediaRepo.updateMedia(ctx.authUserId(), m);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaRepo.updateMedia(authUserId, m);
 		return ResponseEntity.ok().build();
 	}
 
@@ -426,19 +432,15 @@ public class MediaController extends BaseController {
 	})
 	@PutMapping("/jpeg/rotate")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	public ResponseEntity<Void> putMediaJpegRotate(HttpServletRequest request,
-			@RequestParam(name = "idMedia") int idMedia,
-			@RequestParam(name = "degrees") int degrees) throws Exception {
+	public ResponseEntity<Void> putMediaJpegRotate(@RequestParam(name = "idMedia") int idMedia, @RequestParam(name = "degrees") int degrees) {
 		if (idMedia <= 0) {
 			throw new ValidationFailedException("Invalid idMedia");
 		}
 		if (degrees != 90 && degrees != 180 && degrees != 270) {
 			throw new ValidationFailedException("Invalid rotation degrees. Must be 90, 180, or 270.");
 		}
-		executeContextualTask(request, ctx -> {
-			mediaRepo.rotateMedia(ctx.authUserId(), idMedia, degrees);
-			return null;
-		});
+		var authUserId = requestContext.getAuthenticatedUserId();
+		mediaRepo.rotateMedia(authUserId, idMedia, degrees);
 		return ResponseEntity.ok().build();
 	}
 
@@ -449,7 +451,7 @@ public class MediaController extends BaseController {
 				.build();
 	}
 
-	private ResponseEntity<Void> executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) throws Exception {
+	private ResponseEntity<Void> executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) {
 		task.execute(storage);
 		if (!storage.exists(key)) {
 			throw new NoSuchElementException("Generated resource not found at key: " + key);
@@ -457,7 +459,7 @@ public class MediaController extends BaseController {
 		return createRedirect(key, version);
 	}
 
-	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) throws IOException {
+	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) {
 		String sourceKey = S3KeyGenerator.getOriginalJpg(id);
 		if (!storage.exists(sourceKey)) {
 			return;
@@ -475,33 +477,33 @@ public class MediaController extends BaseController {
 		}
 	}
 
-	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) throws IOException {
-		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
-		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-		if (useWebSource && !storage.exists(sourceKey)) {
-			sourceKey = S3KeyGenerator.getOriginalJpg(id);
-		}
-		if (!storage.exists(sourceKey)) {
-			return;
-		}
-		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) {
-			return;
-		}
-		try {
-			if (targetWidth > 0 && targetWidth < b.getWidth()) {
-				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-			} else if (minDimension > 0) {
-				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) {
+			boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
+			String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+			if (useWebSource && !storage.exists(sourceKey)) {
+				sourceKey = S3KeyGenerator.getOriginalJpg(id);
 			}
-			storage.uploadImage(key, b, type);
-		} finally {
-			b.flush();
-		}
+			if (!storage.exists(sourceKey)) {
+				return;
+			}
+			BufferedImage b = storage.downloadImage(sourceKey);
+			if (b == null) {
+				return;
+			}
+			try {
+				if (targetWidth > 0 && targetWidth < b.getWidth()) {
+					b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+				} else if (minDimension > 0) {
+					Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+					b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+				}
+				storage.uploadImage(key, b, type);
+			} finally {
+				b.flush();
+			}
 	}
 
-	private void processStandard(StorageManager storage, int id, String key, StorageType type) throws IOException {
+	private void processStandard(StorageManager storage, int id, String key, StorageType type) {
 		String sourceKey = S3KeyGenerator.getWebJpg(id);
 		if (!storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
