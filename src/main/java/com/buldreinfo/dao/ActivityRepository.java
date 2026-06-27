@@ -93,8 +93,16 @@ public class ActivityRepository {
 			int id = rs.getInt("id");
 			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
 
-			boolean inFA = state.anchor == faTs && cur != null && Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
-			boolean inRolling = state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+			boolean inFA = false;
+			boolean inRolling = false;
+
+			if (cur != null) {
+			    if (state.anchor == faTs && faTs != null) {
+			        inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
+			    } else if (state.anchor != faTs && state.anchor != null) {
+			        inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+			    }
+			}
 
 			if (state.anchor != null && !inFA && !inRolling) {
 				for (int mid : buf) batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
