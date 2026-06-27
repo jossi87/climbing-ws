@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -650,7 +651,7 @@ public class UserRepository {
 		try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
 			Map<String, ExcelSheet> sheets = new HashMap<>();
 
-			RowMapper<Void> rowMapper = (rs, rowNum) -> {
+			RowCallbackHandler handler = rs -> {
 				try {
 					String sheetName = rs.getString("type");
 					var sheet = sheets.computeIfAbsent(sheetName, workbook::addSheet);
@@ -671,10 +672,9 @@ public class UserRepository {
 					sheet.writeString("DESCRIPTION", rs.getString("comment"));
 					sheet.writeHyperlink("URL", rs.getString("url"));
 				} catch (Exception e) {
-					logger.error("Error processing row for sheet processing at row index: " + rowNum, e);
-					throw new RuntimeException("Failed to map database row to Excel at index: " + rowNum, e);
+					logger.error("Error processing row for sheet processing", e);
+					throw new RuntimeException(e);
 				}
-				return null;
 			};
 
 			jdbcClient.sql("""
@@ -701,7 +701,7 @@ public class UserRepository {
 					ORDER BY ty.type, a.name, s.name, p.name
 					""")
 			.params(userId, userId, userId)
-			.query(rowMapper);
+			.query(handler);
 
 			jdbcClient.sql("""
 					SELECT 
@@ -723,7 +723,7 @@ public class UserRepository {
 					ORDER BY ty.type, a.name, s.name, p.name, tr.date
 					""")
 			.params(userId, userId)
-			.query(rowMapper);
+			.query(handler);
 
 			jdbcClient.sql("""
 					SELECT 
