@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -468,7 +469,7 @@ public class ProblemRepository {
 	}
 
 	private List<ProblemTick> fetchTicks(Optional<Integer> authUserId, int problemId) {
-		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
+		Map<Integer, ProblemTick> tickLookup = new LinkedHashMap<>();
 		jdbcClient.sql("""
 				SELECT t.id id_tick, u.id id_user, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
 				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
@@ -479,7 +480,8 @@ public class ProblemRepository {
 				JOIN user u ON t.user_id=u.id 
 				LEFT JOIN media m ON u.media_id=m.id 
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				WHERE t.problem_id=? ORDER BY t.date DESC, t.id DESC
+				WHERE t.problem_id=?
+				ORDER BY t.date DESC, t.id DESC
 				""")
 		.param(1, problemId)
 		.query(rs -> {
@@ -521,7 +523,8 @@ public class ProblemRepository {
 		return jdbcClient.sql("""
 				SELECT u.id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name
 				FROM todo t JOIN user u ON t.user_id=u.id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				WHERE t.problem_id=? ORDER BY u.firstname, u.lastname
+				WHERE t.problem_id=?
+				ORDER BY u.firstname, u.lastname
 				""")
 				.param(problemId)
 				.query((rs, _) -> new Problem.ProblemTodo(rs.getInt("id"), rs.getInt("media_id") > 0 ? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null, rs.getString("name")))
