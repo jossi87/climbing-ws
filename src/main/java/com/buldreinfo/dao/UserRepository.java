@@ -750,7 +750,9 @@ public class UserRepository {
 				aidSheet.writeHyperlink("URL", rs.getString("url") + "/problem/" + rs.getInt("problem_id"));
 			});
 
-			sheets.values().forEach(ExcelSheet::close);
+			if (sheets.isEmpty()) {
+			    logger.warn("Excel export for user {} generated an empty workbook (0 rows found).", userId);
+			}
 			workbook.write(os);
 			return os.toByteArray();
 		} catch (IOException e) {
