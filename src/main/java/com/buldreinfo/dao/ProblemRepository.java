@@ -402,7 +402,8 @@ public class ProblemRepository {
 	}
 
 	private List<ProblemComment> fetchComments(Optional<Integer> authUserId, int problemId) {
-		List<ProblemComment> comments = jdbcClient.sql("""
+		List<ProblemComment> comments = new ArrayList<>();
+		jdbcClient.sql("""
 				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
 				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
 				       CONCAT(u.firstname, ' ', COALESCE(u.lastname,'')) name, g.message, g.danger, g.resolved
@@ -412,18 +413,28 @@ public class ProblemRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE g.problem_id=? ORDER BY g.post_time DESC
 				""")
-				.param(problemId)
-				.query((java.sql.ResultSet rs) -> {
-					List<ProblemComment> result = new ArrayList<>();
-					while (rs.next()) {
-						MediaIdentity mId = rs.getInt("media_id") > 0 ? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null;
-						result.add(new ProblemComment(rs.getInt("id"), rs.getString("date"), rs.getInt("user_id"), mId, rs.getString("name"), rs.getString("message"), rs.getBoolean("danger"), rs.getBoolean("resolved"), mediaRepo.getObject().getMediaGuestbook(authUserId, rs.getInt("id")), false));
-					}
-					return result;
-				});
+		.param(1, problemId)
+		.query(rs -> {
+			MediaIdentity mId = rs.getInt("media_id") > 0 
+					? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
+							: null;
+			comments.add(new ProblemComment(
+					rs.getInt("id"), 
+					rs.getString("date"), 
+					rs.getInt("user_id"), 
+					mId, 
+					rs.getString("name"), 
+					rs.getString("message"), 
+					rs.getBoolean("danger"), 
+					rs.getBoolean("resolved"), 
+					mediaRepo.getObject().getMediaGuestbook(authUserId, rs.getInt("id")), 
+					false
+					));
+		});
 		int currentUserId = authUserId.orElse(0);
+		int maxId = comments.stream().mapToInt(ProblemComment::id).max().orElse(-1);
 		return comments.stream()
-				.map(c -> (c.id() == comments.stream().mapToInt(ProblemComment::id).max().orElse(-1) && c.idUser() == currentUserId) 
+				.map(c -> (c.id() == maxId && c.idUser() == currentUserId) 
 						? c.withEditable(true) : c)
 				.toList();
 	}
@@ -440,25 +451,24 @@ public class ProblemRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE a.problem_id=?
 				""")
-		.param(problemId)
-		.query((java.sql.ResultSet rs) -> {
-			while (rs.next()) {
-				if (faAidRef.get() == null) {
-					faAidRef.set(new FaAid(problemId, rs.getString("aid_date"), rs.getString("aid_date_hr"), rs.getString("aid_description"), new ArrayList<>()));
-				}
-				if (rs.getInt("id") != 0) {
-					MediaIdentity mId = rs.getInt("media_id") > 0 ? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null;
-					faAidRef.get().users().add(User.from(rs.getInt("id"), rs.getString("name"), mId));
-				}
+		.param(1, problemId)
+		.query(rs -> {
+			if (faAidRef.get() == null) {
+				faAidRef.set(new FaAid(problemId, rs.getString("aid_date"), rs.getString("aid_date_hr"), rs.getString("aid_description"), new ArrayList<>()));
+			}
+
+			if (rs.getInt("id") != 0) {
+				MediaIdentity mId = rs.getInt("media_id") > 0 
+						? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
+								: null;
+				faAidRef.get().users().add(User.from(rs.getInt("id"), rs.getString("name"), mId));
 			}
 		});
-
 		return faAidRef.get();
 	}
 
 	private List<ProblemTick> fetchTicks(Optional<Integer> authUserId, int problemId) {
 		Map<Integer, ProblemTick> tickLookup = new HashMap<>();
-
 		jdbcClient.sql("""
 				SELECT t.id id_tick, u.id id_user, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
 				       mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
@@ -471,23 +481,39 @@ public class ProblemRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE t.problem_id=? ORDER BY t.date DESC, t.id DESC
 				""")
-		.param(problemId)
-		.query((java.sql.ResultSet rs) -> {
-			while (rs.next()) {
-				int id = rs.getInt("id_tick");
-				MediaIdentity mId = rs.getInt("media_id") > 0 ? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null;
-				tickLookup.put(id, new ProblemTick(id, rs.getInt("id_user"), mId, rs.getString("date"), rs.getString("name"), rs.getString("grade"), rs.getString("grade") == null, rs.getString("comment"), rs.getDouble("stars"), rs.getInt("id_user") == authUserId.orElse(0)));
+		.param(1, problemId)
+		.query(rs -> {
+			int id = rs.getInt("id_tick");
+			MediaIdentity mId = rs.getInt("media_id") > 0 
+					? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
+							: null;
+
+			tickLookup.put(id, new ProblemTick(
+					id, 
+					rs.getInt("id_user"), 
+					mId, 
+					rs.getString("date"), 
+					rs.getString("name"), 
+					rs.getString("grade"), 
+					rs.getString("grade") == null, 
+					rs.getString("comment"), 
+					rs.getDouble("stars"), 
+					rs.getInt("id_user") == authUserId.orElse(0)
+					));
+		});
+		jdbcClient.sql("""
+				SELECT r.id, r.tick_id, r.date, r.comment 
+				FROM tick t, tick_repeat r 
+				WHERE t.problem_id=? AND t.id=r.tick_id 
+				ORDER BY r.tick_id, r.date, r.id
+				""")
+		.param(1, problemId)
+		.query(rs -> {
+			ProblemTick tick = tickLookup.get(rs.getInt("tick_id"));
+			if (tick != null) {
+				tick.addRepeat(rs.getInt("id"), rs.getInt("tick_id"), rs.getString("date"), rs.getString("comment"));
 			}
 		});
-
-		jdbcClient.sql("SELECT r.id, r.tick_id, r.date, r.comment FROM tick t, tick_repeat r WHERE t.problem_id=? AND t.id=r.tick_id ORDER BY r.tick_id, r.date, r.id")
-		.param(problemId)
-		.query((java.sql.ResultSet rs) -> {
-			while (rs.next()) {
-				tickLookup.get(rs.getInt("tick_id")).addRepeat(rs.getInt("id"), rs.getInt("tick_id"), rs.getString("date"), rs.getString("comment"));
-			}
-		});
-
 		return List.copyOf(tickLookup.values());
 	}
 
@@ -569,6 +595,7 @@ public class ProblemRepository {
 				.list();
 	}
 
+	@Transactional(readOnly = true)
 	protected void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) {
 		int userId = authUserId.orElseThrow(() -> new IllegalArgumentException("User not authenticated"));
 
@@ -593,6 +620,7 @@ public class ProblemRepository {
 		}
 	}
 
+	@Transactional
 	protected void updateProblemConsensusGrade(int problemId) {
 		jdbcClient.sql("""
 				UPDATE problem p

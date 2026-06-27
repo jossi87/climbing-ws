@@ -58,8 +58,8 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 		}
 	}
 
-	private static <T> List<T> parseAndSort(ResultSet rst, String column, ObjectMapper mapper, TypeReference<List<T>> type, Comparator<? super T> comparator) throws SQLException, JsonProcessingException {
-		String json = rst.getString(column);
+	private static <T> List<T> parseAndSort(ResultSet rs, String column, ObjectMapper mapper, TypeReference<List<T>> type, Comparator<? super T> comparator) throws SQLException, JsonProcessingException {
+		String json = rs.getString(column);
 		if (json == null || json.isBlank()) return List.of();
 		List<T> result = new ArrayList<>(mapper.readValue(json, type));
 		if (comparator != null) result.sort(comparator);

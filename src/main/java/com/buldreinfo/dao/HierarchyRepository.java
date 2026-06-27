@@ -1,5 +1,6 @@
 package com.buldreinfo.dao;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
@@ -86,23 +88,21 @@ public class HierarchyRepository {
 				LEFT JOIN x ON g.label_major = x.g_base
 				ORDER BY g.sort, x.region, x.t
 				""";
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		jdbcClient.sql(sql)
+		.param(1, authUserId.orElse(0))
+		.param(2, setup.idRegion())
+		.query(rs -> {
+			var label = rs.getString("grade");
+			var color = rs.getString("color");
+			var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
+			int regionId = rs.getInt("region_id");
+			if (!rs.wasNull()) {
+				dist.addSector(regionId, rs.getString("region"), rs.getString("t"), rs.getInt("num"));
+			}
+		});
 
-		return jdbcClient.sql(sql)
-				.param(1, authUserId.orElse(0))
-				.param(2, setup.idRegion())
-				.query(rs -> {
-					Map<String, GradeDistribution> res = new LinkedHashMap<>();
-					while (rs.next()) {
-						var label = rs.getString("grade");
-						var color = rs.getString("color");
-						var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
-						int regionId = rs.getInt("region_id");
-						if (!rs.wasNull()) {
-							dist.addSector(regionId, rs.getString("region"), rs.getString("t"), rs.getInt("num"));
-						}
-					}
-					return res.values();
-				});
+		return res.values();
 	}
 
 	@Transactional(readOnly = true)
@@ -131,58 +131,67 @@ public class HierarchyRepository {
 				ORDER BY a.name, s.name, p.nr
 				""";
 
-		return jdbcClient.sql(sql)
-				.param(1, authUserId.orElse(0))
-				.param(2, setup.idRegion())
-				.query(rs -> {
-					Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
-					Map<Integer, DangerousArea.DangerousSector> sectorLookup = new HashMap<>();
+		Map<Integer, DangerousArea> areasLookup = new LinkedHashMap<>();
+		Map<Integer, DangerousArea.DangerousSector> sectorLookup = new HashMap<>();
 
-					while (rs.next()) {
-						int areaId = rs.getInt("area_id");
-						String areaName = rs.getString("area_name");
-						boolean areaLockedAdmin = rs.getBoolean("area_locked_admin");
-						boolean areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
-						int areaSunFromHour = rs.getInt("area_sun_from_hour");
-						int areaSunToHour = rs.getInt("area_sun_to_hour");
+		jdbcClient.sql(sql)
+		.param(1, authUserId.orElse(0))
+		.param(2, setup.idRegion())
+		.query(rs -> {
+			int areaId = rs.getInt("area_id");
+			int sectorId = rs.getInt("sector_id");
 
-						int sectorId = rs.getInt("sector_id");
-						String sectorName = rs.getString("sector_name");
-						int sectorCompassCalculated = rs.getInt("sector_compass_direction_id_calculated");
-						int sectorCompassManual = rs.getInt("sector_compass_direction_id_manual");
-						boolean sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
-						boolean sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
-						int sectorSunFromHour = rs.getInt("sector_sun_from_hour");
-						int sectorSunToHour = rs.getInt("sector_sun_to_hour");
+			DangerousArea a = areasLookup.computeIfAbsent(areaId, id -> {
+				try {
+					return new DangerousArea(
+							id, 
+							rs.getString("area_name"), 
+							rs.getBoolean("area_locked_admin"), 
+							rs.getBoolean("area_locked_superadmin"), 
+							rs.getInt("area_sun_from_hour"), 
+							rs.getInt("area_sun_to_hour"), 
+							new ArrayList<>()
+							);
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
+			});
 
-						int problemId = rs.getInt("problem_id");
-						String problemBroken = rs.getString("problem_broken");
-						int problemNr = rs.getInt("problem_nr");
-						String problemGrade = rs.getString("problem_grade");
-						String problemName = rs.getString("problem_name");
-						boolean problemLockedAdmin = rs.getBoolean("problem_locked_admin");
-						boolean problemLockedSuperadmin = rs.getBoolean("problem_locked_superadmin");
-						String postName = rs.getString("name");
-						String postTime = rs.getString("post_time");
-						String message = rs.getString("message");
+			DangerousArea.DangerousSector s = sectorLookup.computeIfAbsent(sectorId, id -> {
+				try {
+					var newSector = new DangerousArea.DangerousSector(
+							id, 
+							rs.getString("sector_name"), 
+							geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_calculated")), 
+							geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_manual")), 
+							rs.getBoolean("sector_locked_admin"), 
+							rs.getBoolean("sector_locked_superadmin"), 
+							rs.getInt("sector_sun_from_hour"), 
+							rs.getInt("sector_sun_to_hour"), 
+							new ArrayList<>()
+							);
+					a.sectors().add(newSector);
+					return newSector;
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
+			});
 
-						DangerousArea a = areasLookup.get(areaId);
-						if (a == null) {
-							a = new DangerousArea(areaId, areaName, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
-							areasLookup.put(areaId, a);
-						}
+			s.problems().add(new DangerousArea.DangerousProblem(
+					rs.getInt("problem_id"), 
+					rs.getString("problem_broken"), 
+					rs.getBoolean("problem_locked_admin"), 
+					rs.getBoolean("problem_locked_superadmin"), 
+					rs.getInt("problem_nr"), 
+					rs.getString("problem_name"), 
+					rs.getString("problem_grade"), 
+					rs.getString("name"), 
+					rs.getString("post_time"), 
+					rs.getString("message")
+					));
+		});
 
-						DangerousArea.DangerousSector s = sectorLookup.get(sectorId);
-						if (s == null) {
-							s = new DangerousArea.DangerousSector(sectorId, sectorName, geoRepo.getCompassDirection(setup, sectorCompassCalculated), geoRepo.getCompassDirection(setup, sectorCompassManual), sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
-							a.sectors().add(s);
-							sectorLookup.put(sectorId, s);
-						}
-
-						s.problems().add(new DangerousArea.DangerousProblem(problemId, problemBroken, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade, postName, postTime, message));
-					}
-					return areasLookup.values();
-				});
+		return areasLookup.values();
 	}
 
 	@Transactional(readOnly = true)
@@ -222,24 +231,20 @@ public class HierarchyRepository {
 				LEFT JOIN x ON g.label_major = x.g_base
 				ORDER BY g.sort, x.sorting, x.sector, x.t
 				""";
+		Map<String, GradeDistribution> res = new LinkedHashMap<>();
+		jdbcClient.sql(sqlStr)
+		.params(authUserId.orElse(0), optionalSectorId, optionalAreaId)
+		.query(rs -> {
+			var label = rs.getString("grade");
+			var color = rs.getString("color");
+			var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
 
-		return jdbcClient.sql(sqlStr)
-				.param(1, authUserId.orElse(0))
-				.param(2, optionalSectorId)
-				.param(3, optionalAreaId)
-				.query(rst -> {
-					Map<String, GradeDistribution> res = new LinkedHashMap<>();
-					while (rst.next()) {
-						var label = rst.getString("grade");
-						var color = rst.getString("color");
-						var dist = res.computeIfAbsent(label, k -> new GradeDistribution(k, color));
-						int sectorId = rst.getInt("sector_id");
-						if (!rst.wasNull()) {
-							dist.addSector(sectorId, rst.getString("sector"), rst.getString("t"), rst.getInt("num"));
-						}
-					}
-					return res.values();
-				});
+			int sectorId = rs.getInt("sector_id");
+			if (!rs.wasNull()) {
+				dist.addSector(sectorId, rs.getString("sector"), rs.getString("t"), rs.getInt("num"));
+			}
+		});
+		return res.values();
 	}
 
 	@Transactional(readOnly = true)
@@ -266,43 +271,55 @@ public class HierarchyRepository {
 				ORDER BY r.name, a.name, s.name
 				""";
 
-		return jdbcClient.sql(sqlStr)
-				.param(1, authUserId.orElse(0))
-				.param(2, setup.idRegion())
-				.query(rst -> {
-					Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
-					Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
-					while (rst.next()) {
-						int regionId = rst.getInt("region_id");
-						var r = regionsLookup.get(regionId);
-						if (r == null) {
-							var name = rst.getString("region_name");
-							r = new RestrictionsRegion(regionId, name, new ArrayList<>());
-							regionsLookup.put(regionId, r);
-						}
-						int areaId = rst.getInt("area_id");
-						var a = areasLookup.get(areaId);
-						if (a == null) {
-							var name = rst.getString("area_name");
-							var lockedAdmin = rst.getBoolean("area_locked_admin");
-							var lockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-							var accessClosed = rst.getString("area_access_closed");
-							var accessInfo = rst.getString("area_access_info");
-							a = new RestrictionsArea(areaId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo, new ArrayList<>());
-							r.areas().add(a);
-							areasLookup.put(areaId, a);
-						}
-						int sectorId = rst.getInt("sector_id");
-						var name = rst.getString("sector_name");
-						var lockedAdmin = rst.getBoolean("sector_locked_admin");
-						var lockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-						var accessClosed = rst.getString("sector_access_closed");
-						var accessInfo = rst.getString("sector_access_info");
-						var s = new RestrictionsSector(sectorId, lockedAdmin, lockedSuperadmin, name, accessClosed, accessInfo);
-						a.sectors().add(s);
-					}
-					return regionsLookup.values();
-				});
+		Map<Integer, RestrictionsRegion> regionsLookup = new LinkedHashMap<>();
+		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
+
+		jdbcClient.sql(sqlStr)
+		.param(1, authUserId.orElse(0))
+		.param(2, setup.idRegion())
+		.query(rs -> {
+			int regionId = rs.getInt("region_id");
+			var r = regionsLookup.computeIfAbsent(regionId, id -> {
+				try {
+					return new RestrictionsRegion(id, rs.getString("region_name"), new ArrayList<>());
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
+			});
+
+			int areaId = rs.getInt("area_id");
+			var a = areasLookup.computeIfAbsent(areaId, id -> {
+				try {
+					var area = new RestrictionsArea(
+							id, 
+							rs.getBoolean("area_locked_admin"), 
+							rs.getBoolean("area_locked_superadmin"), 
+							rs.getString("area_name"), 
+							rs.getString("area_access_closed"), 
+							rs.getString("area_access_info"), 
+							new ArrayList<>()
+							);
+					r.areas().add(area);
+					return area;
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
+			});
+
+			int sectorId = rs.getInt("sector_id");
+			if (!rs.wasNull()) {
+				a.sectors().add(new RestrictionsSector(
+						sectorId, 
+						rs.getBoolean("sector_locked_admin"), 
+						rs.getBoolean("sector_locked_superadmin"), 
+						rs.getString("sector_name"), 
+						rs.getString("sector_access_closed"), 
+						rs.getString("sector_access_info")
+						));
+			}
+		});
+
+		return regionsLookup.values();
 	}
 
 	@Transactional(readOnly = true)
@@ -428,41 +445,38 @@ public class HierarchyRepository {
 		.param(1, authUserId.orElse(0))
 		.param(2, setup.idRegion())
 		.param(3, wildCardSearch)
-		.query(rst -> {
-			while (rst.next()) {
-				var type = rst.getString("result_type");
-				int id = rst.getInt("id");
-				var title = rst.getString("title");
-				var subTitle = rst.getString("sub_title");
-				var breadcrumb = rst.getString("breadcrumb");
-				long hits = rst.getLong("hits");
-				var pageViews = HitsFormatter.formatHits(hits);
-				var lockedAdmin = rst.getBoolean("locked_admin");
-				var lockedSuperadmin = rst.getBoolean("locked_superadmin");
+		.query(rs -> {
+			var type = rs.getString("result_type");
+			int id = rs.getInt("id");
+			var title = rs.getString("title");
+			var subTitle = rs.getString("sub_title");
+			var breadcrumb = rs.getString("breadcrumb");
+			long hits = rs.getLong("hits");
+			var pageViews = HitsFormatter.formatHits(hits);
+			var lockedAdmin = rs.getBoolean("locked_admin");
+			var lockedSuperadmin = rs.getBoolean("locked_superadmin");
 
-				int mediaId = rst.getInt("media_id");
-				MediaIdentity mediaIdentity = null;
-				if (mediaId > 0) {
-					long mediaVersionStamp = rst.getLong("media_version_stamp");
-					int mediaFocusX = rst.getInt("media_focus_x");
-					int mediaFocusY = rst.getInt("media_focus_y");
-					var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-					mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
-				}
-
-				switch (type) {
-				case "AREA" -> {
-					areaIdsVisible.add(id);
-					areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-				}
-				case "EXTERNAL" -> externalAreas.add(new Search(title, subTitle, breadcrumb, null, rst.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
-				case "SECTOR" -> sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-				case "PROBLEM" -> problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-				case "USER" -> users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
-				default -> throw new IllegalArgumentException("Invalid type: " + type);
-				}
+			int mediaId = rs.getInt("media_id");
+			MediaIdentity mediaIdentity = null;
+			if (mediaId > 0) {
+				long mediaVersionStamp = rs.getLong("media_version_stamp");
+				int mediaFocusX = rs.getInt("media_focus_x");
+				int mediaFocusY = rs.getInt("media_focus_y");
+				var mediaPrimaryColorHex = rs.getString("media_primary_color_hex");
+				mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
 			}
-			return areas;
+
+			switch (type) {
+			case "AREA" -> {
+				areaIdsVisible.add(id);
+				areas.add(new Search(title, subTitle, breadcrumb, "/area/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			}
+			case "EXTERNAL" -> externalAreas.add(new Search(title, subTitle, breadcrumb, null, rs.getString("external_url"), null, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			case "SECTOR" -> sectors.add(new Search(title, subTitle, breadcrumb, "/sector/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			case "PROBLEM" -> problems.add(new Search(title, subTitle, breadcrumb, "/problem/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			case "USER" -> users.add(new Search(title, null, null, "/user/" + id, null, mediaIdentity, hits, pageViews, lockedAdmin, lockedSuperadmin));
+			default -> throw new IllegalArgumentException("Invalid type: " + type);
+			}
 		});
 
 		while (areas.size() + sectors.size() + problems.size() + users.size() > 10) {
@@ -679,79 +693,76 @@ public class HierarchyRepository {
 		int[] numProblems = {0};
 
 		jdbcClient.sql(sqlStr)
-				.param(1, authUserId.orElse(0))
-				.param(2, setup.idRegion())
-				.query(rst -> {
-					while (rst.next()) {
-						int regionId = rst.getInt("region_id");
-						var r = regionLookup.get(regionId);
-						if (r == null) {
-							var regionName = rst.getString("region_name");
-							r = new TocRegion(regionId, regionName, new ArrayList<>());
-							regionLookup.put(regionId, r);
-						}
-						int areaId = rst.getInt("area_id");
-						var a = areaLookup.get(areaId);
-						if (a == null) {
-							var areaUrl = rst.getString("area_url");
-							var areaName = rst.getString("area_name");
-							int areaidCoordinates = rst.getInt("area_coordinates_id");
-							var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rst.getDouble("area_latitude"), rst.getDouble("area_longitude"), rst.getDouble("area_elevation"), rst.getString("area_elevation_source"));
-							var areaLockedAdmin = rst.getBoolean("area_locked_admin");
-							var areaLockedSuperadmin = rst.getBoolean("area_locked_superadmin");
-							int areaSunFromHour = rst.getInt("area_sun_from_hour");
-							int areaSunToHour = rst.getInt("area_sun_to_hour");
-							a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
-							r.areas().add(a);
-							areaLookup.put(areaId, a);
-						}
-						int sectorId = rst.getInt("sector_id");
-						var s = sectorLookup.get(sectorId);
-						if (s == null) {
-							var sectorUrl = rst.getString("sector_url");
-							var sectorName = rst.getString("sector_name");
-							int sectorSorting = rst.getInt("sector_sorting");
-							int sectorSunFromHour = rst.getInt("sector_sun_from_hour");
-							int sectorSunToHour = rst.getInt("sector_sun_to_hour");
-							int sectorParkingidCoordinates = rst.getInt("sector_parking_coordinates_id");
-							var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rst.getDouble("sector_parking_latitude"), rst.getDouble("sector_parking_longitude"), rst.getDouble("sector_parking_elevation"), rst.getString("sector_parking_elevation_source"));
-							var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_calculated"));
-							var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rst.getInt("sector_compass_direction_id_manual"));
-							var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-							var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-							s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
-							a.sectors().add(s);
-							sectorLookup.put(sectorId, s);
-						}
-						int id = rst.getInt("id");
-						var url = rst.getString("url");
-						var broken = rst.getString("broken");
-						var lockedAdmin = rst.getBoolean("locked_admin");
-						var lockedSuperadmin = rst.getBoolean("locked_superadmin");
-						int nr = rst.getInt("nr");
-						var name = rst.getString("name");
-						var description = rst.getString("description");
-						int lengthMeter = rst.getInt("length_meter");
-						int startingAltitude = rst.getInt("starting_altitude");
-						int idCoordinates = rst.getInt("coordinates_id");
-						var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rst.getDouble("latitude"), rst.getDouble("longitude"), rst.getDouble("elevation"), rst.getString("elevation_source"));
-						var grade = rst.getString("grade");
-						var faUser = rst.getString("fa_user");
-						int faYear = rst.getInt("fa_year");
-						var ffaUser = rst.getString("ffa_user");
-						int ffaYear = rst.getInt("ffa_year");
-						int numTicks = rst.getInt("num_ticks");
-						double stars = rst.getDouble("stars");
-						var ticked = rst.getBoolean("ticked");
-						var todo = rst.getBoolean("todo");
-						var t = new Type(rst.getInt("type_id"), rst.getString("type"), rst.getString("subtype"));
-						int numPitches = rst.getInt("num_pitches");
-						var p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
-						s.problems().add(p);
-						numProblems[0]++;
-					}
-					return regionLookup.values();
-				});
+		.param(1, authUserId.orElse(0))
+		.param(2, setup.idRegion())
+		.query(rs -> {
+			int regionId = rs.getInt("region_id");
+			var r = regionLookup.get(regionId);
+			if (r == null) {
+				var regionName = rs.getString("region_name");
+				r = new TocRegion(regionId, regionName, new ArrayList<>());
+				regionLookup.put(regionId, r);
+			}
+			int areaId = rs.getInt("area_id");
+			var a = areaLookup.get(areaId);
+			if (a == null) {
+				var areaUrl = rs.getString("area_url");
+				var areaName = rs.getString("area_name");
+				int areaidCoordinates = rs.getInt("area_coordinates_id");
+				var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"));
+				var areaLockedAdmin = rs.getBoolean("area_locked_admin");
+				var areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
+				int areaSunFromHour = rs.getInt("area_sun_from_hour");
+				int areaSunToHour = rs.getInt("area_sun_to_hour");
+				a = new TocArea(areaId, areaUrl, areaName, areaCoordinates, areaLockedAdmin, areaLockedSuperadmin, areaSunFromHour, areaSunToHour, new ArrayList<>());
+				r.areas().add(a);
+				areaLookup.put(areaId, a);
+			}
+			int sectorId = rs.getInt("sector_id");
+			var s = sectorLookup.get(sectorId);
+			if (s == null) {
+				var sectorUrl = rs.getString("sector_url");
+				var sectorName = rs.getString("sector_name");
+				int sectorSorting = rs.getInt("sector_sorting");
+				int sectorSunFromHour = rs.getInt("sector_sun_from_hour");
+				int sectorSunToHour = rs.getInt("sector_sun_to_hour");
+				int sectorParkingidCoordinates = rs.getInt("sector_parking_coordinates_id");
+				var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"));
+				var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_calculated"));
+				var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_manual"));
+				var sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
+				var sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
+				s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
+				a.sectors().add(s);
+				sectorLookup.put(sectorId, s);
+			}
+			int id = rs.getInt("id");
+			var url = rs.getString("url");
+			var broken = rs.getString("broken");
+			var lockedAdmin = rs.getBoolean("locked_admin");
+			var lockedSuperadmin = rs.getBoolean("locked_superadmin");
+			int nr = rs.getInt("nr");
+			var name = rs.getString("name");
+			var description = rs.getString("description");
+			int lengthMeter = rs.getInt("length_meter");
+			int startingAltitude = rs.getInt("starting_altitude");
+			int idCoordinates = rs.getInt("coordinates_id");
+			var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+			var grade = rs.getString("grade");
+			var faUser = rs.getString("fa_user");
+			int faYear = rs.getInt("fa_year");
+			var ffaUser = rs.getString("ffa_user");
+			int ffaYear = rs.getInt("ffa_year");
+			int numTicks = rs.getInt("num_ticks");
+			double stars = rs.getDouble("stars");
+			var ticked = rs.getBoolean("ticked");
+			var todo = rs.getBoolean("todo");
+			var t = new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype"));
+			int numPitches = rs.getInt("num_pitches");
+			var p = new TocProblem(id, url, broken, lockedAdmin, lockedSuperadmin, nr, name, description, lengthMeter, startingAltitude, coordinates, grade, faUser, faYear, ffaUser, ffaYear, numTicks, stars, ticked, todo, t, numPitches);
+			s.problems().add(p);
+			numProblems[0]++;
+		});
 
 		if (!sectorLookup.isEmpty()) {
 			var idSectorOutline = sectorRepo.getObject().getSectorOutlines(sectorLookup.keySet());
@@ -792,21 +803,18 @@ public class HierarchyRepository {
 				.param(1, setup.idRegion())
 				.param(2, authUserId.orElse(0))
 				.param(3, setup.idRegion())
-				.query(rst -> {
-					var res = new ArrayList<TocPitch>();
-					while (rst.next()) {
-						var regionName = rst.getString("region_name");
-						var url = rst.getString("url");
-						var areaName = rst.getString("area_name");
-						var sectorName = rst.getString("sector_name");
-						var problemName = rst.getString("problem_name");
-						int pitch = rst.getInt("pitch");
-						var grade = rst.getString("grade");
-						var description = rst.getString("description");
-						res.add(new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, grade, description));
-					}
-					return res;
-				});
+				.query((rs, _) -> {
+					var regionName = rs.getString("region_name");
+					var url = rs.getString("url");
+					var areaName = rs.getString("area_name");
+					var sectorName = rs.getString("sector_name");
+					var problemName = rs.getString("problem_name");
+					int pitch = rs.getInt("pitch");
+					var grade = rs.getString("grade");
+					var description = rs.getString("description");
+					return new TocPitch(regionName, url, areaName, sectorName, problemName, pitch, grade, description);
+				})
+				.list();
 	}
 
 	@Transactional(readOnly = true)
@@ -833,18 +841,14 @@ public class HierarchyRepository {
 				    JOIN area a ON s.area_id = a.id
 				    JOIN fa f ON p.id = f.problem_id
 				    WHERE %1$s = ? AND p.broken IS NULL AND f.user_id IS NOT NULL
-
 				    UNION
-
 				    SELECT t.user_id, p.id AS problem_id
 				    FROM problem p
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
 				    JOIN tick t ON p.id = t.problem_id
 				    WHERE %1$s = ? AND p.broken IS NULL AND t.user_id IS NOT NULL
-
 				    UNION
-
 				    SELECT aid.user_id, p.id AS problem_id
 				    FROM problem p
 				    JOIN sector s ON p.sector_id = s.id
@@ -865,50 +869,46 @@ public class HierarchyRepository {
 				GROUP BY u.id, u.firstname, u.lastname, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, tp.sum
 				ORDER BY percentage DESC, name ASC
 				""".formatted(columnCondition);
+		Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
+		Set<Integer> uniqueUserIds = new HashSet<>();
+		var state = new Object() {
+			double prevPercentage = -1.0;
+			int rank = 0;
+		};
+		jdbcClient.sql(sqlStr)
+		.params(filterId, filterId, filterId, filterId)
+		.query(rs -> {
+			int userId = rs.getInt("user_id");
+			uniqueUserIds.add(userId);
+			var name = rs.getString("name");
+			int mediaId = rs.getInt("media_id");
+			MediaIdentity mediaIdentity = null;
 
-		return jdbcClient.sql(sqlStr)
-				.param(1, filterId)
-				.param(2, filterId)
-				.param(3, filterId)
-				.param(4, filterId)
-				.query(rst -> {
-					Map<Double, TopRank> topByPercentage = new LinkedHashMap<>();
-					var uniqueUserIds = new HashSet<Integer>();
-					var prevPercentage = -1.0;
-					var rank = 0;
+			if (mediaId > 0) {
+				mediaIdentity = new MediaIdentity(
+						mediaId, 
+						rs.getLong("media_version_stamp"), 
+						rs.getInt("media_focus_x"), 
+						rs.getInt("media_focus_y"), 
+						rs.getString("media_primary_color_hex")
+						);
+			}
 
-					while (rst.next()) {
-						int userId = rst.getInt("user_id");
-						uniqueUserIds.add(userId);
-						var name = rst.getString("name");
-						int mediaId = rst.getInt("media_id");
-						MediaIdentity mediaIdentity = null;
+			var percentage = rs.getDouble("percentage");
+			if (state.prevPercentage != percentage) {
+				state.rank++;
+			}
+			state.prevPercentage = percentage;
+			var mine = authUserId.orElse(0) == userId;
 
-						if (mediaId > 0) {
-							long mediaVersionStamp = rst.getLong("media_version_stamp");
-							int mediaFocusX = rst.getInt("media_focus_x");
-							int mediaFocusY = rst.getInt("media_focus_y");
-							var mediaPrimaryColorHex = rst.getString("media_primary_color_hex");
-							mediaIdentity = new MediaIdentity(mediaId, mediaVersionStamp, mediaFocusX, mediaFocusY, mediaPrimaryColorHex);
-						}
-
-						var percentage = rst.getDouble("percentage");
-						if (prevPercentage != percentage) {
-							rank++;
-						}
-						prevPercentage = percentage;
-						var mine = authUserId.orElse(0) == userId;
-
-						var top = topByPercentage.get(percentage);
-						if (top == null) {
-							top = new TopRank(rank, percentage, new ArrayList<>());
-							topByPercentage.put(percentage, top);
-						}
-						top.users().add(new TopUser(userId, name, mediaIdentity, mine));
-					}
-
-					return new Top(topByPercentage.values(), uniqueUserIds.size());
-				});
+			var top = topByPercentage.get(percentage);
+			if (top == null) {
+				top = new TopRank(state.rank, percentage, new ArrayList<>());
+				topByPercentage.put(percentage, top);
+			}
+			top.users().add(new TopUser(userId, name, mediaIdentity, mine));
+		});
+		return new Top(topByPercentage.values(), uniqueUserIds.size());
 	}
 
 	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) {

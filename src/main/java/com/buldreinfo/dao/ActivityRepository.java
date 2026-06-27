@@ -8,12 +8,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,100 +36,124 @@ public class ActivityRepository {
 	private static final Logger logger = LogManager.getLogger();
 
 	private final JdbcClient jdbcClient;
+	private final JdbcTemplate jdbcTemplate;
 
-	public ActivityRepository(JdbcClient jdbcClient) {
+	public ActivityRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate) {
 		this.jdbcClient = jdbcClient;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	@Transactional
 	protected void fillActivity(int idProblem) {
-		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?").param(1, idProblem).update();
+		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
+		.param(1, idProblem)
+		.update();
 
 		List<Integer> faUserIds = new ArrayList<>();
-		LocalDateTime faTs = jdbcClient.sql("""
+		AtomicReference<LocalDateTime> faTsRef = new AtomicReference<>();
+		jdbcClient.sql("""
 				SELECT p.fa_date, p.last_updated, f.user_id
 				FROM problem p
 				JOIN grade g ON p.grade_id=g.id
 				LEFT JOIN fa f ON p.id=f.problem_id
 				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
 				""")
-				.param(1, idProblem)
-				.query((rs, _) -> {
-					int uid = rs.getInt("user_id");
-					if (uid > 0) faUserIds.add(uid);
-					LocalDate d = rs.getObject("fa_date", LocalDate.class);
-					LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
-					return d == null ? null : (l != null ? d.atTime(l.toLocalTime()) : d.atStartOfDay());
-				}).list().stream().filter(Objects::nonNull).findFirst().orElse(null);
+		.param(1, idProblem)
+		.query(rs -> {
+			int uid = rs.getInt("user_id");
+			if (uid > 0) faUserIds.add(uid);
+			if (faTsRef.get() == null) {
+				LocalDate d = rs.getObject("fa_date", LocalDate.class);
+				LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
+				if (d != null) {
+					faTsRef.set(l != null ? d.atTime(l.toLocalTime()) : d.atStartOfDay());
+				}
+			}
+		});
+		LocalDateTime faTs = faTsRef.get();
 
 		List<ActivityRecord> batch = new ArrayList<>();
 		if (faTs != null || !faUserIds.isEmpty()) {
 			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
 		}
-
+		List<Integer> buf = new ArrayList<>();
+		var state = new Object() {
+			LocalDateTime anchor = faTs;
+			LocalDateTime latest = faTs;
+		};
 		jdbcClient.sql("""
 				SELECT m.id, m.date_created
 				FROM media_problem mp
 				JOIN media m ON mp.media_id = m.id
 				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
 				ORDER BY m.date_created ASC
-				""").param(1, idProblem).query(rs -> {
-					List<Integer> buf = new ArrayList<>();
-					LocalDateTime anchor = faTs, latest = faTs;
-					while (rs.next()) {
-						int id = rs.getInt("id");
-						LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
-						boolean inFA = anchor == faTs && cur != null && Math.abs(ChronoUnit.DAYS.between(anchor, cur)) <= 7;
-						boolean inRolling = anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(anchor, cur)) <= 24;
-						if (anchor != null && !inFA && !inRolling) {
-							for (int mid : buf) batch.add(new ActivityRecord(latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-							buf.clear(); anchor = cur;
-						}
-						if (anchor == null) anchor = cur;
-						latest = (anchor == faTs) ? faTs : cur;
-						buf.add(id);
-					}
-					for (int mid : buf) batch.add(new ActivityRecord(latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-					return Void.TYPE;
-				});
+				""")
+		.param(1, idProblem)
+		.query(rs -> {
+			int id = rs.getInt("id");
+			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
+
+			boolean inFA = state.anchor == faTs && cur != null && Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
+			boolean inRolling = state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+
+			if (state.anchor != null && !inFA && !inRolling) {
+				for (int mid : buf) batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+				buf.clear();
+				state.anchor = cur;
+			}
+
+			if (state.anchor == null) state.anchor = cur;
+			state.latest = (state.anchor == faTs) ? faTs : cur;
+			buf.add(id);
+		});
+		for (int mid : buf) {
+			batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+		}
 
 		jdbcClient.sql("""
 				SELECT t.user_id, t.date, t.created, ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix
 				FROM tick t WHERE t.problem_id=? ORDER BY t.date, t.created
-				""").param(1, idProblem).query(rs -> {
-					while (rs.next()) {
-						int uid = rs.getInt("user_id");
-						LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : null;
-						if (ts == null) {
-							LocalDate d = rs.getObject("date", LocalDate.class);
-							LocalDateTime c = rs.getObject("created", LocalDateTime.class);
-							ts = (d != null && c != null) ? (c.toLocalDate().isAfter(d) ? d.atTime(23, 59, Math.min(rs.getInt("ix"), 59)) : d.atTime(c.toLocalTime())) : (d != null ? d.atStartOfDay() : null);
-						}
-						batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
-					}
-					return Void.TYPE;
-				});
+				""")
+		.param(1, idProblem)
+		.query(rs -> {
+			int uid = rs.getInt("user_id");
+			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : null;
+			if (ts == null) {
+				LocalDate d = rs.getObject("date", LocalDate.class);
+				LocalDateTime c = rs.getObject("created", LocalDateTime.class);
+				ts = (d != null && c != null) ? (c.toLocalDate().isAfter(d) ? d.atTime(23, 59, Math.min(rs.getInt("ix"), 59)) : d.atTime(c.toLocalTime())) : (d != null ? d.atStartOfDay() : null);
+			}
+			batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
+		});
 
 		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=? ORDER BY r.tick_id, r.date, r.id")
-		.param(1, idProblem).query(rs -> {
-			while (rs.next()) {
-				LocalDate d = rs.getObject("date", LocalDate.class);
-				batch.add(new ActivityRecord(d != null ? d.atStartOfDay() : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
-			}
-			return Void.TYPE;
+		.param(1, idProblem)
+		.query(rs -> {
+			LocalDate d = rs.getObject("date", LocalDate.class);
+			batch.add(new ActivityRecord(d != null ? d.atStartOfDay() : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
 		});
 
-		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time").param(1, idProblem).query(rs -> {
-			while (rs.next()) {
-				LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-				batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
-			}
-			return Void.TYPE;
+		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time")
+		.param(1, idProblem)
+		.query(rs -> {
+			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
+			batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
 		});
 
-		for (var b : batch) {
-			jdbcClient.sql("INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
-			.params(b.ts, b.type, b.pid, b.mid, b.uid, b.gid, b.rid).update();
-		}
+		jdbcTemplate.batchUpdate(
+				"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				batch,
+				100,
+				(ps, b) -> {
+					ps.setObject(1, b.ts());
+					ps.setString(2, b.type());
+					ps.setInt(3, b.pid());
+					ps.setObject(4, b.mid());
+					ps.setObject(5, b.uid());
+					ps.setObject(6, b.gid());
+					ps.setObject(7, b.rid());
+				}
+				);
 	}
 
 	@Transactional(readOnly = true)
@@ -223,18 +248,15 @@ public class ActivityRepository {
 			String ids = tickIds.stream().map(String::valueOf).collect(Collectors.joining(","));
 			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, t.comment description, t.stars, g.grade FROM activity a JOIN tick t ON a.problem_id=t.problem_id LEFT JOIN grade g ON t.grade_id=g.id JOIN user u ON t.user_id=u.id AND a.user_id=u.id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
 			.query(rs -> {
-				while (rs.next()) {
-					var a = activityLookup.get(rs.getInt("id"));
-					if (a != null) {
-						int userId = rs.getInt("user_id");
-						var name = rs.getString("name");
-						var grade = Optional.ofNullable(rs.getString("grade")).orElse(GradeConverter.NO_PERSONAL_GRADE);
-						a.setTick(false, userId, name, rs.getString("description"), rs.getInt("stars"), grade);
-						int mediaId = rs.getInt("media_id");
-						if (mediaId > 0) a.appendActivityThumbnail(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), userId, name);
-					}
+				var a = activityLookup.get(rs.getInt("id"));
+				if (a != null) {
+					int userId = rs.getInt("user_id");
+					var name = rs.getString("name");
+					var grade = Optional.ofNullable(rs.getString("grade")).orElse(GradeConverter.NO_PERSONAL_GRADE);
+					a.setTick(false, userId, name, rs.getString("description"), rs.getInt("stars"), grade);
+					int mediaId = rs.getInt("media_id");
+					if (mediaId > 0) a.appendActivityThumbnail(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), userId, name);
 				}
-				return Void.TYPE;
 			});
 		}
 
@@ -242,18 +264,15 @@ public class ActivityRepository {
 			String ids = repeatIds.stream().map(String::valueOf).collect(Collectors.joining(","));
 			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, r.comment description, t.stars, g.grade FROM activity a JOIN user u ON a.user_id=u.id JOIN tick t ON a.problem_id=t.problem_id AND u.id=t.user_id LEFT JOIN grade g ON t.grade_id=g.id JOIN tick_repeat r ON a.tick_repeat_id=r.id AND t.id=r.tick_id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
 			.query(rs -> {
-				while (rs.next()) {
-					var a = activityLookup.get(rs.getInt("id"));
-					if (a != null) {
-						int userId = rs.getInt("user_id");
-						var name = rs.getString("name");
-						var grade = Optional.ofNullable(rs.getString("grade")).orElse(GradeConverter.NO_PERSONAL_GRADE);
-						a.setTick(true, userId, name, rs.getString("description"), rs.getInt("stars"), grade);
-						int mediaId = rs.getInt("media_id");
-						if (mediaId > 0) a.appendActivityThumbnail(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), userId, name);
-					}
+				var a = activityLookup.get(rs.getInt("id"));
+				if (a != null) {
+					int userId = rs.getInt("user_id");
+					var name = rs.getString("name");
+					var grade = Optional.ofNullable(rs.getString("grade")).orElse(GradeConverter.NO_PERSONAL_GRADE);
+					a.setTick(true, userId, name, rs.getString("description"), rs.getInt("stars"), grade);
+					int mediaId = rs.getInt("media_id");
+					if (mediaId > 0) a.appendActivityThumbnail(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), userId, name);
 				}
-				return Void.TYPE;
 			});
 		}
 
@@ -261,19 +280,16 @@ public class ActivityRepository {
 			String ids = gbIds.stream().map(String::valueOf).collect(Collectors.joining(","));
 			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, ma.id avatar_media_id, UNIX_TIMESTAMP(ma.updated_at) avatar_version_stamp, mama.focus_x avatar_focus_x, mama.focus_y avatar_focus_y, mama.primary_color_hex avatar_primary_color_hex, g.message, mg.media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url FROM activity a JOIN guestbook g ON a.guestbook_id=g.id JOIN user u ON g.user_id=u.id LEFT JOIN media ma ON u.media_id=ma.id LEFT JOIN media_ml_analysis mama ON ma.id=mama.media_id LEFT JOIN media_guestbook mg ON g.id=mg.guestbook_id LEFT JOIN media m ON mg.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") AND m.deleted_user_id IS NULL")
 			.query(rs -> {
-				while (rs.next()) {
-					var a = activityLookup.get(rs.getInt("id"));
-					if (a != null) {
-						int userId = rs.getInt("user_id");
-						var name = rs.getString("name");
-						a.setGuestbook(userId, name, rs.getString("message"));
-						int mediaId = rs.getInt("media_id");
-						if (mediaId > 0) a.addMedia(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), rs.getBoolean("is_movie"), rs.getBoolean("is_360"), rs.getString("embed_url"));
-						int avatarMediaId = rs.getInt("avatar_media_id");
-						if (avatarMediaId > 0) a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, rs.getLong("avatar_version_stamp"), rs.getInt("avatar_focus_x"), rs.getInt("avatar_focus_y"), rs.getString("avatar_primary_color_hex")), userId, name);
-					}
+				var a = activityLookup.get(rs.getInt("id"));
+				if (a != null) {
+					int userId = rs.getInt("user_id");
+					var name = rs.getString("name");
+					a.setGuestbook(userId, name, rs.getString("message"));
+					int mediaId = rs.getInt("media_id");
+					if (mediaId > 0) a.addMedia(new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")), rs.getBoolean("is_movie"), rs.getBoolean("is_360"), rs.getString("embed_url"));
+					int avatarMediaId = rs.getInt("avatar_media_id");
+					if (avatarMediaId > 0) a.appendActivityThumbnail(new MediaIdentity(avatarMediaId, rs.getLong("avatar_version_stamp"), rs.getInt("avatar_focus_x"), rs.getInt("avatar_focus_y"), rs.getString("avatar_primary_color_hex")), userId, name);
 				}
-				return Void.TYPE;
 			});
 		}
 
@@ -281,20 +297,17 @@ public class ActivityRepository {
 			String ids = faIds.stream().map(String::valueOf).collect(Collectors.joining(","));
 			jdbcClient.sql("SELECT a.id, p.description, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex FROM activity a JOIN problem p ON a.problem_id=p.id LEFT JOIN fa ON p.id=fa.problem_id LEFT JOIN user u ON fa.user_id=u.id LEFT JOIN media m ON u.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id WHERE a.id IN (" + ids + ") ORDER BY u.firstname, u.lastname")
 			.query(rs -> {
-				while (rs.next()) {
-					var a = activityLookup.get(rs.getInt("id"));
-					if (a != null) {
-						var desc = rs.getString("description");
-						if (desc != null) a.setDescription(a.getDescription() == null ? desc : (a.getDescription().contains(desc) ? a.getDescription() : a.getDescription() + " (" + desc + ")"));
-						int userId = rs.getInt("user_id");
-						var name = rs.getString("name");
-						int mediaId = rs.getInt("media_id");
-						MediaIdentity mi = (mediaId > 0) ? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null;
-						if (mi != null) a.appendActivityThumbnail(mi, userId, name);
-						a.addUser(userId, name, mi);
-					}
+				var a = activityLookup.get(rs.getInt("id"));
+				if (a != null) {
+					var desc = rs.getString("description");
+					if (desc != null) a.setDescription(a.getDescription() == null ? desc : (a.getDescription().contains(desc) ? a.getDescription() : a.getDescription() + " (" + desc + ")"));
+					int userId = rs.getInt("user_id");
+					var name = rs.getString("name");
+					int mediaId = rs.getInt("media_id");
+					MediaIdentity mi = (mediaId > 0) ? new MediaIdentity(mediaId, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) : null;
+					if (mi != null) a.appendActivityThumbnail(mi, userId, name);
+					a.addUser(userId, name, mi);
 				}
-				return Void.TYPE;
 			});
 			if (!media) {
 				var pIds = res.stream().filter(a -> a.getActivityIds().stream().anyMatch(faIds::contains)).map(Activity::getProblemId).collect(Collectors.toSet());
@@ -310,15 +323,12 @@ public class ActivityRepository {
 							""".formatted(inClause))
 					.params(new ArrayList<>(pIds))
 					.query(rs -> {
-						while (rs.next()) {
-							int pId = rs.getInt("problem_id");
-							var mi = new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex"));
-							var isMovie = rs.getBoolean("is_movie");
-							var is360 = rs.getBoolean("is_360");
-							var embedUrl = rs.getString("embed_url");
-							res.stream().filter(act -> act.getProblemId() == pId && act.getActivityIds().stream().anyMatch(faIds::contains)).forEach(a -> a.addMedia(mi, isMovie, is360, embedUrl));
-						}
-						return Void.TYPE;
+						int pId = rs.getInt("problem_id");
+						var mi = new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex"));
+						var isMovie = rs.getBoolean("is_movie");
+						var is360 = rs.getBoolean("is_360");
+						var embedUrl = rs.getString("embed_url");
+						res.stream().filter(act -> act.getProblemId() == pId && act.getActivityIds().stream().anyMatch(faIds::contains)).forEach(a -> a.addMedia(mi, isMovie, is360, embedUrl));
 					});
 				}
 			}
@@ -328,14 +338,11 @@ public class ActivityRepository {
 			String ids = mediaIds.stream().map(String::valueOf).collect(Collectors.joining(","));
 			jdbcClient.sql("SELECT a.id, u.id user_id, TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) name, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url, COALESCE(m_photographer.id, m_creator.id) photographer_media_id, UNIX_TIMESTAMP(COALESCE(m_photographer.updated_at,m_creator.updated_at)) photographer_version_stamp FROM activity a JOIN media m ON a.media_id=m.id LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id JOIN media_problem mp ON m.id=mp.media_id AND a.problem_id=mp.problem_id LEFT JOIN user u ON m.photographer_user_id=u.id LEFT JOIN media m_photographer ON u.media_id=m_photographer.id LEFT JOIN user u_creator ON m.uploader_user_id=u_creator.id LEFT JOIN media m_creator ON u_creator.media_id=m_creator.id WHERE a.id IN (" + ids + ")")
 			.query(rs -> {
-				while (rs.next()) {
-					var a = activityLookup.get(rs.getInt("id"));
-					if (a != null) {
-						a.addMedia(new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex")), rs.getBoolean("is_movie"), rs.getBoolean("is_360"), rs.getString("embed_url"));
-						if (a.getUsers() == null || a.getUsers().isEmpty()) a.appendActivityThumbnail(new MediaIdentity(rs.getInt("photographer_media_id"), rs.getLong("photographer_version_stamp"), 0, 0, null), rs.getInt("user_id"), rs.getString("name"));
-					}
+				var a = activityLookup.get(rs.getInt("id"));
+				if (a != null) {
+					a.addMedia(new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex")), rs.getBoolean("is_movie"), rs.getBoolean("is_360"), rs.getString("embed_url"));
+					if (a.getUsers() == null || a.getUsers().isEmpty()) a.appendActivityThumbnail(new MediaIdentity(rs.getInt("photographer_media_id"), rs.getLong("photographer_version_stamp"), 0, 0, null), rs.getInt("user_id"), rs.getString("name"));
 				}
-				return Void.TYPE;
 			});
 		}
 

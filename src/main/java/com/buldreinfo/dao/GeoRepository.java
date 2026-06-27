@@ -1,7 +1,10 @@
 package com.buldreinfo.dao;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +17,12 @@ import com.buldreinfo.service.ElevationService;
 @Repository
 public class GeoRepository {
 	private final JdbcClient jdbcClient;
+	private final JdbcTemplate jdbcTemplate;
 	private final ElevationService elevationService;
 
-	public GeoRepository(JdbcClient jdbcClient, ElevationService elevationService) {
+	public GeoRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate, ElevationService elevationService) {
 		this.jdbcClient = jdbcClient;
+		this.jdbcTemplate = jdbcTemplate;
 		this.elevationService = elevationService;
 	}
 
@@ -45,32 +50,49 @@ public class GeoRepository {
 
 	@Transactional
 	protected void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
-		if (coordinates != null && !coordinates.isEmpty()) {
-			for (var coord : coordinates) {
-				coord.roundCoordinatesToMaximum10digitsAfterComma();
-				jdbcClient.sql("INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)")
-				.param(1, coord.getLatitude())
-				.param(2, coord.getLongitude())
-				.param(3, coord.getElevationSource() != null ? coord.getElevation() : null)
-				.param(4, coord.getElevationSource() != null ? coord.getElevationSource() : null)
-				.update();
-			}
+		if (coordinates == null || coordinates.isEmpty()) return;
 
-			fillMissingElevations();
-
-			for (var coord : coordinates) {
-				jdbcClient.sql("SELECT id, elevation, elevation_source FROM coordinates WHERE latitude=? AND longitude=?")
-				.param(1, coord.getLatitude())
-				.param(2, coord.getLongitude())
-				.query(rs -> {
-					if (rs.next()) {
-						coord.setId(rs.getInt("id"));
-						coord.setElevation(rs.getDouble("elevation"), rs.getString("elevation_source"));
-					}
-					return Void.TYPE;
-				});
-			}
+		for (var coord : coordinates) {
+			coord.roundCoordinatesToMaximum10digitsAfterComma();
 		}
+
+		jdbcTemplate.batchUpdate(
+				"INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)",
+				coordinates,
+				100,
+				(ps, coord) -> {
+					ps.setDouble(1, coord.getLatitude());
+					ps.setDouble(2, coord.getLongitude());
+					ps.setObject(3, coord.getElevationSource() != null ? coord.getElevation() : null);
+					ps.setObject(4, coord.getElevationSource() != null ? coord.getElevationSource() : null);
+				}
+				);
+
+		fillMissingElevations();
+
+		String placeholders = String.join(",", Collections.nCopies(coordinates.size(), "(?,?)"));
+		var sql = "SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE (latitude, longitude) IN (" + placeholders + ")";
+
+		var params = coordinates.stream()
+				.flatMap(c -> Stream.of(c.getLatitude(), c.getLongitude()))
+				.toList();
+
+		jdbcClient.sql(sql)
+		.params(params)
+		.query(rs -> {
+			double lat = rs.getDouble("latitude");
+			double lon = rs.getDouble("longitude");
+			int id = rs.getInt("id");
+			double elev = rs.getDouble("elevation");
+			String src = rs.getString("elevation_source");
+
+			for (Coordinates c : coordinates) {
+				if (Math.abs(c.getLatitude() - lat) < 1e-10 && Math.abs(c.getLongitude() - lon) < 1e-10) {
+					c.setId(id);
+					c.setElevation(elev, src);
+				}
+			}
+		});
 	}
 
 	protected CompassDirection getCompassDirection(Setup s, int id) {

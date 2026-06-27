@@ -23,7 +23,7 @@ public class TodoRepository {
 	public TodoRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
 	}
-	
+
 	@Transactional(readOnly = true)
 	public Todo getTodo(Optional<Integer> authUserId, int idArea, int idSector) {
 		String condition;
@@ -57,50 +57,47 @@ public class TodoRepository {
 				ORDER BY a.name, s.sorting, s.name, p.nr, u.firstname, u.lastname
 				""".formatted(condition);
 
-		var res = jdbcClient.sql(sqlStr)
-				.param(1, authUserId.orElse(0))
-				.param(2, id)
-				.query(rst -> {
-					var result = new Todo(new ArrayList<>());
-					var sectorLookup = new HashMap<Integer, TodoSector>();
-					var problemLookup = new HashMap<Integer, TodoProblem>();
+		var result = new Todo(new ArrayList<>());
+		var sectorLookup = new HashMap<Integer, TodoSector>();
+		var problemLookup = new HashMap<Integer, TodoProblem>();
 
-					while (rst.next()) {
-						int sectorId = rst.getInt("sector_id");
-						var s = sectorLookup.get(sectorId);
-						if (s == null) {
-							var sectorName = rst.getString("sector_name");
-							var sectorLockedAdmin = rst.getBoolean("sector_locked_admin");
-							var sectorLockedSuperadmin = rst.getBoolean("sector_locked_superadmin");
-							s = new TodoSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
-							result.sectors().add(s);
-							sectorLookup.put(sectorId, s);
-						}
+		jdbcClient.sql(sqlStr)
+		.param(1, authUserId.orElse(0))
+		.param(2, id)
+		.query(rs -> {
+			int sectorId = rs.getInt("sector_id");
+			var s = sectorLookup.get(sectorId);
+			if (s == null) {
+				var sectorName = rs.getString("sector_name");
+				var sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
+				var sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
+				s = new TodoSector(sectorId, sectorName, sectorLockedAdmin, sectorLockedSuperadmin, new ArrayList<>());
+				result.sectors().add(s);
+				sectorLookup.put(sectorId, s);
+			}
 
-						int problemId = rst.getInt("problem_id");
-						var p = problemLookup.get(problemId);
-						if (p == null) {
-							int problemNr = rst.getInt("problem_nr");
-							var problemName = rst.getString("problem_name");
-							var problemGrade = rst.getString("problem_grade");
-							var problemLockedAdmin = rst.getBoolean("problem_locked_admin");
-							var problemLockedSuperadmin = rst.getBoolean("problem_locked_superadmin");
-							p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade, new ArrayList<>());
-							s.problems().add(p);
-							problemLookup.put(problemId, p);
-						}
+			int problemId = rs.getInt("problem_id");
+			var p = problemLookup.get(problemId);
+			if (p == null) {
+				int problemNr = rs.getInt("problem_nr");
+				var problemName = rs.getString("problem_name");
+				var problemGrade = rs.getString("problem_grade");
+				var problemLockedAdmin = rs.getBoolean("problem_locked_admin");
+				var problemLockedSuperadmin = rs.getBoolean("problem_locked_superadmin");
+				p = new TodoProblem(problemId, problemLockedAdmin, problemLockedSuperadmin, problemNr, problemName, problemGrade, new ArrayList<>());
+				s.problems().add(p);
+				problemLookup.put(problemId, p);
+			}
 
-						int userId = rst.getInt("user_id");
-						var userName = rst.getString("user_name");
-						p.partners().add(User.from(userId, userName));
-					}
-					return result;
-				});
+			int userId = rs.getInt("user_id");
+			var userName = rs.getString("user_name");
+			p.partners().add(User.from(userId, userName));
+		});
 
-		logger.debug("getTodo(authUserId={}, idArea={}, idSector={}) - res={}", authUserId, idArea, idSector, res);
-		return res;
+		logger.debug("getTodo(authUserId={}, idArea={}, idSector={}) - res={}", authUserId, idArea, idSector, result);
+		return result;
 	}
-	
+
 	@Transactional
 	public void toggleTodo(Optional<Integer> authUserId, int problemId) {
 		if (authUserId.isEmpty()) throw new IllegalArgumentException("User not logged in");
@@ -114,13 +111,13 @@ public class TodoRepository {
 
 		if (todoId.isPresent()) {
 			jdbcClient.sql("DELETE FROM todo WHERE id=?")
-					.param(1, todoId.get())
-					.update();
+			.param(1, todoId.get())
+			.update();
 		} else {
 			jdbcClient.sql("INSERT INTO todo (user_id, problem_id, created) VALUES (?, ?, now())")
-					.param(1, authUserId.get())
-					.param(2, problemId)
-					.update();
+			.param(1, authUserId.get())
+			.param(2, problemId)
+			.update();
 		}
 	}
 }

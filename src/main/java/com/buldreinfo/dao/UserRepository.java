@@ -274,7 +274,7 @@ public class UserRepository {
 					GROUP BY a.name, a.locked_admin, a.locked_superadmin, s.name, s.locked_admin, s.locked_superadmin, p.id, p.nr, p.locked_admin, p.locked_superadmin, p.name, aid.aid_description, aid.aid_date
 					""")
 			.params(reqId, authUserId.orElse(0), setup.idRegion())
-			.query((rs, _) -> {
+			.query(rs -> {
 				int pid = rs.getInt("id_problem");
 				var existing = idProblemTickMap.get(pid);
 				if (existing != null) {
@@ -286,8 +286,7 @@ public class UserRepository {
 					idProblemTickMap.put(pid, tick);
 					res.add(tick);
 				}
-				return Void.TYPE;
-			}).list();
+			});
 		}
 
 		if (!idProblemTickMap.isEmpty()) {
@@ -697,8 +696,7 @@ public class UserRepository {
 					ORDER BY ty.type, a.name, s.name, p.name
 					""")
 			.params(userId, userId, userId)
-			.query(rowMapper)
-			.list();
+			.query(rowMapper);
 
 			jdbcClient.sql("""
 					SELECT 
@@ -720,8 +718,7 @@ public class UserRepository {
 					ORDER BY ty.type, a.name, s.name, p.name, tr.date
 					""")
 			.params(userId, userId)
-			.query(rowMapper)
-			.list();
+			.query(rowMapper);
 
 			jdbcClient.sql("""
 					SELECT 
@@ -737,7 +734,7 @@ public class UserRepository {
 					ORDER BY a.name, s.name, p.name
 					""")
 			.params(userId, userId)
-			.query((rs, _) -> {
+			.query(rs -> {
 				ExcelSheet aidSheet = sheets.computeIfAbsent("First_AID_Ascent", _ -> workbook.addSheet("First_AID_Ascent"));
 				aidSheet.incrementRow();
 				aidSheet.writeString("AREA", rs.getString("area_name"));
@@ -746,9 +743,7 @@ public class UserRepository {
 				aidSheet.writeDate("DATE", rs.getObject("date", LocalDate.class));
 				aidSheet.writeString("DESCRIPTION", rs.getString("comment"));
 				aidSheet.writeHyperlink("URL", rs.getString("url") + "/problem/" + rs.getInt("problem_id"));
-				return Void.TYPE;
-			})
-			.list();
+			});
 
 			sheets.values().forEach(ExcelSheet::close);
 			workbook.write(os);

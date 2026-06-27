@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.model.ExternalLink;
 
@@ -20,6 +21,7 @@ public class ExternalLinksRepository {
 		this.jdbcClient = jdbcClient;
 	}
 
+	@Transactional(readOnly = true)
 	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) {
 		var start = System.nanoTime();
 		var sql = """
@@ -81,6 +83,7 @@ public class ExternalLinksRepository {
 		return res;
 	}
 
+	@Transactional
 	protected void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) {
 		if (areaId <= 0 && sectorId <= 0 && problemId <= 0) {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
