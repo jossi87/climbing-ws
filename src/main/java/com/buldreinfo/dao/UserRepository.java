@@ -650,25 +650,30 @@ public class UserRepository {
 		try (var workbook = new ExcelWorkbook(); var os = new ByteArrayOutputStream()) {
 			Map<String, ExcelSheet> sheets = new HashMap<>();
 
-			RowMapper<Void> rowMapper = (rs, _) -> {
-				String sheetName = rs.getString("type");
-				var sheet = sheets.computeIfAbsent(sheetName, workbook::addSheet);
-				sheet.incrementRow();
-				sheet.writeString("AREA", rs.getString("area_name"));
-				sheet.writeString("SECTOR", rs.getString("sector_name"));
-				var subType = rs.getString("subtype");
-				if (subType != null) {
-					sheet.writeString("TYPE", subType);
-					int pitches = rs.getInt("num_pitches");
-					sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
+			RowMapper<Void> rowMapper = (rs, rowNum) -> {
+				try {
+					String sheetName = rs.getString("type");
+					var sheet = sheets.computeIfAbsent(sheetName, workbook::addSheet);
+					sheet.incrementRow();
+					sheet.writeString("AREA", rs.getString("area_name"));
+					sheet.writeString("SECTOR", rs.getString("sector_name"));
+					var subType = rs.getString("subtype");
+					if (subType != null) {
+						sheet.writeString("TYPE", subType);
+						int pitches = rs.getInt("num_pitches");
+						sheet.writeInt("PITCHES", pitches > 0 ? pitches : 1);
+					}
+					sheet.writeString("NAME", rs.getString("name"));
+					sheet.writeString("FIRST ASCENT", rs.getBoolean("fa") ? "Yes" : "No");
+					sheet.writeDate("DATE", rs.getObject("date", LocalDate.class));
+					sheet.writeString("GRADE", rs.getString("grade"));
+					sheet.writeDouble("STARS", rs.getDouble("stars"));
+					sheet.writeString("DESCRIPTION", rs.getString("comment"));
+					sheet.writeHyperlink("URL", rs.getString("url"));
+				} catch (Exception e) {
+					logger.error("Error processing row for sheet processing at row index: " + rowNum, e);
+					throw new RuntimeException("Failed to map database row to Excel at index: " + rowNum, e);
 				}
-				sheet.writeString("NAME", rs.getString("name"));
-				sheet.writeString("FIRST ASCENT", rs.getBoolean("fa") ? "Yes" : "No");
-				sheet.writeDate("DATE", rs.getObject("date", LocalDate.class));
-				sheet.writeString("GRADE", rs.getString("grade"));
-				sheet.writeDouble("STARS", rs.getDouble("stars"));
-				sheet.writeString("DESCRIPTION", rs.getString("comment"));
-				sheet.writeHyperlink("URL", rs.getString("url"));
 				return null;
 			};
 

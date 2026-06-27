@@ -42,34 +42,39 @@ public class FrontpageRepository {
 	public List<FrontpageFirstAscent> getFrontpageFirstAscents(Optional<Integer> authUserId, Setup setup) {
 		var start = System.nanoTime();
 
-		RowMapper<FrontpageFirstAscent> mapper = (rs, _) -> {
-			var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
-			var rawUsers = rs.getString("user_data");
-			List<User> users = new ArrayList<>();
+		RowMapper<FrontpageFirstAscent> mapper = (rs, rowNum) -> {
+			try {
+				var ts = rs.getTimestamp("activity_timestamp").toLocalDateTime();
+				var rawUsers = rs.getString("user_data");
+				List<User> users = new ArrayList<>();
 
-			if (rawUsers != null) {
-				for (String userRecord : rawUsers.split("\\|")) {
-					String[] p = userRecord.split(":");
-					int mediaId = Integer.parseInt(p[2]);
-					MediaIdentity mi = (mediaId > 0) 
-							? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), (p.length > 6 ? p[6] : null)) 
-									: null;
-					users.add(new User(Integer.parseInt(p[0]), p[1], mi));
+				if (rawUsers != null) {
+					for (String userRecord : rawUsers.split("\\|")) {
+						String[] p = userRecord.split(":");
+						int mediaId = Integer.parseInt(p[2]);
+						MediaIdentity mi = (mediaId > 0) 
+								? new MediaIdentity(mediaId, Long.parseLong(p[3]), Integer.parseInt(p[4]), Integer.parseInt(p[5]), (p.length > 6 ? p[6] : null)) 
+										: null;
+						users.add(new User(Integer.parseInt(p[0]), p[1], mi));
+					}
 				}
-			}
 
-			return new FrontpageFirstAscent(
-					TimeAgo.getTimeAgo(ts.toLocalDate()),
-					rs.getInt("area_id"),
-					rs.getString("area_name"),
-					rs.getInt("problem_id"),
-					rs.getBoolean("problem_locked_admin"),
-					rs.getBoolean("problem_locked_superadmin"),
-					rs.getString("problem_name"),
-					rs.getString("problem_subtype"),
-					rs.getString("grade"),
-					users
-					);
+				return new FrontpageFirstAscent(
+						TimeAgo.getTimeAgo(ts.toLocalDate()),
+						rs.getInt("area_id"),
+						rs.getString("area_name"),
+						rs.getInt("problem_id"),
+						rs.getBoolean("problem_locked_admin"),
+						rs.getBoolean("problem_locked_superadmin"),
+						rs.getString("problem_name"),
+						rs.getString("problem_subtype"),
+						rs.getString("grade"),
+						users
+						);
+			} catch (Exception e) {
+				logger.error("Error mapping FrontpageFirstAscent at row index: " + rowNum, e);
+				throw new RuntimeException("Mapping failure at row " + rowNum, e);
+			}
 		};
 
 		List<FrontpageFirstAscent> res = jdbcClient.sql("""
