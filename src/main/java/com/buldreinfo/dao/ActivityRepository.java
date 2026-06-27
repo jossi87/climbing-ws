@@ -40,8 +40,7 @@ public class ActivityRepository {
 		this.jdbcClient = jdbcClient;
 	}
 
-	@Transactional
-	public void fillActivity(int idProblem) {
+	protected void fillActivity(int idProblem) {
 		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?").param(1, idProblem).update();
 
 		List<Integer> faUserIds = new ArrayList<>();

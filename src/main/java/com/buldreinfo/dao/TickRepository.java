@@ -115,17 +115,24 @@ public class TickRepository {
         } else if (t.id() == -1) {
             var keyHolder = new GeneratedKeyHolder();
             jdbcClient.sql("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")
-                    .param(1, t.idProblem()).param(2, userId).param(3, dt)
+                    .param(1, t.idProblem())
+                    .param(2, userId)
+                    .param(3, dt)
                     .param(4, setup.gradeConverter().getIdGradeFromGrade(t.grade()))
-                    .param(5, GlobalFunctions.stripString(t.comment())).param(6, t.stars())
+                    .param(5, GlobalFunctions.stripString(t.comment()))
+                    .param(6, t.stars())
                     .update(keyHolder, "id");
             
             upsertTickRepeats(keyHolder.getKey().intValue(), t.repeats());
         } else if (t.id() > 0) {
             int affected = jdbcClient.sql("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")
-                    .param(1, dt).param(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()))
-                    .param(3, GlobalFunctions.stripString(t.comment())).param(4, t.stars())
-                    .param(5, t.id()).param(6, t.idProblem()).param(7, userId)
+                    .param(1, dt)
+                    .param(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()))
+                    .param(3, GlobalFunctions.stripString(t.comment()))
+                    .param(4, t.stars())
+                    .param(5, t.id())
+                    .param(6, t.idProblem())
+                    .param(7, userId)
                     .update();
             if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
             upsertTickRepeats(t.id(), t.repeats());
