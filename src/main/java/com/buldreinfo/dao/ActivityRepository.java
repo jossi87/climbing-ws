@@ -26,12 +26,14 @@ import com.buldreinfo.model.MediaIdentity;
 
 @Repository
 public class ActivityRepository {
+	private record ActivityRecord(LocalDateTime ts, String type, int pid, Integer mid, Integer uid, Integer gid, Integer rid) {}
 	private static final String ACTIVITY_TYPE_FA = "FA";
 	private static final String ACTIVITY_TYPE_GUESTBOOK = "GUESTBOOK";
 	private static final String ACTIVITY_TYPE_MEDIA = "MEDIA";
 	private static final String ACTIVITY_TYPE_TICK = "TICK";
 	private static final String ACTIVITY_TYPE_TICK_REPEAT = "TICK_REPEAT";
 	private static final Logger logger = LogManager.getLogger();
+
 	private final JdbcClient jdbcClient;
 
 	public ActivityRepository(JdbcClient jdbcClient) {
@@ -87,7 +89,7 @@ public class ActivityRepository {
 						buf.add(id);
 					}
 					for (int mid : buf) batch.add(new ActivityRecord(latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-					return null;
+					return Void.TYPE;
 				});
 
 		jdbcClient.sql("""
@@ -104,7 +106,7 @@ public class ActivityRepository {
 						}
 						batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
 					}
-					return null;
+					return Void.TYPE;
 				});
 
 		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=? ORDER BY r.tick_id, r.date, r.id")
@@ -113,7 +115,7 @@ public class ActivityRepository {
 				LocalDate d = rs.getObject("date", LocalDate.class);
 				batch.add(new ActivityRecord(d != null ? d.atStartOfDay() : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
 			}
-			return null;
+			return Void.TYPE;
 		});
 
 		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time").param(1, idProblem).query(rs -> {
@@ -121,7 +123,7 @@ public class ActivityRepository {
 				LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
 				batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
 			}
-			return null;
+			return Void.TYPE;
 		});
 
 		for (var b : batch) {
@@ -129,8 +131,6 @@ public class ActivityRepository {
 			.params(b.ts, b.type, b.pid, b.mid, b.uid, b.gid, b.rid).update();
 		}
 	}
-
-	private record ActivityRecord(LocalDateTime ts, String type, int pid, Integer mid, Integer uid, Integer gid, Integer rid) {}
 
 	@Transactional(readOnly = true)
 	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
@@ -302,25 +302,25 @@ public class ActivityRepository {
 				if (!pIds.isEmpty()) {
 					String inClause = String.join(",", Collections.nCopies(pIds.size(), "?"));
 					jdbcClient.sql("""
-					        SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url 
-					        FROM media_problem mp 
-					        JOIN media m ON mp.media_id = m.id 
-					        LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id 
-					        WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL 
-					        ORDER BY mp.sorting
-					        """.formatted(inClause))
-					        .params(new ArrayList<>(pIds))
-					        .query(rs -> {
-					            while (rs.next()) {
-					                int pId = rs.getInt("problem_id");
-					                var mi = new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex"));
-					                var isMovie = rs.getBoolean("is_movie");
-					                var is360 = rs.getBoolean("is_360");
-					                var embedUrl = rs.getString("embed_url");
-					                res.stream().filter(act -> act.getProblemId() == pId && act.getActivityIds().stream().anyMatch(faIds::contains)).forEach(a -> a.addMedia(mi, isMovie, is360, embedUrl));
-					            }
-					            return Void.TYPE;
-					        });
+							SELECT mp.problem_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.is_movie, m.is_360, m.embed_url 
+							FROM media_problem mp 
+							JOIN media m ON mp.media_id = m.id 
+							LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id 
+							WHERE mp.problem_id IN (%s) AND m.deleted_user_id IS NULL 
+							ORDER BY mp.sorting
+							""".formatted(inClause))
+					.params(new ArrayList<>(pIds))
+					.query(rs -> {
+						while (rs.next()) {
+							int pId = rs.getInt("problem_id");
+							var mi = new MediaIdentity(rs.getInt("media_id"), rs.getLong("version_stamp"), rs.getInt("focus_x"), rs.getInt("focus_y"), rs.getString("media_primary_color_hex"));
+							var isMovie = rs.getBoolean("is_movie");
+							var is360 = rs.getBoolean("is_360");
+							var embedUrl = rs.getString("embed_url");
+							res.stream().filter(act -> act.getProblemId() == pId && act.getActivityIds().stream().anyMatch(faIds::contains)).forEach(a -> a.addMedia(mi, isMovie, is360, embedUrl));
+						}
+						return Void.TYPE;
+					});
 				}
 			}
 		}
