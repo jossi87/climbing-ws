@@ -6,7 +6,7 @@ import java.time.format.DateTimeFormatter;
 import com.buldreinfo.beans.StorageType;
 
 public class FilenameUtil {
-	private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+	private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
 	public static String generateFilename(String rawName, StorageType type) {
 		String date = LocalDateTime.now().format(FILE_DATE_FORMAT);

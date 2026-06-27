@@ -11,12 +11,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.UserRepository;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.User;
+import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -64,7 +65,7 @@ public class UsersController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		byte[] bytes = userRepo.getUserTicks(authUserId);
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("UserTicks", "xlsx")))
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("Buldreinfo_BratteLinjer", StorageType.XLSX)))
 				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
 				.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
 				.body(bytes);

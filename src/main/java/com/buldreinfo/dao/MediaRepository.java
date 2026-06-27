@@ -785,8 +785,10 @@ public class MediaRepository {
 		if (m.uploadedByMe()) return;
 
 		var sql = """
-				WITH req AS (SELECT ? auth_user_id, ? media_id)
-				SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, g.id guestbook_id, mt.trail_id
+				WITH req AS (
+					SELECT ? auth_user_id, ? media_id
+				)
+				SELECT ur.admin_write, ur.superadmin_write, ma.area_id, ms.sector_id, mp.problem_id, mg.guestbook_id, mt.trail_id
 				FROM req
 				JOIN user_region ur ON ur.user_id = req.auth_user_id
 				JOIN area a ON a.region_id = ur.region_id
@@ -795,8 +797,7 @@ public class MediaRepository {
 				LEFT JOIN media_problem mp ON mp.media_id = req.media_id
 				LEFT JOIN media_guestbook mg ON mg.media_id = req.media_id
 				LEFT JOIN media_trail mt ON mt.media_id = req.media_id
-				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL 
-				   OR mg.media_id IS NOT NULL OR mt.media_id IS NOT NULL
+				WHERE ma.media_id IS NOT NULL OR ms.media_id IS NOT NULL OR mp.media_id IS NOT NULL OR mg.media_id IS NOT NULL OR mt.media_id IS NOT NULL
 				""";
 
 		boolean authorized = jdbcClient.sql(sql)

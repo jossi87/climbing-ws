@@ -1,9 +1,6 @@
 package com.buldreinfo.helpers;
 
 import java.net.http.HttpClient;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -11,11 +8,6 @@ public class GlobalFunctions {
 	public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.followRedirects(HttpClient.Redirect.NORMAL)
 			.build();
-
-	public static String getFilename(String purpose, String ext) {
-		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-		return String.format("%s_Buldreinfo_BratteLinjer_%s.%s", dateTime, removeIllegalCharacters(purpose), ext);
-	}
 
 	public static boolean requestAcceptsWebm(HttpServletRequest request) {
 		String acceptHeader = request.getHeader("Accept");
@@ -67,14 +59,5 @@ public class GlobalFunctions {
 		}
 		var stripped = str.strip();
 		return stripped.isBlank() ? null : stripped;
-	}
-	
-	private static String removeIllegalCharacters(String str) {
-		if (str == null) {
-			return "";
-		}
-		
-		String cleaned = str.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
-		return cleaned.replaceAll("[^\\u0000-\\uFFFF]", "").strip();
 	}
 }
