@@ -763,7 +763,7 @@ public class UserRepository {
 	@Transactional(readOnly = true)
 	public boolean hasAvatar(int userId) {
 		return jdbcClient.sql("SELECT m.id FROM user u JOIN media m ON u.media_id = m.id WHERE u.id = ?")
-				.param(1, userId)
+				.param(userId)
 				.query(Integer.class)
 				.optional()
 				.isPresent();
