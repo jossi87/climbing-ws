@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.excel.ExcelSheet;
 import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -23,6 +25,7 @@ import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
+import com.buldreinfo.model.Toc.TocPitch;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -129,73 +132,78 @@ public class MetaController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/toc/xlsx", produces = OpenApiConstants.APPLICATION_XLSX)
 	public ResponseEntity<byte[]> getTocXlsx(HttpServletRequest request) {
-		byte[] bytes = null;
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-			var toc = hierarchyRepo.getToc(authUserId, setup);
-			var pitches = hierarchyRepo.getTocPitches(authUserId, setup);
-			try (var workbook = new ExcelWorkbook()) {
-				try (var sheet = workbook.addSheet("TOC")) {
-					for (var r : toc.regions()) {
-						for (var a : r.areas()) {
-							for (var s : a.sectors()) {
-								for (var p : s.problems()) {
-									sheet.incrementRow();
-									sheet.writeString("REGION", r.name());
-									sheet.writeHyperlink("URL", p.url());
-									sheet.writeString("AREA", a.name());
-									sheet.writeString("SECTOR", s.name());
-									sheet.writeInt("NR", p.nr());
-									sheet.writeString("NAME", p.name());
-									sheet.writeString("GRADE", p.grade());
-									sheet.writeInt("FA_YEAR", p.faYear());
-									sheet.writeInt("LENGTH_METER", p.lengthMeter());
-									sheet.writeInt("STARTING_ALTITUDE", p.startingAltitude());
-									String type = p.t().type() + (p.t().subType() != null ? " (" + p.t().subType() + ")" : "");
-									sheet.writeString("TYPE", type);
-									if (!setup.isBouldering()) sheet.writeInt("PITCHES", p.numPitches() > 0 ? p.numPitches() : 1);
-									if (setup.isBouldering()) {
-										sheet.writeString("FA_USER", p.ffaUser());
-										sheet.writeInt("FA_YEAR", p.ffaYear());
-									} else {
-										sheet.writeString("FA_USER", p.faUser());
-										sheet.writeInt("FA_YEAR", p.faYear());
-										sheet.writeString("FFA_USER", p.ffaUser());
-										sheet.writeInt("FFA_YEAR", p.ffaYear());
-									}
-									sheet.writeDouble("STARS", p.stars());
-									sheet.writeString("DESCRIPTION", p.description());
-								}
-							}
-						}
-					}
-				}
-				if (!pitches.isEmpty()) {
-					try (var sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
-						for (var p : pitches) {
+		var toc = hierarchyRepo.getToc(authUserId, setup);
+		var pitches = hierarchyRepo.getTocPitches(authUserId, setup);
+		try (var workbook = new ExcelWorkbook(); 
+				var os = new ByteArrayOutputStream()) {
+			writeSheetToc(workbook, setup, toc);
+			if (!pitches.isEmpty()) {
+				writeSheetTocPitches(workbook, pitches);
+			}
+			workbook.write(os);
+			return ResponseEntity.ok()
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
+					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
+					.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
+					.body(os.toByteArray());
+		} catch (IOException e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+
+	private void writeSheetToc(ExcelWorkbook workbook, Setup setup, Toc toc) {
+		try (var sheet = workbook.addSheet("TOC")) {
+			for (var r : toc.regions()) {
+				for (var a : r.areas()) {
+					for (var s : a.sectors()) {
+						for (var p : s.problems()) {
 							sheet.incrementRow();
-							sheet.writeString("REGION", p.regionName());
+							sheet.writeString("REGION", r.name());
 							sheet.writeHyperlink("URL", p.url());
-							sheet.writeString("AREA", p.areaName());
-							sheet.writeString("SECTOR", p.sectorName());
-							sheet.writeString("PROBLEM", p.problemName());
-							sheet.writeInt("PITCH", p.pitch());
+							sheet.writeString("AREA", a.name());
+							sheet.writeString("SECTOR", s.name());
+							sheet.writeInt("NR", p.nr());
+							sheet.writeString("NAME", p.name());
 							sheet.writeString("GRADE", p.grade());
+							sheet.writeInt("FA_YEAR", p.faYear());
+							sheet.writeInt("LENGTH_METER", p.lengthMeter());
+							sheet.writeInt("STARTING_ALTITUDE", p.startingAltitude());
+							String type = p.t().type() + (p.t().subType() != null ? " (" + p.t().subType() + ")" : "");
+							sheet.writeString("TYPE", type);
+							if (!setup.isBouldering()) sheet.writeInt("PITCHES", p.numPitches() > 0 ? p.numPitches() : 1);
+							if (setup.isBouldering()) {
+								sheet.writeString("FA_USER", p.ffaUser());
+								sheet.writeInt("FA_YEAR", p.ffaYear());
+							} else {
+								sheet.writeString("FA_USER", p.faUser());
+								sheet.writeInt("FA_YEAR", p.faYear());
+								sheet.writeString("FFA_USER", p.ffaUser());
+								sheet.writeInt("FFA_YEAR", p.ffaYear());
+							}
+							sheet.writeDouble("STARS", p.stars());
 							sheet.writeString("DESCRIPTION", p.description());
 						}
 					}
 				}
-				try (var os = new ByteArrayOutputStream()) {
-					workbook.write(os);
-					bytes = os.toByteArray();
-				}
-			} catch (IOException e) {
-				throw new RuntimeException(e.getMessage(), e);
 			}
-		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(GlobalFunctions.getFilename("TOC", "xlsx")))
-				.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-				.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
-				.body(bytes);
+		}
+	}
+
+	private void writeSheetTocPitches(ExcelWorkbook workbook, List<TocPitch> pitches) {
+		try (var sheet = workbook.addSheet("TOC_MULTIPITCH_PITCHES")) {
+			for (var p : pitches) {
+				sheet.incrementRow();
+				sheet.writeString("REGION", p.regionName());
+				sheet.writeHyperlink("URL", p.url());
+				sheet.writeString("AREA", p.areaName());
+				sheet.writeString("SECTOR", p.sectorName());
+				sheet.writeString("PROBLEM", p.problemName());
+				sheet.writeInt("PITCH", p.pitch());
+				sheet.writeString("GRADE", p.grade());
+				sheet.writeString("DESCRIPTION", p.description());
+			}
+		}
 	}
 }
