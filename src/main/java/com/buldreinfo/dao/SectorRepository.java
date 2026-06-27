@@ -217,9 +217,14 @@ public class SectorRepository {
 		}
 		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
 
-		Integer parkingId = s.parking() == null ? null : s.parking().getId();
-		Integer calcCompass = Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline())).map(CompassDirection::id).orElse(null);
-		Integer manualCompass = s.wallDirectionManual() != null ? s.wallDirectionManual().id() : null;
+		Integer parkingId = (s.parking() != null && s.parking().getId() > 0) ? s.parking().getId() : null;
+		Integer calcCompass = Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline()))
+				.map(CompassDirection::id)
+				.filter(id -> id > 0)
+				.orElse(null);
+		Integer manualCompass = (s.wallDirectionManual() != null && s.wallDirectionManual().id() > 0) 
+				? s.wallDirectionManual().id() 
+				: null;
 		Integer trashBy = s.trash() ? authUserId.get() : null;
 
 		int idSector;
