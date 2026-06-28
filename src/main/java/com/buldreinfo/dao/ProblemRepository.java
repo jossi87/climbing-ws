@@ -271,6 +271,7 @@ public class ProblemRepository {
 
 		sectorRepo.getObject().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
 		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
+		var coordinatesId = p.coordinates() == null || p.coordinates().getId() == 0 ? null : p.coordinates().getId();
 		int idProblem = p.id();
 
 		if (idProblem > 0) {
@@ -283,7 +284,7 @@ public class ProblemRepository {
 					SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, length_meter=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now()
 					WHERE p.id=?
 					""")
-			.params(authUserId.get(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), GlobalFunctions.stripString(p.comment()), gradeId, dt, p.coordinates() == null ? 0 : p.coordinates().getId(), GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), p.nr(), p.t().id(), GlobalFunctions.stripString(p.trivia()), GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), p.lengthMeter() == 0 ? null : p.lengthMeter(), GlobalFunctions.stripString(p.descent()), p.trash(), p.trash() ? authUserId.get() : 0, idProblem)
+			.params(authUserId.get(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), GlobalFunctions.stripString(p.comment()), gradeId, dt, coordinatesId, GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), p.nr(), p.t().id(), GlobalFunctions.stripString(p.trivia()), GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), p.lengthMeter() == 0 ? null : p.lengthMeter(), GlobalFunctions.stripString(p.descent()), p.trash(), p.trash() ? authUserId.get() : 0, idProblem)
 			.update();
 			updateProblemConsensusGrade(idProblem);
 		} else {
@@ -299,7 +300,7 @@ public class ProblemRepository {
 					""")
 			.params(p.sectorId(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), 
 					GlobalFunctions.stripString(p.comment()), gradeId, gradeId, dt, 
-					p.coordinates() == null ? 0 : p.coordinates().getId(), 
+					p.coordinates() == null ? null : p.coordinates().getId(), 
 							GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), 
 							nr, p.t().id(), GlobalFunctions.stripString(p.trivia()), 
 							GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), 
