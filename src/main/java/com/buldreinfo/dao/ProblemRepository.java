@@ -300,7 +300,7 @@ public class ProblemRepository {
 					""")
 			.params(p.sectorId(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), 
 					GlobalFunctions.stripString(p.comment()), gradeId, gradeId, dt, 
-					p.coordinates() == null ? null : p.coordinates().getId(), 
+					coordinatesId, 
 							GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), 
 							nr, p.t().id(), GlobalFunctions.stripString(p.trivia()), 
 							GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), 
@@ -308,7 +308,7 @@ public class ProblemRepository {
 									GlobalFunctions.stripString(p.descent()))
 			.update(keyHolder);
 
-			idProblem = keyHolder.getKeyAs(Integer.class);
+			idProblem = keyHolder.getKey().intValue();
 		}
 
 		jdbcClient.sql("UPDATE problem p, sector s, area a SET p.last_updated=now(), s.last_updated=now(), a.last_updated=now() WHERE p.id=? AND p.sector_id=s.id AND s.area_id=a.id").param(idProblem).update();
@@ -395,7 +395,7 @@ public class ProblemRepository {
 			.params(GlobalFunctions.stripString(co.comment()), co.idProblem(), userId, parentId == 0 ? null : parentId, co.danger(), co.resolved())
 			.update(keyHolder);
 
-			idGuestbook = keyHolder.getKeyAs(Integer.class);
+			idGuestbook = keyHolder.getKey().intValue();
 		}
 
 		activityRepo.fillActivity(co.idProblem());

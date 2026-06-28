@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -956,15 +957,15 @@ public class UserRepository {
 	}
 
 	protected int addUser(String email, String firstname, String lastname) {
-		var keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
+		var keyHolder = new GeneratedKeyHolder();
 
 		jdbcClient.sql("INSERT INTO user (firstname, lastname) VALUES (?, ?)")
 		.params(firstname, lastname)
 		.update(keyHolder);
 
-		Integer id = keyHolder.getKeyAs(Integer.class);
+		int id = keyHolder.getKey().intValue();
 
-		if (id == null || id <= 0) {
+		if (id <= 0) {
 			throw new IllegalArgumentException("Failed to generate ID for firstname=" + firstname + ", lastname=" + lastname);
 		}
 
