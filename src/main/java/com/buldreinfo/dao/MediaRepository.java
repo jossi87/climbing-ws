@@ -39,9 +39,10 @@ import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
-import com.buldreinfo.model.MediaObject;
 import com.buldreinfo.model.MediaSvgElementType;
 import com.buldreinfo.model.Svg;
+import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.ImageClassifierService.MediaObject.NormalizedVertex;
 import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
@@ -497,36 +498,43 @@ public class MediaRepository {
 	}
 
 	@Transactional
-	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<String> labels, List<MediaObject> objects, boolean failed) {
+	public void saveMediaAnalysis(int mediaId, int imageWidth, int imageHeight, String hexColor, List<String> labels, List<ImageClassifierService.MediaObject> objects, boolean failed) {
 		if (mediaId <= 0) throw new IllegalArgumentException("Media id required");
 
 		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id = ?").param(mediaId).update();
+		jdbcClient.sql("DELETE FROM media_ml_label WHERE media_id = ?").param(mediaId).update();
+		jdbcClient.sql("DELETE FROM media_ml_object WHERE media_id = ?").param(mediaId).update();
 
-		var hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.getName().equalsIgnoreCase("Person"));
+		boolean hasPersonObject = objects != null && objects.stream().anyMatch(obj -> obj.name().equalsIgnoreCase("Person"));
 		int focusX = 0;
 		int focusY = 0;
 
 		if (hasPersonObject) {
 			var climber = objects.stream()
-					.filter(obj -> obj.getName().equalsIgnoreCase("Person"))
-					.min(Comparator.comparing(obj -> obj.getBoundingPoly().getNormalizedVertices(0).getY()))
+					.filter(obj -> obj.name().equalsIgnoreCase("Person"))
+					.min(Comparator.comparing(obj -> obj.boundingPoly().normalizedVertices().stream()
+							.map(NormalizedVertex::y)
+							.min(Float::compare).orElse(1.0f)))
 					.orElse(null);
 
 			if (climber != null) {
-				var v = climber.getBoundingPoly().getNormalizedVerticesList();
-				if (v.size() >= 3) {
-					float xMin = v.get(0).getX();
-					float yMin = v.get(0).getY();
-					float xMax = v.get(2).getX();
-					float yMax = v.get(2).getY();
-					float personHeight = yMax - yMin;
+				var vertices = climber.boundingPoly().normalizedVertices();
 
-					focusX = Math.round(((xMin + xMax) / 2) * 100);
-					if (imageHeight > imageWidth) {
-						focusY = (yMax > 0.80f && personHeight < 0.60f) ? Math.round(yMax * 100) : Math.round((yMin + personHeight * 0.85f) * 100);
-					} else {
-						focusY = Math.round(((yMin + yMax) / 2) * 100);
-					}
+				float xMin = vertices.stream().map(NormalizedVertex::x).min(Float::compare).orElse(0.0f);
+				float xMax = vertices.stream().map(NormalizedVertex::x).max(Float::compare).orElse(0.0f);
+				float yMin = vertices.stream().map(NormalizedVertex::y).min(Float::compare).orElse(0.0f);
+				float yMax = vertices.stream().map(NormalizedVertex::y).max(Float::compare).orElse(0.0f);
+
+				float personHeight = yMax - yMin;
+
+				focusX = Math.round(((xMin + xMax) / 2) * 100);
+
+				if (imageHeight > imageWidth) {
+					focusY = (yMax > 0.80f && personHeight < 0.60f) 
+							? Math.round(yMax * 100) 
+									: Math.round((yMin + (personHeight * 0.85f)) * 100);
+				} else {
+					focusY = Math.round(((yMin + yMax) / 2) * 100);
 				}
 			}
 		}
@@ -536,13 +544,22 @@ public class MediaRepository {
 		.update();
 
 		if (!failed) {
-			if (labels != null && !labels.isEmpty()) {
+			if (labels != null) {
 				var labelSql = "INSERT INTO media_ml_label (media_id, description, score) VALUES (?, ?, ?)";
-				labels.forEach(l -> jdbcClient.sql(labelSql).params(mediaId, l, 0f).update());
+				for (String label : labels) {
+					jdbcClient.sql(labelSql).params(mediaId, label, 0f).update();
+				}
 			}
-			if (objects != null && !objects.isEmpty()) {
+			if (objects != null) {
 				var objSql = "INSERT INTO media_ml_object (media_id, name, score, x_min, y_min, x_max, y_max) VALUES (?, ?, ?, ?, ?, ?, ?)";
-				objects.forEach(obj -> jdbcClient.sql(objSql).params(mediaId, obj.getName(), 0f, 0f, 0f, 0f, 0f).update());
+				for (var obj : objects) {
+					float xMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).min(Float::compare).orElse(0f);
+					float xMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::x).max(Float::compare).orElse(0f);
+					float yMin = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).min(Float::compare).orElse(0f);
+					float yMax = obj.boundingPoly().normalizedVertices().stream().map(NormalizedVertex::y).max(Float::compare).orElse(0f);
+
+					jdbcClient.sql(objSql).params(mediaId, obj.name(), obj.score(), xMin, yMin, xMax, yMax).update();
+				}
 			}
 		}
 	}
