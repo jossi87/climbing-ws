@@ -38,9 +38,10 @@ public class ElevationService {
 				String locations = chunk.stream()
 						.map(c -> c.getLatitude() + "," + c.getLongitude())
 						.collect(Collectors.joining("%7C")); 
-				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, appConfig.googleApikey());
+				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s", locations);
 				HttpRequest request = HttpRequest.newBuilder()
 						.uri(URI.create(url))
+						.header("X-Goog-Api-Key", appConfig.googleApikey())
 						.GET()
 						.build();
 				HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
