@@ -1030,7 +1030,7 @@ public class MediaRepository {
 				.list()
 				.stream()
 				.filter(Objects::nonNull)
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 	protected List<Media> getMediaGuestbook(Optional<Integer> authUserId, int guestbookId) {
@@ -1454,8 +1454,11 @@ public class MediaRepository {
 								);
 					}
 					return null;
-				}).list();
-
+				})
+				.list()
+				.stream()
+				.filter(Objects::nonNull)
+				.toList();
 		var allMedia = new ArrayList<Media>();
 		if (!initialList.isEmpty()) {
 			var mediaWithRequestedTopoLine = new HashSet<Media>();
@@ -1611,12 +1614,9 @@ public class MediaRepository {
 		.params(args)
 		.query((rs) -> {
 			var trailId = rs.getInt("trail_id");
-			res.computeIfAbsent(trailId, _ -> new ArrayList<>())
-			.add(Media.fromResultSet(objectMapper, rs, authUserId));
+			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(objectMapper, rs, authUserId));
 		});
-
-		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", 
-				trailIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
+		logger.debug("getMediaTrails(trailIds.size()={}) - res.size()={}, duration={}", trailIds.size(), res.size(), Duration.ofNanos(System.nanoTime() - startNanos));
 		return res;
 	}
 }
