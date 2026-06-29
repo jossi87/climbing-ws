@@ -18,7 +18,7 @@ public class TimeAgo {
 	}
 
 	private static String toDuration(long daysAgo) {
-		StringBuffer res = new StringBuffer();
+		var res = new StringBuilder();
 		for (int i = 0; i < TimeAgo.times.size(); i++) {
 			Long current = TimeAgo.times.get(i);
 			long temp = daysAgo/current;

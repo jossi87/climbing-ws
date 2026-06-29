@@ -13,7 +13,7 @@ public final class S3KeyGenerator {
 	public static String getOriginalJpg(int id) {
 		return "original/jpg/%s/%d.jpg".formatted(getFolderName(id), id);
 	}
-
+	
 	public static String getOriginalMp4(int id, StorageType type) {
 		return switch (type) {
 		case MP4, MOV, MTS -> "original/mp4/%s/%d.%s".formatted(getFolderName(id), id, type.getExtension());
@@ -51,6 +51,10 @@ public final class S3KeyGenerator {
 
 	public static String getWebWebpResized(int id, int targetWidth, int minDimension) {
 		return getWebWebpResizedPrefix(id) + "w%d_m%d.webp".formatted(targetWidth, minDimension);
+	}
+
+	public static boolean shouldCompress(String objectKey) {
+		return objectKey.startsWith("web/");
 	}
 
 	private static String getFolderName(int id) {

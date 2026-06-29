@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -24,9 +23,11 @@ import javax.imageio.stream.ImageOutputStream;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
+import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.infrastructure.CacheConstants;
+import com.buldreinfo.util.CollectionUtils;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -180,7 +181,7 @@ public final class StorageManager {
 						return ObjectIdentifier.builder().key(s3Object.key()).build();
 					}).toList();
 
-			for (List<ObjectIdentifier> chunk : partition(allIdentifiers, 1000)) {
+			for (List<ObjectIdentifier> chunk : CollectionUtils.partition(allIdentifiers, 1000)) {
 				s3Client.deleteObjects(DeleteObjectsRequest.builder()
 						.bucket(BUCKET_NAME)
 						.delete(Delete.builder().objects(chunk).build()).build());
@@ -222,7 +223,7 @@ public final class StorageManager {
 
 	public void uploadImage(String objectKey, BufferedImage image, StorageType type) {
 		try {
-			boolean shouldCompress = objectKey.startsWith("web/");
+			boolean shouldCompress = S3KeyGenerator.shouldCompress(objectKey);
 			ByteArrayOutputStream os = new ByteArrayOutputStream();
 			Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
 			if (!writers.hasNext()) throw new IOException("No writer found for type: " + type.getExtension());
@@ -270,13 +271,5 @@ public final class StorageManager {
 				.acl(ObjectCannedACL.PUBLIC_READ).build();
 		cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME).evict(objectKey);
 		s3Client.putObject(putRequest, body);
-	}
-
-	private static <T> List<List<T>> partition(List<T> list, int size) {
-		List<List<T>> partitions = new ArrayList<>();
-		for (int i = 0; i < list.size(); i += size) {
-			partitions.add(list.subList(i, Math.min(i + size, list.size())));
-		}
-		return partitions;
 	}
 }

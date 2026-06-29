@@ -8,13 +8,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.Coordinates;
+import com.buldreinfo.util.CollectionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -35,7 +35,7 @@ public class ElevationService {
 	}
 	public void fillElevations(List<Coordinates> allCoordinates) {
 		try {
-			for (List<Coordinates> chunk : partition(allCoordinates, 500)) {
+			for (List<Coordinates> chunk : CollectionUtils.partition(allCoordinates, 500)) {
 				String locations = chunk.stream()
 						.map(c -> c.getLatitude() + "," + c.getLongitude())
 						.reduce((a, b) -> a + "|" + b)
@@ -57,13 +57,5 @@ public class ElevationService {
 		} catch (InterruptedException | IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-	}
-
-	private static <T> List<List<T>> partition(List<T> list, int size) {
-		List<List<T>> partitions = new ArrayList<>();
-		for (int i = 0; i < list.size(); i += size) {
-			partitions.add(list.subList(i, Math.min(i + size, list.size())));
-		}
-		return partitions;
 	}
 }

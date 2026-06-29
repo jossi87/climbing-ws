@@ -2,7 +2,6 @@ package com.buldreinfo.helpers;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -141,11 +140,10 @@ public class GeoHelper {
 	
 	private void calculateBoundingBox() {
 		// Find bounding box
-		List<GeoPoint> boundingBoxPoints = geoPoints
-				.stream()
-				.sorted(Comparator.comparingDouble(GeoPoint::getDistanceToCenter).reversed())
-				.collect(Collectors.toList())
-				.subList(0, 4);
+		List<GeoPoint> boundingBoxPoints = geoPoints.stream()
+		        .sorted(Comparator.comparingDouble(GeoPoint::getDistanceToCenter).reversed())
+		        .limit(4)
+		        .toList();
 		if (boundingBoxPoints.size() != 4) throw new IllegalArgumentException("Invalid bounding box");
 		// Group the four points in two pairs
 		for (int i = 0; i < boundingBoxPoints.size(); i++) {

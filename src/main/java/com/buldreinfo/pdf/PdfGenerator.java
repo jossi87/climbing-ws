@@ -25,6 +25,7 @@ import org.openpdf.text.Anchor;
 import org.openpdf.text.BadElementException;
 import org.openpdf.text.Chunk;
 import org.openpdf.text.Document;
+import org.openpdf.text.DocumentException;
 import org.openpdf.text.Element;
 import org.openpdf.text.Font;
 import org.openpdf.text.Image;
@@ -35,6 +36,7 @@ import org.openpdf.text.Rectangle;
 import org.openpdf.text.pdf.BaseFont;
 import org.openpdf.text.pdf.PdfAction;
 import org.openpdf.text.pdf.PdfContentByte;
+import org.openpdf.text.pdf.PdfGState;
 import org.openpdf.text.pdf.PdfOutline;
 import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPCellEvent;
@@ -46,7 +48,6 @@ import org.openpdf.text.pdf.PdfWriter;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.io.StorageManager;
-import com.buldreinfo.jfreechart.GradeDistributionGenerator;
 import com.buldreinfo.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.leafletprint.beans.IconType;
 import com.buldreinfo.leafletprint.beans.Leaflet;
@@ -73,10 +74,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class PdfGenerator implements AutoCloseable {
 
 	private class PageHeaderFooter extends PdfPageEventHelper {
-		private PdfTemplate totalPages;
 		private BaseFont baseFont;
-		private String headerText = "";
 		private final String copyrightText = "\u00A9 buldreinfo.com & brattelinjer.no";
+		private String headerText = "";
+		private PdfTemplate totalPages;
 
 		@Override
 		public void onCloseDocument(PdfWriter writer, @SuppressWarnings("unused") Document document) {
@@ -163,28 +164,28 @@ public class PdfGenerator implements AutoCloseable {
 			cb.restoreState();
 		}
 	}
-	private static final Logger logger = LogManager.getLogger();
+	private static final Font FONT_BOLD = new Font(Font.HELVETICA, 8, Font.BOLD);
 	private static final Font FONT_H1 = new Font(Font.HELVETICA, 16, Font.BOLD);
 	private static final Font FONT_H2 = new Font(Font.HELVETICA, 11, Font.BOLD);
+	private static final Font FONT_ITALIC = new Font(Font.HELVETICA, 9, Font.ITALIC);
+	private static final Font FONT_LINK = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.BLUE);
 	private static final Font FONT_REG = new Font(Font.HELVETICA, 8, Font.NORMAL);
 	private static final Font FONT_REG_LINK = new Font(Font.HELVETICA, 9, Font.NORMAL, Color.BLUE);
-	private static final Font FONT_ITALIC = new Font(Font.HELVETICA, 9, Font.ITALIC);
-	private static final Font FONT_BOLD = new Font(Font.HELVETICA, 8, Font.BOLD);
-	private static final Font FONT_LINK = new Font(Font.HELVETICA, 8, Font.NORMAL, Color.BLUE);
 	private static final Font FONT_SMALL = new Font(Font.HELVETICA, 5, Font.ITALIC);
-
 	private final static int IMAGE_STAR_SIZE = 7;
-	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
-	private final ObjectMapper objectMapper;
-	private final StorageManager storage;
-	private final Document document;
-	private final PdfWriter writer;
-	private final Map<String, byte[]> preRenderedPitchAssets = new HashMap<>();
-	private final Set<Integer> mediaIdProcessed = new HashSet<>();
 
+	private static final Logger logger = LogManager.getLogger();
+	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
+	private final Document document;
+	private final Set<Integer> mediaIdProcessed = new HashSet<>();
+	private final ObjectMapper objectMapper;
 	private final PageHeaderFooter pageEvent;
+	private final Map<String, byte[]> preRenderedPitchAssets = new HashMap<>();
+	private final StorageManager storage;
 
 	private BaseFont watermarkFont;
+
+	private final PdfWriter writer;
 
 	public PdfGenerator(ObjectMapper objectMapper, StorageManager storage, OutputStream output) {
 		this.objectMapper = objectMapper;
@@ -256,15 +257,18 @@ public class PdfGenerator implements AutoCloseable {
 				info.addCell(createValueCell(areaInfo.toString()));
 			}
 
-			if (info.getRows().size() > 0) {
-				document.add(info);
+			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
+				info.addCell(createKeyCell("Grade Dist."));
+				PdfTemplate template = getChartTemplate(gradeDistribution, writer.getDirectContent(), 400f, 150f);
+				PdfPCell chartCell = new PdfPCell(Image.getInstance(template));
+				chartCell.setBorder(Rectangle.BOTTOM);
+				chartCell.setBorderColor(Color.LIGHT_GRAY);
+				chartCell.setPadding(6f);
+				info.addCell(chartCell);
 			}
 
-			if (gradeDistribution != null && !gradeDistribution.isEmpty()) {
-				byte[] png = GradeDistributionGenerator.write(gradeDistribution);
-				Image img = Image.getInstance(png);
-				img.scaleToFit(150, 150);
-				document.add(img);
+			if (info.getRows().size() > 0) {
+				document.add(info);
 			}
 
 			if (area.media() != null && !area.media().isEmpty()) {
@@ -631,6 +635,52 @@ public class PdfGenerator implements AutoCloseable {
 		cell.setPadding(6f);
 		cell.setVerticalAlignment(Element.ALIGN_TOP);
 		return cell;
+	}
+
+	private PdfTemplate getChartTemplate(Collection<GradeDistribution> gradeDistribution, PdfContentByte cb, float plotWidth, float plotHeight) throws DocumentException, IOException {
+		PdfTemplate template = cb.createTemplate(plotWidth + 40f, plotHeight + 50f);
+		if (gradeDistribution == null || gradeDistribution.isEmpty()) return template;
+		int maxCount = gradeDistribution.stream().mapToInt(GradeDistribution::getNum).max().orElse(1);
+		float stepX = plotWidth / gradeDistribution.size();
+		float barWidth = stepX * 0.8f; 
+		float spacing = stepX * 0.2f;
+		PdfGState transparentState = new PdfGState();
+		transparentState.setFillOpacity(0.35f);
+		PdfGState opaqueState = new PdfGState();
+		opaqueState.setFillOpacity(1.0f);
+		BaseFont bf = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+		template.setFontAndSize(bf, 8);
+		int i = 0;
+		for (GradeDistribution d : gradeDistribution) {
+			float x = 20f + (i * stepX) + (spacing / 2f);
+			float hTot = ((float) d.getNum() / maxCount) * plotHeight;
+			float hPrim = ((float) d.getPrim() / maxCount) * plotHeight;
+
+			if (d.getNum() > 0) {
+				Color c = Color.decode(d.getColor());
+				template.setRGBColorFill(c.getRed(), c.getGreen(), c.getBlue());
+
+				template.setGState(transparentState);
+				template.rectangle(x, 20f, barWidth, hTot);
+				template.fill();
+				template.setGState(opaqueState);
+
+				template.rectangle(x, 20f, barWidth, hPrim);
+				template.fill();
+
+				template.beginText();
+				template.setRGBColorFill(0, 0, 0);
+				template.showTextAligned(PdfContentByte.ALIGN_CENTER, String.valueOf(d.getNum()), x + (barWidth / 2f), 20f + hTot + 2f, 0);
+				template.endText();
+			}
+
+			template.beginText();
+			template.setRGBColorFill(0, 0, 0);
+			template.showTextAligned(PdfContentByte.ALIGN_CENTER, d.getGrade(), x + (barWidth / 2f), 5f, 0);
+			template.endText();
+			i++;
+		}
+		return template;
 	}
 
 	private byte[] safeGenerateTopo(int mediaId, int width, int height, List<MediaSvgElement> mediaSvgs, List<Svg> svgs, PdfMediaScaler.MediaRegion region, int targetWidth, int highlightProbId, int highlightPitch) {
