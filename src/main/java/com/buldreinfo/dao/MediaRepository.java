@@ -51,6 +51,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Repository
 public class MediaRepository {
 	public record MediaPendingAnalysis(int id, int width, int height) {}
+	public record EmbeddedVideo(int id, String suffix, String embedUrl) {}
 	private record MediaAssociation(String table, String column, int columnId, boolean hasPitch) {}
 	private static final Logger logger = LogManager.getLogger();
 	private final ActivityRepository activityRepo;
@@ -169,13 +170,20 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public List<EmbeddedVideo> getEmbeddedVideos() {
+		return jdbcClient.sql("SELECT id, suffix, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL")
+				.query((rs, _) -> new EmbeddedVideo(rs.getInt("id"), rs.getString("suffix"), rs.getString("embed_url")))
+				.list();
+	}
+
+	@Transactional(readOnly = true)
 	public Media getMedia(Optional<Integer> authUserId, int id) {
 		var sql = """
 				WITH req AS (
 				    SELECT ? auth_user_id, ? media_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken,
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       (
@@ -293,15 +301,6 @@ public class MediaRepository {
 	}
 
 	@Transactional(readOnly = true)
-	public Map<Integer, String> getMediaEmbedUrls() {
-		return jdbcClient.sql("SELECT id, embed_url FROM media WHERE is_movie=1 AND embed_url IS NOT NULL")
-				.query((rs, _) -> Map.entry(rs.getInt("id"), rs.getString("embed_url")))
-				.list()
-				.stream()
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-	}
-
-	@Transactional(readOnly = true)
 	public List<MediaPendingAnalysis> getMediaPendingAnalysis() {
 		return jdbcClient.sql("""
 				SELECT id, width, height
@@ -328,7 +327,7 @@ public class MediaRepository {
 				    SELECT ? target_user_id, ? auth_user_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       NULL url,
@@ -465,7 +464,7 @@ public class MediaRepository {
 				  AND (ma.media_id IS NULL OR (am.trash IS NULL AND ((am.locked_admin=0 AND am.locked_superadmin=0) OR (ura.superadmin_read=1) OR (ura.admin_read=1 AND am.locked_superadmin=0))))
 				  AND (mt.media_id IS NULL OR (s_tr.trash IS NULL AND ((s_tr.locked_admin=0 AND a_tr.locked_superadmin=0) OR (urt.superadmin_read=1) OR (urt.admin_read=1 AND a_tr.locked_superadmin=0))))
 
-				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
+				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.id DESC
 				""".replace("__TARGET_FILTER__", targetFilter);
 
@@ -647,6 +646,7 @@ public class MediaRepository {
 		var associations = m.ensureCorrectMediaAssociations(authUserId);
 		var startNanos = System.nanoTime();
 		final var mediaId = m.identity().id();
+		final var storageType = StorageType.fromExtension(m.suffix()).orElseThrow();
 
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, mediaId);
 
@@ -664,7 +664,7 @@ public class MediaRepository {
 
 		if (originalMedia.isMovie() && thumbnailChanged) {
 			try {
-				var originalMp4Key = S3KeyGenerator.getOriginalMp4(mediaId);
+				var originalMp4Key = S3KeyGenerator.getOriginalMp4(mediaId, storageType);
 				var tempOriginal = Files.createTempFile("original-re-thumb-" + mediaId, ".mp4");
 				try {
 					storage.downloadFile(originalMp4Key, tempOriginal);
@@ -881,7 +881,7 @@ public class MediaRepository {
 				WITH req AS (
 				    SELECT ? auth_user_id, ? area_id
 				)
-				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				SELECT a.name as area_name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp, m.description, ma.trivia, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken, 
 				       p.id photographer_id, TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname,''))) photographer_name,
 				       (
@@ -993,7 +993,7 @@ public class MediaRepository {
 				JOIN area a ON ma.area_id = a.id
 				LEFT JOIN user p ON m.photographer_user_id = p.id
 				WHERE m.deleted_user_id IS NULL
-				GROUP BY req.auth_user_id, a.name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, ma.sorting, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
+				GROUP BY req.auth_user_id, a.name, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ma.trivia, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, ma.sorting, m.date_created, m.date_taken, p.id, p.firstname, p.lastname
 				ORDER BY m.is_movie, m.embed_url, -ma.sorting DESC, m.id
 				""";
 		return jdbcClient.sql(sql)
@@ -1004,7 +1004,7 @@ public class MediaRepository {
 					}
 					Media m = Media.fromResultSet(objectMapper, rs, authUserId);
 					return new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
 							inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
@@ -1023,7 +1023,7 @@ public class MediaRepository {
 				    SELECT ? auth_user_id, ? guestbook_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -1137,7 +1137,7 @@ public class MediaRepository {
 				JOIN area a ON s.area_id = a.id
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
-				GROUP BY req.auth_user_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mg.guestbook_id
+				GROUP BY req.auth_user_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mg.guestbook_id
 				ORDER BY m.is_movie, m.embed_url, m.id
 				""";
 		List<Media> res = jdbcClient.sql(sql)
@@ -1157,7 +1157,7 @@ public class MediaRepository {
 				    SELECT ? auth_user_id, ? problem_id
 				)
 				SELECT m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex,
-				       m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken, ROUND(mp.milliseconds/1000) seconds,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -1270,7 +1270,7 @@ public class MediaRepository {
 				JOIN media m ON (mp.media_id=m.id AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id=ph.id
-				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
+				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, p.name, s.name, a.name, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, mp.sorting, m.date_created, m.date_taken, mp.pitch, mp.trivia, mp.milliseconds, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.is_movie, m.embed_url, -mp.sorting DESC, m.id
 				 		""";
 		List<Media> pMediaList = jdbcClient.sql(sql)
@@ -1283,7 +1283,7 @@ public class MediaRepository {
 					}
 					var m = Media.fromResultSet(objectMapper, rs, authUserId);
 					return new Media(
-							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
+							m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
 							m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
 							m.mediaSvgs(), m.svgProblemId(), m.svgs(), embedUrl, m.thumbnailSeconds(),
 							m.inherited(), m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
@@ -1308,7 +1308,7 @@ public class MediaRepository {
 				    SELECT ? auth_user_id, ? sector_id
 				)
 				SELECT m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, UNIX_TIMESTAMP(m.updated_at) version_stamp,
-				       ms.trivia, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       ms.trivia, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken, 
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -1420,24 +1420,24 @@ public class MediaRepository {
 				JOIN media m ON ms.media_id=m.id AND m.deleted_user_id IS NULL
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id=ph.id
-				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, ms.sorting, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
+				GROUP BY req.auth_user_id, m.id, m.uploader_user_id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.updated_at, ms.trivia, m.description, s.name, a.name, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, ms.sorting, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname
 				ORDER BY m.is_movie, m.embed_url, -ms.sorting DESC, m.id
 				""";
 		List<Media> initialList = jdbcClient.sql(sql)
-		.params(authUserId.orElse(0), idSector)
-		.query((rs, _) -> {
-			var trivia = rs.getBoolean("trivia");
-			if (!(inherited && trivia)) {
-				var m = Media.fromResultSet(objectMapper, rs, authUserId);
-				return new Media(
-						m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.is360(),
-						m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
-						m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
-						inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
-						);
-			}
-			return null;
-		}).list();
+				.params(authUserId.orElse(0), idSector)
+				.query((rs, _) -> {
+					var trivia = rs.getBoolean("trivia");
+					if (!(inherited && trivia)) {
+						var m = Media.fromResultSet(objectMapper, rs, authUserId);
+						return new Media(
+								m.identity(), m.uploadedByMe(), m.width(), m.height(), m.isMovie(), m.suffix(), m.is360(),
+								m.dateCreated(), m.dateTaken(), m.photographer(), m.tagged(), m.description(),
+								m.mediaSvgs(), m.svgProblemId(), m.svgs(), m.embedUrl(), m.thumbnailSeconds(),
+								inherited, m.areas(), m.sectors(), m.problems(), m.trails(), m.guestbookId(), m.userAvatarId()
+								);
+					}
+					return null;
+				}).list();
 
 		var allMedia = new ArrayList<Media>();
 		if (!initialList.isEmpty()) {
@@ -1471,7 +1471,7 @@ public class MediaRepository {
 				    SELECT ? auth_user_id
 				)
 				SELECT mt.trail_id, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
-				       m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds,
+				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
 				       m.date_created, m.date_taken,
 				       ph.id photographer_id, TRIM(CONCAT(ph.firstname, ' ', COALESCE(ph.lastname,''))) photographer_name,
 				       (
@@ -1514,10 +1514,10 @@ public class MediaRepository {
 				                'trailTitle', t9.title,
 				                'sectors', (
 				                    SELECT JSON_ARRAYAGG(JSON_OBJECT(
-                                        'areaId', a9_sub.id,
-                                        'areaName', a9_sub.name,
-                                        'sectorId', s9_sub.id,
-                                        'sectorName', s9_sub.name
+				                                    'areaId', a9_sub.id,
+				                                    'areaName', a9_sub.name,
+				                                    'sectorId', s9_sub.id,
+				                                    'sectorName', s9_sub.name
 				                    ))
 				                    FROM sector_trail st9_sub
 				                    JOIN sector s9_sub ON st9_sub.sector_id = s9_sub.id
@@ -1582,7 +1582,7 @@ public class MediaRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
 				WHERE mt.trail_id IN (%s)
-				GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
+				GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
 				ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
 				""".formatted(inClause);
 

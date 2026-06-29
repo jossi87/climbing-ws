@@ -5,14 +5,24 @@ import java.util.Optional;
 
 public enum StorageType {
 	JPG("image/jpeg", "jpg"),
-	PNG("image/png", "png"),
-	WEBP("image/webp", "webp"),
-	MP4("video/mp4", "mp4"),
 	MOV("video/quicktime", "mov"),
+	MP4("video/mp4", "mp4"),
 	MTS("video/mp2t", "mts"),
-	WEBM("video/webm", "webm"),
 	PDF("application/pdf", "pdf"),
+	PNG("image/png", "png"),
+	WEBM("video/webm", "webm"),
+	WEBP("image/webp", "webp"),
 	XLSX("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");
+
+	public static Optional<StorageType> fromExtension(String ext) {
+		if (ext == null || ext.isBlank()) {
+			return Optional.empty();
+		}
+		final String normalizedExt = (ext.equalsIgnoreCase("jpeg")|| ext.equalsIgnoreCase("jfif")) ? "jpg" : ext;
+		return Arrays.stream(values())
+				.filter(t -> t.extension.equalsIgnoreCase(normalizedExt))
+				.findFirst();
+	}
 
 	public static Optional<StorageType> fromFilename(String fileName) {
 		int dotIndex = fileName.lastIndexOf('.');
@@ -29,24 +39,14 @@ public enum StorageType {
 				.findFirst();
 	}
 
-	private static Optional<StorageType> fromExtension(String ext) {
-		if (ext == null || ext.isBlank()) {
-			return Optional.empty();
-		}
-		final String normalizedExt = (ext.equalsIgnoreCase("jpeg")|| ext.equalsIgnoreCase("jfif")) ? "jpg" : ext;
-		return Arrays.stream(values())
-				.filter(t -> t.extension.equalsIgnoreCase(normalizedExt))
-				.findFirst();
-	}
-
-	private final String mimeType;
 	private final String extension;
+	private final String mimeType;
 
 	private StorageType(String mimeType, String extension) {
 		this.mimeType = mimeType;
 		this.extension = extension;
 	}
-	
+
 	public String getExtension() {
 		return extension;
 	}

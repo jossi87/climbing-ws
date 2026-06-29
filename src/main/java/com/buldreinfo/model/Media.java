@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie, boolean is360,
+public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int height, boolean isMovie, String suffix, boolean is360,
 		String dateCreated, String dateTaken, User photographer, List<User> tagged, String description,
 		List<MediaSvgElement> mediaSvgs, int svgProblemId, List<Svg> svgs,
 		String embedUrl, int thumbnailSeconds, boolean inherited, List<MediaArea> areas, List<MediaSector> sectors, List<MediaProblem> problems, List<MediaTrail> trails, int guestbookId, int userAvatarId) {
@@ -46,7 +46,7 @@ public record Media(MediaIdentity identity, boolean uploadedByMe, int width, int
 			List<Svg> svgsList = parseAndSort(rs, "svgs_table_json", objectMapper, new TypeReference<>() {}, null);
 
 			return new Media(identity, rs.getInt("uploader_user_id") == authUserId.orElse(0), 
-					rs.getInt("width"), rs.getInt("height"), rs.getBoolean("is_movie"), rs.getBoolean("is_360"),
+					rs.getInt("width"), rs.getInt("height"), rs.getBoolean("is_movie"), rs.getString("suffix"), rs.getBoolean("is_360"),
 					formatLocalDate(rs.getObject("date_created", LocalDateTime.class)),
 					formatLocalDate(rs.getObject("date_taken", LocalDateTime.class)), 
 					photographer, taggedUsers, rs.getString("description"),

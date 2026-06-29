@@ -14,8 +14,11 @@ public final class S3KeyGenerator {
 		return "original/jpg/%s/%d.jpg".formatted(getFolderName(id), id);
 	}
 
-	public static String getOriginalMp4(int id) {
-		return "original/mp4/%s/%d.mp4".formatted(getFolderName(id), id);
+	public static String getOriginalMp4(int id, StorageType type) {
+		return switch (type) {
+		case MP4, MOV, MTS -> "original/mp4/%s/%d.%s".formatted(getFolderName(id), id, type.getExtension());
+		default -> throw new IllegalArgumentException("Invalid format for getOriginalMp4. Expected mov, mp4, or mts, got: " + type.getExtension());
+		};
 	}
 
 	public static String getWebJpg(int id) {
@@ -25,7 +28,7 @@ public final class S3KeyGenerator {
 	public static String getWebJpgRegion(int id, int x, int y, int width, int height) {
 		return getWebJpgRegionPrefix(id) + "%d_%d_%d_%d.jpg".formatted(x, y, width, height);
 	}
-	
+
 	public static String getWebJpgResized(int id, int targetWidth, int minDimension) {
 		return getWebJpgResizedPrefix(id) + "w%d_m%d.jpg".formatted(targetWidth, minDimension);
 	}
@@ -49,7 +52,7 @@ public final class S3KeyGenerator {
 	public static String getWebWebpResized(int id, int targetWidth, int minDimension) {
 		return getWebWebpResizedPrefix(id) + "w%d_m%d.webp".formatted(targetWidth, minDimension);
 	}
-	
+
 	private static String getFolderName(int id) {
 		return String.valueOf((id / 100) * 100);
 	}

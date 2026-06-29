@@ -14,22 +14,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.S3KeyGenerator;
+import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.MediaRepository;
+import com.buldreinfo.dao.MediaRepository.EmbeddedVideo;
 import com.buldreinfo.service.ImageService;
 
-public class FixMedia {
-	private record MediaTask(int id, String embedUrl) {}
+public class EmbeddedVideoDownloader {
 	private static final Logger logger = LogManager.getLogger();
-	private final MediaRepository mediaRepo;
+	private final ExecutorService executor = Executors.newFixedThreadPool(12);
+	private final Path ffmpegPath;
 	private final ImageService imageService;
 	private final Path localBucketRoot;
-	private final Path ffmpegPath;
-	private final Path ytDlpPath;
+	private final MediaRepository mediaRepo;
 	private final List<Integer> privateEmbeddedVideosToIgnore;
-	private final ExecutorService executor = Executors.newFixedThreadPool(12);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
+	private final Path ytDlpPath;
 
-	protected FixMedia(MediaRepository mediaRepo, ImageService imageService, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+	protected EmbeddedVideoDownloader(MediaRepository mediaRepo, ImageService imageService, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
 		this.mediaRepo = mediaRepo;
 		this.imageService = imageService;
 		this.localBucketRoot = localBucketRoot;
@@ -42,10 +43,11 @@ public class FixMedia {
 		return localBucketRoot.resolve(s3Key);
 	}
 
-	private void processTask(MediaTask task) throws InterruptedException, IOException {
+	private void processTask(EmbeddedVideo task) throws InterruptedException, IOException {
 		int id = task.id();
+		StorageType storageType = StorageType.fromExtension(task.suffix()).orElseThrow();
 		String embedUrl = task.embedUrl();
-		Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id));
+		Path originalMp4 = getLocalPath(S3KeyGenerator.getOriginalMp4(id, storageType));
 		Path originalJpg = getLocalPath(S3KeyGenerator.getOriginalJpg(id));
 
 		if (!privateEmbeddedVideosToIgnore.contains(id)) {
@@ -87,10 +89,7 @@ public class FixMedia {
 	}
 
 	protected void run() {
-		List<MediaTask> tasks = mediaRepo.getMediaEmbedUrls().entrySet().stream()
-		        .map(entry -> new MediaTask(entry.getKey(), entry.getValue()))
-		        .toList();
-		for (MediaTask task : tasks) {
+		for (var task : mediaRepo.getEmbeddedVideos()) {
 			executor.submit(() -> {
 				try {
 					processTask(task);

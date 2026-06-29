@@ -53,7 +53,7 @@ public class VideoService {
 		logger.info("extractThumbnail(idMedia={}, src={}, thumbnailSeconds={}) - duration={}ms", idMedia, src, thumbnailSeconds, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 	}
 
-	public void processVideo(int idMedia, int thumbnailSeconds) throws IOException {
+	public void processVideo(int idMedia, StorageType storageType, int thumbnailSeconds) throws IOException {
 		String webmKey = S3KeyGenerator.getWebWebm(idMedia);
 		String mp4Key = S3KeyGenerator.getWebMp4(idMedia);
 		String originalJpgKey = S3KeyGenerator.getOriginalJpg(idMedia);
@@ -64,7 +64,7 @@ public class VideoService {
 			logger.info("Video id={} is already fully processed. Skipping entirely.", idMedia);
 			return;
 		}
-		String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia);
+		String originalMp4Key = S3KeyGenerator.getOriginalMp4(idMedia, storageType);
 		Path tempOriginal = Files.createTempFile("original-" + idMedia, "." + StorageType.MP4.getExtension());
 		try {
 			storage.downloadFile(originalMp4Key, tempOriginal);

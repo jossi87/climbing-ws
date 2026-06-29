@@ -76,7 +76,7 @@ public class TokenService {
                 avatarBytes = storage.readBoundedStream(remoteStream);
             }
             var photographer = User.from(userId, null);
-            var m = new Media(null, false, 0, 0, false, false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, userId);
+            var m = new Media(null, false, 0, 0, false, StorageType.JPG.getExtension(), false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, userId);
             mediaRepo.addMediaImage(Optional.of(userId), m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
         } catch (Exception e) {
             logger.error("Failed to apply login avatar", e);

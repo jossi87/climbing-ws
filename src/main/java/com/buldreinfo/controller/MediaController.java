@@ -237,7 +237,8 @@ public class MediaController {
 
 		mediaPayload.ensureCorrectMediaAssociations(authUserId);
 		if (isVideo) {
-			int id = mediaRepo.addMediaVideoPlaceholder(authUserId, mediaPayload, StorageType.MP4);
+			var storageType = StorageType.MP4;
+			int id = mediaRepo.addMediaVideoPlaceholder(authUserId, mediaPayload, storageType);
 			CompletableFuture.runAsync(() -> {
 				try {
 					byte[] videoData;
@@ -252,8 +253,8 @@ public class MediaController {
 							videoData = storage.readBoundedStream(is);
 						}
 					}
-					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id), videoData, StorageType.MP4);
-					videoService.processVideo(id, mediaPayload.thumbnailSeconds());
+					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
+					videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
@@ -338,7 +339,8 @@ public class MediaController {
 		if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
 		CompletableFuture.runAsync(() -> {
 			try {
-				videoService.processVideo(id, m.thumbnailSeconds());
+				var storageType = StorageType.fromExtension(m.suffix()).orElseThrow();
+				videoService.processVideo(id, storageType, m.thumbnailSeconds());
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -398,7 +400,7 @@ public class MediaController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
 		String presignedUrl = storage.generatePresignedPutUrl(
-				S3KeyGenerator.getOriginalMp4(newMediaId),
+				S3KeyGenerator.getOriginalMp4(newMediaId, storageType),
 				storageType.getMimeType(),
 				payload.fileSize()
 				);

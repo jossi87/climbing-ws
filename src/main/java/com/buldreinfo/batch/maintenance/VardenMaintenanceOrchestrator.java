@@ -47,8 +47,8 @@ public class VardenMaintenanceOrchestrator {
 		logger.debug("S3BucketDownloadBatch started");
 		new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT, storage).run();
 
-		logger.debug("Starting FixMedia background embedding sync task.");
-		new FixMedia(mediaRepo, imageService, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+		logger.debug("Starting EmbeddedVideoDownloader background embedding sync task.");
+		new EmbeddedVideoDownloader(mediaRepo, imageService, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
 
 		logger.debug("FixMediaAnalyze started");
 		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, mediaRepo).run();
