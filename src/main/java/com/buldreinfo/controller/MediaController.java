@@ -68,8 +68,6 @@ public class MediaController {
 	}
 
 	private static final Logger logger = LogManager.getLogger();
-	private static final int IMAGE_WEB_WIDTH = 2560;
-	private static final int IMAGE_WEB_HEIGHT = 1440;
 
 	private final RequestContext requestContext;
 	private final StorageManager storage;
@@ -488,7 +486,7 @@ public class MediaController {
 	}
 
 	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) {
-		boolean useWebSource = (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
+		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageService.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageService.IMAGE_WEB_WIDTH);
 		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
 		if (useWebSource && !storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
@@ -541,8 +539,8 @@ public class MediaController {
 			return;
 		}
 		try {
-			if (b.getWidth() > IMAGE_WEB_WIDTH || b.getHeight() > IMAGE_WEB_HEIGHT) {
-				double ratio = Math.min((double) IMAGE_WEB_WIDTH / b.getWidth(), (double) IMAGE_WEB_HEIGHT / b.getHeight());
+			if (b.getWidth() > ImageService.IMAGE_WEB_WIDTH || b.getHeight() > ImageService.IMAGE_WEB_HEIGHT) {
+				double ratio = Math.min((double) ImageService.IMAGE_WEB_WIDTH / b.getWidth(), (double) ImageService.IMAGE_WEB_HEIGHT / b.getHeight());
 				int newWidth = (int) Math.round(b.getWidth() * ratio);
 				int newHeight = (int) Math.round(b.getHeight() * ratio);
 

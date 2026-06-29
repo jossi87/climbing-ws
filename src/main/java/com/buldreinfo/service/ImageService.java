@@ -44,8 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ImageService {
-	private static final int IMAGE_WEB_HEIGHT = 1440;
-	private static final int IMAGE_WEB_WIDTH = 2560;
+	public static final int IMAGE_WEB_HEIGHT = 1440;
+	public static final int IMAGE_WEB_WIDTH = 2560;
 	private static final Logger logger = LogManager.getLogger();
 	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
 	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
