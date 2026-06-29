@@ -40,7 +40,8 @@ public class ImageClassifierService {
             );
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://vision.googleapis.com/v1/images:annotate?key=" + apiKey))
+                    .uri(URI.create("https://vision.googleapis.com/v1/images:annotate"))
+                    .header("X-Goog-Api-Key", apiKey)
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonRequest))
                     .build();

@@ -74,14 +74,13 @@ public class InstagramService {
 			}
 
 			String apiToken = appConfig.apifyApiToken();
-			String startUrl = "https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/runs?token=" + apiToken;
-
 			ObjectNode inputJson = objectMapper.createObjectNode();
 			inputJson.putArray("urls").add(instagramUrl);
 			inputJson.put("commentsPreviewLimit", 0);
 
 			HttpRequest startRequest = HttpRequest.newBuilder()
-					.uri(URI.create(startUrl))
+					.uri(URI.create("https://api.apify.com/v2/acts/maximedupre~instagram-downloader-api/runs"))
+					.header("Authorization", "Bearer " + apiToken)
 					.header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
 					.timeout(Duration.ofSeconds(30))
 					.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(inputJson), StandardCharsets.UTF_8))
@@ -96,8 +95,12 @@ public class InstagramService {
 			String runId = runData.path("id").asText();
 			String defaultDatasetId = runData.path("defaultDatasetId").asText();
 
-			String runStatusUrl = "https://api.apify.com/v2/actor-runs/" + runId + "?token=" + apiToken;
-			HttpRequest statusRequest = HttpRequest.newBuilder().uri(URI.create(runStatusUrl)).timeout(Duration.ofSeconds(15)).GET().build();
+			HttpRequest statusRequest = HttpRequest.newBuilder()
+					.uri(URI.create("https://api.apify.com/v2/actor-runs/" + runId))
+					.header("Authorization", "Bearer " + apiToken)
+					.timeout(Duration.ofSeconds(15))
+					.GET()
+					.build();
 
 			boolean success = false;
 			for (int attempt = 1; attempt <= 20; attempt++) {
@@ -121,8 +124,12 @@ public class InstagramService {
 				throw new IOException("Apify runner execution tracking timed out out on backend engine for URL: " + instagramUrl);
 			}
 
-			String datasetUrl = "https://api.apify.com/v2/datasets/" + defaultDatasetId + "/items?token=" + apiToken;
-			HttpRequest datasetRequest = HttpRequest.newBuilder().uri(URI.create(datasetUrl)).timeout(Duration.ofSeconds(15)).GET().build();
+			HttpRequest datasetRequest = HttpRequest.newBuilder()
+					.uri(URI.create("https://api.apify.com/v2/datasets/" + defaultDatasetId + "/items"))
+					.header("Authorization", "Bearer " + apiToken)
+					.timeout(Duration.ofSeconds(15))
+					.GET()
+					.build();
 			HttpResponse<String> datasetResponse = httpClient.send(datasetRequest, HttpResponse.BodyHandlers.ofString());
 
 			if (datasetResponse.statusCode() != 200) {
