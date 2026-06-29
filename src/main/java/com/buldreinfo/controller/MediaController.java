@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.imgscalr.Scalr;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -41,7 +40,6 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
-import com.buldreinfo.io.ImageSaver;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.VideoInitPayload;
@@ -63,11 +61,16 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/media")
 public class MediaController {
+
 	@FunctionalInterface
 	private interface ImageTask {
 		void execute(StorageManager storage);
 	}
+
 	private static final Logger logger = LogManager.getLogger();
+	private static final int IMAGE_WEB_WIDTH = 2560;
+	private static final int IMAGE_WEB_HEIGHT = 1440;
+
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final ImageService imageService;
@@ -246,7 +249,7 @@ public class MediaController {
 					} catch (IOException e) {
 						logger.warn("Initial instagram video link expired, attempting fallback re-scrape for id=" + id, e);
 						List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-						InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+						InstagramService.InstagramMedia target = fresh.stream().filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 						mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
 						try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
 							videoData = storage.readBoundedStream(is);
@@ -258,9 +261,9 @@ public class MediaController {
 					throw new RuntimeException(e);
 				}
 			})
-			.exceptionally(ex -> { 
+			.exceptionally(ex -> {
 				logger.error("Async video save failed", ex);
-				return null; 
+				return null;
 			});
 			return ResponseEntity.ok(mediaRepo.getMedia(authUserId, id));
 		}
@@ -271,7 +274,7 @@ public class MediaController {
 		} catch (IOException e) {
 			logger.warn("Initial instagram image link expired, attempting fallback re-scrape", e);
 			List<InstagramService.InstagramMedia> fresh = instagramService.resolveMedia(mediaPayload.embedUrl());
-			InstagramService.InstagramMedia target = fresh.stream().filter(m -> m.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
+			InstagramService.InstagramMedia target = fresh.stream().filter(md -> md.mediaIndex() == mediaIndex).findFirst().orElse(fresh.get(0));
 			mediaRepo.logInstagramScrape(authUserId, mediaPayload.embedUrl(), fresh.size());
 			try (InputStream is = InstagramService.validateInstagramCdnUrl(target.cdnUrl()).toURL().openStream()) {
 				imageData = storage.readBoundedStream(is);
@@ -344,9 +347,9 @@ public class MediaController {
 				throw new RuntimeException(e);
 			}
 		})
-		.exceptionally(ex -> { 
+		.exceptionally(ex -> {
 			logger.error("Async video error for id=" + id, ex);
-			return null; 
+			return null;
 		});
 		return ResponseEntity.ok().build();
 	}
@@ -369,14 +372,19 @@ public class MediaController {
 		int newId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
 		CompletableFuture.runAsync(() -> {
 			try {
-				imageService.saveImageFromEmbedVideo(newId, media.embedUrl());
+				BufferedImage thumb = imageService.readFromEmbedUrl(media.embedUrl());
+				try {
+					imageService.saveImage(newId, thumb);
+				} finally {
+					thumb.flush();
+				}
 			} catch (IOException | InterruptedException e) {
 				throw new RuntimeException(e);
 			}
 		})
-		.exceptionally(ex -> { 
+		.exceptionally(ex -> {
 			logger.error("Async embed thumbnail failed for id=" + newId, ex);
-			return null; 
+			return null;
 		});
 		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newId));
 	}
@@ -471,7 +479,8 @@ public class MediaController {
 		}
 		try {
 			if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
-				storage.uploadImage(key, Scalr.crop(b, x, y, width, height), type);
+				BufferedImage cropped = imageService.crop(b, x, y, width, height);
+				storage.uploadImage(key, cropped, type);
 			}
 		} finally {
 			b.flush();
@@ -479,7 +488,7 @@ public class MediaController {
 	}
 
 	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) {
-		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
+		boolean useWebSource = (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
 		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
 		if (useWebSource && !storage.exists(sourceKey)) {
 			sourceKey = S3KeyGenerator.getOriginalJpg(id);
@@ -492,13 +501,28 @@ public class MediaController {
 			return;
 		}
 		try {
+			int newWidth = b.getWidth();
+			int newHeight = b.getHeight();
+
 			if (targetWidth > 0 && targetWidth < b.getWidth()) {
-				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+				double ratio = (double) targetWidth / b.getWidth();
+				newWidth = targetWidth;
+				newHeight = (int) Math.round(b.getHeight() * ratio);
 			} else if (minDimension > 0) {
-				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-				b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
+				double ratio = b.getWidth() < b.getHeight() 
+						? (double) minDimension / b.getWidth() 
+								: (double) minDimension / b.getHeight();
+				newWidth = (int) Math.round(b.getWidth() * ratio);
+				newHeight = (int) Math.round(b.getHeight() * ratio);
 			}
-			storage.uploadImage(key, b, type);
+
+			if (newWidth != b.getWidth() || newHeight != b.getHeight()) {
+				BufferedImage resized = imageService.resize(b, newWidth, newHeight);
+				storage.uploadImage(key, resized, type);
+				resized.flush();
+			} else {
+				storage.uploadImage(key, b, type);
+			}
 		} finally {
 			b.flush();
 		}
@@ -517,10 +541,17 @@ public class MediaController {
 			return;
 		}
 		try {
-			if (b.getWidth() > ImageSaver.IMAGE_WEB_WIDTH || b.getHeight() > ImageSaver.IMAGE_WEB_HEIGHT) {
-				b = Scalr.resize(b, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.AUTOMATIC, ImageSaver.IMAGE_WEB_WIDTH, ImageSaver.IMAGE_WEB_HEIGHT, Scalr.OP_ANTIALIAS);
+			if (b.getWidth() > IMAGE_WEB_WIDTH || b.getHeight() > IMAGE_WEB_HEIGHT) {
+				double ratio = Math.min((double) IMAGE_WEB_WIDTH / b.getWidth(), (double) IMAGE_WEB_HEIGHT / b.getHeight());
+				int newWidth = (int) Math.round(b.getWidth() * ratio);
+				int newHeight = (int) Math.round(b.getHeight() * ratio);
+
+				BufferedImage resized = imageService.resize(b, newWidth, newHeight);
+				storage.uploadImage(key, resized, type);
+				resized.flush();
+			} else {
+				storage.uploadImage(key, b, type);
 			}
-			storage.uploadImage(key, b, type);
 		} finally {
 			b.flush();
 		}

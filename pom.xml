@@ -84,10 +84,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-xml</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
@@ -121,19 +117,14 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.imgscalr</groupId>
-            <artifactId>imgscalr-lib</artifactId>
-            <version>4.2</version>
-        </dependency>
+		    <groupId>com.drewnoakes</groupId>
+		    <artifactId>metadata-extractor</artifactId>
+		    <version>2.20.0</version>
+		</dependency>
         <dependency>
             <groupId>org.sejda.imageio</groupId>
             <artifactId>webp-imageio</artifactId>
             <version>0.1.6</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-imaging</artifactId>
-            <version>1.0.0-alpha6</version>
         </dependency>
         <dependency>
             <groupId>com.github.librepdf</groupId>

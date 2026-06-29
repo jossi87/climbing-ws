@@ -22,7 +22,8 @@ public class CacheConfig {
 				CacheConstants.HIT_COOLDOWN_CACHE_NAME,
 				CacheConstants.EXISTS_CACHE_NAME,
 				CacheConstants.REGION_CACHE_NAME,
-				CacheConstants.CORS_CACHE_NAME
+				CacheConstants.CORS_CACHE_NAME,
+				CacheConstants.WEBCAM_CACHE_NAME
 				);
 
 		cacheManager.setCaffeine(Caffeine.newBuilder()

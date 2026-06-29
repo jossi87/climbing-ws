@@ -1,5 +1,6 @@
 package com.buldreinfo.batch.maintenance;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -76,11 +77,16 @@ public class EmbeddedVideoDownloader {
 		}
 
 		if (!Files.exists(originalJpg)) {
-            try {
-                imageService.saveImageFromEmbedVideo(id, embedUrl);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+			try {
+				BufferedImage thumb = imageService.readFromEmbedUrl(embedUrl);
+				try {
+					imageService.saveImage(id, thumb);
+				} finally {
+					thumb.flush();
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		if (!Files.exists(originalJpg) && !privateEmbeddedVideosToIgnore.contains(id)) {

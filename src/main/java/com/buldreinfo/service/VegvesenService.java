@@ -10,28 +10,33 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.buldreinfo.infrastructure.CacheConstants;
 
 @Service
 public class VegvesenService {
 	public record Webcam(String id, String lastUpdated, String name, String urlStillImage, String urlYr, double lat, double lng) {}
-	private static final Logger logger = LoggerFactory.getLogger(VegvesenService.class);
+	private static final Logger logger = LogManager.getLogger();
 	private final String authHeader;
 	private final HttpClient httpClient;
-	private final XmlMapper xmlMapper;
+	private final XMLInputFactory xmlInputFactory;
 
 	public VegvesenService(AppConfig appConfig, HttpClient httpClient) {
 		this.httpClient = httpClient;
 		this.authHeader = "Basic " + Base64.getEncoder().encodeToString(appConfig.vegvesenAuth().getBytes(StandardCharsets.UTF_8));
-		this.xmlMapper = new XmlMapper();
+		this.xmlInputFactory = XMLInputFactory.newInstance();
 	}
 
+	@Cacheable(value = CacheConstants.WEBCAM_CACHE_NAME, sync = true)
 	public List<Webcam> getCameras() {
 		try {
 			HttpRequest request = HttpRequest.newBuilder()
@@ -46,38 +51,50 @@ public class VegvesenService {
 				throw new RuntimeException("HTTP error: " + response.statusCode());
 			}
 
-			JsonNode root = xmlMapper.readTree(response.body());
-			List<JsonNode> cameraNodes = root.findValues("cctvCameraMetadataRecord");
+			List<Webcam> results = new ArrayList<>();
+			try (InputStream is = response.body()) {
+				XMLStreamReader reader = xmlInputFactory.createXMLStreamReader(is);
 
-			if (cameraNodes.isEmpty()) {
-				logger.warn("Vegvesen feed returned 0 cameras. Check source structure.");
+				String currentElement = "";
+				String id = "", lastUpdated = "", name = "", urlStill = "", urlYr = "";
+				double lat = 0.0, lng = 0.0;
+
+				while (reader.hasNext()) {
+					int event = reader.next();
+					switch (event) {
+					case XMLStreamConstants.START_ELEMENT -> currentElement = reader.getLocalName();
+					case XMLStreamConstants.CHARACTERS -> {
+						String text = reader.getText().trim();
+						if (!text.isEmpty()) {
+							switch (currentElement) {
+							case "cctvCameraIdentification" -> id = text;
+							case "cctvCameraRecordVersionTime" -> lastUpdated = text;
+							case "cctvCameraSiteLocalDescription" -> name = text;
+							case "stillImageUrl" -> urlStill = text;
+							case "urlYr" -> urlYr = text;
+							case "latitude" -> lat = Double.parseDouble(text);
+							case "longitude" -> lng = Double.parseDouble(text);
+							default -> {}
+							}
+						}
+					}
+					case XMLStreamConstants.END_ELEMENT -> {
+						if ("cctvCameraMetadataRecord".equals(reader.getLocalName())) {
+							results.add(new Webcam(id, lastUpdated, name, urlStill, urlYr, lat, lng));
+							id = lastUpdated = name = urlStill = urlYr = "";
+							lat = lng = 0.0;
+						}
+					}
+					}
+				}
 			}
 
-			List<Webcam> results = new ArrayList<>();
-			for (JsonNode node : cameraNodes) {
-				results.add(new Webcam(
-						getText(node, "cctvCameraIdentification"),
-						getText(node, "cctvCameraRecordVersionTime"),
-						getText(node, "cctvCameraSiteLocalDescription"),
-						getText(node, "stillImageUrl"),
-						getText(node, "urlYr"),
-						getDouble(node, "latitude"),
-						getDouble(node, "longitude")
-						));
+			if (results.isEmpty()) {
+				logger.warn("Vegvesen feed returned 0 cameras.");
 			}
 			return results;
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to fetch/parse cameras: " + e.getMessage(), e);
 		}
-	}
-
-	private double getDouble(JsonNode node, String fieldName) {
-		JsonNode found = node.findValue(fieldName);
-		return (found != null) ? found.asDouble() : 0.0;
-	}
-
-	private String getText(JsonNode node, String fieldName) {
-		JsonNode found = node.findValue(fieldName);
-		return (found != null) ? found.asText() : "";
 	}
 }

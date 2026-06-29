@@ -1,70 +1,58 @@
 package com.buldreinfo.io;
 
-import java.awt.Dimension;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.Iterator;
 
-import org.apache.commons.imaging.Imaging;
-import org.apache.commons.imaging.ImagingException;
-import org.apache.commons.imaging.common.ImageMetadata;
-import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
-import org.apache.commons.imaging.formats.tiff.TiffField;
-import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
-import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
-import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
-import org.apache.commons.imaging.formats.tiff.taginfos.TagInfo;
-import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.imgscalr.Scalr.Rotation;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
 
+import org.springframework.stereotype.Service;
+
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifDirectoryBase;
+import com.drew.metadata.exif.ExifIFD0Directory;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
+
+@Service
 public class ExifReader {
-	private static final Logger logger = LogManager.getLogger();
-	private static final String EXIF_DATE_PATTERN = "yyyy:MM:dd HH:mm:ss";
+	public enum ImageRotation {CW_90, CW_180, CW_270}
+	public record ImageMetadataInfo(ImageRotation rotation, LocalDateTime dateTaken, boolean is360, IIOMetadata nativeMetadata) {}
+
 	private static final byte[] EQUIRECTANGULAR_BYTES = "equirectangular".getBytes(StandardCharsets.ISO_8859_1);
-	
-	private final Rotation rotation;
-	private final TiffOutputSet outputSet;
-	private final LocalDateTime dateTaken;
-	private final boolean is360;
-	
-	public ExifReader(byte[] bytes) throws IOException {
-		TiffImageMetadata imageMetadata = getTiffImageMetadata(bytes);
-		if (imageMetadata != null) {
-			this.rotation = getExifOrientation(imageMetadata);
-			TiffOutputSet parsedSet = imageMetadata.getOutputSet();
-			if (parsedSet == null) {
-				parsedSet = new TiffOutputSet();
-			}
-			parsedSet.removeField(TiffTagConstants.TIFF_TAG_ORIENTATION);
-			this.outputSet = parsedSet;
-			this.dateTaken = getExifDateValue(imageMetadata, ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL);
-		} else {
-			this.rotation = null;
-			this.outputSet = null;
-			this.dateTaken = null;
+
+	public ImageMetadataInfo extractMetadata(byte[] bytes) throws Exception {
+		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes)) {
+			Metadata metadata = ImageMetadataReader.readMetadata(is);
+
+			ImageRotation rotation = getRotation(metadata);
+			LocalDateTime dateTaken = getDateTaken(metadata);
+			boolean is360 = checkIs360(bytes, metadata);
+			IIOMetadata nativeMetadata = getNativeMetadata(bytes);
+
+			return new ImageMetadataInfo(rotation, dateTaken, is360, nativeMetadata);
 		}
-		this.is360 = checkIs360(bytes);
 	}
 
-	private boolean checkIs360(byte[] bytes) {
+	private boolean checkIs360(byte[] bytes, Metadata metadata) {
 		try {
-			Dimension dimension = Imaging.getImageSize(bytes);
-			if (dimension.width == dimension.height * 2) {
-				return true;
+			ExifSubIFDDirectory dir = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+			if (dir != null && dir.containsTag(ExifDirectoryBase.TAG_IMAGE_WIDTH) && dir.containsTag(ExifDirectoryBase.TAG_IMAGE_HEIGHT)) {
+				int width = dir.getInt(ExifDirectoryBase.TAG_IMAGE_WIDTH);
+				int height = dir.getInt(ExifDirectoryBase.TAG_IMAGE_HEIGHT);
+				if (width == height * 2) {
+					return true;
+				}
 			}
-
-			String xmpXml = Imaging.getXmpXml(bytes);
-			if (xmpXml != null && xmpXml.contains("equirectangular")) {
-				return true;
-			}
-
 			return containsSequence(bytes, EQUIRECTANGULAR_BYTES);
-		} catch (Exception e) {
-			logger.warn("Failed to check if image is 360 panorama: {}", e.getMessage(), e);
+		} catch (Exception _) {
 		}
 		return false;
 	}
@@ -85,111 +73,46 @@ public class ExifReader {
 		return false;
 	}
 
-	private LocalDateTime getExifDateValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
-		if (imageMetadata == null) {
-			return null;
-		}
-		String exifDateStr = getExifStringValue(imageMetadata, tagInfo);
-		if (exifDateStr == null) {
-			return null;
-		}
-		try {
-			return LocalDateTime.parse(exifDateStr, DateTimeFormatter.ofPattern(EXIF_DATE_PATTERN));
-		} catch (DateTimeParseException e) {
-			logger.warn("Failed to parse EXIF date string '{}': {}", exifDateStr, e.getMessage());
-			return null;
-		}
-	}
-
-	private Rotation getExifOrientation(ImageMetadata imageMetadata) throws ImagingException {
-		TiffField field = getTiffField(imageMetadata, TiffTagConstants.TIFF_TAG_ORIENTATION);
-		if (field != null) {
-			int value = field.getIntValue();
-			if (value == 0 || value == 256 || value == TiffTagConstants.ORIENTATION_VALUE_HORIZONTAL_NORMAL || value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL) {
-				return null;
-			} else if (value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_180 || value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_VERTICAL) {
-				return Rotation.CW_180;
-			} else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_270_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_270_CW) {
-				return Rotation.CW_270;
-			} else if (value == TiffTagConstants.ORIENTATION_VALUE_MIRROR_HORIZONTAL_AND_ROTATE_90_CW || value == TiffTagConstants.ORIENTATION_VALUE_ROTATE_90_CW) {
-				return Rotation.CW_90;
-			} else {
-				throw new RuntimeException("Invalid exif orientation: " + value);
+	private LocalDateTime getDateTaken(Metadata metadata) {
+		ExifSubIFDDirectory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+		if (directory != null) {
+			Date date = directory.getDate(ExifDirectoryBase.TAG_DATETIME_ORIGINAL);
+			if (date != null) {
+				return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
 			}
 		}
 		return null;
 	}
 
-	private String getExifStringValue(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
-		TiffField field = getTiffField(imageMetadata, tagInfo);
-		if (field == null) {
-			return null;
-		}
-		
-		String exifStr = null;
-		try {
-			exifStr = field.getStringValue();
-		} catch (Exception _) {
-			Object val = field.getValue();
-			if (val instanceof String[] arr && arr.length > 0) {
-				exifStr = arr[0];
-			} else if (val != null) {
-				exifStr = val.toString();
+	private IIOMetadata getNativeMetadata(byte[] bytes) throws IOException {
+		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes);
+				ImageInputStream iis = ImageIO.createImageInputStream(is)) {
+			Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+			if (readers.hasNext()) {
+				ImageReader reader = readers.next();
+				reader.setInput(iis, true);
+				IIOMetadata metadata = reader.getImageMetadata(0);
+				reader.dispose();
+				return metadata;
 			}
-		}
-		
-		if (exifStr != null) {
-			int nullIdx = exifStr.indexOf('\u0000');
-			if (nullIdx != -1) {
-				exifStr = exifStr.substring(0, nullIdx);
-			}
-			exifStr = exifStr.trim();
-		}
-		return exifStr;
-	}
-
-	private TiffField getTiffField(ImageMetadata imageMetadata, TagInfo tagInfo) throws ImagingException {
-		if (imageMetadata == null) {
-			return null;
-		}
-		if (imageMetadata instanceof JpegImageMetadata jpegMetadata) {
-			return jpegMetadata.findExifValueWithExactMatch(tagInfo);
-		} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
-			return tiffMetadata.findField(tagInfo, true);
 		}
 		return null;
 	}
 
-	private TiffImageMetadata getTiffImageMetadata(byte[] imageBytes) {
-		try {
-			ImageMetadata imageMetadata = Imaging.getMetadata(imageBytes);
-			if (imageMetadata == null) {
-				return null;
+	private ImageRotation getRotation(Metadata metadata) {
+		ExifIFD0Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+		if (directory != null && directory.containsTag(ExifDirectoryBase.TAG_ORIENTATION)) {
+			try {
+				int orientation = directory.getInt(ExifDirectoryBase.TAG_ORIENTATION);
+				return switch (orientation) {
+				case 3, 4 -> ImageRotation.CW_180;
+				case 5, 8 -> ImageRotation.CW_270;
+				case 6, 7 -> ImageRotation.CW_90;
+				default -> null;
+				};
+			} catch (Exception _) {
 			}
-			if (imageMetadata instanceof JpegImageMetadata jpegMetadata) {
-				return jpegMetadata.getExif();
-			} else if (imageMetadata instanceof TiffImageMetadata tiffMetadata) {
-				return tiffMetadata;
-			}
-		} catch (Exception e) {
-			logger.warn("Failed to retrieve image TIFF metadata properties: {}", e.getMessage());
 		}
 		return null;
-	}
-
-	public LocalDateTime getDateTaken() {
-		return dateTaken;
-	}
-
-	public TiffOutputSet getOutputSet() {
-		return outputSet;
-	}
-
-	public Rotation getRotation() {
-		return rotation;
-	}
-
-	public boolean is360() {
-		return is360;
 	}
 }

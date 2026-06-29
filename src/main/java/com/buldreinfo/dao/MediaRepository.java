@@ -22,7 +22,6 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.imgscalr.Scalr.Rotation;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -35,6 +34,7 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.io.StorageManager;
+import com.buldreinfo.io.ExifReader.ImageRotation;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
@@ -102,7 +102,7 @@ public class MediaRepository {
 
 		try (var is = inputStreamSupplier.get()) {
 			imageService.saveImage(idMedia, storage.readBoundedStream(is));
-		} catch (IOException | InterruptedException e) {
+		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 		return idMedia;
@@ -488,9 +488,9 @@ public class MediaRepository {
 	public void rotateMedia(Optional<Integer> authUserId, int idMedia, int degrees) {
 		ensureMediaUploadedByMeOrConnectedToRegionWhereIAmAdmin(authUserId, idMedia);
 		var r = switch (degrees) {
-		case 90 -> Rotation.CW_90;
-		case 180 -> Rotation.CW_180;
-		case 270 -> Rotation.CW_270;
+		case 90 -> ImageRotation.CW_90;
+		case 180 -> ImageRotation.CW_180;
+		case 270 -> ImageRotation.CW_270;
 		default -> throw new IllegalArgumentException("Cannot rotate image " + degrees + " degrees (legal degrees = 90, 180, 270)");
 		};
 		imageService.rotateImage(idMedia, r);
