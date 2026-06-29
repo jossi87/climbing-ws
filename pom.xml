@@ -55,7 +55,7 @@
     </build>
 
     <dependencies>
-        <!-- Spring Boot starters -->
+        <!-- Spring -->
         <dependency>
 		    <groupId>org.springframework.boot</groupId>
 		    <artifactId>spring-boot-starter</artifactId>
@@ -95,6 +95,10 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+		    <groupId>com.fasterxml.jackson.dataformat</groupId>
+		    <artifactId>jackson-dataformat-xml</artifactId>
+		</dependency>
         
         <!-- Caffeine Cache -->
         <dependency>
