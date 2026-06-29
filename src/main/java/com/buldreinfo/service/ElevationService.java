@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.Coordinates;
@@ -38,12 +37,8 @@ public class ElevationService {
 			for (List<Coordinates> chunk : CollectionUtils.partition(allCoordinates, 500)) {
 				String locations = chunk.stream()
 						.map(c -> c.getLatitude() + "," + c.getLongitude())
-						.collect(Collectors.joining("|"));
-				String url = UriComponentsBuilder.fromUriString("https://maps.googleapis.com/maps/api/elevation/json")
-						.queryParam("locations", locations)
-						.queryParam("key", appConfig.googleApikey())
-						.build(false)
-						.toUriString();
+						.collect(Collectors.joining("%7C")); 
+				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, appConfig.googleApikey());
 				HttpRequest request = HttpRequest.newBuilder()
 						.uri(URI.create(url))
 						.GET()
