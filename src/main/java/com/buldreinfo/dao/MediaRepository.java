@@ -35,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
@@ -46,6 +45,7 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.service.ImageService;
 import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
+import com.buldreinfo.util.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
@@ -759,7 +759,7 @@ public class MediaRepository {
 	public void upsertSvg(Optional<Integer> authUserId, int problemId, int pitch, int mediaId, Svg svg) {
 		problemRepo.getObject().ensureAdminWriteProblem(authUserId, problemId);
 
-		if (svg.delete() || GlobalFunctions.stripString(svg.path()) == null) {
+		if (svg.delete() || StringUtils.stripToNull(svg.path()) == null) {
 			if (pitch == 0) {
 				jdbcClient.sql("DELETE FROM svg WHERE media_id = ? AND problem_id = ? AND pitch IS NULL")
 				.params(mediaId, problemId)
@@ -834,7 +834,7 @@ public class MediaRepository {
 						storageType.getExtension(),
 						photographerId,
 						uploaderId,
-						GlobalFunctions.stripString(m.description()),
+						StringUtils.stripToNull(m.description()),
 						m.thumbnailSeconds(),
 						m.embedUrl()
 						)

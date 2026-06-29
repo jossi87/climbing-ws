@@ -3,6 +3,7 @@ package com.buldreinfo.service;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.http.HttpClient;
 
 import javax.imageio.ImageIO;
 
@@ -25,12 +26,14 @@ public class ImageService {
 	private static final Logger logger = LogManager.getLogger();
 	private final TaskExecutor taskExecutor;
 	private final ObjectMapper objectMapper;
+	private final HttpClient httpClient;
 	private final ImageClassifierService imageClassifierService;
 	private final StorageManager storage;
 	private final MediaRepository mediaRepo;
 
-	public ImageService(ObjectMapper objectMapper, ImageClassifierService imageClassifierService, TaskExecutor taskExecutor, StorageManager storage, MediaRepository mediaRepo) {
+	public ImageService(ObjectMapper objectMapper, HttpClient httpClient, ImageClassifierService imageClassifierService, TaskExecutor taskExecutor, StorageManager storage, MediaRepository mediaRepo) {
 		this.objectMapper = objectMapper;
+		this.httpClient = httpClient;
 		this.imageClassifierService = imageClassifierService;
 		this.taskExecutor = taskExecutor;
 		this.storage = storage;
@@ -64,7 +67,7 @@ public class ImageService {
 			try (ImageReader imageReader = ImageReader.newBuilder()
 					.withBytes(bytes)
 					.withRotation(rotation)
-					.build(objectMapper)) {
+					.build(objectMapper, httpClient)) {
 				BufferedImage image = imageReader.getJpgBufferedImage();
 				int width = image.getWidth();
 				int height = image.getHeight();
@@ -102,7 +105,7 @@ public class ImageService {
 		try (ImageReader imageReader = ImageReader.newBuilder()
 				.withBytes(bytes)
 				.withRotation(exifReader.getRotation())
-				.build(objectMapper)) {
+				.build(objectMapper, httpClient)) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();
@@ -114,7 +117,7 @@ public class ImageService {
 	}
 
 	public void saveImageFromEmbedVideo(int idMedia, String embedVideoUrl) throws IOException, InterruptedException {
-		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build(objectMapper)) {
+		try (ImageReader imageReader = ImageReader.newBuilder().withEmbedVideoUrl(embedVideoUrl).build(objectMapper, httpClient)) {
 			BufferedImage image = imageReader.getJpgBufferedImage();
 			int width = image.getWidth();
 			int height = image.getHeight();

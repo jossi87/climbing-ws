@@ -38,7 +38,6 @@ import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.infrastructure.ValidationFailedException;
@@ -136,14 +135,14 @@ public class MediaController {
 			@RequestParam(name = "height", defaultValue = "0") int height) {
 
 		if (isMovie) {
-			String key = GlobalFunctions.requestAcceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
+			String key = requestContext.acceptsWebm(request) ? S3KeyGenerator.getWebWebm(id) : S3KeyGenerator.getWebMp4(id);
 			if (!storage.exists(key)) {
 				throw new NoSuchElementException("Movie resource not found: " + key);
 			}
 			return createRedirect(key, versionStamp);
 		}
 
-		boolean webP = GlobalFunctions.requestAcceptsWebp(request);
+		boolean webP = requestContext.acceptsWebp(request);
 		StorageType outputType = webP ? StorageType.WEBP : StorageType.JPG;
 		String key;
 
@@ -480,29 +479,29 @@ public class MediaController {
 	}
 
 	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) {
-			boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
-			String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-			if (useWebSource && !storage.exists(sourceKey)) {
-				sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageSaver.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageSaver.IMAGE_WEB_WIDTH);
+		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+		if (useWebSource && !storage.exists(sourceKey)) {
+			sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		}
+		if (!storage.exists(sourceKey)) {
+			return;
+		}
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) {
+			return;
+		}
+		try {
+			if (targetWidth > 0 && targetWidth < b.getWidth()) {
+				b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
+			} else if (minDimension > 0) {
+				Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
+				b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
 			}
-			if (!storage.exists(sourceKey)) {
-				return;
-			}
-			BufferedImage b = storage.downloadImage(sourceKey);
-			if (b == null) {
-				return;
-			}
-			try {
-				if (targetWidth > 0 && targetWidth < b.getWidth()) {
-					b = Scalr.resize(b, Scalr.Method.QUALITY, Scalr.Mode.FIT_TO_WIDTH, targetWidth);
-				} else if (minDimension > 0) {
-					Scalr.Mode mode = b.getWidth() < b.getHeight() ? Scalr.Mode.FIT_TO_WIDTH : Scalr.Mode.FIT_TO_HEIGHT;
-					b = Scalr.resize(b, Scalr.Method.QUALITY, mode, minDimension);
-				}
-				storage.uploadImage(key, b, type);
-			} finally {
-				b.flush();
-			}
+			storage.uploadImage(key, b, type);
+		} finally {
+			b.flush();
+		}
 	}
 
 	private void processStandard(StorageManager storage, int id, String key, StorageType type) {

@@ -29,8 +29,8 @@ import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.util.FilenameUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,23 +48,23 @@ import jakarta.servlet.http.HttpServletRequest;
 public class ProblemsController {
 	private static final Logger logger = LogManager.getLogger();
 	private final RequestContext requestContext;
-	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
+	private final LeafletPrintService leafletPrintService;
 	private final AreaRepository areaRepo;
 	private final MediaRepository mediaRepo;
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 
 	public ProblemsController(RequestContext requestContext,
-			ObjectMapper objectMapper,
 			StorageManager storage,
+			LeafletPrintService leafletPrintService,
 			AreaRepository areaRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo) {
 		this.requestContext = requestContext;
-		this.objectMapper = objectMapper;
 		this.storage = storage;
+		this.leafletPrintService = leafletPrintService;
 		this.areaRepo = areaRepo;
 		this.mediaRepo = mediaRepo;
 		this.problemRepo = problemRepo;
@@ -108,7 +108,7 @@ public class ProblemsController {
 		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
 		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
-			try (var generator = new PdfGenerator(objectMapper, storage, output)) {
+			try (var generator = new PdfGenerator(storage, leafletPrintService, output)) {
 				generator.writeProblem(setup, area, sector, problem);
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);

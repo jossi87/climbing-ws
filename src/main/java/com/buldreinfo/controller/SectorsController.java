@@ -27,8 +27,8 @@ import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.util.FilenameUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -45,21 +45,21 @@ import jakarta.servlet.http.HttpServletRequest;
 public class SectorsController {
 	private final RequestContext requestContext;
 	private static final Logger logger = LogManager.getLogger();
-	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
+	private final LeafletPrintService leafletPrintService;
 	private final AreaRepository areaRepo;
 	private final HierarchyRepository hierarchyRepo;
 	private final SectorRepository sectorRepo;
 
 	public SectorsController(RequestContext requestContext,
-			ObjectMapper objectMapper,
 			StorageManager storage,
+			LeafletPrintService leafletPrintService,
 			AreaRepository areaRepo,
 			HierarchyRepository hierarchyRepo,
 			SectorRepository sectorRepo) {
 		this.requestContext = requestContext;
-		this.objectMapper = objectMapper;
 		this.storage = storage;
+		this.leafletPrintService = leafletPrintService;
 		this.areaRepo = areaRepo;
 		this.hierarchyRepo = hierarchyRepo;
 		this.sectorRepo = sectorRepo;
@@ -100,7 +100,7 @@ public class SectorsController {
 		final Area area = areaRepo.getArea(setup, authUserId, sector.areaId(), shouldUpdateHits);
 		String filename = FilenameUtil.generateFilename(sector.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
-			try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
+			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {
 				generator.writeArea(setup, area, gradeDistribution, List.of(sector));
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);

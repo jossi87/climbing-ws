@@ -48,7 +48,6 @@ import org.openpdf.text.pdf.PdfWriter;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.io.StorageManager;
-import com.buldreinfo.leafletprint.LeafletPrintGenerator;
 import com.buldreinfo.leafletprint.beans.IconType;
 import com.buldreinfo.leafletprint.beans.Leaflet;
 import com.buldreinfo.leafletprint.beans.Marker;
@@ -68,8 +67,8 @@ import com.buldreinfo.model.Sector.SectorProblem;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.model.Tick.TickRepeat;
 import com.buldreinfo.model.User;
+import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.util.FilenameUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class PdfGenerator implements AutoCloseable {
 
@@ -178,18 +177,18 @@ public class PdfGenerator implements AutoCloseable {
 	private static final Pattern URL_PATTERN = Pattern.compile("(https?://\\S+)");
 	private final Document document;
 	private final Set<Integer> mediaIdProcessed = new HashSet<>();
-	private final ObjectMapper objectMapper;
 	private final PageHeaderFooter pageEvent;
 	private final Map<String, byte[]> preRenderedPitchAssets = new HashMap<>();
 	private final StorageManager storage;
+	private final LeafletPrintService leafletPrintService;
 
 	private BaseFont watermarkFont;
 
 	private final PdfWriter writer;
 
-	public PdfGenerator(ObjectMapper objectMapper, StorageManager storage, OutputStream output) {
-		this.objectMapper = objectMapper;
+	public PdfGenerator(StorageManager storage, LeafletPrintService leafletPrintService, OutputStream output) {
 		this.storage = storage;
+		this.leafletPrintService = leafletPrintService;
 		this.document = new Document(PageSize.A4, 30, 30, 30, 30);
 		this.writer = PdfWriter.getInstance(document, output);
 
@@ -394,7 +393,7 @@ public class PdfGenerator implements AutoCloseable {
 						if (m.svgs() == null) continue;
 						List<Svg> pitchSvgs = m.svgs().stream()
 								.filter(s -> s.problemId() == problem.id() && s.pitch() == section.nr())
-								.collect(Collectors.toList());
+								.toList();
 
 						if (!pitchSvgs.isEmpty()) {
 							String cacheKey = section.nr() + "_" + m.identity().id();
@@ -729,7 +728,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, false);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
+				Optional<byte[]> optSnapshot = leafletPrintService.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -781,7 +780,7 @@ public class PdfGenerator implements AutoCloseable {
 
 			if (!markers.isEmpty() || !outlines.isEmpty() || !slopes.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, false);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
+				Optional<byte[]> optSnapshot = leafletPrintService.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -791,12 +790,12 @@ public class PdfGenerator implements AutoCloseable {
 					table.addCell(cell);
 
 					// Also append photo map
-					markers = markers.stream().filter(m -> !m.iconType().equals(IconType.PARKING)).collect(Collectors.toList());
+					markers = markers.stream().filter(m -> !m.iconType().equals(IconType.PARKING)).toList();
 					if (!markers.isEmpty()) {
 						outlines.clear();
 						slopes.clear();
 						leaflet = new Leaflet(markers, outlines, slopes, null, defaultCenter, defaultZoom, true);
-						optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
+						optSnapshot = leafletPrintService.takeSnapshot(leaflet);
 						if (optSnapshot.isPresent()) {
 							img = Image.getInstance(optSnapshot.get());
 							cell = new PdfPCell(img, true);
@@ -840,7 +839,7 @@ public class PdfGenerator implements AutoCloseable {
 			}
 			for (String rock : problemsWithCoordinatesGroupedByRock.keySet()) {
 				List<SectorProblem> problems = problemsWithCoordinatesGroupedByRock.get(rock);
-				LatLng latLng = LeafletPrintGenerator.getCenter(problems);
+				LatLng latLng = leafletPrintService.getCenter(problems);
 				markers.add(new Marker(latLng.lat(), latLng.lng(), IconType.ROCK, rock));
 			}
 			for (SectorProblem p : problemsWithoutRock) {
@@ -855,14 +854,16 @@ public class PdfGenerator implements AutoCloseable {
 				}
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
 					final String label = FilenameUtil.sanitize(sector.name());
-					String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+					String polygonCoords = sector.outline().stream()
+						    .map(o -> o.getLatitude() + "," + o.getLongitude())
+						    .collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
 
 			if (!markers.isEmpty()) {
 				Leaflet leaflet = new Leaflet(markers, outlines, slopes, legends, defaultCenter, defaultZoom, true);
-				Optional<byte[]> optSnapshot = LeafletPrintGenerator.takeSnapshot(objectMapper, leaflet);
+				Optional<byte[]> optSnapshot = leafletPrintService.takeSnapshot(leaflet);
 				if (optSnapshot.isPresent()) {
 					PdfPTable table = new PdfPTable(1);
 					table.setWidthPercentage(100);
@@ -900,18 +901,12 @@ public class PdfGenerator implements AutoCloseable {
 		for (Media m : media) {
 			if (mediaIdProcessed.contains(m.identity().id())) continue;
 			toProcess.add(m);
-
-			List<Svg> svgs = m.svgs() != null 
-					? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).collect(Collectors.toList()) 
-							: null;
-
+			List<Svg> svgs = m.svgs() != null ? m.svgs().stream().filter(s -> probId <= 0 || s.problemId() == probId).toList() : null;
 			boolean hasOverlays = (svgs != null && !svgs.isEmpty()) || (m.mediaSvgs() != null && !m.mediaSvgs().isEmpty());
-
 			if (hasOverlays) {
-				futures.add(CompletableFuture.supplyAsync(() -> 
-				safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)
-						));
-			} else {
+				futures.add(CompletableFuture.supplyAsync(() -> safeGenerateTopo(m.identity().id(), m.width(), m.height(), m.mediaSvgs(), svgs, null, targetWidth, probId, 0)));
+			}
+			else {
 				futures.add(CompletableFuture.supplyAsync(() -> {
 					try {
 						String s3Key = S3KeyGenerator.getWebJpg(m.identity().id());

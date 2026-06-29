@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.buldreinfo.helpers.GeoHelper;
+import com.buldreinfo.util.GeoUtils;
 
 public record Trail(
 		int id, 
@@ -58,7 +59,7 @@ public record Trail(
 			for (int i = 1; i < path.size(); i++) {
 				Coordinates prev = path.get(i - 1);
 				Coordinates curr = path.get(i);
-				double distanceDelta = GeoHelper.getHaversineDistanceInMeters(prev.getLatitude(), prev.getLongitude(), curr.getLatitude(), curr.getLongitude());
+				double distanceDelta = GeoUtils.getHaversineDistanceInMeters(prev.getLatitude(), prev.getLongitude(), curr.getLatitude(), curr.getLongitude());
 				totalDistance += distanceDelta;
 				curr.setDistance(totalDistance);
 			}

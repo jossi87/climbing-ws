@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
@@ -25,10 +25,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class InstagramService {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
 	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
-	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-			.connectTimeout(Duration.ofSeconds(15))
-			.build();
-	private static final Logger logger = LoggerFactory.getLogger(InstagramService.class);
+	private static final Logger logger = LogManager.getLogger();
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
 		if (cleanUrl.endsWith("/")) {
@@ -55,10 +52,12 @@ public class InstagramService {
 	}
 
 	private final AppConfig appConfig;
+	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper;
 
-	public InstagramService(AppConfig appConfig, ObjectMapper objectMapper) {
+	public InstagramService(AppConfig appConfig, HttpClient httpClient, ObjectMapper objectMapper) {
 		this.appConfig = appConfig;
+		this.httpClient = httpClient;
 		this.objectMapper = objectMapper;
 	}
 
@@ -88,7 +87,7 @@ public class InstagramService {
 					.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(inputJson), StandardCharsets.UTF_8))
 					.build();
 
-			HttpResponse<String> startResponse = HTTP_CLIENT.send(startRequest, HttpResponse.BodyHandlers.ofString());
+			HttpResponse<String> startResponse = httpClient.send(startRequest, HttpResponse.BodyHandlers.ofString());
 			if (startResponse.statusCode() != 200 && startResponse.statusCode() != 201) {
 				throw new IOException("Failed to initiate Apify actor run. Status: " + startResponse.statusCode() + " URL: " + instagramUrl);
 			}
@@ -103,7 +102,7 @@ public class InstagramService {
 			boolean success = false;
 			for (int attempt = 1; attempt <= 20; attempt++) {
 				Thread.sleep(2500);
-				HttpResponse<String> statusResponse = HTTP_CLIENT.send(statusRequest, HttpResponse.BodyHandlers.ofString());
+				HttpResponse<String> statusResponse = httpClient.send(statusRequest, HttpResponse.BodyHandlers.ofString());
 				if (statusResponse.statusCode() == 200) {
 					JsonNode statusData = objectMapper.readTree(statusResponse.body()).path("data");
 					String status = statusData.path("status").asText();
@@ -124,7 +123,7 @@ public class InstagramService {
 
 			String datasetUrl = "https://api.apify.com/v2/datasets/" + defaultDatasetId + "/items?token=" + apiToken;
 			HttpRequest datasetRequest = HttpRequest.newBuilder().uri(URI.create(datasetUrl)).timeout(Duration.ofSeconds(15)).GET().build();
-			HttpResponse<String> datasetResponse = HTTP_CLIENT.send(datasetRequest, HttpResponse.BodyHandlers.ofString());
+			HttpResponse<String> datasetResponse = httpClient.send(datasetRequest, HttpResponse.BodyHandlers.ofString());
 
 			if (datasetResponse.statusCode() != 200) {
 				throw new IOException("Failed to retrieve populated dataset items. Code: " + datasetResponse.statusCode());

@@ -6,6 +6,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -19,7 +20,6 @@ import javax.imageio.ImageIO;
 import org.imgscalr.Scalr;
 import org.imgscalr.Scalr.Rotation;
 
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ImageReader implements AutoCloseable {
@@ -28,8 +28,8 @@ public class ImageReader implements AutoCloseable {
 		private String embedVideoUrl;
 		private Rotation rotation;
 
-		public ImageReader build(ObjectMapper objectMapper) throws IOException, InterruptedException {
-			return new ImageReader(objectMapper, this);
+		public ImageReader build(ObjectMapper objectMapper, HttpClient httpClient) throws IOException, InterruptedException {
+			return new ImageReader(objectMapper, httpClient, this);
 		}
 
 		public ImageReaderBuilder withBytes(byte[] bytes) {
@@ -54,9 +54,11 @@ public class ImageReader implements AutoCloseable {
 	}
 	private final BufferedImage jpgBufferedImage;
 	private final ObjectMapper objectMapper;
+	private final HttpClient httpClient;
 	
-	private ImageReader(ObjectMapper objectMapper, ImageReaderBuilder builder) throws IOException, InterruptedException {
+	private ImageReader(ObjectMapper objectMapper, HttpClient httpClient, ImageReaderBuilder builder) throws IOException, InterruptedException {
 		this.objectMapper = objectMapper;
+		this.httpClient = httpClient;
 		BufferedImage bufferedImage = null;
 		if (builder.bytes != null) {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(builder.bytes)) {
@@ -119,7 +121,7 @@ public class ImageReader implements AutoCloseable {
 					.timeout(Duration.ofSeconds(10))
 					.GET()
 					.build();
-			HttpResponse<String> response = GlobalFunctions.HTTP_CLIENT.send(request, BodyHandlers.ofString());
+			HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString());
 			if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("Vimeo API error status: " + response.statusCode());
 			var arr = objectMapper.readTree(response.body());
 	        if (arr.isArray() && !arr.isEmpty()) {
@@ -143,7 +145,7 @@ public class ImageReader implements AutoCloseable {
 				.GET()
 				.build();
 
-		HttpResponse<byte[]> imgResponse = GlobalFunctions.HTTP_CLIENT.send(imgRequest, BodyHandlers.ofByteArray());
+		HttpResponse<byte[]> imgResponse = httpClient.send(imgRequest, BodyHandlers.ofByteArray());
 		if (imgResponse.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("Failed downloading image content stream");
 		
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imgResponse.body())) {

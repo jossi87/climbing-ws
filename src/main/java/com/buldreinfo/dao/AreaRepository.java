@@ -21,7 +21,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
@@ -32,6 +31,7 @@ import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Media.MediaArea;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Redirect;
+import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class AreaRepository {
@@ -212,10 +212,10 @@ public class AreaRepository {
 					for_developers=?, access_info=?, access_closed=?, no_dogs_allowed=?, sun_from_hour=?, sun_to_hour=?, 
 					trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?
 					""")
-			.params(GlobalFunctions.stripString(a.name()), GlobalFunctions.stripString(a.comment()), 
+			.params(StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
 					a.coordinates() == null ? 0 : a.coordinates().getId(), isLockedAdmin, a.lockedSuperadmin(), 
-							a.forDevelopers(), GlobalFunctions.stripString(a.accessInfo()), 
-							GlobalFunctions.stripString(a.accessClosed()), a.noDogsAllowed(), a.sunFromHour(), 
+							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
+							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), a.sunFromHour(), 
 							a.sunToHour(), a.trash(), a.trash() ? authUserId.get() : 0, a.id())
 			.update();
 
@@ -252,10 +252,10 @@ public class AreaRepository {
 					for_developers, access_info, access_closed, no_dogs_allowed, last_updated) 
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
-			.params(s.idRegion(), GlobalFunctions.stripString(a.name()), GlobalFunctions.stripString(a.comment()), 
+			.params(s.idRegion(), StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
 					a.coordinates() == null ? 0 : a.coordinates().getId(), isLockedAdmin, a.lockedSuperadmin(), 
-							a.forDevelopers(), GlobalFunctions.stripString(a.accessInfo()), 
-							GlobalFunctions.stripString(a.accessClosed()), a.noDogsAllowed())
+							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
+							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed())
 			.update(keyHolder, "id");
 			idArea = keyHolder.getKey().intValue();
 		}

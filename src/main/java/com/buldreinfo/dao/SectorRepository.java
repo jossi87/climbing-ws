@@ -29,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.helpers.GeoHelper;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.CompassDirection;
@@ -42,6 +41,8 @@ import com.buldreinfo.model.Sector.SectorProblemOrder;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Trail.TrailBuilder;
 import com.buldreinfo.model.Type;
+import com.buldreinfo.util.GeoUtils;
+import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class SectorRepository {
@@ -241,8 +242,8 @@ public class SectorRepository {
 					WHERE s.id=? AND s.area_id=a.id AND a.region_id=ur.region_id AND ur.user_id=? 
 					  AND (ur.admin_write=1 OR ur.superadmin_write=1)
 					""")
-			.params(GlobalFunctions.stripString(s.name()), GlobalFunctions.stripString(s.comment()), 
-					GlobalFunctions.stripString(s.accessInfo()), GlobalFunctions.stripString(s.accessClosed()), 
+			.params(StringUtils.stripToNull(s.name()), StringUtils.stripToNull(s.comment()), 
+					StringUtils.stripToNull(s.accessInfo()), StringUtils.stripToNull(s.accessClosed()), 
 					s.sunFromHour(), s.sunToHour(), parkingId, 
 					isLockedAdmin, s.lockedSuperadmin(), calcCompass, manualCompass, 
 					s.trash(), trashBy, s.id(), authUserId.get())
@@ -275,8 +276,8 @@ public class SectorRepository {
 					locked_admin, locked_superadmin, compass_direction_id_calculated, compass_direction_id_manual, last_updated) 
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
-			.params(s.areaId(), s.name(), GlobalFunctions.stripString(s.comment()), GlobalFunctions.stripString(s.accessInfo()), 
-					GlobalFunctions.stripString(s.accessClosed()), parkingId, 
+			.params(s.areaId(), s.name(), StringUtils.stripToNull(s.comment()), StringUtils.stripToNull(s.accessInfo()), 
+					StringUtils.stripToNull(s.accessClosed()), parkingId, 
 					isLockedAdmin, s.lockedSuperadmin(), calcCompass, manualCompass)
 			.update(keyHolder, "id");
 			idSector = keyHolder.getKey().intValue();
@@ -326,8 +327,8 @@ public class SectorRepository {
 				jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (" + inClause + ") LIMIT 1")
 				.params(t.sectors().stream().map(Trail.TrailSector::sectorId).toList())
 				.query(rs -> {
-					double distToStart = GeoHelper.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getFirst().getLatitude(), t.path().getFirst().getLongitude());
-					double distToEnd = GeoHelper.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getLast().getLatitude(), t.path().getLast().getLongitude());
+					double distToStart = GeoUtils.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getFirst().getLatitude(), t.path().getFirst().getLongitude());
+					double distToEnd = GeoUtils.getHaversineDistanceInMeters(rs.getDouble("latitude"), rs.getDouble("longitude"), t.path().getLast().getLatitude(), t.path().getLast().getLongitude());
 					boolean shouldReverse = t.isDescent() ? (distToStart < distToEnd) : (distToEnd < distToStart);
 					if (shouldReverse) {
 						Collections.reverse(t.path());

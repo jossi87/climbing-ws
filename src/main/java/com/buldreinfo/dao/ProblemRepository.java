@@ -23,7 +23,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.helpers.GlobalFunctions;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.Coordinates;
@@ -40,6 +39,7 @@ import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector.SectorProblem;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
+import com.buldreinfo.util.StringUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -284,7 +284,7 @@ public class ProblemRepository {
 					SET p.name=?, p.rock=?, p.description=?, p.grade_id=?, p.fa_date=?, p.coordinates_id=?, p.broken=?, p.locked_admin=?, p.locked_superadmin=?, p.nr=?, p.type_id=?, trivia=?, starting_altitude=?, aspect=?, length_meter=?, descent=?, p.trash=CASE WHEN ? THEN NOW() ELSE NULL END, p.trash_by=?, p.last_updated=now()
 					WHERE p.id=?
 					""")
-			.params(authUserId.get(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), GlobalFunctions.stripString(p.comment()), gradeId, dt, coordinatesId, GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), p.nr(), p.t().id(), GlobalFunctions.stripString(p.trivia()), GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), p.lengthMeter() == 0 ? null : p.lengthMeter(), GlobalFunctions.stripString(p.descent()), p.trash(), p.trash() ? authUserId.get() : 0, idProblem)
+			.params(authUserId.get(), StringUtils.stripToNull(p.name()), StringUtils.stripToNull(p.rock()), StringUtils.stripToNull(p.comment()), gradeId, dt, coordinatesId, StringUtils.stripToNull(p.broken()), isLockedAdmin, p.lockedSuperadmin(), p.nr(), p.t().id(), StringUtils.stripToNull(p.trivia()), StringUtils.stripToNull(p.startingAltitude()), StringUtils.stripToNull(p.aspect()), p.lengthMeter() == 0 ? null : p.lengthMeter(), StringUtils.stripToNull(p.descent()), p.trash(), p.trash() ? authUserId.get() : 0, idProblem)
 			.update();
 			updateProblemConsensusGrade(idProblem);
 		} else {
@@ -298,14 +298,13 @@ public class ProblemRepository {
 					                     trivia, starting_altitude, aspect, length_meter, descent) 
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""")
-			.params(p.sectorId(), GlobalFunctions.stripString(p.name()), GlobalFunctions.stripString(p.rock()), 
-					GlobalFunctions.stripString(p.comment()), gradeId, gradeId, dt, 
+			.params(p.sectorId(), StringUtils.stripToNull(p.name()), StringUtils.stripToNull(p.rock()), 
+					StringUtils.stripToNull(p.comment()), gradeId, gradeId, dt, 
 					coordinatesId, 
-							GlobalFunctions.stripString(p.broken()), isLockedAdmin, p.lockedSuperadmin(), 
-							nr, p.t().id(), GlobalFunctions.stripString(p.trivia()), 
-							GlobalFunctions.stripString(p.startingAltitude()), GlobalFunctions.stripString(p.aspect()), 
-							p.lengthMeter() == 0 ? null : p.lengthMeter(), 
-									GlobalFunctions.stripString(p.descent()))
+					StringUtils.stripToNull(p.broken()), isLockedAdmin, p.lockedSuperadmin(), 
+					nr, p.t().id(), StringUtils.stripToNull(p.trivia()), 
+					StringUtils.stripToNull(p.startingAltitude()), StringUtils.stripToNull(p.aspect()), 
+					p.lengthMeter() == 0 ? null : p.lengthMeter(), StringUtils.stripToNull(p.descent()))
 			.update(keyHolder);
 
 			idProblem = keyHolder.getKey().intValue();
@@ -330,7 +329,7 @@ public class ProblemRepository {
 		jdbcClient.sql("DELETE FROM problem_section WHERE problem_id=?").param(idProblem).update();
 		if (p.sections() != null && p.sections().size() > 1) {
 			for (var section : p.sections()) {
-				jdbcClient.sql("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)").params(idProblem, section.nr(), GlobalFunctions.stripString(section.description()), s.gradeConverter().getIdGradeFromGrade(section.grade())).update();
+				jdbcClient.sql("INSERT INTO problem_section (problem_id, nr, description, grade_id) VALUES (?, ?, ?, ?)").params(idProblem, section.nr(), StringUtils.stripToNull(section.description()), s.gradeConverter().getIdGradeFromGrade(section.grade())).update();
 			}
 		}
 
@@ -339,7 +338,7 @@ public class ProblemRepository {
 			jdbcClient.sql("DELETE FROM fa_aid_user WHERE problem_id=?").param(idProblem).update();
 			if (p.faAid() != null) {
 				var aidDt = (p.faAid().date() == null || p.faAid().date().isEmpty()) ? null : LocalDate.parse(p.faAid().date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-				jdbcClient.sql("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)").params(idProblem, aidDt, GlobalFunctions.stripString(p.faAid().description())).update();
+				jdbcClient.sql("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)").params(idProblem, aidDt, StringUtils.stripToNull(p.faAid().description())).update();
 				for (var u : p.faAid().users()) {
 					int userId = u.id() > 0 ? u.id() : userRepo.addUser(null, u.name(), null);
 					if (userId <= 0) throw new IllegalArgumentException("Failed to create user for faAid");
@@ -371,7 +370,7 @@ public class ProblemRepository {
 					idGuestbook = 0;
 				} else {
 					jdbcClient.sql("UPDATE guestbook SET message = ?, danger = ?, resolved = ? WHERE id = ?")
-					.params(GlobalFunctions.stripString(co.comment()), co.danger(), co.resolved(), co.id())
+					.params(StringUtils.stripToNull(co.comment()), co.danger(), co.resolved(), co.id())
 					.update();
 				}
 			} else if (!comment.danger() && !comment.resolved() && co.danger()) {
@@ -382,7 +381,7 @@ public class ProblemRepository {
 				throw new IllegalArgumentException("Comment not editable by " + userId + ". Other users can only mark as dangerous");
 			}
 		} else {
-			Objects.requireNonNull(GlobalFunctions.stripString(co.comment()));
+			Objects.requireNonNull(StringUtils.stripToNull(co.comment()));
 
 			Integer parentId = jdbcClient.sql("SELECT MIN(id) FROM guestbook WHERE problem_id = ?")
 					.param(co.idProblem())
@@ -392,7 +391,7 @@ public class ProblemRepository {
 
 			var keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
 			jdbcClient.sql("INSERT INTO guestbook (post_time, message, problem_id, user_id, parent_id, danger, resolved) VALUES (now(), ?, ?, ?, ?, ?, ?)")
-			.params(GlobalFunctions.stripString(co.comment()), co.idProblem(), userId, parentId == 0 ? null : parentId, co.danger(), co.resolved())
+			.params(StringUtils.stripToNull(co.comment()), co.idProblem(), userId, parentId == 0 ? null : parentId, co.danger(), co.resolved())
 			.update(keyHolder);
 
 			idGuestbook = keyHolder.getKey().intValue();

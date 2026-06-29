@@ -31,8 +31,8 @@ import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.util.FilenameUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,23 +50,23 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AreasController {
 	private static final Logger logger = LogManager.getLogger();
 	private final RequestContext requestContext;
-	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
+	private final LeafletPrintService leafletPrintService;
 	private final AreaRepository areaRepo;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
 	public AreasController(RequestContext requestContext,
-			ObjectMapper objectMapper,
 			StorageManager storage,
+			LeafletPrintService leafletPrintService,
 			RegionRepository regionRepo,
 			AreaRepository areaRepo,
 			SectorRepository sectorRepo,
 			HierarchyRepository hierarchyRepo) {
 		this.requestContext = requestContext;
-		this.objectMapper = objectMapper;
 		this.storage = storage;
+		this.leafletPrintService = leafletPrintService;
 		this.areaRepo = areaRepo;
 		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
@@ -108,7 +108,7 @@ public class AreasController {
 				.toList();
 		String filename = FilenameUtil.generateFilename(area.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
-			try (PdfGenerator generator = new PdfGenerator(objectMapper, storage, output)) {
+			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {
 				generator.writeArea(setup, area, gradeDistribution, sectors);
 			} catch (Exception e) {
 				logger.error("PDF generation failed: {}", e.getMessage(), e);

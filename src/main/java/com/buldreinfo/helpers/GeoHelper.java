@@ -10,6 +10,7 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.service.ElevationService;
+import com.buldreinfo.util.GeoUtils;
 
 public class GeoHelper {
 	public class GeoPoint {
@@ -102,16 +103,6 @@ public class GeoHelper {
         return (int) Math.round(coords.getFirst().getElevation());
     }
 	
-	public static double getHaversineDistanceInMeters(double lat1, double lng1, double lat2, double lng2) {
-		final int R = 6371000;
-		double latDistance = Math.toRadians(lat2 - lat1);
-		double lngDistance = Math.toRadians(lng2 - lng1);
-		double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-				* Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
-		return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-	}
-	
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
 		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
 			return null;
@@ -151,7 +142,7 @@ public class GeoHelper {
 			for (int j = 0; j < boundingBoxPoints.size(); j++) {
 				if (i != j) {
 					GeoPoint b = boundingBoxPoints.get(j);
-					double distance = getDistance(a.getLatitude(), a.getLongitude(), b.getLatitude(), b.getLongitude());
+					double distance = GeoUtils.getHaversineDistanceInMeters(a.getLatitude(), a.getLongitude(), b.getLatitude(), b.getLongitude());
 					if (a.getNeighbourPoint() == null || distance < a.getNeighbourDistance()) {
 						a.setNeighbour(b, distance);
 					}
@@ -180,10 +171,10 @@ public class GeoHelper {
 			secondPointHigh = g21;
 		}
 		// Validate that the bounding box is good enough to do calculations on
-		double distanceLowToHigh = (getDistance(firstPointLow.getLatitude(), firstPointLow.getLongitude(), firstPointHigh.getLatitude(), firstPointHigh.getLongitude()) +
-				getDistance(secondPointLow.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
-		double distanceFirstToSecond = (getDistance(firstPointHigh.getLatitude(), firstPointLow.getLongitude(), secondPointLow.getLatitude(), secondPointLow.getLongitude()) +
-				getDistance(firstPointHigh.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
+		double distanceLowToHigh = (GeoUtils.getHaversineDistanceInMeters(firstPointLow.getLatitude(), firstPointLow.getLongitude(), firstPointHigh.getLatitude(), firstPointHigh.getLongitude()) +
+				GeoUtils.getHaversineDistanceInMeters(secondPointLow.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
+		double distanceFirstToSecond = (GeoUtils.getHaversineDistanceInMeters(firstPointHigh.getLatitude(), firstPointLow.getLongitude(), secondPointLow.getLatitude(), secondPointLow.getLongitude()) +
+				GeoUtils.getHaversineDistanceInMeters(firstPointHigh.getLatitude(), secondPointLow.getLongitude(), secondPointHigh.getLatitude(), secondPointHigh.getLongitude())) / 2.0;
 		if (distanceLowToHigh * 1.5 >= distanceFirstToSecond) {
 			throw new RuntimeException("Bounding box is not a rectangle, expecting minimum ratio 1.5:1");
 		}
@@ -198,7 +189,7 @@ public class GeoHelper {
 		double centerLatitude = (minLatitude + maxLatitude) / 2.0;
 		double centerLongitude = (minLongitude + maxLongitude) / 2.0;
 		for (GeoPoint p : geoPoints) {
-			p.setDistanceToCenter(getDistance(centerLatitude, centerLongitude, p.getLatitude(), p.getLongitude()));
+			p.setDistanceToCenter(GeoUtils.getHaversineDistanceInMeters(centerLatitude, centerLongitude, p.getLatitude(), p.getLongitude()));
 		}
 	}
 
@@ -222,18 +213,6 @@ public class GeoHelper {
 		double y = Math.sin(longDiff)*Math.cos(latitude2);
 		double x = (Math.cos(latitude1)*Math.sin(latitude2)) - (Math.sin(latitude1)*Math.cos(latitude2)*Math.cos(longDiff));
 		return (int)Math.round((Math.toDegrees(Math.atan2(y, x))+360)%360);
-	}
-
-	private double getDistance(double lat1, double lng1, double lat2, double lng2) {
-		final int R = 6371; // Radius of the earth
-		double latDistance = Math.toRadians(lat2 - lat1);
-		double lngDistance = Math.toRadians(lng2 - lng1);
-		double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-				* Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
-		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-		double distance = R * c * 1000; // convert to meters
-		return distance;
 	}
 
 	private int getMeanAngle(double... anglesDeg) {
