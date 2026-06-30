@@ -1,37 +1,27 @@
 package com.buldreinfo.infrastructure;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-import com.buldreinfo.beans.Setup;
-import com.buldreinfo.dao.RegionRepository;
+import com.buldreinfo.service.ServerUrlService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
-	private static final String LOCAL_DEV_ORIGIN = "http://localhost:3001";
-	private static final Logger logger = LogManager.getLogger();
-	private final CacheManager cacheManager;
-	private final RegionRepository regionRepo;
+	private final ServerUrlService serverUrlService;
 
-	public DynamicCorsConfigurationSource(RegionRepository regionRepo, CacheManager cacheManager) {
-		this.regionRepo = regionRepo;
-		this.cacheManager = cacheManager;
+	public DynamicCorsConfigurationSource(ServerUrlService serverUrlService) {
+		this.serverUrlService = serverUrlService;
 	}
 
 	@Override
 	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
 		String origin = request.getHeader("Origin");
-		if (origin != null && getCachedOrigins().contains(origin)) {
+		if (origin != null && serverUrlService.getAllowedOrigins().contains(origin)) {
 			CorsConfiguration config = new CorsConfiguration();
 			config.setAllowedOrigins(List.of(origin));
 			config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
@@ -42,25 +32,5 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
 			return config;
 		}
 		return null;
-	}
-
-	private Set<String> fetchOrigins() {
-		Set<String> origins = new HashSet<>();
-		origins.add(LOCAL_DEV_ORIGIN);
-		try {
-			regionRepo.getSetups().stream()
-			.map(Setup::domain)
-			.map(domain -> "https://" + domain)
-			.forEach(origins::add);
-		} catch (Exception e) {
-			logger.error("Failed to fetch CORS origins from database.", e);
-		}
-		return origins;
-	}
-
-	private Set<String> getCachedOrigins() {
-		var cache = cacheManager.getCache(CacheConstants.CORS_CACHE_NAME);
-		if (cache == null) return fetchOrigins();
-		return cache.get("all", this::fetchOrigins);
 	}
 }
