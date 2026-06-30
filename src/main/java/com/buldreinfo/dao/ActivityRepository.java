@@ -267,9 +267,8 @@ public class ActivityRepository {
 		});
 
 		LocalDateTime faTs = faTsRef.get();
-
 		if (faTs != null || !faUserIds.isEmpty()) {
-			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
+			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay().plusNanos(idProblem * 1000L), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
 		}
 
 		List<Integer> buf = new ArrayList<>();
@@ -290,32 +289,34 @@ public class ActivityRepository {
 			int id = rs.getInt("id");
 			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
 
-			if (state.anchor == null) state.anchor = (faTs != null) ? faTs : cur;
-
-			boolean inFA = state.anchor != null && state.anchor == faTs && cur != null && Math.abs(ChronoUnit.DAYS.between(state.anchor.toLocalDate(), cur.toLocalDate())) <= 7;
-			boolean inRolling = state.anchor != null && state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
-
-			if (state.anchor != null && !inFA && !inRolling) {
-				for (int mid : buf) {
-					batch.add(new ActivityRecord(state.latest != null ? state.latest : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-				}
-				buf.clear();
-				state.anchor = cur;
+			if (state.anchor == null) {
+				state.anchor = (faTs != null) ? faTs : (cur != null ? cur : LocalDate.EPOCH.atStartOfDay().plusNanos(id * 1000L));
 			}
 
-			state.latest = (state.anchor == faTs) ? faTs : (cur != null ? cur : state.anchor);
+			boolean inFA = faTs != null && cur != null && Math.abs(ChronoUnit.DAYS.between(faTs.toLocalDate(), cur.toLocalDate())) <= 7;
+			boolean inRolling = state.anchor != null && state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+
+			if (!inFA && !inRolling) {
+				for (int mid : buf) {
+					batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+				}
+				buf.clear();
+				state.anchor = (cur != null) ? cur : (faTs != null ? faTs : state.anchor);
+			}
+
+			state.latest = (inFA) ? faTs : (cur != null ? cur : state.anchor);
 			buf.add(id);
 		});
 
 		for (int mid : buf) {
-			batch.add(new ActivityRecord(state.latest != null ? state.latest : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+			batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
 		}
 
 		jdbcClient.sql("SELECT id, user_id, date FROM tick WHERE problem_id=?")
 		.param(1, idProblem)
 		.query(rs -> {
 			int uid = rs.getInt("user_id");
-			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : (rs.getObject("date", LocalDate.class) != null ? rs.getObject("date", LocalDate.class).atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay());
+			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : (rs.getObject("date", LocalDate.class) != null ? rs.getObject("date", LocalDate.class).atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L));
 			batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
 		});
 
@@ -323,7 +324,7 @@ public class ActivityRepository {
 		.param(1, idProblem)
 		.query(rs -> {
 			LocalDate d = rs.getObject("date", LocalDate.class);
-			LocalDateTime ts = (d != null) ? d.atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay();
+			LocalDateTime ts = (d != null) ? d.atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L);
 			batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
 		});
 
@@ -331,7 +332,7 @@ public class ActivityRepository {
 		.param(1, idProblem)
 		.query(rs -> {
 			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-			batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
+			batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
 		});
 
 		jdbcTemplate.batchUpdate(
