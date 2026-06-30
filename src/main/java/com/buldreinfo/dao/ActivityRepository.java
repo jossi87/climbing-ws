@@ -131,14 +131,19 @@ public class ActivityRepository {
 			if (ts == null) {
 				LocalDate d = rs.getObject("date", LocalDate.class);
 				LocalDateTime c = rs.getObject("created", LocalDateTime.class);
-				if (d != null && c != null) {
-					if (c.toLocalDate().isBefore(d) || c.toLocalDate().isAfter(d)) {
-						ts = d.atTime(c.toLocalTime().withSecond(Math.min(rs.getInt("ix"), 59)));
+				int ix = rs.getInt("ix");
+				if (d != null) {
+					if (c != null) {
+						if (c.toLocalDate().isAfter(d)) {
+							ts = d.atTime(23, 59, Math.min(ix, 59));
+						} else if (c.toLocalDate().isBefore(d)) {
+							ts = d.atTime(0, 0, Math.min(ix, 59));
+						} else {
+							ts = c;
+						}
 					} else {
-						ts = c;
+						ts = d.atStartOfDay();
 					}
-				} else {
-					ts = (d != null) ? d.atStartOfDay() : null;
 				}
 			}
 			batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
