@@ -20,14 +20,15 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.exif.ExifDirectoryBase;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.jpeg.JpegDirectory;
 
 @Service
 public class ExifReader {
-	public enum ImageRotation {CW_90, CW_180, CW_270}
+	public enum ImageRotation {CW_180, CW_270, CW_90}
 	public record ImageMetadataInfo(ImageRotation rotation, LocalDateTime dateTaken, boolean is360, IIOMetadata nativeMetadata) {}
 
 	private static final byte[] EQUIRECTANGULAR_BYTES = "equirectangular".getBytes(StandardCharsets.ISO_8859_1);
-
+	
 	public ImageMetadataInfo extractMetadata(byte[] bytes) throws Exception {
 		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes)) {
 			Metadata metadata = ImageMetadataReader.readMetadata(is);
@@ -42,25 +43,22 @@ public class ExifReader {
 	}
 
 	private boolean checkIs360(byte[] bytes, Metadata metadata) {
-		try {
-			ExifSubIFDDirectory dir = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
-			if (dir != null && dir.containsTag(ExifDirectoryBase.TAG_IMAGE_WIDTH) && dir.containsTag(ExifDirectoryBase.TAG_IMAGE_HEIGHT)) {
-				int width = dir.getInt(ExifDirectoryBase.TAG_IMAGE_WIDTH);
-				int height = dir.getInt(ExifDirectoryBase.TAG_IMAGE_HEIGHT);
-				if (width == height * 2) {
+		JpegDirectory jpegDir = metadata.getFirstDirectoryOfType(JpegDirectory.class);
+		if (jpegDir != null) {
+			try {
+				int width = jpegDir.getInt(JpegDirectory.TAG_IMAGE_WIDTH);
+				int height = jpegDir.getInt(JpegDirectory.TAG_IMAGE_HEIGHT);
+				if (width > 0 && height > 0 && width == height * 2) {
 					return true;
 				}
-			}
-			return containsSequence(bytes, EQUIRECTANGULAR_BYTES);
-		} catch (Exception _) {
+			} catch (Exception _) {}
 		}
-		return false;
+		return containsSequence(bytes, EQUIRECTANGULAR_BYTES);
 	}
 
 	private boolean containsSequence(byte[] source, byte[] target) {
-		if (target.length == 0) return false;
-		int limit = Math.min(source.length, 128 * 1024) - target.length;
-		for (int i = 0; i <= limit; i++) {
+		if (target.length == 0 || source == null || source.length < target.length) return false;
+		for (int i = 0; i <= source.length - target.length; i++) {
 			boolean match = true;
 			for (int j = 0; j < target.length; j++) {
 				if (source[i + j] != target[j]) {
@@ -84,7 +82,7 @@ public class ExifReader {
 		return null;
 	}
 
-	private IIOMetadata getNativeMetadata(byte[] bytes) throws IOException {
+	private IIOMetadata getNativeMetadata(byte[] bytes) {
 		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes);
 				ImageInputStream iis = ImageIO.createImageInputStream(is)) {
 			Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
@@ -95,7 +93,7 @@ public class ExifReader {
 				reader.dispose();
 				return metadata;
 			}
-		}
+		} catch (IOException _) {}
 		return null;
 	}
 
@@ -110,8 +108,7 @@ public class ExifReader {
 				case 6, 7 -> ImageRotation.CW_90;
 				default -> null;
 				};
-			} catch (Exception _) {
-			}
+			} catch (Exception _) {}
 		}
 		return null;
 	}
