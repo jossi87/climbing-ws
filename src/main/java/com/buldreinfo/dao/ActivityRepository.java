@@ -237,15 +237,16 @@ public class ActivityRepository {
 		return res;
 	}
 
-	private LocalDateTime toTimestamp(LocalDate d, int id) {
-		return (d != null ? d : LocalDate.EPOCH).atStartOfDay().plusSeconds(id % 86400);
+	private LocalDateTime toTimestamp(LocalDate intendedDate, int id) {
+		LocalDate safeDate = (intendedDate != null) ? intendedDate : LocalDate.EPOCH;
+		return safeDate.atStartOfDay().plusNanos(id * 1000L);
 	}
 
 	@Transactional
 	protected void fillActivity(int idProblem) {
 		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
-		.param(1, idProblem)
-		.update();
+				.param(1, idProblem)
+				.update();
 
 		List<ActivityRecord> batch = new ArrayList<>();
 		List<Integer> faUserIds = new ArrayList<>();
@@ -258,24 +259,23 @@ public class ActivityRepository {
 				LEFT JOIN fa f ON p.id=f.problem_id
 				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
 				""")
-		.param(1, idProblem)
-		.query(rs -> {
-			int uid = rs.getInt("user_id");
-			if (uid > 0) faUserIds.add(uid);
-			if (faTsRef.get() == null) {
-				LocalDate d = rs.getObject("fa_date", LocalDate.class);
-				LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
-				if (d != null && l != null) {
-					faTsRef.set(d.atTime(l.toLocalTime()));
-				} else if (d != null) {
-					faTsRef.set(d.atStartOfDay());
-				}
-			}
-		});
+				.param(1, idProblem)
+				.query(rs -> {
+					int uid = rs.getInt("user_id");
+					if (uid > 0) faUserIds.add(uid);
+					if (faTsRef.get() == null) {
+						LocalDate d = rs.getObject("fa_date", LocalDate.class);
+						LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
+						if (d != null) {
+							faTsRef.set(l != null ? d.atTime(l.toLocalTime()) : d.atStartOfDay());
+						}
+					}
+				});
 
 		LocalDateTime faTs = faTsRef.get();
+
 		if (faTs != null || !faUserIds.isEmpty()) {
-			batch.add(new ActivityRecord(toTimestamp(faTs != null ? faTs.toLocalDate() : null, idProblem), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
+			batch.add(new ActivityRecord(faTs != null ? toTimestamp(faTs.toLocalDate(), idProblem) : toTimestamp(LocalDate.EPOCH, idProblem), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
 		}
 
 		List<Integer> buf = new ArrayList<>();
@@ -291,60 +291,55 @@ public class ActivityRepository {
 				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
 				ORDER BY m.date_created ASC
 				""")
-		.param(1, idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
+				.param(1, idProblem)
+				.query(rs -> {
+					int id = rs.getInt("id");
+					LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
 
-			boolean inFA = false;
-			boolean inRolling = false;
+					boolean inFA = state.anchor != null && state.anchor == faTs && cur != null && Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
+					boolean inRolling = state.anchor != null && state.anchor != faTs && cur != null && Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
 
-			if (cur != null) {
-				if (state.anchor == faTs && faTs != null) {
-					inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
-				} else if (state.anchor != faTs && state.anchor != null) {
-					inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
-				}
-			}
+					if (state.anchor != null && !inFA && !inRolling) {
+						for (int mid : buf) {
+							batch.add(new ActivityRecord(toTimestamp(state.latest != null ? state.latest.toLocalDate() : null, mid), ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+						}
+						buf.clear();
+						state.anchor = cur;
+					}
 
-			if (state.anchor != null && !inFA && !inRolling) {
-				for (int mid : buf) {
-					batch.add(new ActivityRecord(toTimestamp(state.latest != null ? state.latest.toLocalDate() : null, mid), ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-				}
-				buf.clear();
-				state.anchor = cur;
-			}
+					if (state.anchor == null) {
+						state.anchor = cur;
+					}
 
-			if (state.anchor == null) state.anchor = cur;
-			state.latest = (state.anchor == faTs) ? faTs : cur;
-			buf.add(id);
-		});
+					state.latest = (state.anchor == faTs) ? faTs : cur;
+					buf.add(id);
+				});
 
 		for (int mid : buf) {
 			batch.add(new ActivityRecord(toTimestamp(state.latest != null ? state.latest.toLocalDate() : null, mid), ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
 		}
 
 		jdbcClient.sql("SELECT id, user_id, date FROM tick WHERE problem_id=?")
-		.param(1, idProblem)
-		.query(rs -> {
-			int uid = rs.getInt("user_id");
-			LocalDate d = rs.getObject("date", LocalDate.class);
-			LocalDate baseDate = (faUserIds.contains(uid) && faTs != null) ? faTs.toLocalDate() : d;
-			batch.add(new ActivityRecord(toTimestamp(baseDate, rs.getInt("id")), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
-		});
+				.param(1, idProblem)
+				.query(rs -> {
+					int uid = rs.getInt("user_id");
+					LocalDate d = rs.getObject("date", LocalDate.class);
+					LocalDate baseDate = (faUserIds.contains(uid) && faTs != null) ? faTs.toLocalDate() : d;
+					batch.add(new ActivityRecord(toTimestamp(baseDate, rs.getInt("id")), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
+				});
 
 		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=?")
-		.param(1, idProblem)
-		.query(rs -> {
-			batch.add(new ActivityRecord(toTimestamp(rs.getObject("date", LocalDate.class), rs.getInt("id")), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
-		});
+				.param(1, idProblem)
+				.query(rs -> {
+					batch.add(new ActivityRecord(toTimestamp(rs.getObject("date", LocalDate.class), rs.getInt("id")), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
+				});
 
 		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=?")
-		.param(1, idProblem)
-		.query(rs -> {
-			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-			batch.add(new ActivityRecord(toTimestamp(pt != null ? pt.toLocalDate() : null, rs.getInt("id")), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
-		});
+				.param(1, idProblem)
+				.query(rs -> {
+					LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
+					batch.add(new ActivityRecord(toTimestamp(pt != null ? pt.toLocalDate() : null, rs.getInt("id")), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
+				});
 
 		jdbcTemplate.batchUpdate(
 				"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
