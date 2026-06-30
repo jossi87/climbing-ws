@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @Service
 public class ServerUrlService {
 	public record ServerUrl(String url, String description) {}
@@ -40,11 +42,42 @@ public class ServerUrlService {
 		return origins;
 	}
 
-	public List<ServerUrl> getServerUrls() {
+	public List<ServerUrl> getServerUrls(HttpServletRequest request) {
 		Set<String> seen = new HashSet<>();
 		var urls = new ArrayList<ServerUrl>();
 
-		urls.add(new ServerUrl(LOCAL_SWAGGER_ORIGIN, "Local development"));
+		String preferredUrl = null;
+		if (request != null) {
+			String scheme = request.getScheme();
+			String serverName = request.getServerName();
+			int serverPort = request.getServerPort();
+			String baseUrl = scheme + "://" + serverName + (serverPort == 80 || serverPort == 443 ? "" : ":" + serverPort);
+
+			if (baseUrl.equals(LOCAL_SWAGGER_ORIGIN)) {
+				preferredUrl = LOCAL_SWAGGER_ORIGIN;
+			} else {
+				for (Setup setup : regionRepo.getSetups()) {
+					if (setup.domain().equalsIgnoreCase(serverName)) {
+						preferredUrl = "https://" + serverName + "/api";
+						break;
+					}
+				}
+			}
+		}
+
+		if (preferredUrl != null) {
+			urls.add(new ServerUrl(preferredUrl, "Current server"));
+			if (preferredUrl.equals(LOCAL_SWAGGER_ORIGIN)) {
+				seen.add("localhost");
+			} else {
+				String domain = preferredUrl.replace("https://", "").replace("/api", "");
+				seen.add(domain);
+			}
+		}
+
+		if (!LOCAL_SWAGGER_ORIGIN.equals(preferredUrl)) {
+			urls.add(new ServerUrl(LOCAL_SWAGGER_ORIGIN, "Local development"));
+		}
 
 		try {
 			for (Setup setup : regionRepo.getSetups()) {
