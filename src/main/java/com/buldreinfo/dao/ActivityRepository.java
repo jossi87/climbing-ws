@@ -43,142 +43,6 @@ public class ActivityRepository {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
-	@Transactional
-	protected void fillActivity(int idProblem) {
-		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
-		.param(1, idProblem)
-		.update();
-
-		List<Integer> faUserIds = new ArrayList<>();
-		AtomicReference<LocalDateTime> faTsRef = new AtomicReference<>();
-		jdbcClient.sql("""
-				SELECT p.fa_date, p.last_updated, f.user_id
-				FROM problem p
-				JOIN grade g ON p.grade_id=g.id
-				LEFT JOIN fa f ON p.id=f.problem_id
-				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
-				""")
-		.param(1, idProblem)
-		.query(rs -> {
-			int uid = rs.getInt("user_id");
-			if (uid > 0) faUserIds.add(uid);
-			if (faTsRef.get() == null) {
-				LocalDate d = rs.getObject("fa_date", LocalDate.class);
-				LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
-				if (d != null) {
-					faTsRef.set(l != null ? d.atTime(l.toLocalTime()) : d.atStartOfDay());
-				}
-			}
-		});
-		LocalDateTime faTs = faTsRef.get();
-
-		List<ActivityRecord> batch = new ArrayList<>();
-		if (faTs != null || !faUserIds.isEmpty()) {
-			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
-		}
-		List<Integer> buf = new ArrayList<>();
-		var state = new Object() {
-			LocalDateTime anchor = faTs;
-			LocalDateTime latest = faTs;
-		};
-		jdbcClient.sql("""
-				SELECT m.id, m.date_created
-				FROM media_problem mp
-				JOIN media m ON mp.media_id = m.id
-				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
-				ORDER BY m.date_created ASC
-				""")
-		.param(1, idProblem)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
-
-			boolean inFA = false;
-			boolean inRolling = false;
-
-			if (cur != null) {
-				if (state.anchor == faTs && faTs != null) {
-					inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
-				} else if (state.anchor != faTs && state.anchor != null) {
-					inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
-				}
-			}
-
-			if (state.anchor != null && !inFA && !inRolling) {
-				for (int mid : buf) batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-				buf.clear();
-				state.anchor = cur;
-			}
-
-			if (state.anchor == null) state.anchor = cur;
-			state.latest = (state.anchor == faTs) ? faTs : cur;
-			buf.add(id);
-		});
-		for (int mid : buf) {
-			batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
-		}
-
-		jdbcClient.sql("""
-				SELECT t.user_id, t.date, t.created, ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix
-				FROM tick t
-				WHERE t.problem_id=?
-				ORDER BY t.date, t.created
-				""")
-		.param(1, idProblem)
-		.query(rs -> {
-			int uid = rs.getInt("user_id");
-			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : null;
-			if (ts == null) {
-				LocalDate d = rs.getObject("date", LocalDate.class);
-				LocalDateTime c = rs.getObject("created", LocalDateTime.class);
-				int ix = rs.getInt("ix");
-				if (d != null) {
-					if (c != null) {
-						if (c.toLocalDate().isAfter(d)) {
-							ts = d.atTime(23, 59, Math.min(ix, 59));
-						} else if (c.toLocalDate().isBefore(d)) {
-							ts = d.atTime(0, 0, Math.min(ix, 59));
-						} else {
-							ts = c;
-						}
-					} else {
-						ts = d.atStartOfDay();
-					}
-				}
-			}
-			batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
-		});
-
-		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=? ORDER BY r.tick_id, r.date, r.id")
-		.param(1, idProblem)
-		.query(rs -> {
-			LocalDate d = rs.getObject("date", LocalDate.class);
-			batch.add(new ActivityRecord(d != null ? d.atStartOfDay() : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
-		});
-
-		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time")
-		.param(1, idProblem)
-		.query(rs -> {
-			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-			batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
-		});
-
-		jdbcTemplate.batchUpdate(
-				"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				batch,
-				100,
-				(ps, b) -> {
-					ps.setObject(1, b.ts());
-					ps.setString(2, b.type());
-					ps.setInt(3, b.pid());
-					ps.setObject(4, b.mid());
-					ps.setObject(5, b.uid());
-					ps.setObject(6, b.gid());
-					ps.setObject(7, b.rid());
-				}
-				);
-	}
-
 	@Transactional(readOnly = true)
 	public List<Activity> getActivity(Setup setup, Optional<Integer> authUserId, int idArea, int idSector, int lowerGrade, boolean fa, boolean comments, boolean ticks, boolean media, int offset) {
 		var faIds = new HashSet<Integer>();
@@ -371,5 +235,135 @@ public class ActivityRepository {
 
 		logger.debug("getActivity(offset={}) - res.size()={}", offset, res.size());
 		return res;
+	}
+
+	private LocalDateTime resolveTimestamp(LocalDate d, LocalDateTime c, Integer ix) {
+	    if (d == null) return LocalDate.EPOCH.atStartOfDay();
+	    if (c == null) return d.atStartOfDay();
+	    
+	    if (c.toLocalDate().isAfter(d)) {
+	        return d.atTime(23, 59, ix != null ? Math.min(ix, 59) : 59);
+	    } else if (c.toLocalDate().isBefore(d)) {
+	        return d.atTime(0, 0, ix != null ? Math.min(ix, 59) : 0);
+	    }
+	    return c;
+	}
+
+	@Transactional
+	protected void fillActivity(int idProblem) {
+		jdbcClient.sql("DELETE FROM activity WHERE problem_id=?")
+				.param(1, idProblem)
+				.update();
+
+		List<Integer> faUserIds = new ArrayList<>();
+		AtomicReference<LocalDateTime> faTsRef = new AtomicReference<>();
+		jdbcClient.sql("""
+				SELECT p.fa_date, p.last_updated, f.user_id
+				FROM problem p
+				JOIN grade g ON p.grade_id=g.id
+				LEFT JOIN fa f ON p.id=f.problem_id
+				WHERE p.id=? AND (g.grade!='n/a' OR f.user_id IS NOT NULL)
+				""")
+				.param(1, idProblem)
+				.query(rs -> {
+					int uid = rs.getInt("user_id");
+					if (uid > 0) faUserIds.add(uid);
+					if (faTsRef.get() == null) {
+						LocalDate d = rs.getObject("fa_date", LocalDate.class);
+						LocalDateTime l = rs.getObject("last_updated", LocalDateTime.class);
+						if (d != null) {
+							faTsRef.set(resolveTimestamp(d, l, null));
+						}
+					}
+				});
+		LocalDateTime faTs = faTsRef.get();
+
+		List<ActivityRecord> batch = new ArrayList<>();
+		if (faTs != null || !faUserIds.isEmpty()) {
+			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
+		}
+		List<Integer> buf = new ArrayList<>();
+		var state = new Object() {
+			LocalDateTime anchor = faTs;
+			LocalDateTime latest = faTs;
+		};
+		jdbcClient.sql("""
+				SELECT m.id, m.date_created
+				FROM media_problem mp
+				JOIN media m ON mp.media_id = m.id
+				WHERE mp.problem_id = ? AND m.deleted_timestamp IS NULL
+				ORDER BY m.date_created ASC
+				""")
+				.param(1, idProblem)
+				.query(rs -> {
+					int id = rs.getInt("id");
+					LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
+
+					boolean inFA = false;
+					boolean inRolling = false;
+
+					if (cur != null) {
+						if (state.anchor == faTs && faTs != null) {
+							inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
+						} else if (state.anchor != faTs && state.anchor != null) {
+							inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+						}
+					}
+
+					if (state.anchor != null && !inFA && !inRolling) {
+						for (int mid : buf) {
+							batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+						}
+						buf.clear();
+						state.anchor = cur;
+					}
+
+					if (state.anchor == null) state.anchor = cur;
+					state.latest = (state.anchor == faTs) ? faTs : cur;
+					buf.add(id);
+				});
+		for (int mid : buf) {
+			batch.add(new ActivityRecord(state.latest, ACTIVITY_TYPE_MEDIA, idProblem, mid, null, null, null));
+		}
+
+		jdbcClient.sql("""
+				SELECT t.user_id, t.date, t.created, ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix
+				FROM tick t
+				WHERE t.problem_id=?
+				ORDER BY t.date, t.created
+				""")
+				.param(1, idProblem)
+				.query(rs -> {
+					int uid = rs.getInt("user_id");
+					LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : resolveTimestamp(rs.getObject("date", LocalDate.class), rs.getObject("created", LocalDateTime.class), rs.getInt("ix"));
+					batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
+				});
+
+		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=? ORDER BY r.tick_id, r.date, r.id")
+				.param(1, idProblem)
+				.query(rs -> {
+					batch.add(new ActivityRecord(resolveTimestamp(rs.getObject("date", LocalDate.class), null, null), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
+				});
+
+		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=? ORDER BY post_time")
+				.param(1, idProblem)
+				.query(rs -> {
+					LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
+					batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
+				});
+
+		jdbcTemplate.batchUpdate(
+				"INSERT INTO activity (activity_timestamp, type, problem_id, media_id, user_id, guestbook_id, tick_repeat_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				batch,
+				100,
+				(ps, b) -> {
+					ps.setObject(1, b.ts());
+					ps.setString(2, b.type());
+					ps.setInt(3, b.pid());
+					ps.setObject(4, b.mid());
+					ps.setObject(5, b.uid());
+					ps.setObject(6, b.gid());
+					ps.setObject(7, b.rid());
+				});
 	}
 }
