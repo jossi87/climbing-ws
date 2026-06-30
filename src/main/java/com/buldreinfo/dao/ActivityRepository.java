@@ -354,6 +354,8 @@ public class ActivityRepository {
 	}
 
 	private LocalDateTime applyIdOffset(LocalDate date, int id) {
-		return (date != null ? date : LocalDate.EPOCH).atStartOfDay().plusNanos(id * 1000L);
+		return (date != null ? date : LocalDate.EPOCH)
+				.atStartOfDay()
+				.plusSeconds(id);
 	}
 }
