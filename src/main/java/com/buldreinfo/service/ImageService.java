@@ -49,8 +49,8 @@ public class ImageService {
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	private static final Logger logger = LogManager.getLogger();
-	private static final Pattern VIMEO_PATTERN = Pattern.compile("^https://player\\.vimeo\\.com/video/([0-9]+)");
-	private static final Pattern YT_PATTERN = Pattern.compile("^https://www\\.youtube\\.com/embed/([a-zA-Z0-9_-]{11})");
+	private static final Pattern VIMEO_PATTERN = Pattern.compile("^(https?://)?(player\\.)?vimeo\\.com/(video/)?([0-9]+)");
+	private static final Pattern YT_PATTERN = Pattern.compile("^(https?://)?(www\\.)?(youtube\\.com/embed/|youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})");
 
 	private final ExifReader exifService;
 	private final HttpClient httpClient;
