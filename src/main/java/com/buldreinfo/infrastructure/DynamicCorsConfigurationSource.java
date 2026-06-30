@@ -6,8 +6,7 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -19,18 +18,33 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
-	private static final Logger logger = LogManager.getLogger();
 	private static final String LOCAL_DEV_ORIGIN = "http://localhost:3001";
+	private static final Logger logger = LogManager.getLogger();
+	private final CacheManager cacheManager;
 	private final RegionRepository regionRepo;
-	private final DynamicCorsConfigurationSource self;
 
-	public DynamicCorsConfigurationSource(RegionRepository regionRepo, @Lazy DynamicCorsConfigurationSource self) {
+	public DynamicCorsConfigurationSource(RegionRepository regionRepo, CacheManager cacheManager) {
 		this.regionRepo = regionRepo;
-		this.self = self;
+		this.cacheManager = cacheManager;
 	}
 
-	@Cacheable(value = CacheConstants.CORS_CACHE_NAME, key = "'all'")
-	public Set<String> fetchOrigins() {
+	@Override
+	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+		String origin = request.getHeader("Origin");
+		if (origin != null && getCachedOrigins().contains(origin)) {
+			CorsConfiguration config = new CorsConfiguration();
+			config.setAllowedOrigins(List.of(origin));
+			config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+			config.setAllowedHeaders(List.of("origin", "content-type", "accept", "authorization"));
+			config.setExposedHeaders(List.of("Content-Disposition"));
+			config.setAllowCredentials(true);
+			config.setMaxAge(1209600L);
+			return config;
+		}
+		return null;
+	}
+
+	private Set<String> fetchOrigins() {
 		Set<String> origins = new HashSet<>();
 		origins.add(LOCAL_DEV_ORIGIN);
 		try {
@@ -44,19 +58,9 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
 		return origins;
 	}
 
-	@Override
-	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
-		String origin = request.getHeader("Origin");
-		if (origin != null && self.fetchOrigins().contains(origin)) {
-			CorsConfiguration config = new CorsConfiguration();
-			config.setAllowedOrigins(List.of(origin));
-			config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
-			config.setAllowedHeaders(List.of("origin", "content-type", "accept", "authorization"));
-			config.setExposedHeaders(List.of("Content-Disposition"));
-			config.setAllowCredentials(true);
-			config.setMaxAge(1209600L);
-			return config;
-		}
-		return null;
+	private Set<String> getCachedOrigins() {
+		var cache = cacheManager.getCache(CacheConstants.CORS_CACHE_NAME);
+		if (cache == null) return fetchOrigins();
+		return cache.get("all", this::fetchOrigins);
 	}
 }
