@@ -9,10 +9,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
+import com.buldreinfo.config.AsyncConfig;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.infrastructure.OpenApiConstants;
@@ -76,16 +79,26 @@ public class MediaController {
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final InstagramService instagramService;
+	private final Executor videoProcessingExecutor;
 
-	public MediaController(RequestContext requestContext, StorageManager storage, ImageService imageService, VideoService videoService, MediaRepository mediaRepo, RegionRepository regionRepo, InstagramService instagramService) {
-		this.requestContext = requestContext;
-		this.storage = storage;
-		this.imageService = imageService;
-		this.videoService = videoService;
-		this.mediaRepo = mediaRepo;
-		this.regionRepo = regionRepo;
-		this.instagramService = instagramService;
-	}
+    public MediaController(
+            RequestContext requestContext, 
+            StorageManager storage, 
+            ImageService imageService, 
+            VideoService videoService, 
+            MediaRepository mediaRepo, 
+            RegionRepository regionRepo, 
+            InstagramService instagramService,
+            @Qualifier(AsyncConfig.VIDEO_EXECUTOR_BEAN_NAME) Executor videoProcessingExecutor) {
+        this.requestContext = requestContext;
+        this.storage = storage;
+        this.imageService = imageService;
+        this.videoService = videoService;
+        this.mediaRepo = mediaRepo;
+        this.regionRepo = regionRepo;
+        this.instagramService = instagramService;
+        this.videoProcessingExecutor = videoProcessingExecutor;
+    }
 
 	@Operation(summary = "Move media to trash", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
@@ -258,7 +271,7 @@ public class MediaController {
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
-			})
+			}, videoProcessingExecutor)
 			.exceptionally(ex -> {
 				logger.error("Async video save failed", ex);
 				return null;
@@ -337,6 +350,7 @@ public class MediaController {
 		Media m = mediaRepo.getMedia(authUserId, id);
 		if (!m.isMovie()) throw new IllegalArgumentException("Target is not a video");
 		if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
+
 		CompletableFuture.runAsync(() -> {
 			try {
 				var storageType = StorageType.fromExtension(m.suffix()).orElseThrow();
@@ -344,11 +358,12 @@ public class MediaController {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
-		})
+		}, videoProcessingExecutor)
 		.exceptionally(ex -> {
 			logger.error("Async video error for id=" + id, ex);
 			return null;
 		});
+		
 		return ResponseEntity.ok().build();
 	}
 
