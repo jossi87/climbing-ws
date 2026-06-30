@@ -257,18 +257,17 @@ public class ActivityRepository {
 		.param(1, idProblem)
 		.query(rs -> {
 			int uid = rs.getInt("user_id");
+			int pid = rs.getInt("id");
 			if (uid > 0) faUserIds.add(uid);
 			if (faTsRef.get() == null) {
 				LocalDate d = rs.getObject("fa_date", LocalDate.class);
-				if (d != null) {
-					faTsRef.set(d.atStartOfDay().plusNanos(rs.getInt("id") * 1000L));
-				}
+				faTsRef.set(applyIdOffset(d, pid));
 			}
 		});
 
 		LocalDateTime faTs = faTsRef.get();
 		if (faTs != null || !faUserIds.isEmpty()) {
-			batch.add(new ActivityRecord(faTs != null ? faTs : LocalDate.EPOCH.atStartOfDay().plusNanos(idProblem * 1000L), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
+			batch.add(new ActivityRecord(faTs != null ? faTs : applyIdOffset(null, idProblem), ACTIVITY_TYPE_FA, idProblem, null, null, null, null));
 		}
 
 		List<Integer> buf = new ArrayList<>();
@@ -290,7 +289,7 @@ public class ActivityRepository {
 			LocalDateTime cur = rs.getObject("date_created", LocalDateTime.class);
 
 			if (state.anchor == null) {
-				state.anchor = (faTs != null) ? faTs : (cur != null ? cur : LocalDate.EPOCH.atStartOfDay().plusNanos(id * 1000L));
+				state.anchor = (faTs != null) ? faTs : (cur != null ? cur : applyIdOffset(null, id));
 			}
 
 			boolean inFA = faTs != null && cur != null && Math.abs(ChronoUnit.DAYS.between(faTs.toLocalDate(), cur.toLocalDate())) <= 7;
@@ -315,24 +314,28 @@ public class ActivityRepository {
 		jdbcClient.sql("SELECT id, user_id, date FROM tick WHERE problem_id=?")
 		.param(1, idProblem)
 		.query(rs -> {
+			int id = rs.getInt("id");
 			int uid = rs.getInt("user_id");
-			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : (rs.getObject("date", LocalDate.class) != null ? rs.getObject("date", LocalDate.class).atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L));
+			LocalDate d = rs.getObject("date", LocalDate.class);
+			LocalDateTime ts = (faUserIds.contains(uid) && faTs != null) ? faTs : applyIdOffset(d, id);
 			batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
 		});
 
 		jdbcClient.sql("SELECT r.id, t.user_id, r.date FROM tick t JOIN tick_repeat r ON t.id=r.tick_id WHERE t.problem_id=?")
 		.param(1, idProblem)
 		.query(rs -> {
+			int id = rs.getInt("id");
+			int uid = rs.getInt("user_id");
 			LocalDate d = rs.getObject("date", LocalDate.class);
-			LocalDateTime ts = (d != null) ? d.atStartOfDay().plusNanos(rs.getInt("id") * 1000L) : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L);
-			batch.add(new ActivityRecord(ts, ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, rs.getInt("user_id"), null, rs.getInt("id")));
+			batch.add(new ActivityRecord(applyIdOffset(d, id), ACTIVITY_TYPE_TICK_REPEAT, idProblem, null, uid, null, id));
 		});
 
 		jdbcClient.sql("SELECT id, post_time FROM guestbook WHERE problem_id=?")
 		.param(1, idProblem)
 		.query(rs -> {
+			int id = rs.getInt("id");
 			LocalDateTime pt = rs.getObject("post_time", LocalDateTime.class);
-			batch.add(new ActivityRecord(pt != null ? pt : LocalDate.EPOCH.atStartOfDay().plusNanos(rs.getInt("id") * 1000L), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, rs.getInt("id"), null));
+			batch.add(new ActivityRecord(pt != null ? pt : applyIdOffset(null, id), ACTIVITY_TYPE_GUESTBOOK, idProblem, null, null, id, null));
 		});
 
 		jdbcTemplate.batchUpdate(
@@ -348,5 +351,9 @@ public class ActivityRepository {
 					ps.setObject(6, b.gid());
 					ps.setObject(7, b.rid());
 				});
+	}
+
+	private LocalDateTime applyIdOffset(LocalDate date, int id) {
+		return (date != null ? date : LocalDate.EPOCH).atStartOfDay().plusNanos(id * 1000L);
 	}
 }
