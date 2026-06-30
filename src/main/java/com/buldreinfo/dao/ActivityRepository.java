@@ -97,11 +97,11 @@ public class ActivityRepository {
 			boolean inRolling = false;
 
 			if (cur != null) {
-			    if (state.anchor == faTs && faTs != null) {
-			        inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
-			    } else if (state.anchor != faTs && state.anchor != null) {
-			        inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
-			    }
+				if (state.anchor == faTs && faTs != null) {
+					inFA = Math.abs(ChronoUnit.DAYS.between(state.anchor, cur)) <= 7;
+				} else if (state.anchor != faTs && state.anchor != null) {
+					inRolling = Math.abs(ChronoUnit.HOURS.between(state.anchor, cur)) <= 24;
+				}
 			}
 
 			if (state.anchor != null && !inFA && !inRolling) {
@@ -120,7 +120,9 @@ public class ActivityRepository {
 
 		jdbcClient.sql("""
 				SELECT t.user_id, t.date, t.created, ROW_NUMBER() OVER (PARTITION BY DAY(t.created) ORDER BY t.created) ix
-				FROM tick t WHERE t.problem_id=? ORDER BY t.date, t.created
+				FROM tick t
+				WHERE t.problem_id=?
+				ORDER BY t.date, t.created
 				""")
 		.param(1, idProblem)
 		.query(rs -> {
@@ -129,7 +131,15 @@ public class ActivityRepository {
 			if (ts == null) {
 				LocalDate d = rs.getObject("date", LocalDate.class);
 				LocalDateTime c = rs.getObject("created", LocalDateTime.class);
-				ts = (d != null && c != null) ? (c.toLocalDate().isAfter(d) ? d.atTime(23, 59, Math.min(rs.getInt("ix"), 59)) : d.atTime(c.toLocalTime())) : (d != null ? d.atStartOfDay() : null);
+				if (d != null && c != null) {
+					if (c.toLocalDate().isBefore(d) || c.toLocalDate().isAfter(d)) {
+						ts = d.atTime(c.toLocalTime().withSecond(Math.min(rs.getInt("ix"), 59)));
+					} else {
+						ts = c;
+					}
+				} else {
+					ts = (d != null) ? d.atStartOfDay() : null;
+				}
 			}
 			batch.add(new ActivityRecord(ts != null ? ts : LocalDate.EPOCH.atStartOfDay(), ACTIVITY_TYPE_TICK, idProblem, null, uid, null, null));
 		});
