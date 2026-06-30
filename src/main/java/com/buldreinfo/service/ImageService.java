@@ -50,7 +50,7 @@ public class ImageService {
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	private static final Logger logger = LogManager.getLogger();
 	private static final Pattern VIMEO_PATTERN = Pattern.compile("^(https?://)?(player\\.)?vimeo\\.com/(video/)?([0-9]+)");
-	private static final Pattern YT_PATTERN = Pattern.compile("^(https?://)?(www\\.)?(youtube\\.com/embed/|youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11})");
+	private static final Pattern YT_PATTERN = Pattern.compile("(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\\.be/)([^\"&?/\\s]{11})", Pattern.CASE_INSENSITIVE);
 
 	private final ExifReader exifService;
 	private final HttpClient httpClient;
@@ -98,7 +98,7 @@ public class ImageService {
 		}
 		return cropped;
 	}
-
+	
 	public BufferedImage readFromEmbedUrl(String embedVideoUrl) throws IOException, InterruptedException {
 		String imgUrl = null;
 		Matcher ytMatcher = YT_PATTERN.matcher(embedVideoUrl);
