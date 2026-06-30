@@ -9,12 +9,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -79,7 +79,7 @@ public class MediaController {
 	private final MediaRepository mediaRepo;
 	private final RegionRepository regionRepo;
 	private final InstagramService instagramService;
-	private final Executor videoProcessingExecutor;
+	private final TaskExecutor videoProcessingExecutor;
 
     public MediaController(
             RequestContext requestContext, 
@@ -89,7 +89,7 @@ public class MediaController {
             MediaRepository mediaRepo, 
             RegionRepository regionRepo, 
             InstagramService instagramService,
-            @Qualifier(AsyncConfig.VIDEO_EXECUTOR_BEAN_NAME) Executor videoProcessingExecutor) {
+            @Qualifier(AsyncConfig.VIDEO_EXECUTOR_BEAN_NAME) TaskExecutor videoProcessingExecutor) {
         this.requestContext = requestContext;
         this.storage = storage;
         this.imageService = imageService;

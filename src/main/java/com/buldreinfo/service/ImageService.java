@@ -30,16 +30,18 @@ import javax.imageio.stream.ImageOutputStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
+import com.buldreinfo.config.AsyncConfig;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.io.ExifReader;
-import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.io.ExifReader.ImageMetadataInfo;
 import com.buldreinfo.io.ExifReader.ImageRotation;
+import com.buldreinfo.io.StorageManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -56,16 +58,22 @@ public class ImageService {
 	private final MediaRepository mediaRepo;
 	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
-	private final TaskExecutor taskExecutor;
+	private final TaskExecutor imageProcessingExecutor;
 
-	public ImageService(ObjectMapper objectMapper, HttpClient httpClient, ImageClassifierService imageClassifierService, 
-			MediaRepository mediaRepo, ExifReader exifService, TaskExecutor taskExecutor, StorageManager storage) {
+	public ImageService(
+			ObjectMapper objectMapper,
+			HttpClient httpClient,
+			ImageClassifierService imageClassifierService, 
+			MediaRepository mediaRepo,
+			ExifReader exifService,
+			@Qualifier(AsyncConfig.IMAGE_EXECUTOR_BEAN_NAME) TaskExecutor imageProcessingExecutor,
+			StorageManager storage) {
 		this.objectMapper = objectMapper;
 		this.httpClient = httpClient;
 		this.imageClassifierService = imageClassifierService;
 		this.mediaRepo = mediaRepo;
 		this.exifService = exifService;
-		this.taskExecutor = taskExecutor;
+		this.imageProcessingExecutor = imageProcessingExecutor;
 		this.storage = storage;
 	}
 
@@ -190,7 +198,7 @@ public class ImageService {
 			} catch (Exception e) {
 				throw new RuntimeException("Original upload failed", e);
 			}
-		}, taskExecutor);
+		}, imageProcessingExecutor);
 		var webFuture = CompletableFuture.runAsync(() -> {
 			try {
 				BufferedImage webImage = bufferedImage;
@@ -210,7 +218,7 @@ public class ImageService {
 			} catch (Exception e) {
 				throw new RuntimeException("Web upload failed", e);
 			}
-		}, taskExecutor);
+		}, imageProcessingExecutor);
 		CompletableFuture.allOf(originalFuture, webFuture).join();
 	}
 
