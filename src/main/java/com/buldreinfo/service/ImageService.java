@@ -8,7 +8,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -49,7 +48,8 @@ public class ImageService {
 	public static final int IMAGE_WEB_HEIGHT = 1440;
 	public static final int IMAGE_WEB_WIDTH = 2560;
 	private static final Logger logger = LogManager.getLogger();
-	private static final Pattern VIMEO_PATTERN = Pattern.compile("^(https?://)?(player\\.)?vimeo\\.com/(video/)?([0-9]+)");
+	private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+	private static final Pattern VIMEO_PATTERN = Pattern.compile("vimeo\\.com/(?:video/)?([0-9]+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern YT_PATTERN = Pattern.compile("(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\\.be/)([^\"&?/\\s]{11})", Pattern.CASE_INSENSITIVE);
 
 	private final ExifReader exifService;
@@ -98,31 +98,43 @@ public class ImageService {
 		}
 		return cropped;
 	}
-	
+
 	public BufferedImage readFromEmbedUrl(String embedVideoUrl) throws IOException, InterruptedException {
+		if (embedVideoUrl == null || embedVideoUrl.length() > 2048) {
+			throw new IllegalArgumentException("Invalid URL length");
+		}
 		String imgUrl = null;
 		Matcher ytMatcher = YT_PATTERN.matcher(embedVideoUrl);
 		Matcher vimeoMatcher = VIMEO_PATTERN.matcher(embedVideoUrl);
-
 		if (ytMatcher.find()) {
 			imgUrl = "https://img.youtube.com/vi/" + ytMatcher.group(1) + "/0.jpg";
 		} else if (vimeoMatcher.find()) {
-			HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://vimeo.com/api/v2/video/" + vimeoMatcher.group(1) + ".json")).timeout(Duration.ofSeconds(10)).GET().build();
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create("https://vimeo.com/api/oembed.json?url=https://vimeo.com/" + vimeoMatcher.group(1)))
+					.header("User-Agent", USER_AGENT)
+					.timeout(Duration.ofSeconds(10))
+					.GET().build();
 			HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString());
-			if (response.statusCode() != HttpURLConnection.HTTP_OK) throw new IllegalArgumentException("Vimeo error: " + response.statusCode());
-			var arr = objectMapper.readTree(response.body());
-			if (arr.isArray() && !arr.isEmpty()) imgUrl = arr.get(0).path("thumbnail_large").asText();
+			if (response.statusCode() == 200) {
+				imgUrl = objectMapper.readTree(response.body()).path("thumbnail_url").asText();
+			}
 		}
-
-		if (imgUrl == null) throw new IllegalArgumentException("Could not extract video ID: " + embedVideoUrl);
-
-		URI targetUri = URI.create(imgUrl);
-		HttpRequest imgRequest = HttpRequest.newBuilder().uri(targetUri).timeout(Duration.ofSeconds(15)).GET().build();
+		if (imgUrl == null || imgUrl.isEmpty()) {
+			throw new IllegalArgumentException("Could not extract image from: " + embedVideoUrl);
+		}
+		HttpRequest imgRequest = HttpRequest.newBuilder()
+				.uri(URI.create(imgUrl))
+				.header("User-Agent", USER_AGENT)
+				.timeout(Duration.ofSeconds(15))
+				.GET().build();
 		HttpResponse<byte[]> imgResponse = httpClient.send(imgRequest, BodyHandlers.ofByteArray());
-
+		String contentType = imgResponse.headers().firstValue("Content-Type").orElse("");
+		if (!contentType.startsWith("image/")) {
+			throw new IOException("Invalid image content type: " + contentType);
+		}
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imgResponse.body())) {
 			BufferedImage image = ImageIO.read(bais);
-			Objects.requireNonNull(image, "BufferedImage could not be read");
+			if (image == null) throw new IOException("Failed to decode image");
 			return prepareAndRotate(image, null);
 		}
 	}
