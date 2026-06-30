@@ -224,12 +224,12 @@ public class FrontpageRepository {
 		List<FrontpageRecentAscent> res = jdbcClient.sql("""
 				WITH req AS (SELECT ? auth_user_id, ? region_id),
 				recent_activity AS (
-				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date,
+				    SELECT t.id AS tick_id, t.problem_id, t.user_id, t.grade_id, t.date AS tick_date, tr.date AS repeat_date, COALESCE(t.created,tr.created) AS created,
 				           GREATEST(COALESCE(t.date, '1000-01-01'), COALESCE(tr.date, '1000-01-01')) AS activity_timestamp,
 				           IF(tr.date IS NOT NULL AND (t.date IS NULL OR tr.date > t.date), 1, 0) AS is_repeat
 				    FROM req
 				    CROSS JOIN tick t
-				    LEFT JOIN (SELECT tick_id, MAX(date) AS date FROM tick_repeat GROUP BY tick_id) tr ON t.id = tr.tick_id
+				    LEFT JOIN (SELECT tick_id, MAX(date) AS date, MAX(created) as created FROM tick_repeat GROUP BY tick_id) tr ON t.id = tr.tick_id
 				    JOIN problem p ON t.problem_id = p.id
 				    JOIN sector s ON p.sector_id = s.id
 				    JOIN area a ON s.area_id = a.id
@@ -265,7 +265,7 @@ public class FrontpageRepository {
 				WHERE a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
 				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				ORDER BY ra.activity_timestamp DESC, ra.tick_id DESC
+				ORDER BY ra.activity_timestamp DESC, ra.created DESC, ra.tick_id DESC
 				""")
 				.params(authUserId.orElse(0), setup.idRegion())
 				.query(mapper)
