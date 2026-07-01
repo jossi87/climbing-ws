@@ -11,7 +11,6 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -175,7 +174,7 @@ public class RegionRepository {
 		Map<Integer, List<Coordinates>> res = new HashMap<>();
 		jdbcClient.sql("SELECT ro.region_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM region_outline ro JOIN coordinates c ON ro.coordinates_id=c.id WHERE ro.region_id IN (:ids) ORDER BY ro.sorting")
 		.param("ids", idRegions)
-		.query((RowCallbackHandler) rs -> {
+		.query(rs -> {
 			int idRegion = rs.getInt("region_id");
 			res.computeIfAbsent(idRegion, _ -> new ArrayList<>())
 			.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")));
