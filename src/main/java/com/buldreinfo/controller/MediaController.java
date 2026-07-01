@@ -1,6 +1,5 @@
 package com.buldreinfo.controller;
 
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,6 +53,7 @@ import com.buldreinfo.service.InstagramService;
 import com.buldreinfo.service.VideoService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,11 +62,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/media")
 public class MediaController {
-
-	@FunctionalInterface
-	private interface ImageTask {
-		void execute(StorageManager storage);
-	}
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -117,11 +112,12 @@ public class MediaController {
 	}
 
 	@Operation(summary = "Get media file by id")
+	@ApiResponse(responseCode = "302", description = "Redirects to the generated or cached static asset URL hosted on S3 Storage")
 	@GetMapping("/file")
 	public ResponseEntity<Void> getMediaFile(HttpServletRequest request,
 			@RequestParam(name = "id") int id,
 			@RequestParam(name = "isMovie") boolean isMovie,
-			@RequestParam(name = "versionStamp", defaultValue = "0") int versionStamp,
+			@RequestParam(name = "versionStamp", defaultValue = "0") long versionStamp,
 			@RequestParam(name = "original", defaultValue = "false") boolean original,
 			@RequestParam(name = "targetWidth", defaultValue = "0") int targetWidth,
 			@RequestParam(name = "minDimension", defaultValue = "0") int minDimension,
@@ -153,18 +149,18 @@ public class MediaController {
 		if (targetWidth > 0 || minDimension > 0) {
 			key = webP ? S3KeyGenerator.getWebWebpResized(id, targetWidth, minDimension) : S3KeyGenerator.getWebJpgResized(id, targetWidth, minDimension);
 			if (storage.exists(key)) return createRedirect(key, versionStamp);
-			return executeGenerationPipeline(storage, key, versionStamp, s -> processResize(s, id, targetWidth, minDimension, key, outputType));
+			return executeGenerationPipeline(key, versionStamp, () -> imageService.processResize(id, targetWidth, minDimension, key, outputType));
 		}
 
 		if (width > 0 && height > 0) {
 			key = webP ? S3KeyGenerator.getWebWebpRegion(id, x, y, width, height) : S3KeyGenerator.getWebJpgRegion(id, x, y, width, height);
 			if (storage.exists(key)) return createRedirect(key, versionStamp);
-			return executeGenerationPipeline(storage, key, versionStamp, s -> processCrop(s, id, x, y, width, height, key, outputType));
+			return executeGenerationPipeline(key, versionStamp, () -> imageService.processCrop(id, x, y, width, height, key, outputType));
 		}
 
 		key = webP ? S3KeyGenerator.getWebWebp(id) : S3KeyGenerator.getWebJpg(id);
 		if (storage.exists(key)) return createRedirect(key, versionStamp);
-		return executeGenerationPipeline(storage, key, versionStamp, s -> processStandard(s, id, key, outputType));
+		return executeGenerationPipeline(key, versionStamp, () -> imageService.processStandard(id, key, outputType));
 	}
 
 	@Operation(summary = "Reorder media")
@@ -330,7 +326,7 @@ public class MediaController {
 		int newId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
 		CompletableFuture.runAsync(() -> {
 			try {
-				BufferedImage thumb = imageService.readFromEmbedUrl(media.embedUrl());
+				var thumb = imageService.readFromEmbedUrl(media.embedUrl());
 				try {
 					imageService.saveImage(newId, thumb);
 				} finally {
@@ -393,107 +389,18 @@ public class MediaController {
 		return ResponseEntity.ok().build();
 	}
 
-	private ResponseEntity<Void> createRedirect(String key, int version) {
+	private ResponseEntity<Void> createRedirect(String key, long version) {
 		return ResponseEntity.status(HttpStatus.FOUND)
 				.header(HttpHeaders.LOCATION, StorageManager.getPublicUrl(key, version))
 				.cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).mustRevalidate())
 				.build();
 	}
 
-	private ResponseEntity<Void> executeGenerationPipeline(StorageManager storage, String key, int version, ImageTask task) {
-		task.execute(storage);
+	private ResponseEntity<Void> executeGenerationPipeline(String key, long version, Runnable task) {
+		task.run();
 		if (!storage.exists(key)) {
 			throw new NoSuchElementException("Generated resource not found at key: " + key);
 		}
 		return createRedirect(key, version);
-	}
-
-	private void processCrop(StorageManager storage, int id, int x, int y, int width, int height, String key, StorageType type) {
-		String sourceKey = S3KeyGenerator.getOriginalJpg(id);
-		if (!storage.exists(sourceKey)) {
-			return;
-		}
-		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) {
-			return;
-		}
-		try {
-			if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
-				BufferedImage cropped = imageService.crop(b, x, y, width, height);
-				storage.uploadImage(key, cropped, type);
-			}
-		} finally {
-			b.flush();
-		}
-	}
-
-	private void processResize(StorageManager storage, int id, int targetWidth, int minDimension, String key, StorageType type) {
-		boolean useWebSource = (targetWidth <= 0 || targetWidth <= ImageService.IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= ImageService.IMAGE_WEB_WIDTH);
-		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
-		if (useWebSource && !storage.exists(sourceKey)) {
-			sourceKey = S3KeyGenerator.getOriginalJpg(id);
-		}
-		if (!storage.exists(sourceKey)) {
-			return;
-		}
-		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) {
-			return;
-		}
-		try {
-			int newWidth = b.getWidth();
-			int newHeight = b.getHeight();
-
-			if (targetWidth > 0 && targetWidth < b.getWidth()) {
-				double ratio = (double) targetWidth / b.getWidth();
-				newWidth = targetWidth;
-				newHeight = (int) Math.round(b.getHeight() * ratio);
-			} else if (minDimension > 0) {
-				double ratio = b.getWidth() < b.getHeight() 
-						? (double) minDimension / b.getWidth() 
-								: (double) minDimension / b.getHeight();
-				newWidth = (int) Math.round(b.getWidth() * ratio);
-				newHeight = (int) Math.round(b.getHeight() * ratio);
-			}
-
-			if (newWidth != b.getWidth() || newHeight != b.getHeight()) {
-				BufferedImage resized = imageService.resize(b, newWidth, newHeight);
-				storage.uploadImage(key, resized, type);
-				resized.flush();
-			} else {
-				storage.uploadImage(key, b, type);
-			}
-		} finally {
-			b.flush();
-		}
-	}
-
-	private void processStandard(StorageManager storage, int id, String key, StorageType type) {
-		String sourceKey = S3KeyGenerator.getWebJpg(id);
-		if (!storage.exists(sourceKey)) {
-			sourceKey = S3KeyGenerator.getOriginalJpg(id);
-		}
-		if (!storage.exists(sourceKey)) {
-			return;
-		}
-		BufferedImage b = storage.downloadImage(sourceKey);
-		if (b == null) {
-			return;
-		}
-		try {
-			if (b.getWidth() > ImageService.IMAGE_WEB_WIDTH || b.getHeight() > ImageService.IMAGE_WEB_HEIGHT) {
-				double ratio = Math.min((double) ImageService.IMAGE_WEB_WIDTH / b.getWidth(), (double) ImageService.IMAGE_WEB_HEIGHT / b.getHeight());
-				int newWidth = (int) Math.round(b.getWidth() * ratio);
-				int newHeight = (int) Math.round(b.getHeight() * ratio);
-
-				BufferedImage resized = imageService.resize(b, newWidth, newHeight);
-				storage.uploadImage(key, resized, type);
-				resized.flush();
-			} else {
-				storage.uploadImage(key, b, type);
-			}
-		} finally {
-			b.flush();
-		}
 	}
 }

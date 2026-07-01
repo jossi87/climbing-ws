@@ -55,10 +55,10 @@ public class ImageService {
 	private final ExifReader exifService;
 	private final HttpClient httpClient;
 	private final ImageClassifierService imageClassifierService;
+	private final TaskExecutor imageProcessingExecutor;
 	private final MediaRepository mediaRepo;
 	private final ObjectMapper objectMapper;
 	private final StorageManager storage;
-	private final TaskExecutor imageProcessingExecutor;
 
 	public ImageService(
 			ObjectMapper objectMapper,
@@ -88,15 +88,83 @@ public class ImageService {
 		});
 	}
 
-	public BufferedImage crop(BufferedImage src, int x, int y, int width, int height) {
-		BufferedImage cropped = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-		Graphics2D g = cropped.createGraphics();
+	public void processCrop(int id, int x, int y, int width, int height, String key, StorageType type) {
+		String sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		if (!storage.exists(sourceKey)) return;
+
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) return;
+
 		try {
-			g.drawImage(src, 0, 0, width, height, x, y, x + width, y + height, null);
+			if (x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= b.getWidth() && y + height <= b.getHeight()) {
+				BufferedImage cropped = crop(b, x, y, width, height);
+				storage.uploadImage(key, cropped, type);
+				cropped.flush();
+			}
 		} finally {
-			g.dispose();
+			b.flush();
 		}
-		return cropped;
+	}
+
+	public void processResize(int id, int targetWidth, int minDimension, String key, StorageType type) {
+		boolean useWebSource = (targetWidth <= 0 || targetWidth <= IMAGE_WEB_WIDTH) && (minDimension <= 0 || minDimension <= IMAGE_WEB_WIDTH);
+		String sourceKey = useWebSource ? S3KeyGenerator.getWebJpg(id) : S3KeyGenerator.getOriginalJpg(id);
+		if (useWebSource && !storage.exists(sourceKey)) {
+			sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		}
+		if (!storage.exists(sourceKey)) return;
+
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) return;
+
+		try {
+			int newWidth = b.getWidth();
+			int newHeight = b.getHeight();
+
+			if (targetWidth > 0 && targetWidth < b.getWidth()) {
+				double ratio = (double) targetWidth / b.getWidth();
+				newWidth = targetWidth;
+				newHeight = (int) Math.round(b.getHeight() * ratio);
+			} else if (minDimension > 0) {
+				double ratio = b.getWidth() < b.getHeight() 
+						? (double) minDimension / b.getWidth() 
+								: (double) minDimension / b.getHeight();
+				newWidth = (int) Math.round(b.getWidth() * ratio);
+				newHeight = (int) Math.round(b.getHeight() * ratio);
+			}
+
+			if (newWidth != b.getWidth() || newHeight != b.getHeight()) {
+				BufferedImage resized = resize(b, newWidth, newHeight);
+				storage.uploadImage(key, resized, type);
+				resized.flush();
+			} else {
+				storage.uploadImage(key, b, type);
+			}
+		} finally {
+			b.flush();
+		}
+	}
+
+	public void processStandard(int id, String key, StorageType type) {
+		String sourceKey = S3KeyGenerator.getWebJpg(id);
+		if (!storage.exists(sourceKey)) {
+			sourceKey = S3KeyGenerator.getOriginalJpg(id);
+		}
+		if (!storage.exists(sourceKey)) return;
+
+		BufferedImage b = storage.downloadImage(sourceKey);
+		if (b == null) return;
+
+		try {
+			BufferedImage webImage = scaleToWebDimensionsIfNeeded(b);
+			try {
+				storage.uploadImage(key, webImage, type);
+			} finally {
+				if (webImage != b) webImage.flush();
+			}
+		} finally {
+			b.flush();
+		}
 	}
 
 	public BufferedImage readFromEmbedUrl(String embedVideoUrl) throws IOException, InterruptedException {
@@ -145,20 +213,6 @@ public class ImageService {
 			Objects.requireNonNull(image, "BufferedImage could not be read");
 			return prepareAndRotate(image, rotation);
 		}
-	}
-
-	public BufferedImage resize(BufferedImage src, int width, int height) {
-		BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-		Graphics2D g = resized.createGraphics();
-		try {
-			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g.drawImage(src, 0, 0, width, height, null);
-		} finally {
-			g.dispose();
-		}
-		return resized;
 	}
 
 	public void rotateImage(int idMedia, ImageRotation rotation) {
@@ -211,16 +265,10 @@ public class ImageService {
 				throw new RuntimeException("Original upload failed", e);
 			}
 		}, imageProcessingExecutor);
+
 		var webFuture = CompletableFuture.runAsync(() -> {
 			try {
-				BufferedImage webImage = bufferedImage;
-				if (bufferedImage.getWidth() > IMAGE_WEB_WIDTH || bufferedImage.getHeight() > IMAGE_WEB_HEIGHT) {
-					double ratio = Math.min((double) IMAGE_WEB_WIDTH / bufferedImage.getWidth(), (double) IMAGE_WEB_HEIGHT / bufferedImage.getHeight());
-					int targetWidth = (int) Math.round(bufferedImage.getWidth() * ratio);
-					int targetHeight = (int) Math.round(bufferedImage.getHeight() * ratio);
-
-					webImage = resize(bufferedImage, targetWidth, targetHeight);
-				}
+				BufferedImage webImage = scaleToWebDimensionsIfNeeded(bufferedImage);
 				try {
 					storage.uploadImage(keyWebJpg, webImage, StorageType.JPG);
 					storage.uploadImage(keyWebWebP, webImage, StorageType.WEBP);
@@ -231,7 +279,19 @@ public class ImageService {
 				throw new RuntimeException("Web upload failed", e);
 			}
 		}, imageProcessingExecutor);
+
 		CompletableFuture.allOf(originalFuture, webFuture).join();
+	}
+
+	private BufferedImage crop(BufferedImage src, int x, int y, int width, int height) {
+		BufferedImage cropped = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = cropped.createGraphics();
+		try {
+			g.drawImage(src, 0, 0, width, height, x, y, x + width, y + height, null);
+		} finally {
+			g.dispose();
+		}
+		return cropped;
 	}
 
 	private byte[] getJpgBytes(BufferedImage image) throws IOException {
@@ -278,6 +338,30 @@ public class ImageService {
 		}
 		standardized.flush();
 		return dest;
+	}
+
+	private BufferedImage resize(BufferedImage src, int width, int height) {
+		BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = resized.createGraphics();
+		try {
+			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g.drawImage(src, 0, 0, width, height, null);
+		} finally {
+			g.dispose();
+		}
+		return resized;
+	}
+
+	private BufferedImage scaleToWebDimensionsIfNeeded(BufferedImage b) {
+		if (b.getWidth() > IMAGE_WEB_WIDTH || b.getHeight() > IMAGE_WEB_HEIGHT) {
+			double ratio = Math.min((double) IMAGE_WEB_WIDTH / b.getWidth(), (double) IMAGE_WEB_HEIGHT / b.getHeight());
+			int targetWidth = (int) Math.round(b.getWidth() * ratio);
+			int targetHeight = (int) Math.round(b.getHeight() * ratio);
+			return resize(b, targetWidth, targetHeight);
+		}
+		return b;
 	}
 
 	private byte[] writeImageWithMetadata(BufferedImage image, IIOMetadata metadata, String format) throws IOException {

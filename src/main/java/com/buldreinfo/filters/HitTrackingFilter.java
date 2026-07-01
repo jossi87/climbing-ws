@@ -1,8 +1,14 @@
 package com.buldreinfo.filters;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HexFormat;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
@@ -19,6 +25,23 @@ import jakarta.servlet.http.HttpServletResponse;
 public class HitTrackingFilter extends OncePerRequestFilter {
 	public static final String SHOULD_UPDATE_HITS_KEY = "shouldUpdateHits";
 	private static final long HITS_COOLDOWN_MILLIS = Duration.ofMinutes(30).toMillis();
+	private static final Logger logger = LogManager.getLogger();
+	private static String anonymizeIp(String ip) {
+		if (ip == null || ip.isBlank()) return "";
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hash = digest.digest(ip.getBytes(StandardCharsets.UTF_8));
+			return HexFormat.of().formatHex(hash);
+		} catch (NoSuchAlgorithmException e) {
+			logger.warn(e.getMessage(), e);
+			// Fallback: truncate to first 3 octets (e.g. "192.168.1.xxx")
+			int lastDot = ip.lastIndexOf('.');
+			if (lastDot > 0) return ip.substring(0, lastDot) + ".xxx";
+			int lastColon = ip.lastIndexOf(':');
+			if (lastColon > 0) return ip.substring(0, lastColon) + ":xxxx";
+			return "[redacted]";
+		}
+	}
 
 	private final Cache cache;
 
@@ -26,20 +49,12 @@ public class HitTrackingFilter extends OncePerRequestFilter {
 		this.cache = cacheManager.getCache(CacheConstants.HIT_COOLDOWN_CACHE_NAME);
 	}
 
-	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-			throws ServletException, IOException {
-
-		request.setAttribute(SHOULD_UPDATE_HITS_KEY, shouldUpdateHits(request));
-		filterChain.doFilter(request, response);
-	}
-
 	private String getHitsCooldownKey(HttpServletRequest request) {
 		String ip = request.getHeader("CF-Connecting-IP");
 		if (ip == null || ip.isBlank()) ip = request.getHeader("X-Forwarded-For");
 		if (ip == null || ip.isBlank()) ip = request.getHeader("X-Real-IP");
 		if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
-
+		String ipHash = anonymizeIp(ip);
 		String uri = request.getRequestURI();
 		String query = request.getQueryString();
 		String ua = request.getHeader("User-Agent");
@@ -47,7 +62,7 @@ public class HitTrackingFilter extends OncePerRequestFilter {
 		return String.join("|",
 				(uri == null ? "" : uri),
 				(query == null ? "" : query),
-				(ip == null ? "" : ip),
+				(ipHash),
 				(ua == null ? "" : ua));
 	}
 
@@ -79,5 +94,13 @@ public class HitTrackingFilter extends OncePerRequestFilter {
 		}
 
 		return false;
+	}
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
+
+		request.setAttribute(SHOULD_UPDATE_HITS_KEY, shouldUpdateHits(request));
+		filterChain.doFilter(request, response);
 	}
 }
