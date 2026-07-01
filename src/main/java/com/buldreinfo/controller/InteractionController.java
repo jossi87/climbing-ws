@@ -17,7 +17,6 @@ import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
-import com.buldreinfo.dao.TickRepository;
 import com.buldreinfo.dao.TodoRepository;
 import com.buldreinfo.dao.TrashRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -35,6 +34,7 @@ import com.buldreinfo.model.Todo;
 import com.buldreinfo.model.Top;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Trash;
+import com.buldreinfo.service.TickService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -45,30 +45,30 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 public class InteractionController {
 	private final RequestContext requestContext;
+	private final TickService tickService;
 	private final HierarchyRepository hierarchyRepo;
 	private final ProblemRepository problemRepo;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
-	private final TickRepository tickRepo;
 	private final TodoRepository todoRepo;
 	private final TrashRepository trashRepo;
 	private final UserRepository userRepo;
 
 	public InteractionController(RequestContext requestContext,
+			TickService tickService,
 			HierarchyRepository hierarchyRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo,
 			RegionRepository regionRepo,
-			TickRepository tickRepo,
 			TodoRepository todoRepo,
 			TrashRepository trashRepo,
 			UserRepository userRepo) {
 		this.requestContext = requestContext;
+		this.tickService = tickService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.problemRepo = problemRepo;
 		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
-		this.tickRepo = tickRepo;
 		this.todoRepo = todoRepo;
 		this.trashRepo = trashRepo;
 		this.userRepo = userRepo;
@@ -110,7 +110,7 @@ public class InteractionController {
 		if (page < 1) throw new ValidationFailedException("Invalid page index (must be >= 1)");
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(tickRepo.getTicks(authUserId, setup, page));
+		return ResponseEntity.ok(tickService.getTicks(authUserId, setup, page));
 	}
 
 	@Operation(summary = "Get todo on Area/Sector")
@@ -184,7 +184,7 @@ public class InteractionController {
 		if (t == null || t.idProblem() <= 0) throw new ValidationFailedException("Invalid idProblem");
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		tickRepo.setTick(setup, authUserId, t);
+		tickService.setTick(setup, authUserId, t);
 		return ResponseEntity.ok().build();
 	}
 

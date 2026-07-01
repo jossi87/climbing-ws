@@ -351,6 +351,41 @@ public class ProblemRepository {
 	}
 
 	@Transactional
+	public void updateProblemConsensusGrade(int problemId) {
+		jdbcClient.sql("""
+				UPDATE problem p
+				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
+				LEFT JOIN (
+				    SELECT ROUND(AVG(w)) as avg_weight
+				    FROM (
+				        SELECT gt.weight as w
+				        FROM tick t
+				        JOIN grade gt ON t.grade_id = gt.id
+				        WHERE t.problem_id = ? AND gt.grade != 'n/a'
+				        UNION ALL
+				        SELECT g.weight as w
+				        FROM problem p_inner
+				        JOIN grade g ON p_inner.grade_id = g.id
+				        WHERE p_inner.id = ? AND g.grade != 'n/a'
+				        AND NOT EXISTS (
+				            SELECT 1 FROM tick t_check
+				            JOIN fa f_check ON t_check.user_id = f_check.user_id
+				            WHERE t_check.problem_id = p_inner.id 
+				              AND f_check.problem_id = p_inner.id
+				              AND t_check.grade_id = p_inner.grade_id
+				        )
+				    ) votes
+				) calc ON 1=1
+				LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
+				                       AND g_final.weight = calc.avg_weight
+				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
+				WHERE p.id = ?
+				""")
+		.params(problemId, problemId, problemId)
+		.update();
+	}
+
+	@Transactional
 	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) {
 		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("Not logged in"));
 		int idGuestbook = co.id();
@@ -618,40 +653,5 @@ public class ProblemRepository {
 		if (!ok) {
 			throw new ForbiddenException("Insufficient permissions");
 		}
-	}
-
-	@Transactional
-	protected void updateProblemConsensusGrade(int problemId) {
-		jdbcClient.sql("""
-				UPDATE problem p
-				LEFT JOIN type_grade_system tgs ON p.type_id = tgs.type_id
-				LEFT JOIN (
-				    SELECT ROUND(AVG(w)) as avg_weight
-				    FROM (
-				        SELECT gt.weight as w
-				        FROM tick t
-				        JOIN grade gt ON t.grade_id = gt.id
-				        WHERE t.problem_id = ? AND gt.grade != 'n/a'
-				        UNION ALL
-				        SELECT g.weight as w
-				        FROM problem p_inner
-				        JOIN grade g ON p_inner.grade_id = g.id
-				        WHERE p_inner.id = ? AND g.grade != 'n/a'
-				        AND NOT EXISTS (
-				            SELECT 1 FROM tick t_check
-				            JOIN fa f_check ON t_check.user_id = f_check.user_id
-				            WHERE t_check.problem_id = p_inner.id 
-				              AND f_check.problem_id = p_inner.id
-				              AND t_check.grade_id = p_inner.grade_id
-				        )
-				    ) votes
-				) calc ON 1=1
-				LEFT JOIN grade g_final ON g_final.grade_system_id = tgs.grade_system_id 
-				                       AND g_final.weight = calc.avg_weight
-				SET p.consensus_grade_id = COALESCE(g_final.id, p.grade_id)
-				WHERE p.id = ?
-				""")
-		.params(problemId, problemId, problemId)
-		.update();
 	}
 }

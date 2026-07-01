@@ -8,7 +8,6 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -26,13 +25,9 @@ import com.buldreinfo.util.StringUtils;
 public class TickRepository {
 	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
-	private final ActivityRepository activityRepo;
-	private final ObjectProvider<ProblemRepository> problemRepo;
 
-	public TickRepository(JdbcClient jdbcClient, ActivityRepository activityRepo, ObjectProvider<ProblemRepository> problemRepo) {
+	public TickRepository(JdbcClient jdbcClient) {
 		this.jdbcClient = jdbcClient;
-		this.activityRepo = activityRepo;
-		this.problemRepo = problemRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -137,9 +132,6 @@ public class TickRepository {
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
 			upsertTickRepeats(t.id(), t.repeats());
 		}
-
-		activityRepo.fillActivity(t.idProblem());
-		problemRepo.getObject().updateProblemConsensusGrade(t.idProblem());
 	}
 
 	private void upsertTickRepeats(int idTick, List<TickRepeat> repeats) {
