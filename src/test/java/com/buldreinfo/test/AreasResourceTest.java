@@ -54,9 +54,9 @@ public class AreasResourceTest extends BaseResourceTest {
 
 		var setup = getSetup(Region.buldreinfo);
 		assertThrows(NoSuchElementException.class, () -> 
-		areaRepo.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID, false));
+		areaRepo.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID));
 
-		Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID, false);
+		Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID);
 		assertNotNull(a);
 		assertFalse(a.name() == null || a.name().isBlank());
 	}

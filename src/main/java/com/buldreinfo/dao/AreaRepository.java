@@ -57,13 +57,9 @@ public class AreaRepository {
 		this.sectorRepo = sectorRepo;
 	}
 
-	@Transactional
-	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId, boolean shouldUpdateHits) {
+	@Transactional(readOnly = true)
+	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId) {
 		var start = System.nanoTime();
-		if (shouldUpdateHits) {
-			jdbcClient.sql("UPDATE area SET hits=hits+1 WHERE id=?").param(1, reqId).update();
-		}
-
 		Area a = jdbcClient.sql("""
 				WITH req AS (
 				    SELECT ? region_id, ? auth_user_id, ? area_id
@@ -136,7 +132,7 @@ public class AreaRepository {
 				.forEach(s -> { a.sectors().add(s); a.sectorOrder().add(new AreaSectorOrder(s.id(), s.name(), s.sorting())); });
 			}
 		}
-		logger.debug("getArea(authUserId={}, reqId={}, shouldUpdateHits={}) - duration={}ms", authUserId, reqId, shouldUpdateHits, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+		logger.debug("getArea(authUserId={}, reqId={}) - duration={}ms", authUserId, reqId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return a;
 	}
 
@@ -205,7 +201,7 @@ public class AreaRepository {
 		int idArea;
 		if (a.id() > 0) {
 			ensureAdminWriteArea(authUserId, a.id());
-			var currArea = getArea(s, authUserId, a.id(), false);
+			var currArea = getArea(s, authUserId, a.id());
 			setPermissionRecursive = currArea.lockedAdmin() != isLockedAdmin || currArea.lockedSuperadmin() != a.lockedSuperadmin();
 
 			jdbcClient.sql("""

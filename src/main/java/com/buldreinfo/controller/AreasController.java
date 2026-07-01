@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,6 +51,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/areas")
 public class AreasController {
 	private static final Logger logger = LogManager.getLogger();
+	private final ApplicationEventPublisher eventPublisher;
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
@@ -57,13 +60,16 @@ public class AreasController {
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
 
-	public AreasController(RequestContext requestContext,
+	public AreasController(
+			ApplicationEventPublisher eventPublisher,
+			RequestContext requestContext,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
 			RegionRepository regionRepo,
 			AreaRepository areaRepo,
 			SectorRepository sectorRepo,
 			HierarchyRepository hierarchyRepo) {
+		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
@@ -88,8 +94,10 @@ public class AreasController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
-		var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id, shouldUpdateHits)) : areaRepo.getAreaList(authUserId, setup.idRegion());
+		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
+            eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
+        }
+		var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id)) : areaRepo.getAreaList(authUserId, setup.idRegion());
 		return ResponseEntity.ok(res);
 	}
 
@@ -100,11 +108,10 @@ public class AreasController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
-		Area area = areaRepo.getArea(setup, authUserId, id, shouldUpdateHits);
+		Area area = areaRepo.getArea(setup, authUserId, id);
 		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
 		List<Sector> sectors = area.sectors().stream()
-				.map(s -> sectorRepo.getSector(authUserId, false, setup, s.id(), shouldUpdateHits))
+				.map(s -> sectorRepo.getSector(authUserId, false, setup, s.id()))
 				.toList();
 		String filename = FilenameUtil.generateFilename(area.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {

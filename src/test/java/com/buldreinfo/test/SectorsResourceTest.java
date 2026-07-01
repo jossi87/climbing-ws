@@ -50,8 +50,8 @@ public class SectorsResourceTest extends BaseResourceTest {
 
 		var setup = getSetup(Region.buldreinfo);
 		assertThrows(NoSuchElementException.class, () -> 
-		sectorRepo.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false));
-		Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID, false);
+		sectorRepo.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID));
+		Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID);
 		assertNotNull(s);
 		assertFalse(s.name() == null || s.name().isBlank());
 	}

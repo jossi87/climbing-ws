@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +49,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/problems")
 public class ProblemsController {
 	private static final Logger logger = LogManager.getLogger();
+	private final ApplicationEventPublisher eventPublisher;
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
@@ -55,13 +58,16 @@ public class ProblemsController {
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 
-	public ProblemsController(RequestContext requestContext,
+	public ProblemsController(
+			ApplicationEventPublisher eventPublisher,
+			RequestContext requestContext,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
 			AreaRepository areaRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo) {
+		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
@@ -85,8 +91,10 @@ public class ProblemsController {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
-		return ResponseEntity.ok(problemRepo.getProblem(authUserId, setup, id, showHiddenMedia, shouldUpdateHits));
+		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
+			eventPublisher.publishEvent(new HitTrackingListener.ProblemHitEvent(id));
+		}
+		return ResponseEntity.ok(problemRepo.getProblem(authUserId, setup, id, showHiddenMedia));
 	}
 
 	@Operation(summary = "Get problem PDF by id", responses = {
@@ -99,13 +107,14 @@ public class ProblemsController {
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
 	public ResponseEntity<StreamingResponseBody> getProblemsPdf(HttpServletRequest request, 
 			@Parameter(description = "Problem id", required = true) @RequestParam(name = "id") int id) {
-		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
+		if (id <= 0) {
+			throw new ValidationFailedException("Invalid id=" + id);
+		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		var shouldUpdateHits = requestContext.isHitTrackingEnabled(request);
-		final var problem = problemRepo.getProblem(authUserId, setup, id, false, shouldUpdateHits);
-		final var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
-		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+		final var problem = problemRepo.getProblem(authUserId, setup, id, false);
+		final var area = areaRepo.getArea(setup, authUserId, problem.areaId());
+		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
 		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
 			try (var generator = new PdfGenerator(storage, leafletPrintService, output)) {

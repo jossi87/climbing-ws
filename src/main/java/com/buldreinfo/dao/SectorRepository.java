@@ -74,13 +74,9 @@ public class SectorRepository {
 		this.sectorRepo = sectorRepo;
 	}
 
-	@Transactional
-	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId, boolean shouldUpdateHits) {
+	@Transactional(readOnly = true)
+	public Sector getSector(Optional<Integer> authUserId, boolean orderByGrade, Setup setup, int reqId) {
 		var startNanos = System.nanoTime();
-		if (shouldUpdateHits) {
-			jdbcClient.sql("UPDATE sector SET hits=hits+1 WHERE id=?").param(1, reqId).update();
-		}
-
 		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			var outlineFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorOutline(reqId), executor);
 			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorTrails(authUserId, Collections.singleton(reqId)), executor);
@@ -144,7 +140,7 @@ public class SectorRepository {
 			});
 
 			if (orderByGrade) s.problems().sort(Comparator.comparing(SectorProblem::gradeWeight).reversed());
-			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}, shouldUpdateHits={}) - duration={}", authUserId, orderByGrade, reqId, shouldUpdateHits, Duration.ofNanos(System.nanoTime() - startNanos));
+			logger.debug("getSector(authUserId={}, orderByGrade={}, reqId={}) - duration={}", authUserId, orderByGrade, reqId, Duration.ofNanos(System.nanoTime() - startNanos));
 			return s;
 		}
 	}
@@ -231,7 +227,7 @@ public class SectorRepository {
 		int idSector;
 		if (s.id() > 0) {
 			ensureAdminWriteSector(authUserId, s.id());
-			var curr = getSector(authUserId, false, setup, s.id(), false);
+			var curr = getSector(authUserId, false, setup, s.id());
 			setPermissionRecursive = curr.lockedAdmin() != isLockedAdmin || curr.lockedSuperadmin() != s.lockedSuperadmin();
 
 			jdbcClient.sql("""

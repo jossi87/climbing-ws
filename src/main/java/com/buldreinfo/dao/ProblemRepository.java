@@ -76,12 +76,8 @@ public class ProblemRepository {
 		this.userRepo = userRepo;
 	}
 
-	@Transactional
-	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia, boolean shouldUpdateHits) {
-		if (shouldUpdateHits) {
-			jdbcClient.sql("UPDATE problem SET hits = hits + 1 WHERE id = ?").param(reqId).update();
-		}
-
+	@Transactional(readOnly = true)
+	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia) {
 		boolean isTodo = authUserId.isPresent() && jdbcClient.sql("SELECT 1 FROM todo WHERE user_id = ? AND problem_id = ?")
 				.params(authUserId.get(), reqId)
 				.query((_, _) -> true)
@@ -289,7 +285,7 @@ public class ProblemRepository {
 			updateProblemConsensusGrade(idProblem);
 		} else {
 			sectorRepo.getObject().ensureAdminWriteSector(authUserId, p.sectorId());
-			int nr = p.nr() == 0 ? sectorRepo.getObject().getSector(authUserId, s.isBouldering(), s, p.sectorId(), false)
+			int nr = p.nr() == 0 ? sectorRepo.getObject().getSector(authUserId, s.isBouldering(), s, p.sectorId())
 					.problems().stream().mapToInt(SectorProblem::nr).max().orElse(0) + 1 : p.nr();
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
@@ -358,7 +354,7 @@ public class ProblemRepository {
 		int idGuestbook = co.id();
 
 		if (idGuestbook > 0) {
-			Problem p = getProblem(authUserId, s, co.idProblem(), false, false);
+			Problem p = getProblem(authUserId, s, co.idProblem(), false);
 			ProblemComment comment = p.comments().stream()
 					.filter(x -> x.id() == co.id())
 					.findAny()

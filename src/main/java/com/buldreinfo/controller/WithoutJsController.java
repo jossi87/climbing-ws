@@ -44,7 +44,6 @@ import jakarta.servlet.http.HttpServletRequest;
 public class WithoutJsController {
 	private final RequestContext requestContext;
 	private static final Logger logger = LogManager.getLogger();
-	private static final boolean shouldUpdateHits = false;
 	private final AreaRepository areaRepo;
 	private final FrontpageRepository frontpageRepo;
 	private final ProblemRepository problemRepo;
@@ -99,7 +98,7 @@ public class WithoutJsController {
 	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var setup = requestContext.getSetup(request);
-		Area a = areaRepo.getArea(setup, Optional.empty(), id, shouldUpdateHits);
+		Area a = areaRepo.getArea(setup, Optional.empty(), id);
 		String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
 		Media m = (a.media() != null && !a.media().isEmpty()) ? a.media().getFirst() : null;
 		var html = getHtml(setup, setup.url() + "/area/" + a.id(), a.name(), description,
@@ -135,7 +134,7 @@ public class WithoutJsController {
 		if (pitch != null) logger.debug("Ignore pitch {}, just return mediaId {}", pitch, mid);
 
 		var setup = requestContext.getSetup(request);
-		Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false, shouldUpdateHits);
+		Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false);
 		String title = "%s [%s] (%s / %s)".formatted(p.name(), p.grade(), p.areaName(), p.sectorName());
 		String description = p.comment();
 
@@ -164,7 +163,7 @@ public class WithoutJsController {
 	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var setup = requestContext.getSetup(request);
-		Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id, shouldUpdateHits);
+		Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id);
 		String title = "%s (%s)".formatted(s.name(), s.areaName());
 		String description = "%s in %s / %s (%d %s)%s".formatted(
 				(setup.isBouldering() ? "Bouldering" : "Climbing"), s.areaName(), s.name(),

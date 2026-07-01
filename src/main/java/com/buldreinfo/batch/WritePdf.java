@@ -38,19 +38,18 @@ public class WritePdf {
 				.findAny()
 				.orElseThrow();
 		var authUserId = Optional.of(1);
-		final boolean shouldUpdateHits = false;
-		var problem = problemRepo.getProblem(authUserId, setup, 7745, false, shouldUpdateHits);
-		var area = areaRepo.getArea(setup, authUserId, problem.areaId(), shouldUpdateHits);
-		var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId(), shouldUpdateHits);
+		var problem = problemRepo.getProblem(authUserId, setup, 7745, false);
+		var area = areaRepo.getArea(setup, authUserId, problem.areaId());
+		var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
 			generator.writeProblem(setup, area, sector, problem);
 		}
-		var area2 = areaRepo.getArea(setup, authUserId, 2754, shouldUpdateHits);
+		var area2 = areaRepo.getArea(setup, authUserId, 2754);
 		var gradeDist = hierarchyRepo.getGradeDistribution(authUserId, area2.id(), 0);
 		var sectors = new ArrayList<Sector>();
 		for (var areaSector : area2.sectors()) {
-			sectors.add(sectorRepo.getSector(authUserId, false, setup, areaSector.id(), shouldUpdateHits));
+			sectors.add(sectorRepo.getSector(authUserId, false, setup, areaSector.id()));
 		}
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/area.pdf");
 				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
