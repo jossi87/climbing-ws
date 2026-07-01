@@ -10,7 +10,6 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 
 import com.buldreinfo.Application;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
@@ -18,6 +17,7 @@ import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 
 public class WritePdf {
@@ -27,7 +27,7 @@ public class WritePdf {
 				.run(args);
 		var storage = context.getBean(StorageManager.class);
 		var leafletPrintService = context.getBean(LeafletPrintService.class);
-		var areaRepo = context.getBean(AreaRepository.class);
+		var areaService = context.getBean(AreaService.class);
 		var problemRepo = context.getBean(ProblemRepository.class);
 		var sectorRepo = context.getBean(SectorRepository.class);
 		var hierarchyRepo = context.getBean(HierarchyRepository.class);
@@ -39,13 +39,13 @@ public class WritePdf {
 				.orElseThrow();
 		var authUserId = Optional.of(1);
 		var problem = problemRepo.getProblem(authUserId, setup, 7745, false);
-		var area = areaRepo.getArea(setup, authUserId, problem.areaId());
+		var area = areaService.getArea(setup, authUserId, problem.areaId());
 		var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
 			generator.writeProblem(setup, area, sector, problem);
 		}
-		var area2 = areaRepo.getArea(setup, authUserId, 2754);
+		var area2 = areaService.getArea(setup, authUserId, 2754);
 		var gradeDist = hierarchyRepo.getGradeDistribution(authUserId, area2.id(), 0);
 		var sectors = new ArrayList<Sector>();
 		for (var areaSector : area2.sectors()) {

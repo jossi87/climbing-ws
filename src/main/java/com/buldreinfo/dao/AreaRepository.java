@@ -5,16 +5,9 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -24,44 +17,31 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.HitsFormatter;
-import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Area.AreaSector;
-import com.buldreinfo.model.Area.AreaSectorOrder;
 import com.buldreinfo.model.Area.GradeCount;
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.model.Media.MediaArea;
+import com.buldreinfo.model.Media;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class AreaRepository {
-	private static final Logger logger = LogManager.getLogger();
 	private final JdbcClient jdbcClient;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoRepository geoRepo;
-	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
-	private final ObjectProvider<MediaRepository> mediaRepo;
-	private final ObjectProvider<SectorRepository> sectorRepo;
 
 	public AreaRepository(JdbcClient jdbcClient,
 			ExternalLinksRepository externalLinksRepo,
-			GeoRepository geoRepo,
-			ObjectProvider<HierarchyRepository> hierarchyRepo,
-			ObjectProvider<MediaRepository> mediaRepo,
-			ObjectProvider<SectorRepository> sectorRepo) {
+			GeoRepository geoRepo) {
 		this.jdbcClient = jdbcClient;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoRepo = geoRepo;
-		this.hierarchyRepo = hierarchyRepo;
-		this.mediaRepo = mediaRepo;
-		this.sectorRepo = sectorRepo;
 	}
 
 	@Transactional(readOnly = true)
-	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId) {
-		var start = System.nanoTime();
+	public Area getAreaBase(Setup setup, Optional<Integer> authUserId, int reqId, List<Media> partitionedFalse, List<Media> partitionedTrue) {
 		Area a = jdbcClient.sql("""
 				WITH req AS (
 				    SELECT ? region_id, ? auth_user_id, ? area_id
@@ -86,55 +66,9 @@ public class AreaRepository {
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
 					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
-					var allMedia = mediaRepo.getObject().getMediaArea(authUserId, reqId, false);
-					var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.areas().stream().anyMatch(MediaArea::trivia)));
-					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, -1, -1, new ArrayList<>(), new ArrayList<>(), partitioned.get(false), partitioned.get(true), externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")));
+					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, -1, -1, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")));
 				}).optional()
 				.orElse(null);
-
-		if (a == null) {
-			try {
-				var res = hierarchyRepo.getObject().getCanonicalUrl(setup, reqId, 0, 0);
-				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
-					return new Area(res.redirectUrl(), null, -1, false, false, false, false, null, null, false, 0, 0, null, null, null, 0, 0, null, null, null, null, null, null);
-				}
-			} catch (Exception _) {}
-			throw new NoSuchElementException("Could not find area with id=" + reqId);
-		}
-
-		var sectorLookup = getAreaSectors(setup, authUserId, a.id(), a.name());
-		if (!sectorLookup.isEmpty()) {
-			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-				var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorProblems(setup, authUserId, reqId, 0), executor);
-				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorOutlines(sectorLookup.keySet()), executor);
-				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getObject().getSectorTrails(authUserId, sectorLookup.keySet()), executor);
-
-				var sectorProblems = problemsFuture.join();
-				sectorProblems.forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));
-
-				if (authUserId.isPresent()) {
-					sectorLookup.forEach((sid, s) -> {
-						long total = s.problems().stream().filter(p -> p.broken() == null && (!"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null)).count();
-						if (total != 0) {
-							long completed = s.problems().stream().filter(p -> p.broken() == null && (!"n/a".equalsIgnoreCase(p.grade()) || p.faUser() != null || p.ffaUser() != null) && p.ticked()).count();
-							sectorLookup.put(sid, s.withProgress((int) Math.round((double) completed / total * 100)));
-						}
-					});
-				}
-
-				outlinesFuture.join().forEach((sid, outline) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.outline().addAll(outline)));
-				var trails = trailsFuture.join();
-				trails.forEach((sid, trailList) -> 
-				Optional.ofNullable(sectorLookup.get(sid))
-				.ifPresent(s -> sectorLookup.put(sid, s.withTrails(trailList)))
-						);
-
-				loadSimplifiedGradeCounts(reqId, sectorLookup);
-				sectorLookup.values().stream().sorted((o1, o2) -> SectorSort.sortSector(o1.sorting(), o1.name(), o2.sorting(), o2.name()))
-				.forEach(s -> { a.sectors().add(s); a.sectorOrder().add(new AreaSectorOrder(s.id(), s.name(), s.sorting())); });
-			}
-		}
-		logger.debug("getArea(authUserId={}, reqId={}) - duration={}ms", authUserId, reqId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		return a;
 	}
 
@@ -203,7 +137,7 @@ public class AreaRepository {
 		int idArea;
 		if (a.id() > 0) {
 			ensureAdminWriteArea(authUserId, a.id());
-			var currArea = getArea(s, authUserId, a.id());
+			var currArea = getAreaBase(s, authUserId, a.id(), List.of(), List.of());
 			setPermissionRecursive = currArea.lockedAdmin() != isLockedAdmin || currArea.lockedSuperadmin() != a.lockedSuperadmin();
 
 			jdbcClient.sql("""
@@ -263,7 +197,7 @@ public class AreaRepository {
 		return a.trash() ? Redirect.fromRoot() : Redirect.fromIdArea(idArea);
 	}
 
-	private Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName) {
+	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName, Function<Integer, MediaIdentity> mediaResolver) {
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? auth_user_id, ? area_id
@@ -309,8 +243,7 @@ public class AreaRepository {
 			if (mid > 0) {
 				mediaIdentity = new MediaIdentity(mid, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"));
 			} else {
-				var x = mediaRepo.getObject().getMediaSector(setup, authUserId, id, 0, false, true);
-				if (!x.isEmpty()) mediaIdentity = x.get(0).identity();
+				mediaIdentity = mediaResolver.apply(id);
 			}
 
 			sectorLookup.put(id, new AreaSector(
@@ -325,7 +258,7 @@ public class AreaRepository {
 		return sectorLookup;
 	}
 
-	protected void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) {
+	public void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) {
 		var sqlStr = """
 				WITH req AS (
 				  SELECT ? area_id

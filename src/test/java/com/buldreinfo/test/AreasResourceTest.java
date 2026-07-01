@@ -17,12 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.buldreinfo.controller.AreasController;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.model.Area;
+import com.buldreinfo.service.AreaService;
 
 public class AreasResourceTest extends BaseResourceTest {
 	@Autowired private AreasController tester;
-	@Autowired private AreaRepository areaRepo;
+	@Autowired private AreaService areaService;
 
 	@Test
 	public void testGetArea() {
@@ -54,9 +54,9 @@ public class AreasResourceTest extends BaseResourceTest {
 
 		var setup = getSetup(Region.buldreinfo);
 		assertThrows(NoSuchElementException.class, () -> 
-		areaRepo.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID));
+		areaService.getArea(setup, Optional.of(USER_ID_NORMAL), BULDREINFO_HIDDEN_AREA_ID));
 
-		Area a = areaRepo.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID);
+		Area a = areaService.getArea(setup, Optional.of(USER_ID_SUPERADMIN), BULDREINFO_HIDDEN_AREA_ID);
 		assertNotNull(a);
 		assertFalse(a.name() == null || a.name().isBlank());
 	}

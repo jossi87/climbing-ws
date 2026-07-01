@@ -18,7 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -31,6 +30,7 @@ import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
@@ -49,7 +49,7 @@ public class ProblemsController {
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
-	private final AreaRepository areaRepo;
+	private final AreaService areaService;
 	private final MediaRepository mediaRepo;
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
@@ -59,7 +59,7 @@ public class ProblemsController {
 			RequestContext requestContext,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
-			AreaRepository areaRepo,
+			AreaService areaService,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo) {
@@ -67,7 +67,7 @@ public class ProblemsController {
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
-		this.areaRepo = areaRepo;
+		this.areaService = areaService;
 		this.mediaRepo = mediaRepo;
 		this.problemRepo = problemRepo;
 		this.sectorRepo = sectorRepo;
@@ -99,7 +99,7 @@ public class ProblemsController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		final var problem = problemRepo.getProblem(authUserId, setup, id, false);
-		final var area = areaRepo.getArea(setup, authUserId, problem.areaId());
+		final var area = areaService.getArea(setup, authUserId, problem.areaId());
 		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
 		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {

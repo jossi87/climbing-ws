@@ -20,7 +20,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -33,6 +32,7 @@ import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
@@ -51,7 +51,7 @@ public class AreasController {
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
-	private final AreaRepository areaRepo;
+	private final AreaService areaService;
 	private final RegionRepository regionRepo;
 	private final SectorRepository sectorRepo;
 	private final HierarchyRepository hierarchyRepo;
@@ -62,14 +62,14 @@ public class AreasController {
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
 			RegionRepository regionRepo,
-			AreaRepository areaRepo,
+			AreaService areaService,
 			SectorRepository sectorRepo,
 			HierarchyRepository hierarchyRepo) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
-		this.areaRepo = areaRepo;
+		this.areaService = areaService;
 		this.regionRepo = regionRepo;
 		this.sectorRepo = sectorRepo;
 		this.hierarchyRepo = hierarchyRepo;
@@ -88,7 +88,7 @@ public class AreasController {
 		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
 			eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
 		}
-		var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id)) : areaRepo.getAreaList(authUserId, setup.idRegion());
+		var res = id > 0 ? Collections.singleton(areaService.getArea(setup, authUserId, id)) : areaService.getAreaList(authUserId, setup.idRegion());
 		return ResponseEntity.ok(res);
 	}
 
@@ -101,7 +101,7 @@ public class AreasController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		Area area = areaRepo.getArea(setup, authUserId, id);
+		Area area = areaService.getArea(setup, authUserId, id);
 		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
 		List<Sector> sectors = area.sectors().stream()
 				.map(s -> sectorRepo.getSector(authUserId, false, setup, s.id()))
@@ -132,7 +132,7 @@ public class AreasController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		regionRepo.ensureAdminWriteRegion(setup, authUserId);
-		var res = areaRepo.setArea(setup, authUserId, a);
+		var res = areaService.setArea(setup, authUserId, a);
 		return ResponseEntity.ok(res);
 	}
 }

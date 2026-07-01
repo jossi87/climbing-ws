@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.FrontpageRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
@@ -28,6 +27,7 @@ import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.Sector;
+import com.buldreinfo.service.AreaService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,7 +39,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class WithoutJsController {
 	private final RequestContext requestContext;
 	private static final Logger logger = LogManager.getLogger();
-	private final AreaRepository areaRepo;
+	private final AreaService areaService;
 	private final FrontpageRepository frontpageRepo;
 	private final ProblemRepository problemRepo;
 	private final RegionRepository regionRepo;
@@ -47,14 +47,14 @@ public class WithoutJsController {
 	private final UserRepository userRepo;
 
 	public WithoutJsController(RequestContext requestContext,
-			AreaRepository areaRepo,
+			AreaService areaService,
 			FrontpageRepository frontpageRepo,
 			ProblemRepository problemRepo,
 			RegionRepository regionRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
 		this.requestContext = requestContext;
-		this.areaRepo = areaRepo;
+		this.areaService = areaService;
 		this.frontpageRepo = frontpageRepo;
 		this.problemRepo = problemRepo;
 		this.regionRepo = regionRepo;
@@ -87,7 +87,7 @@ public class WithoutJsController {
 	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var setup = requestContext.getSetup(request);
-		Area a = areaRepo.getArea(setup, Optional.empty(), id);
+		Area a = areaService.getArea(setup, Optional.empty(), id);
 		String description = (setup.isBouldering() ? "Bouldering in " : "Climbing in ") + a.name();
 		Media m = (a.media() != null && !a.media().isEmpty()) ? a.media().getFirst() : null;
 		var html = getHtml(setup, setup.url() + "/area/" + a.id(), a.name(), description,

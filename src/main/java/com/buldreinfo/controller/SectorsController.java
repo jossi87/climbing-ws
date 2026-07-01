@@ -18,7 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
-import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
@@ -29,6 +28,7 @@ import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
+import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
@@ -47,7 +47,7 @@ public class SectorsController {
 	private final RequestContext requestContext;
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
-	private final AreaRepository areaRepo;
+	private final AreaService areaService;
 	private final HierarchyRepository hierarchyRepo;
 	private final SectorRepository sectorRepo;
 
@@ -56,14 +56,14 @@ public class SectorsController {
 			RequestContext requestContext,
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
-			AreaRepository areaRepo,
+			AreaService areaService,
 			HierarchyRepository hierarchyRepo,
 			SectorRepository sectorRepo) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
-		this.areaRepo = areaRepo;
+		this.areaService = areaService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.sectorRepo = sectorRepo;
 	}
@@ -95,7 +95,7 @@ public class SectorsController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		final Sector sector = sectorRepo.getSector(authUserId, false, setup, id);
 		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
-		final Area area = areaRepo.getArea(setup, authUserId, sector.areaId());
+		final Area area = areaService.getArea(setup, authUserId, sector.areaId());
 		String filename = FilenameUtil.generateFilename(sector.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
 			try (PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, output)) {

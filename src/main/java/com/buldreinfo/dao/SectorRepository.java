@@ -47,7 +47,7 @@ import com.buldreinfo.util.StringUtils;
 @Repository
 public class SectorRepository {
 	private static final Logger logger = LogManager.getLogger();
-	private final ObjectProvider<AreaRepository> areaRepo;
+	private final AreaRepository areaRepo;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoRepository geoRepo;
 	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
@@ -58,7 +58,7 @@ public class SectorRepository {
 
 	public SectorRepository(JdbcClient jdbcClient,
 			JdbcTemplate jdbcTemplate,
-			ObjectProvider<AreaRepository> areaRepo,
+			AreaRepository areaRepo,
 			ExternalLinksRepository externalLinksRepo,
 			GeoRepository geoRepo,
 			ObjectProvider<HierarchyRepository> hierarchyRepo,
@@ -146,6 +146,101 @@ public class SectorRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public Map<Integer, List<Coordinates>> getSectorOutlines(Collection<Integer> idSectors) {
+		if (idSectors.isEmpty()) throw new IllegalArgumentException("idSectors is empty");
+		var res = new HashMap<Integer, List<Coordinates>>();
+		jdbcClient.sql("SELECT so.sector_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source " +
+				"FROM sector_outline so " +
+				"JOIN coordinates c ON so.coordinates_id = c.id " +
+				"WHERE so.sector_id IN (:ids) " +
+				"ORDER BY so.sorting")
+		.param("ids", idSectors)
+		.query(rs -> {
+			res.computeIfAbsent(rs.getInt("sector_id"), _ -> new ArrayList<>())
+			.add(new Coordinates(
+					rs.getInt("id"),
+					rs.getDouble("latitude"),
+					rs.getDouble("longitude"),
+					rs.getDouble("elevation"),
+					rs.getString("elevation_source")
+					));
+		});
+		return res;
+	}
+
+	@Transactional(readOnly = true)
+	public Map<Integer, List<SectorProblem>> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) {
+		if (!((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0))) {
+			throw new IllegalArgumentException("Invalid area/sector id combination");
+		}
+
+		var sql = """
+				WITH req AS (
+				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
+				),
+				filtered_problems AS (
+				    SELECT p.*
+				    FROM problem p
+				    JOIN sector s ON s.id = p.sector_id
+				    JOIN area a ON s.area_id = a.id
+				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
+				    WHERE (( (SELECT area_id FROM req) > 0 AND a.id = (SELECT area_id FROM req)) 
+				        OR ((SELECT sector_id FROM req) > 0 AND p.sector_id = (SELECT sector_id FROM req)))
+				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				),
+				fa_agg AS (
+				    SELECT f.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
+				           MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
+				    FROM fa f JOIN user u ON f.user_id = u.id WHERE f.problem_id IN (SELECT id FROM filtered_problems) GROUP BY f.problem_id
+				),
+				fa_aid_agg AS (
+				    SELECT a.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names, YEAR(a.aid_date) fa_aid_date
+				    FROM fa_aid a JOIN fa_aid_user au ON a.problem_id=au.problem_id JOIN user u ON au.user_id = u.id WHERE a.problem_id IN (SELECT id FROM filtered_problems) GROUP BY a.problem_id, a.aid_date
+				),
+				tick_agg AS (
+				    SELECT t.problem_id, COUNT(t.id) AS total_ticks, ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars, MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
+				    FROM tick t WHERE t.problem_id IN (SELECT id FROM filtered_problems) GROUP BY t.problem_id
+				),
+				media_agg AS (
+				    SELECT mp.problem_id, COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images, COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
+				    FROM media_problem mp JOIN media m ON mp.media_id = m.id WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL AND mp.problem_id IN (SELECT id FROM filtered_problems) GROUP BY mp.problem_id
+				)
+				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, ty.type, ty.subtype, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
+				FROM filtered_problems p
+				JOIN grade g ON p.consensus_grade_id = g.id
+				JOIN type ty ON p.type_id = ty.id
+				LEFT JOIN coordinates co ON p.coordinates_id = co.id
+				LEFT JOIN fa_agg fa ON p.id = fa.problem_id
+				LEFT JOIN fa_aid_agg fa_aid ON p.id = fa_aid.problem_id
+				LEFT JOIN tick_agg t ON p.id = t.problem_id
+				LEFT JOIN media_agg m ON p.id = m.problem_id
+				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
+				LEFT JOIN LATERAL (SELECT danger FROM guestbook WHERE problem_id = p.id AND (danger = 1 OR resolved = 1) ORDER BY id DESC LIMIT 1) gb ON TRUE
+				ORDER BY p.nr
+				""";
+
+		Map<Integer, List<SectorProblem>> res = new LinkedHashMap<>();
+		jdbcClient.sql(sql)
+		.params(authUserId.orElse(0), optAreaId, optSectorId, setup.isBouldering() ? 0 : 1)
+		.query(rs -> {
+			int sid = rs.getInt("sector_id");
+			int cid = rs.getInt("coordinates_id");
+			var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+			var p = new SectorProblem(
+					rs.getInt("id"), rs.getString("broken"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
+					rs.getInt("nr"), rs.getString("name"), rs.getString("rock"), rs.getString("description"),
+					rs.getInt("weight"), rs.getString("grade"), rs.getString("fa_aid_names"), rs.getInt("fa_aid_date"),
+					rs.getString("fa_names"), rs.getInt("ffa_year"), rs.getInt("length_meter"), rs.getInt("num_pitches"),
+					rs.getInt("num_images") > 0, rs.getInt("num_movies") > 0, rs.getBoolean("has_topo"), coords,
+					rs.getInt("total_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), rs.getBoolean("todo"),
+					new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), rs.getBoolean("danger")
+					);
+			res.computeIfAbsent(sid, _ -> new ArrayList<>()).add(p);
+		});
+		return res;
+	}
+
+	@Transactional(readOnly = true)
 	public Map<Integer, List<Trail>> getSectorTrails(Optional<Integer> authUserId, Collection<Integer> sectorIds) {
 		if (sectorIds.isEmpty()) throw new IllegalArgumentException("sectorIds is empty");
 
@@ -221,7 +316,7 @@ public class SectorRepository {
 				.orElse(null);
 		Integer manualCompass = (s.wallDirectionManual() != null && s.wallDirectionManual().id() > 0) 
 				? s.wallDirectionManual().id() 
-				: null;
+						: null;
 		Integer trashBy = s.trash() ? authUserId.get() : null;
 
 		int idSector;
@@ -265,7 +360,7 @@ public class SectorRepository {
 				.update();
 			}
 		} else {
-			areaRepo.getObject().ensureAdminWriteArea(authUserId, s.areaId());
+			areaRepo.ensureAdminWriteArea(authUserId, s.areaId());
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
 					INSERT INTO sector (area_id, name, description, access_info, access_closed, parking_coordinates_id, 
@@ -408,101 +503,6 @@ public class SectorRepository {
 			return null;
 		}
 		return new ArrayList<>(idSectorOutline.getOrDefault(idSector, List.of()));
-	}
-
-	@Transactional(readOnly = true)
-	protected Map<Integer, List<Coordinates>> getSectorOutlines(Collection<Integer> idSectors) {
-		if (idSectors.isEmpty()) throw new IllegalArgumentException("idSectors is empty");
-		var res = new HashMap<Integer, List<Coordinates>>();
-		jdbcClient.sql("SELECT so.sector_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source " +
-				"FROM sector_outline so " +
-				"JOIN coordinates c ON so.coordinates_id = c.id " +
-				"WHERE so.sector_id IN (:ids) " +
-				"ORDER BY so.sorting")
-		.param("ids", idSectors)
-		.query(rs -> {
-			res.computeIfAbsent(rs.getInt("sector_id"), _ -> new ArrayList<>())
-			.add(new Coordinates(
-					rs.getInt("id"),
-					rs.getDouble("latitude"),
-					rs.getDouble("longitude"),
-					rs.getDouble("elevation"),
-					rs.getString("elevation_source")
-					));
-		});
-		return res;
-	}
-
-	@Transactional(readOnly = true)
-	protected Map<Integer, List<SectorProblem>> getSectorProblems(Setup setup, Optional<Integer> authUserId, int optAreaId, int optSectorId) {
-		if (!((optAreaId == 0 && optSectorId > 0) || (optAreaId > 0 && optSectorId == 0))) {
-			throw new IllegalArgumentException("Invalid area/sector id combination");
-		}
-
-		var sql = """
-				WITH req AS (
-				    SELECT ? auth_user_id, ? area_id, ? sector_id, ? include_fa_aid
-				),
-				filtered_problems AS (
-				    SELECT p.*
-				    FROM problem p
-				    JOIN sector s ON s.id = p.sector_id
-				    JOIN area a ON s.area_id = a.id
-				    LEFT JOIN user_region ur ON a.region_id = ur.region_id AND ur.user_id = (SELECT auth_user_id FROM req)
-				    WHERE (( (SELECT area_id FROM req) > 0 AND a.id = (SELECT area_id FROM req)) 
-				        OR ((SELECT sector_id FROM req) > 0 AND p.sector_id = (SELECT sector_id FROM req)))
-				      AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				),
-				fa_agg AS (
-				    SELECT f.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname, ''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_names,
-				           MAX(CASE WHEN u.id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_is_fa
-				    FROM fa f JOIN user u ON f.user_id = u.id WHERE f.problem_id IN (SELECT id FROM filtered_problems) GROUP BY f.problem_id
-				),
-				fa_aid_agg AS (
-				    SELECT a.problem_id, GROUP_CONCAT(DISTINCT TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))) ORDER BY u.firstname, u.lastname SEPARATOR ', ') AS fa_aid_names, YEAR(a.aid_date) fa_aid_date
-				    FROM fa_aid a JOIN fa_aid_user au ON a.problem_id=au.problem_id JOIN user u ON au.user_id = u.id WHERE a.problem_id IN (SELECT id FROM filtered_problems) GROUP BY a.problem_id, a.aid_date
-				),
-				tick_agg AS (
-				    SELECT t.problem_id, COUNT(t.id) AS total_ticks, ROUND(AVG(NULLIF(t.stars, -1)), 1) AS avg_stars, MAX(CASE WHEN t.user_id = (SELECT auth_user_id FROM req) THEN 1 ELSE 0 END) AS user_ticked
-				    FROM tick t WHERE t.problem_id IN (SELECT id FROM filtered_problems) GROUP BY t.problem_id
-				),
-				media_agg AS (
-				    SELECT mp.problem_id, COUNT(DISTINCT CASE WHEN m.is_movie = 0 THEN m.id END) AS num_images, COUNT(DISTINCT CASE WHEN m.is_movie = 1 THEN m.id END) AS num_movies
-				    FROM media_problem mp JOIN media m ON mp.media_id = m.id WHERE mp.trivia = 0 AND m.deleted_user_id IS NULL AND mp.problem_id IN (SELECT id FROM filtered_problems) GROUP BY mp.problem_id
-				)
-				SELECT p.sector_id, p.id, p.broken, p.locked_admin, p.locked_superadmin, p.nr, p.name, p.rock, p.description, fa_aid.fa_aid_names, fa_aid.fa_aid_date, fa.fa_names, YEAR(p.fa_date) AS ffa_year, ty.id AS type_id, ty.type, ty.subtype, g.weight, g.grade, COALESCE(t.total_ticks, 0) AS total_ticks, COALESCE(t.avg_stars, 0) AS stars, GREATEST(COALESCE(t.user_ticked, 0), COALESCE(fa.user_is_fa, 0)) AS ticked, CASE WHEN todo.id IS NOT NULL THEN 1 ELSE 0 END AS todo, gb.danger, p.length_meter, co.id AS coordinates_id, co.latitude, co.longitude, co.elevation, co.elevation_source, (SELECT COUNT(*) FROM problem_section ps WHERE ps.problem_id = p.id) AS num_pitches, COALESCE(m.num_images, 0) AS num_images, COALESCE(m.num_movies, 0) AS num_movies, CASE WHEN EXISTS (SELECT 1 FROM svg WHERE svg.problem_id = p.id) THEN 1 ELSE 0 END AS has_topo
-				FROM filtered_problems p
-				JOIN grade g ON p.consensus_grade_id = g.id
-				JOIN type ty ON p.type_id = ty.id
-				LEFT JOIN coordinates co ON p.coordinates_id = co.id
-				LEFT JOIN fa_agg fa ON p.id = fa.problem_id
-				LEFT JOIN fa_aid_agg fa_aid ON p.id = fa_aid.problem_id
-				LEFT JOIN tick_agg t ON p.id = t.problem_id
-				LEFT JOIN media_agg m ON p.id = m.problem_id
-				LEFT JOIN todo ON p.id = todo.problem_id AND todo.user_id = (SELECT auth_user_id FROM req)
-				LEFT JOIN LATERAL (SELECT danger FROM guestbook WHERE problem_id = p.id AND (danger = 1 OR resolved = 1) ORDER BY id DESC LIMIT 1) gb ON TRUE
-				ORDER BY p.nr
-				""";
-
-		Map<Integer, List<SectorProblem>> res = new LinkedHashMap<>();
-		jdbcClient.sql(sql)
-		.params(authUserId.orElse(0), optAreaId, optSectorId, setup.isBouldering() ? 0 : 1)
-		.query(rs -> {
-			int sid = rs.getInt("sector_id");
-			int cid = rs.getInt("coordinates_id");
-			var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
-			var p = new SectorProblem(
-					rs.getInt("id"), rs.getString("broken"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
-					rs.getInt("nr"), rs.getString("name"), rs.getString("rock"), rs.getString("description"),
-					rs.getInt("weight"), rs.getString("grade"), rs.getString("fa_aid_names"), rs.getInt("fa_aid_date"),
-					rs.getString("fa_names"), rs.getInt("ffa_year"), rs.getInt("length_meter"), rs.getInt("num_pitches"),
-					rs.getInt("num_images") > 0, rs.getInt("num_movies") > 0, rs.getBoolean("has_topo"), coords,
-					rs.getInt("total_ticks"), rs.getDouble("stars"), rs.getBoolean("ticked"), rs.getBoolean("todo"),
-					new Type(rs.getInt("type_id"), rs.getString("type"), rs.getString("subtype")), rs.getBoolean("danger")
-					);
-			res.computeIfAbsent(sid, _ -> new ArrayList<>()).add(p);
-		});
-		return res;
 	}
 
 	@Transactional

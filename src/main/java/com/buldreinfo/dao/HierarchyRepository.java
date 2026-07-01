@@ -46,14 +46,62 @@ import com.buldreinfo.model.Type;
 @Repository
 public class HierarchyRepository {
 	private static final Logger logger = LogManager.getLogger();
-	private final JdbcClient jdbcClient;
 	private final GeoRepository geoRepo;
+	private final JdbcClient jdbcClient;
 	private final ObjectProvider<SectorRepository> sectorRepo;
 
 	public HierarchyRepository(JdbcClient jdbcClient, GeoRepository geoRepo, ObjectProvider<SectorRepository> sectorRepo) {
 		this.jdbcClient = jdbcClient;
 		this.geoRepo = geoRepo;
 		this.sectorRepo = sectorRepo;
+	}
+
+	@Transactional(readOnly = true)
+	public Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) {
+		String sqlStr;
+		int id;
+
+		if (idArea > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/area/',a.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					WHERE r.id!=? AND a.id=?
+					""";
+			id = idArea;
+		}
+		else if (idSector > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/sector/',s.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					WHERE r.id!=? AND s.id=?
+					""";
+			id = idSector;
+		}
+		else if (idProblem > 0) {
+			sqlStr = """
+					SELECT CONCAT(r.url,'/problem/',p.id) url
+					FROM region r
+					JOIN area a ON r.id=a.region_id
+					JOIN sector s ON a.id=s.area_id
+					JOIN problem p ON s.id=p.sector_id
+					WHERE r.id!=? AND p.id=?
+					""";
+			id = idProblem;
+		}
+		else {
+			throw new IllegalArgumentException("Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
+		}
+
+		return jdbcClient.sql(sqlStr)
+				.param(1, setup.idRegion())
+				.param(2, id)
+				.query(String.class)
+				.optional()
+				.map(Redirect::fromRedirectUrl)
+				.orElseThrow(() -> new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem));
 	}
 
 	@Transactional(readOnly = true)
@@ -909,52 +957,5 @@ public class HierarchyRepository {
 			top.users().add(new TopUser(userId, name, mediaIdentity, mine));
 		});
 		return new Top(topByPercentage.values(), uniqueUserIds.size());
-	}
-
-	protected Redirect getCanonicalUrl(Setup setup, int idArea, int idSector, int idProblem) {
-		String sqlStr;
-		int id;
-
-		if (idArea > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/area/',a.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					WHERE r.id!=? AND a.id=?
-					""";
-			id = idArea;
-		}
-		else if (idSector > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/sector/',s.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					JOIN sector s ON a.id=s.area_id
-					WHERE r.id!=? AND s.id=?
-					""";
-			id = idSector;
-		}
-		else if (idProblem > 0) {
-			sqlStr = """
-					SELECT CONCAT(r.url,'/problem/',p.id) url
-					FROM region r
-					JOIN area a ON r.id=a.region_id
-					JOIN sector s ON a.id=s.area_id
-					JOIN problem p ON s.id=p.sector_id
-					WHERE r.id!=? AND p.id=?
-					""";
-			id = idProblem;
-		}
-		else {
-			throw new IllegalArgumentException("Invalid parameters: idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem);
-		}
-
-		return jdbcClient.sql(sqlStr)
-				.param(1, setup.idRegion())
-				.param(2, id)
-				.query(String.class)
-				.optional()
-				.map(Redirect::fromRedirectUrl)
-				.orElseThrow(() -> new NoSuchElementException("Could not find canonical url for idArea=" + idArea + ", idSector=" + idSector + ", idProblem=" + idProblem));
 	}
 }
