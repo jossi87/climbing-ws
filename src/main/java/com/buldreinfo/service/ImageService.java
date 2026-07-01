@@ -78,7 +78,7 @@ public class ImageService {
 	}
 
 	public void analyzeAndSaveAsync(int idMedia, byte[] imgBytes, int width, int height) {
-		Thread.startVirtualThread(() -> {
+		imageProcessingExecutor.execute(() -> {
 			try {
 				var result = imageClassifierService.analyze(imgBytes);
 				mediaRepo.saveMediaAnalysis(idMedia, width, height, result.hexColor(), result.labels(), result.objects(), false);

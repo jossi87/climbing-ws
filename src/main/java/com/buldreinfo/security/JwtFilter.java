@@ -71,27 +71,22 @@ public class JwtFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String accessToken = extractToken(request);
 
-		try {
-			if (accessToken != null && !accessToken.isBlank()) {
-				try {
-					Setup setup = requestContext.getSetup(request);
-					String headerJson = objectMapper.writeValueAsString(getHeaders(request));
+		if (accessToken != null && !accessToken.isBlank()) {
+			try {
+				Setup setup = requestContext.getSetup(request);
+				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
 
-					tokenService.processAuthentication(accessToken, setup, headerJson)
-					.ifPresent(userId -> {
-						UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
-						SecurityContextHolder.getContext().setAuthentication(auth);
-					});
-				} catch (Exception e) {
-					logger.error("JWT Authentication failed", e);
-					SecurityContextHolder.clearContext();
-				}
-			}
-			filterChain.doFilter(request, response);
-		} finally {
-			if (accessToken != null && !accessToken.isBlank()) {
+				tokenService.processAuthentication(accessToken, setup, headerJson)
+				.ifPresent(userId -> {
+					UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+					SecurityContextHolder.getContext().setAuthentication(auth);
+				});
+			} catch (Exception e) {
+				logger.error("JWT Authentication failed", e);
 				SecurityContextHolder.clearContext();
 			}
 		}
+
+		filterChain.doFilter(request, response);
 	}
 }
