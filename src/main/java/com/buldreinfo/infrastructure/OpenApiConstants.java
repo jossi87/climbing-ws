@@ -26,6 +26,9 @@ public final class OpenApiConstants {
 	public static final String FORBIDDEN_CODE = "403";
 	public static final String FORBIDDEN_DESCRIPTION = "Insufficient permissions.";
 
+	public static final String TOO_MANY_REQUESTS_CODE = "429";
+	public static final String TOO_MANY_REQUESTS_DESCRIPTION = "Daily rate limit exceeded.";
+
 	public static final String INTERNAL_SERVER_ERROR_CODE = "500";
 	public static final String INTERNAL_SERVER_ERROR_DESCRIPTION = "An unexpected error occurred";
 

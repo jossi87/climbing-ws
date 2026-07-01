@@ -20,9 +20,9 @@ import com.buldreinfo.dao.TickRepository;
 import com.buldreinfo.dao.TodoRepository;
 import com.buldreinfo.dao.TrashRepository;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.DangerousArea;
 import com.buldreinfo.model.PermissionUser;
@@ -95,6 +95,8 @@ public class InteractionController {
 	@Operation(summary = "Get permissions", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = PermissionUser.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
@@ -127,7 +129,7 @@ public class InteractionController {
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/ticks", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Ticks> getTicks(HttpServletRequest request,
-			@Parameter(description = "Page (ticks ordered descending, 0 returns first page)", required = false) @RequestParam(name = "page", defaultValue = "0") int page
+			@Parameter(description = "Page (ticks ordered descending, 1 returns first page)", required = false) @RequestParam(name = "page", defaultValue = "0") int page
 			) {
 		if (page < 1) throw new ValidationFailedException("Invalid page index (must be >= 1)");
 		var setup = requestContext.getSetup(request);
@@ -168,6 +170,8 @@ public class InteractionController {
 	@Operation(summary = "Get trash", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Trash.class)))}),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)

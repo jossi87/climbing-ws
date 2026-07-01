@@ -16,6 +16,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.GradeConverter;
 import com.buldreinfo.infrastructure.CacheConstants;
 import com.buldreinfo.model.CompassDirection;
@@ -36,7 +38,7 @@ public class RegionRepository {
 
 	@Transactional(readOnly = true)
 	public void ensureAdminWriteRegion(Setup setup, Optional<Integer> authUserId) {
-		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
+		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 
 		var authorized = jdbcClient.sql("SELECT admin_write, superadmin_write FROM user_region WHERE region_id=? AND user_id=?")
 				.param(setup.idRegion())
@@ -45,12 +47,12 @@ public class RegionRepository {
 				.optional()
 				.orElse(false);
 
-		if (!authorized) throw new IllegalArgumentException("Insufficient permissions");
+		if (!authorized) throw new ForbiddenException("Insufficient permissions");
 	}
 
 	@Transactional(readOnly = true)
 	public void ensureSuperadminWriteRegion(Setup setup, Optional<Integer> authUserId) {
-		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
+		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 
 		var authorized = jdbcClient.sql("SELECT superadmin_write FROM user_region WHERE region_id=? AND user_id=?")
 				.param(setup.idRegion())
@@ -59,7 +61,7 @@ public class RegionRepository {
 				.optional()
 				.orElse(false);
 
-		if (!authorized) throw new IllegalArgumentException("Insufficient permissions");
+		if (!authorized) throw new ForbiddenException("Insufficient permissions");
 	}
 
 	@Transactional(readOnly = true)

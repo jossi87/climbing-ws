@@ -6,7 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,16 +14,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.SectorRepository;
+import com.buldreinfo.exception.InternalServerErrorException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.Redirect;
@@ -117,7 +116,7 @@ public class SectorsController {
 				generator.writeArea(setup, area, gradeDistribution, List.of(sector));
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF generation failed", e);
+				throw new InternalServerErrorException("PDF generation failed", e);
 			}
 		};
 		return ResponseEntity.ok()

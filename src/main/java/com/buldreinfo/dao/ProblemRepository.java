@@ -23,6 +23,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.Coordinates;
@@ -209,7 +211,7 @@ public class ProblemRepository {
 	@Transactional(readOnly = true)
 	public List<ProblemSearchResult> getProblemsSearch(Optional<Integer> authUserId, Setup setup, String search) {
 		if (authUserId.isEmpty()) {
-			throw new IllegalArgumentException("User not logged in...");
+			throw new UnauthorizedException("User not logged in");
 		}
 		if (search == null || search.strip().isEmpty()) {
 			return List.of();
@@ -252,7 +254,7 @@ public class ProblemRepository {
 
 	@Transactional
 	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) {
-		if (authUserId.isEmpty()) throw new IllegalArgumentException("User not logged in");
+		if (authUserId.isEmpty()) throw new UnauthorizedException("User not logged in");
 
 		var dt = (p.faDate() == null || p.faDate().isEmpty()) ? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 		var isLockedAdmin = p.lockedSuperadmin() ? false : p.lockedAdmin();
@@ -314,7 +316,7 @@ public class ProblemRepository {
 			for (var x : p.fa()) {
 				if (x.id() == 0) throw new IllegalArgumentException("FA user id must not be 0");
 				int userId = x.id() > 0 ? x.id() : userRepo.addUser(null, x.name(), null);
-				if (userId <= 0) throw new IllegalArgumentException("Failed to create user");
+				if (userId <= 0) throw new IllegalStateException("Failed to create user");
 				if (!toDelete.remove(userId)) jdbcClient.sql("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)").params(idProblem, userId).update();
 			}
 			for (var userId : toDelete) jdbcClient.sql("DELETE FROM fa WHERE problem_id=? AND user_id=?").params(idProblem, userId).update();
@@ -337,7 +339,7 @@ public class ProblemRepository {
 				jdbcClient.sql("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)").params(idProblem, aidDt, StringUtils.stripToNull(p.faAid().description())).update();
 				for (var u : p.faAid().users()) {
 					int userId = u.id() > 0 ? u.id() : userRepo.addUser(null, u.name(), null);
-					if (userId <= 0) throw new IllegalArgumentException("Failed to create user for faAid");
+					if (userId <= 0) throw new IllegalStateException("Failed to create user for faAid");
 					jdbcClient.sql("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)").params(idProblem, userId).update();
 				}
 			}
@@ -350,7 +352,7 @@ public class ProblemRepository {
 
 	@Transactional
 	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) {
-		int userId = authUserId.orElseThrow(() -> new IllegalArgumentException("Not logged in"));
+		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("Not logged in"));
 		int idGuestbook = co.id();
 
 		if (idGuestbook > 0) {
@@ -358,7 +360,7 @@ public class ProblemRepository {
 			ProblemComment comment = p.comments().stream()
 					.filter(x -> x.id() == co.id())
 					.findAny()
-					.orElseThrow(() -> new IllegalArgumentException("No comment on problem " + co.idProblem()));
+					.orElseThrow(() -> new NoSuchElementException("No comment on problem " + co.idProblem()));
 
 			if (comment.editable()) {
 				if (co.delete()) {
@@ -374,7 +376,7 @@ public class ProblemRepository {
 				.params(co.danger(), co.id())
 				.update();
 			} else {
-				throw new IllegalArgumentException("Comment not editable by " + userId + ". Other users can only mark as dangerous");
+				throw new ForbiddenException("Comment not editable by " + userId + ". Other users can only mark as dangerous");
 			}
 		} else {
 			Objects.requireNonNull(StringUtils.stripToNull(co.comment()));
@@ -595,7 +597,7 @@ public class ProblemRepository {
 
 	@Transactional(readOnly = true)
 	protected void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) {
-		int userId = authUserId.orElseThrow(() -> new IllegalArgumentException("User not authenticated"));
+		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("User not authenticated"));
 
 		boolean ok = jdbcClient.sql("""
 				SELECT ur.admin_write, ur.superadmin_write 
@@ -614,7 +616,7 @@ public class ProblemRepository {
 				.orElse(false);
 
 		if (!ok) {
-			throw new IllegalArgumentException("Insufficient permissions");
+			throw new ForbiddenException("Insufficient permissions");
 		}
 	}
 

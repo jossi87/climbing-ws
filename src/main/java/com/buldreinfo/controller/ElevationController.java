@@ -1,6 +1,5 @@
 package com.buldreinfo.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,10 +7,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.exception.UnauthorizedException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.service.ElevationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,7 @@ public class ElevationController {
 
 	@Operation(summary = "Get elevation by latitude and longitude", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = Integer.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = "Forbidden: Authentication required"),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
@@ -57,7 +57,7 @@ public class ElevationController {
 		}
 		var authUserId = requestContext.getAuthenticatedUserId();
 		if (authUserId.isEmpty()) {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+			throw new UnauthorizedException("Authentication required");
 		}
 		int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
 		return ResponseEntity.ok(String.valueOf(elevation));

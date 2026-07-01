@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.User;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -57,6 +57,7 @@ public class UsersController {
 
 	@Operation(summary = "Get ticks (public ascents) on logged in user as Excel file (xlsx)", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)

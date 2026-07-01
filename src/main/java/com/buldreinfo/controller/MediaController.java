@@ -33,16 +33,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.AsyncConfig;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.RegionRepository;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.InternalServerErrorException;
+import com.buldreinfo.exception.TooManyRequestsException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.VideoInitPayload;
@@ -123,7 +125,6 @@ public class MediaController {
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<Media> getMedia(@RequestParam(name = "idMedia") int idMedia) {
 		if (idMedia <= 0) throw new ValidationFailedException("Invalid idMedia=" + idMedia);
 		var authUserId = requestContext.getAuthenticatedUserId();
@@ -223,7 +224,7 @@ public class MediaController {
 			try {
 				return file.getInputStream();
 			} catch (IOException e) {
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read uploaded file", e);
+				throw new InternalServerErrorException("Failed to read uploaded file", e);
 			}
 		});
 		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newMediaId));
@@ -234,6 +235,7 @@ public class MediaController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.TOO_MANY_REQUESTS_CODE, description = OpenApiConstants.TOO_MANY_REQUESTS_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@PostMapping("/instagram-save")
@@ -246,7 +248,7 @@ public class MediaController {
 		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50)
-			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
+			throw new TooManyRequestsException("Daily limit reached");
 
 		mediaPayload.ensureCorrectMediaAssociations(authUserId);
 		if (isVideo) {
@@ -303,6 +305,7 @@ public class MediaController {
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.FORBIDDEN_CODE, description = OpenApiConstants.FORBIDDEN_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.TOO_MANY_REQUESTS_CODE, description = OpenApiConstants.TOO_MANY_REQUESTS_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
 	@PostMapping("/instagram-scrape")
@@ -311,7 +314,7 @@ public class MediaController {
 		if (url == null || url.isBlank()) throw new ValidationFailedException("Instagram URL is required");
 		var authUserId = requestContext.getAuthenticatedUserId();
 		if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50)
-			throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily limit reached");
+			throw new TooManyRequestsException("Daily limit reached");
 		List<InstagramService.InstagramMedia> list = instagramService.resolveMedia(url);
 		mediaRepo.logInstagramScrape(authUserId, url, list.size());
 		return ResponseEntity.ok(list);
@@ -349,7 +352,7 @@ public class MediaController {
 		var authUserId = requestContext.getAuthenticatedUserId();
 		Media m = mediaRepo.getMedia(authUserId, id);
 		if (!m.isMovie()) throw new ValidationFailedException("Target is not a video");
-		if (!m.uploadedByMe()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Permission denied");
+		if (!m.uploadedByMe()) throw new ForbiddenException("Permission denied");
 
 		CompletableFuture.runAsync(() -> {
 			try {

@@ -8,7 +8,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.beans.StorageType;
@@ -25,9 +23,10 @@ import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
+import com.buldreinfo.exception.InternalServerErrorException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
 import com.buldreinfo.model.GradeDistribution;
@@ -103,6 +102,13 @@ public class AreasController {
 		return ResponseEntity.ok(res);
 	}
 
+	@Operation(summary = "Get area as PDF", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_PDF_VALUE, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
+	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	@GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
 	public ResponseEntity<StreamingResponseBody> getAreasPdf(HttpServletRequest request,  @RequestParam(name = "id") int id) {
 		if (id <= 0) {
@@ -121,7 +127,7 @@ public class AreasController {
 				generator.writeArea(setup, area, gradeDistribution, sectors);
 			} catch (Exception e) {
 				logger.error("PDF generation failed: {}", e.getMessage(), e);
-				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF generation failed", e);
+				throw new InternalServerErrorException("PDF generation failed", e);
 			}
 		};
 		return ResponseEntity.ok()

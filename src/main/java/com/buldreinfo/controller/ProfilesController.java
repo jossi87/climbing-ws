@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.UserRepository;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Profile;
 import com.buldreinfo.model.Profile.ProfileIdentity;
@@ -67,6 +67,7 @@ public class ProfilesController {
 
 	@Operation(summary = "Get profile ascents", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ProfileAscent.class)))}),
+			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
 			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
 	})
@@ -125,7 +126,7 @@ public class ProfilesController {
 	public ResponseEntity<Void> postProfilesIdentity(@RequestBody ProfileIdentity profile) {
 		if (profile == null) throw new ValidationFailedException("Profile identity payload is missing");
 		var authUserId = requestContext.getAuthenticatedUserId();
-			userRepo.setProfile(authUserId, profile);
+		userRepo.setProfile(authUserId, profile);
 		return ResponseEntity.ok().build();
 	}
 
@@ -142,7 +143,7 @@ public class ProfilesController {
 			throw new ValidationFailedException("Invalid theme preference. Must be 'light' or 'dark'.");
 		}
 		var authUserId = requestContext.getAuthenticatedUserId();
-			userRepo.setThemePreference(authUserId, themePreference);
+		userRepo.setThemePreference(authUserId, themePreference);
 		return ResponseEntity.ok().build();
 	}
 }

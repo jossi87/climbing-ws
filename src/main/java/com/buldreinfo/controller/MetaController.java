@@ -6,13 +6,11 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
@@ -20,9 +18,10 @@ import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.excel.ExcelWorkbook;
+import com.buldreinfo.exception.InternalServerErrorException;
+import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.infrastructure.ValidationFailedException;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Toc;
@@ -99,7 +98,10 @@ public class MetaController {
 		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo));
 	}
 
-	@Operation(summary = "Get robots.txt")
+	@Operation(summary = "Get robots.txt", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<String> getRobotsTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -107,7 +109,10 @@ public class MetaController {
 		return ResponseEntity.ok(String.join("\r\n", lines));
 	}
 
-	@Operation(summary = "Get sitemap.txt")
+	@Operation(summary = "Get sitemap.txt", responses = {
+			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = String.class))}),
+			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
+	})
 	@GetMapping(value = "/sitemap.txt", produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<String> getSitemapTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -151,7 +156,7 @@ public class MetaController {
 					.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
 					.body(os.toByteArray());
 		} catch (IOException e) {
-			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate Excel export", e);
+			throw new InternalServerErrorException("Failed to generate Excel export", e);
 		}
 	}
 

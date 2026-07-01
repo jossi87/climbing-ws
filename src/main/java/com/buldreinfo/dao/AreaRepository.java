@@ -21,6 +21,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.beans.Setup;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
@@ -184,8 +186,8 @@ public class AreaRepository {
 
 	@Transactional
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
-		if (authUserId.isEmpty()) throw new IllegalArgumentException("Not logged in");
-		if (s.idRegion() <= 0) throw new IllegalArgumentException("Insufficient credentials");
+		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
+		if (s.idRegion() <= 0) throw new ForbiddenException("Insufficient credentials");
 
 		final boolean isLockedAdmin = !a.lockedSuperadmin() && a.lockedAdmin();
 		boolean setPermissionRecursive = false;
@@ -396,7 +398,7 @@ public class AreaRepository {
 				.orElse(false);
 
 		if (!ok) {
-			throw new IllegalArgumentException("Insufficient permissions");
+			throw new ForbiddenException("Insufficient permissions");
 		}
 	}
 }

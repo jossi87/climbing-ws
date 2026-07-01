@@ -8,6 +8,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.buldreinfo.config.AsyncConfig;
+
 @Component
 public class HitTrackingListener {
 
@@ -23,7 +25,7 @@ public class HitTrackingListener {
 		this.jdbcClient = jdbcClient;
 	}
 
-	@Async("hitTrackingExecutor")
+	@Async(AsyncConfig.TRACKING_EXECUTOR_BEAN_NAME)
 	@EventListener
 	@Transactional
 	public void handleAreaHit(AreaHitEvent event) {
@@ -37,7 +39,7 @@ public class HitTrackingListener {
 		}
 	}
 
-	@Async("hitTrackingExecutor")
+	@Async(AsyncConfig.TRACKING_EXECUTOR_BEAN_NAME)
 	@EventListener
 	@Transactional
 	public void handleSectorHit(SectorHitEvent event) {
@@ -51,7 +53,7 @@ public class HitTrackingListener {
 		}
 	}
 
-	@Async("hitTrackingExecutor")
+	@Async(AsyncConfig.TRACKING_EXECUTOR_BEAN_NAME)
 	@EventListener
 	@Transactional
 	public void handleProblemHit(ProblemHitEvent event) {

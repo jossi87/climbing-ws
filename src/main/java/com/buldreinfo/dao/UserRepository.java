@@ -31,6 +31,8 @@ import com.buldreinfo.beans.Auth0Profile;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.excel.ExcelSheet;
 import com.buldreinfo.excel.ExcelWorkbook;
+import com.buldreinfo.exception.ForbiddenException;
+import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.TimeAgo;
 import com.buldreinfo.model.Administrator;
 import com.buldreinfo.model.AuthenticatedUser;
@@ -614,7 +616,7 @@ public class UserRepository {
 	@Transactional(readOnly = true)
 	public List<User> getUserSearch(Optional<Integer> authUserId, String value) {
 		if (authUserId.isEmpty()) {
-			throw new IllegalArgumentException("User not logged in...");
+			throw new UnauthorizedException("User not logged in...");
 		}
 
 		if (value == null || value.isBlank()) {
@@ -752,7 +754,7 @@ public class UserRepository {
 			});
 
 			if (sheets.isEmpty()) {
-			    logger.warn("Excel export for user {} generated an empty workbook (0 rows found).", userId);
+				logger.warn("Excel export for user {} generated an empty workbook (0 rows found).", userId);
 			}
 			workbook.write(os);
 			return os.toByteArray();
@@ -773,7 +775,7 @@ public class UserRepository {
 	@Transactional
 	public void setProfile(Optional<Integer> authUserId, ProfileIdentity profile) {
 		if (authUserId.orElse(0) != profile.id()) {
-			throw new IllegalArgumentException("Wrong input");
+			throw new ForbiddenException("Wrong input");
 		}
 		if (profile.firstname() == null || profile.firstname().isBlank()) {
 			throw new IllegalArgumentException("Firstname cannot be null");
@@ -966,7 +968,7 @@ public class UserRepository {
 		int id = keyHolder.getKey().intValue();
 
 		if (id <= 0) {
-			throw new IllegalArgumentException("Failed to generate ID for firstname=" + firstname + ", lastname=" + lastname);
+			throw new IllegalStateException("Failed to generate ID for firstname=" + firstname + ", lastname=" + lastname);
 		}
 
 		if (email != null && !email.isBlank()) {
@@ -1000,7 +1002,7 @@ public class UserRepository {
 
 		int usId = addUser(null, name, null);
 		if (usId <= 0) {
-			throw new IllegalArgumentException("Failed to create user: " + name);
+			throw new IllegalStateException("Failed to create user: " + name);
 		}
 		return usId;
 	}

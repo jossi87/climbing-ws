@@ -33,8 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.io.StorageManager;
+import com.buldreinfo.exception.ForbiddenException;
 import com.buldreinfo.io.ExifReader.ImageRotation;
+import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Media.Association;
 import com.buldreinfo.model.Media.MediaProblem;
@@ -605,7 +606,7 @@ public class MediaRepository {
 				.params(authId, id)
 				.query((rs, _) -> {
 					boolean ok = rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write") || rs.getInt("uploader_user_id") == authId;
-					if (!ok) throw new IllegalArgumentException("Insufficient permissions");
+					if (!ok) throw new ForbiddenException("Insufficient permissions");
 
 					int areaId = rs.getInt("area_id");
 					int sectorId = rs.getInt("sector_id");
@@ -829,7 +830,7 @@ public class MediaRepository {
 				.anyMatch(Boolean::booleanValue);
 
 		if (!authorized) {
-			throw new IllegalArgumentException("Insufficient permissions");
+			throw new ForbiddenException("Insufficient permissions");
 		}
 	}
 
