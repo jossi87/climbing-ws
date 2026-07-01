@@ -28,21 +28,20 @@ public class HitTrackingFilter extends OncePerRequestFilter {
 	private static final Logger logger = LogManager.getLogger();
 	private static String anonymizeIp(String ip) {
 		if (ip == null || ip.isBlank()) return "";
+		String clientIp = ip.contains(",") ? ip.split(",")[0].trim() : ip.trim();
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hash = digest.digest(ip.getBytes(StandardCharsets.UTF_8));
+			byte[] hash = digest.digest(clientIp.getBytes(StandardCharsets.UTF_8));
 			return HexFormat.of().formatHex(hash);
 		} catch (NoSuchAlgorithmException e) {
-			logger.warn(e.getMessage(), e);
-			// Fallback: truncate to first 3 octets (e.g. "192.168.1.xxx")
-			int lastDot = ip.lastIndexOf('.');
-			if (lastDot > 0) return ip.substring(0, lastDot) + ".xxx";
-			int lastColon = ip.lastIndexOf(':');
-			if (lastColon > 0) return ip.substring(0, lastColon) + ":xxxx";
+			logger.warn("SHA-256 not available, falling back to truncation", e);
+			int lastDot = clientIp.lastIndexOf('.');
+			if (lastDot > 0) return clientIp.substring(0, lastDot) + ".xxx";
+			int lastColon = clientIp.lastIndexOf(':');
+			if (lastColon > 0) return clientIp.substring(0, lastColon) + ":xxxx";
 			return "[redacted]";
 		}
 	}
-
 	private final Cache cache;
 
 	public HitTrackingFilter(CacheManager cacheManager) {
