@@ -27,7 +27,7 @@ public class GeoRepository {
 	}
 
 	private void fillMissingElevations() {
-		var coordinatesMissingElevation = jdbcClient.sql("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL")
+		var coordinatesMissingElevation = jdbcClient.sql("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL OR elevation_source IS NULL")
 				.query((rs, _) -> new Coordinates(
 						rs.getInt("id"), 
 						rs.getDouble("latitude"), 
@@ -38,13 +38,16 @@ public class GeoRepository {
 
 		if (!coordinatesMissingElevation.isEmpty()) {
 			elevationService.fillElevations(coordinatesMissingElevation);
-			for (var coord : coordinatesMissingElevation) {
-				jdbcClient.sql("UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?")
-				.param(1, coord.getElevation())
-				.param(2, coord.getElevationSource())
-				.param(3, coord.getId())
-				.update();
-			}
+			jdbcTemplate.batchUpdate(
+					"UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?",
+					coordinatesMissingElevation,
+					100,
+					(ps, coord) -> {
+						ps.setDouble(1, coord.getElevation());
+						ps.setString(2, coord.getElevationSource());
+						ps.setInt(3, coord.getId());
+					}
+					);
 		}
 	}
 
@@ -63,10 +66,14 @@ public class GeoRepository {
 				(ps, coord) -> {
 					ps.setDouble(1, coord.getLatitude());
 					ps.setDouble(2, coord.getLongitude());
-					ps.setObject(3, coord.getElevationSource() != null ? coord.getElevation() : null);
-					ps.setObject(4, coord.getElevationSource() != null ? coord.getElevationSource() : null);
-				}
-				);
+					if (coord.getElevationSource() != null) {
+						ps.setDouble(3, coord.getElevation());
+						ps.setString(4, coord.getElevationSource());
+					} else {
+						ps.setObject(3, null);
+						ps.setObject(4, null);
+					}
+				});
 
 		fillMissingElevations();
 
