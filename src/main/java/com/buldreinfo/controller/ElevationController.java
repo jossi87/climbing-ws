@@ -7,18 +7,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.helpers.GeoHelper;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.service.ElevationService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -34,17 +30,12 @@ public class ElevationController {
 		this.elevationService = elevationService;
 	}
 
-	@Operation(summary = "Get elevation by latitude and longitude", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = Integer.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get elevation by latitude and longitude")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
-	public ResponseEntity<String> getElevation(
-			@Parameter(description = "Latitude (-90 to 90)", required = true) @RequestParam(name = "latitude") double latitude,
-			@Parameter(description = "Longitude (-180 to 180)", required = true) @RequestParam(name = "longitude") double longitude) {
+	public ResponseEntity<Integer> getElevation(
+			@RequestParam(name = "latitude") double latitude,
+			@RequestParam(name = "longitude") double longitude) {
 
 		if (latitude < -90 || latitude > 90) {
 			throw new ValidationFailedException("Invalid latitude: must be between -90 and 90");
@@ -60,6 +51,6 @@ public class ElevationController {
 			throw new UnauthorizedException("Authentication required");
 		}
 		int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
-		return ResponseEntity.ok(String.valueOf(elevation));
+		return ResponseEntity.ok(elevation);
 	}
 }

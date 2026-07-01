@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 import org.springframework.http.HttpHeaders;
@@ -17,8 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.buldreinfo.beans.Setup;
-import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.infrastructure.OpenApiConstants;
+import com.buldreinfo.infrastructure.RequestContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.FilterChain;
@@ -29,23 +27,23 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 	private static final Set<String> LOGGED_HEADER_ALLOWLIST = Set.of("user-agent", "x-forwarded-for", "x-real-ip", "cf-connecting-ip", "accept-language", "origin", "referer");
-	private static final Set<String> REDACTED_HEADER_NAMES = Set.of(OpenApiConstants.AUTH_HEADER.toLowerCase(Locale.ROOT), "cookie", "set-cookie", "x-api-key");
+	private static final Set<String> REDACTED_HEADER_NAMES = Set.of("authorization", "cookie", "set-cookie", "x-api-key");
 	private final ObjectMapper objectMapper;
-	private final RegionRepository regionRepo;
+	private final RequestContext requestContext;
 	private final TokenService tokenService;
 
-	public JwtFilter(ObjectMapper objectMapper, TokenService tokenService, RegionRepository regionRepo) {
+	public JwtFilter(ObjectMapper objectMapper, TokenService tokenService, RequestContext requestContext) {
 		this.objectMapper = objectMapper;
 		this.tokenService = tokenService;
-		this.regionRepo = regionRepo;
+		this.requestContext = requestContext;
 	}
 
 	private String extractToken(HttpServletRequest request) {
-		String authHeader = request.getHeader(OpenApiConstants.AUTH_HEADER);
-		if (authHeader != null && !authHeader.isBlank() && authHeader.startsWith(OpenApiConstants.BEARER_PREFIX)) {
-			return authHeader.substring(OpenApiConstants.BEARER_PREFIX.length());
+		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+		if (authHeader != null && !authHeader.isBlank() && authHeader.startsWith("Bearer ")) {
+			return authHeader.substring("Bearer ".length());
 		}
-		return request.getParameter(OpenApiConstants.ACCESS_TOKEN_PARAM);
+		return request.getParameter("access_token");
 	}
 
 	private Map<String, String> getHeaders(HttpServletRequest request) {
@@ -58,8 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
 			if (REDACTED_HEADER_NAMES.contains(lower)) {
 				map.put(name, "[REDACTED]");
 				seen.add(lower);
-			}
-			else if (LOGGED_HEADER_ALLOWLIST.contains(lower)) {
+			} else if (LOGGED_HEADER_ALLOWLIST.contains(lower)) {
 				map.put(name, request.getHeader(name));
 				seen.add(lower);
 			}
@@ -74,23 +71,27 @@ public class JwtFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 		String accessToken = extractToken(request);
 
-		if (accessToken != null && !accessToken.isBlank()) {
-			try {
-				Setup setup = regionRepo.getSetups().stream()
-						.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
-						.findFirst()
-						.orElseThrow(() -> new NoSuchElementException("Setup not found for domain: " + request.getServerName()));
+		try {
+			if (accessToken != null && !accessToken.isBlank()) {
+				try {
+					Setup setup = requestContext.getSetup(request);
+					String headerJson = objectMapper.writeValueAsString(getHeaders(request));
 
-				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
-				tokenService.processAuthentication(accessToken, setup, headerJson)
-				.ifPresent(userId -> {
-					UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
-					SecurityContextHolder.getContext().setAuthentication(auth);
-				});
-			} catch (Exception e) {
-				logger.error("JWT Authentication failed", e);
+					tokenService.processAuthentication(accessToken, setup, headerJson)
+					.ifPresent(userId -> {
+						UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+						SecurityContextHolder.getContext().setAuthentication(auth);
+					});
+				} catch (Exception e) {
+					logger.error("JWT Authentication failed", e);
+					SecurityContextHolder.clearContext();
+				}
+			}
+			filterChain.doFilter(request, response);
+		} finally {
+			if (accessToken != null && !accessToken.isBlank()) {
+				SecurityContextHolder.clearContext();
 			}
 		}
-		filterChain.doFilter(request, response);
 	}
 }

@@ -9,18 +9,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.Activity;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,22 +32,18 @@ public class ActivityController {
 		this.activityRepo = activityRepo;
 	}
 
-	@Operation(summary = "Get activity feed", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Activity.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get activity feed")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<List<Activity>> getActivity(HttpServletRequest request,
-			@Parameter(description = "Area id (can be 0 if idSector>0)", required = true) @RequestParam(name = "idArea") int idArea,
-			@Parameter(description = "Sector id (can be 0 if idArea>0)", required = true) @RequestParam(name = "idSector") int idSector,
-			@Parameter(description = "Filter on lower grade") @RequestParam(name = "lowerGrade", defaultValue = "0") int lowerGrade,
-			@Parameter(description = "Include first ascents") @RequestParam(name = "fa", defaultValue = "false") boolean fa,
-			@Parameter(description = "Include comments") @RequestParam(name = "comments", defaultValue = "false") boolean comments,
-			@Parameter(description = "Include ticks (public ascents)") @RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
-			@Parameter(description = "Include new media") @RequestParam(name = "media", defaultValue = "false") boolean media,
-			@Parameter(description = "Offset (see more)") @RequestParam(name = "offset", defaultValue = "0") int offset) {
+			@RequestParam(name = "idArea") int idArea,
+			@RequestParam(name = "idSector") int idSector,
+			@RequestParam(name = "lowerGrade", defaultValue = "0") int lowerGrade,
+			@RequestParam(name = "fa", defaultValue = "false") boolean fa,
+			@RequestParam(name = "comments", defaultValue = "false") boolean comments,
+			@RequestParam(name = "ticks", defaultValue = "false") boolean ticks,
+			@RequestParam(name = "media", defaultValue = "false") boolean media,
+			@RequestParam(name = "offset", defaultValue = "0") int offset) {
 		if (idArea < 0 || idSector < 0) throw new ValidationFailedException("IDs cannot be negative");
 		if (lowerGrade < 0) throw new ValidationFailedException("lowerGrade cannot be negative");
 		if (offset < 0) throw new ValidationFailedException("offset cannot be negative");

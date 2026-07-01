@@ -21,7 +21,6 @@ import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Area;
@@ -31,10 +30,6 @@ import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.Sector;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -67,9 +62,7 @@ public class WithoutJsController {
 		this.userRepo = userRepo;
 	}
 
-	@Operation(summary = "Get Frontpage without JavaScript", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_HTML_VALUE, schema = @Schema(implementation = String.class))})
-	})
+	@Operation(summary = "Get Frontpage without JavaScript")
 	@GetMapping(produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJs(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -89,11 +82,7 @@ public class WithoutJsController {
 		return ResponseEntity.ok(html);
 	}
 
-	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_HTML_VALUE, schema = @Schema(implementation = String.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
+	@Operation(summary = "Get area by id without JavaScript (for embedding on e.g. Facebook)")
 	@GetMapping(value = "/area/{id}", produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJsArea(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
@@ -107,26 +96,14 @@ public class WithoutJsController {
 		return ResponseEntity.ok(html);
 	}
 
-	@Operation(
-			summary = "Get problem details without JavaScript",
-			description = "Returns an HTML representation of a problem, suitable for embedding on platforms like Facebook. Supports optional media and pitch parameters.",
-			responses = {
-					@ApiResponse(
-							responseCode = OpenApiConstants.OK_CODE, 
-							description = OpenApiConstants.OK_DESCRIPTION, 
-							content = @Content(mediaType = MediaType.TEXT_HTML_VALUE, schema = @Schema(type = "string"))
-							),
-					@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-					@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-					@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-			}
-			)
+	@Operation(summary = "Get problem details without JavaScript",
+			description = "Returns an HTML representation of a problem, suitable for embedding on platforms like Facebook. Supports optional media and pitch parameters.")
 	@GetMapping(value = {"/problem/{id}", "/problem/{id}/{mediaId}", "/problem/{id}/{mediaId}/{pitch}"}, produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJsProblem(
 			HttpServletRequest request,
-			@Parameter(description = "Problem id", required = true) @PathVariable int id,
-			@Parameter(description = "Media id", required = false) @PathVariable(required = false) Integer mediaId,
-			@Parameter(description = "Pitch number", required = false) @PathVariable(required = false) Integer pitch) {
+			@PathVariable int id,
+			@PathVariable(name = "mediaId", required = false) Integer mediaId,
+			@PathVariable(name = "pitch", required = false) Integer pitch) {
 
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		int mid = (mediaId == null) ? 0 : mediaId;
@@ -154,11 +131,7 @@ public class WithoutJsController {
 		return ResponseEntity.ok(html);
 	}
 
-	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_HTML_VALUE, schema = @Schema(implementation = String.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
+	@Operation(summary = "Get sector by id without JavaScript (for embedding on e.g. Facebook)")
 	@GetMapping(value = "/sector/{id}", produces = MediaType.TEXT_HTML_VALUE)
 	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);

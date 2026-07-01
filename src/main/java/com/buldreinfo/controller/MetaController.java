@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
+import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.excel.ExcelWorkbook;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.GradeDistribution;
 import com.buldreinfo.model.Meta;
@@ -29,11 +29,6 @@ import com.buldreinfo.model.Toc.TocPitch;
 import com.buldreinfo.util.FilenameUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,15 +48,11 @@ public class MetaController {
 		this.regionRepo = regionRepo;
 	}
 
-	@Operation(summary = "Get grade distribution by Area Id or Sector Id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get grade distribution by Area Id or Sector Id")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/grade/distribution", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(@Parameter(description = "Area id", required = true) @RequestParam(name = "idArea") int idArea,
-			@Parameter(description = "Sector id", required = true) @RequestParam(name = "idSector") int idSector) {
+	public ResponseEntity<Collection<GradeDistribution>> getGradeDistribution(@RequestParam(name = "idArea") int idArea,
+			@RequestParam(name = "idSector") int idSector) {
 		if (idArea < 0 || idSector < 0) {
 			throw new ValidationFailedException("IDs cannot be negative");
 		}
@@ -72,12 +63,8 @@ public class MetaController {
 		return ResponseEntity.ok(hierarchyRepo.getGradeDistribution(authUserId, idArea, idSector));
 	}
 
-	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = GradeDistribution.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get graph (number of boulders/routes grouped by grade)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/graph", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Collection<GradeDistribution>> getGraph(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -85,12 +72,8 @@ public class MetaController {
 		return ResponseEntity.ok(hierarchyRepo.getContentGraph(authUserId, setup));
 	}
 
-	@Operation(summary = "Get metadata", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Meta.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get metadata")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/meta", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Meta> getMeta(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -98,10 +81,7 @@ public class MetaController {
 		return ResponseEntity.ok(Meta.from(setup, authUserId, userRepo, regionRepo));
 	}
 
-	@Operation(summary = "Get robots.txt", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = String.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
+	@Operation(summary = "Get robots.txt")
 	@GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<String> getRobotsTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -109,22 +89,15 @@ public class MetaController {
 		return ResponseEntity.ok(String.join("\r\n", lines));
 	}
 
-	@Operation(summary = "Get sitemap.txt", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.TEXT_PLAIN_VALUE, schema = @Schema(implementation = String.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
+	@Operation(summary = "Get sitemap.txt")
 	@GetMapping(value = "/sitemap.txt", produces = MediaType.TEXT_PLAIN_VALUE)
 	public ResponseEntity<String> getSitemapTxt(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		return ResponseEntity.ok(hierarchyRepo.getSitemapTxt(setup));
 	}
 
-	@Operation(summary = "Get table of contents (all problems)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Toc.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get table of contents (all problems)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/toc", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Toc> getToc(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
@@ -132,12 +105,9 @@ public class MetaController {
 		return ResponseEntity.ok(hierarchyRepo.getToc(authUserId, setup));
 	}
 
-	@Operation(summary = "Get table of contents as Excel (xlsx)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = OpenApiConstants.APPLICATION_XLSX, array = @ArraySchema(schema = @Schema(implementation = Byte.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
-	@GetMapping(value = "/toc/xlsx", produces = OpenApiConstants.APPLICATION_XLSX)
+	@Operation(summary = "Get table of contents as Excel (xlsx)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
+	@GetMapping(value = "/toc/xlsx", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	public ResponseEntity<byte[]> getTocXlsx(HttpServletRequest request) {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
@@ -153,7 +123,7 @@ public class MetaController {
 			return ResponseEntity.ok()
 					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FilenameUtil.generateFilename("TOC", StorageType.XLSX)))
 					.header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
-					.contentType(MediaType.valueOf(OpenApiConstants.APPLICATION_XLSX))
+					.contentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
 					.body(os.toByteArray());
 		} catch (IOException e) {
 			throw new InternalServerErrorException("Failed to generate Excel export", e);

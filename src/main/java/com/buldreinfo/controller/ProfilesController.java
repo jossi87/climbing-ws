@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.infrastructure.OpenApiConstants;
 import com.buldreinfo.infrastructure.RequestContext;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.Profile;
@@ -24,11 +24,6 @@ import com.buldreinfo.model.ProfileAscent;
 import com.buldreinfo.model.ProfileTodo;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,15 +42,10 @@ public class ProfilesController {
 		this.userRepo = userRepo;
 	}
 
-	@Operation(summary = "Get profile by id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Profile.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
+	@Operation(summary = "Get profile by id")
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<Profile> getProfiles(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int reqUserId) {
+			@RequestParam(name = "id") int reqUserId) {
 		if (reqUserId <= 0) throw new ValidationFailedException("Invalid user id=" + reqUserId);
 		userRepo.ensureUserExists(reqUserId);
 		var setup = requestContext.getSetup(request);
@@ -65,16 +55,11 @@ public class ProfilesController {
 		return ResponseEntity.ok(new Profile(identityFuture.join(), kpisFuture.join(), disciplinesFuture.join()));
 	}
 
-	@Operation(summary = "Get profile ascents", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = ProfileAscent.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get profile ascents")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/ascents", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<List<ProfileAscent>> getProfilesAscents(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) {
+			@RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var setup = requestContext.getSetup(request);
@@ -82,32 +67,22 @@ public class ProfilesController {
 		return ResponseEntity.ok(userRepo.getProfileAscents(authUserId, setup, id));
 	}
 
-	@Operation(summary = "Get profile media by user id", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, array = @ArraySchema(schema = @Schema(implementation = Media.class)))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get profile media by user id")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<List<Media>> getProfilesMedia(@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id,
-			@Parameter(description = "FALSE = tagged media, TRUE = captured media") @RequestParam(name = "captured", defaultValue = "false") boolean captured) {
+	public ResponseEntity<List<Media>> getProfilesMedia(@RequestParam(name = "id") int id,
+			@RequestParam(name = "captured", defaultValue = "false") boolean captured) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		return ResponseEntity.ok(mediaRepo.getProfileMedia(authUserId, id, captured));
 	}
 
-	@Operation(summary = "Get profile todo", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION, content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ProfileTodo.class))}),
-			@ApiResponse(responseCode = OpenApiConstants.NOT_FOUND_CODE, description = OpenApiConstants.NOT_FOUND_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Get profile todo")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@GetMapping(value = "/todo", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ProfileTodo> getProfilesTodo(HttpServletRequest request, 
-			@Parameter(description = "User id", required = true) @RequestParam(name = "id") int id) {
+			@RequestParam(name = "id") int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid user id=" + id);
 		userRepo.ensureUserExists(id);
 		var setup = requestContext.getSetup(request);
@@ -115,13 +90,8 @@ public class ProfilesController {
 		return ResponseEntity.ok(userRepo.getProfileTodo(authUserId, setup, id));
 	}
 
-	@Operation(summary = "Update profile identity", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Update profile identity")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@PostMapping(value = "/identity")
 	public ResponseEntity<Void> postProfilesIdentity(@RequestBody ProfileIdentity profile) {
 		if (profile == null) throw new ValidationFailedException("Profile identity payload is missing");
@@ -130,15 +100,10 @@ public class ProfilesController {
 		return ResponseEntity.ok().build();
 	}
 
-	@Operation(summary = "Update theme preference (light/dark)", responses = {
-			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.BAD_REQUEST_CODE, description = OpenApiConstants.BAD_REQUEST_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.UNAUTHORIZED_CODE, description = OpenApiConstants.UNAUTHORIZED_DESCRIPTION),
-			@ApiResponse(responseCode = OpenApiConstants.INTERNAL_SERVER_ERROR_CODE, description = OpenApiConstants.INTERNAL_SERVER_ERROR_DESCRIPTION)
-	})
-	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
+	@Operation(summary = "Update theme preference (light/dark)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SECURITY_SCHEME)
 	@PostMapping(value = "/theme")
-	public ResponseEntity<Void> postProfilesTheme(@Parameter(description = "Theme preference", required = true) @RequestParam(name = "themePreference") String themePreference) {
+	public ResponseEntity<Void> postProfilesTheme(@RequestParam(name = "themePreference") String themePreference) {
 		if (themePreference == null || (!themePreference.equals("light") && !themePreference.equals("dark"))) {
 			throw new ValidationFailedException("Invalid theme preference. Must be 'light' or 'dark'.");
 		}
