@@ -81,24 +81,24 @@ public class MediaController {
 	private final InstagramService instagramService;
 	private final TaskExecutor videoProcessingExecutor;
 
-    public MediaController(
-            RequestContext requestContext, 
-            StorageManager storage, 
-            ImageService imageService, 
-            VideoService videoService, 
-            MediaRepository mediaRepo, 
-            RegionRepository regionRepo, 
-            InstagramService instagramService,
-            @Qualifier(AsyncConfig.VIDEO_EXECUTOR_BEAN_NAME) TaskExecutor videoProcessingExecutor) {
-        this.requestContext = requestContext;
-        this.storage = storage;
-        this.imageService = imageService;
-        this.videoService = videoService;
-        this.mediaRepo = mediaRepo;
-        this.regionRepo = regionRepo;
-        this.instagramService = instagramService;
-        this.videoProcessingExecutor = videoProcessingExecutor;
-    }
+	public MediaController(
+			RequestContext requestContext, 
+			StorageManager storage, 
+			ImageService imageService, 
+			VideoService videoService, 
+			MediaRepository mediaRepo, 
+			RegionRepository regionRepo, 
+			InstagramService instagramService,
+			@Qualifier(AsyncConfig.VIDEO_EXECUTOR_BEAN_NAME) TaskExecutor videoProcessingExecutor) {
+		this.requestContext = requestContext;
+		this.storage = storage;
+		this.imageService = imageService;
+		this.videoService = videoService;
+		this.mediaRepo = mediaRepo;
+		this.regionRepo = regionRepo;
+		this.instagramService = instagramService;
+		this.videoProcessingExecutor = videoProcessingExecutor;
+	}
 
 	@Operation(summary = "Move media to trash", responses = {
 			@ApiResponse(responseCode = OpenApiConstants.OK_CODE, description = OpenApiConstants.OK_DESCRIPTION),
@@ -214,16 +214,16 @@ public class MediaController {
 	@PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<Media> postMediaImage(@RequestPart("json") Media m, @RequestPart("file") MultipartFile file) {
-		if (m == null) throw new IllegalArgumentException("Media payload is required");
+		if (m == null) throw new ValidationFailedException("Media payload is required");
 		String originalFilename = file.getOriginalFilename();
 		StorageType storageType = StorageType.fromFilename(originalFilename)
-				.orElseThrow(() -> new IllegalArgumentException("Unsupported file extension: " + originalFilename));
+				.orElseThrow(() -> new ValidationFailedException("Unsupported file extension: " + originalFilename));
 		var authUserId = requestContext.getAuthenticatedUserId();
 		int newMediaId = mediaRepo.addMediaImage(authUserId, m, storageType, () -> {
 			try {
 				return file.getInputStream();
 			} catch (IOException e) {
-				throw new RuntimeException("Failed to get InputStream from multipart file", e);
+				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read uploaded file", e);
 			}
 		});
 		return ResponseEntity.ok(mediaRepo.getMedia(authUserId, newMediaId));
@@ -242,7 +242,7 @@ public class MediaController {
 			@RequestHeader("X-Selected-Is-Video") boolean isVideo,
 			@RequestHeader("X-Selected-Media-Index") int mediaIndex,
 			@RequestBody Media mediaPayload) {
-		if (mediaPayload == null) throw new IllegalArgumentException("Media payload missing");
+		if (mediaPayload == null) throw new ValidationFailedException("Media payload missing");
 		URI validatedUri = InstagramService.validateInstagramCdnUrl(selectedCdnUrl);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		if (mediaRepo.getDailyInstagramScrapeCount(authUserId) > 50)
@@ -269,7 +269,7 @@ public class MediaController {
 					storage.uploadBytes(S3KeyGenerator.getOriginalMp4(id, storageType), videoData, storageType);
 					videoService.processVideo(id, storageType, mediaPayload.thumbnailSeconds());
 				} catch (IOException e) {
-					throw new RuntimeException(e);
+					throw new UncheckedIOException(e);
 				}
 			}, videoProcessingExecutor)
 			.exceptionally(ex -> {
@@ -348,22 +348,22 @@ public class MediaController {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		Media m = mediaRepo.getMedia(authUserId, id);
-		if (!m.isMovie()) throw new IllegalArgumentException("Target is not a video");
-		if (!m.uploadedByMe()) throw new IllegalArgumentException("Permission denied");
+		if (!m.isMovie()) throw new ValidationFailedException("Target is not a video");
+		if (!m.uploadedByMe()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Permission denied");
 
 		CompletableFuture.runAsync(() -> {
 			try {
 				var storageType = StorageType.fromExtension(m.suffix()).orElseThrow();
 				videoService.processVideo(id, storageType, m.thumbnailSeconds());
 			} catch (IOException e) {
-				throw new RuntimeException(e);
+				throw new UncheckedIOException(e);
 			}
 		}, videoProcessingExecutor)
 		.exceptionally(ex -> {
 			logger.error("Async video error for id=" + id, ex);
 			return null;
 		});
-		
+
 		return ResponseEntity.ok().build();
 	}
 
@@ -377,10 +377,15 @@ public class MediaController {
 	@PostMapping("/video/embed")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<Media> postMediaVideoEmbed(@RequestBody Media media) {
-		if (media == null || media.embedUrl() == null || media.embedUrl().isBlank()) throw new IllegalArgumentException();
+		if (media == null || media.embedUrl() == null || media.embedUrl().isBlank()) throw new ValidationFailedException("Embed URL is required");
 		String url = media.embedUrl().toLowerCase();
-		if (!url.contains("youtube.com") && !url.contains("youtu.be") && !url.contains("vimeo.com")) throw new IllegalArgumentException("Unsupported provider");
-		try { URI.create(media.embedUrl()).toURL(); } catch (Exception e) { throw new IllegalArgumentException("Malformed URL", e); }
+		if (!url.contains("youtube.com") && !url.contains("youtu.be") && !url.contains("vimeo.com")) throw new ValidationFailedException("Unsupported provider");
+		try {
+			URI.create(media.embedUrl()).toURL();
+		} catch (Exception e) {
+			logger.warn(e.getMessage(), e);
+			throw new ValidationFailedException("Malformed URL");
+		}
 		var authUserId = requestContext.getAuthenticatedUserId();
 		int newId = mediaRepo.addMediaVideoEmbed(authUserId, media, StorageType.MP4);
 		CompletableFuture.runAsync(() -> {
@@ -392,7 +397,7 @@ public class MediaController {
 					thumb.flush();
 				}
 			} catch (IOException | InterruptedException e) {
-				throw new RuntimeException(e);
+				throw new UncheckedIOException(new IOException("Failed to fetch embed thumbnail", e));
 			}
 		})
 		.exceptionally(ex -> {
@@ -412,11 +417,11 @@ public class MediaController {
 	@PostMapping("/video/initiate")
 	@SecurityRequirement(name = OpenApiConstants.BEARER_AUTH)
 	public ResponseEntity<VideoInitResponse> postMediaVideoInitiate(@RequestBody VideoInitPayload payload) {
-		if (payload == null || payload.media() == null) throw new IllegalArgumentException("Video payload or media is missing");
-		if (payload.fileSize() > StorageManager.MAX_VIDEO_UPLOAD_BYTES) throw new IllegalArgumentException("Video exceeds maximum allowed size");
+		if (payload == null || payload.media() == null) throw new ValidationFailedException("Video payload or media is missing");
+		if (payload.fileSize() > StorageManager.MAX_VIDEO_UPLOAD_BYTES) throw new ValidationFailedException("Video exceeds maximum allowed size");
 		StorageType storageType = StorageType.fromMimeType(payload.contentType())
-				.orElseThrow(() -> new IllegalArgumentException("Unsupported video content type: " + payload.contentType()));
-		if (!storageType.isMovie()) throw new IllegalArgumentException("Provided format is not a video type.");
+				.orElseThrow(() -> new ValidationFailedException("Unsupported video content type: " + payload.contentType()));
+		if (!storageType.isMovie()) throw new ValidationFailedException("Provided format is not a video type.");
 		var authUserId = requestContext.getAuthenticatedUserId();
 		int newMediaId = mediaRepo.addMediaVideoPlaceholder(authUserId, payload.media(), storageType);
 		String presignedUrl = storage.generatePresignedPutUrl(

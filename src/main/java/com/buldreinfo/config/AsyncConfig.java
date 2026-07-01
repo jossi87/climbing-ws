@@ -16,9 +16,11 @@ public class AsyncConfig {
 	public static final String IMAGE_THREAD_PREFIX = "ImageProcessor-";
 	public static final String VIDEO_EXECUTOR_BEAN_NAME = "videoProcessingExecutor";
 	public static final String VIDEO_THREAD_PREFIX = "VideoProcessor-";
+	public static final String TRACKING_EXECUTOR_BEAN_NAME = "hitTrackingExecutor";
+	public static final String TRACKING_THREAD_PREFIX = "HitTracker-";
 
 	@Bean(name = IMAGE_EXECUTOR_BEAN_NAME)
-	public TaskExecutor taskExecutor() {
+	public TaskExecutor imageProcessingExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		executor.setCorePoolSize(2);
 		executor.setMaxPoolSize(4);
@@ -36,6 +38,18 @@ public class AsyncConfig {
 		executor.setMaxPoolSize(1);
 		executor.setQueueCapacity(50);
 		executor.setThreadNamePrefix(VIDEO_THREAD_PREFIX);
+		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+		executor.initialize();
+		return executor;
+	}
+
+	@Bean(name = TRACKING_EXECUTOR_BEAN_NAME)
+	public TaskExecutor hitTrackingExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(2);
+		executor.setMaxPoolSize(4);
+		executor.setQueueCapacity(500);
+		executor.setThreadNamePrefix(TRACKING_THREAD_PREFIX);
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 		executor.initialize();
 		return executor;

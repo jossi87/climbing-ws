@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.beans.StorageType;
@@ -95,8 +97,8 @@ public class AreasController {
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
 		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
-            eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
-        }
+			eventPublisher.publishEvent(new HitTrackingListener.AreaHitEvent(id));
+		}
 		var res = id > 0 ? Collections.singleton(areaRepo.getArea(setup, authUserId, id)) : areaRepo.getAreaList(authUserId, setup.idRegion());
 		return ResponseEntity.ok(res);
 	}
@@ -119,7 +121,7 @@ public class AreasController {
 				generator.writeArea(setup, area, gradeDistribution, sectors);
 			} catch (Exception e) {
 				logger.error("PDF generation failed: {}", e.getMessage(), e);
-				throw new RuntimeException("PDF generation failed", e);
+				throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF generation failed", e);
 			}
 		};
 		return ResponseEntity.ok()

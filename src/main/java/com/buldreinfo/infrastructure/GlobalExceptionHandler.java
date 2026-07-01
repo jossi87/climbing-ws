@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,15 +22,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 public class GlobalExceptionHandler {
 	private static final Logger logger = LogManager.getLogger();
 
-	@ExceptionHandler(Throwable.class)
-	public ResponseEntity<Object> handleException(Throwable e) {
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<Object> handleException(Exception e) {
 		Throwable cause = unwrap(e);
 		logger.error("Error occurred: {}", cause.getMessage(), cause);
 
 		return switch (cause) {
+		case ResponseStatusException rse -> ResponseEntity.status(rse.getStatusCode()).body(Map.of("error", rse.getReason()));
+		case ValidationFailedException vfe -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", vfe.getMessage()));
 		case IllegalArgumentException iae -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", getBadRequestMessage(iae)));
 		case HttpMessageNotReadableException _ -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Malformed JSON request payload"));
-		case ValidationFailedException vfe -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", vfe.getMessage()));
 		case NoSuchElementException _ -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
 		case DataAccessException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Database error occurred"));
 		case JsonProcessingException _ -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal JSON processing error"));

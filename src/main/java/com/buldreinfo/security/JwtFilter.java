@@ -10,10 +10,12 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.RegionRepository;
@@ -78,7 +80,7 @@ public class JwtFilter extends OncePerRequestFilter {
 				Setup setup = regionRepo.getSetups().stream()
 						.filter(s -> s.domain().equalsIgnoreCase(request.getServerName()))
 						.findFirst()
-						.orElseThrow(() -> new RuntimeException("Setup not found for domain: " + request.getServerName()));
+						.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Setup not found for domain: " + request.getServerName()));
 
 				String headerJson = objectMapper.writeValueAsString(getHeaders(request));
 				tokenService.processAuthentication(accessToken, setup, headerJson)
