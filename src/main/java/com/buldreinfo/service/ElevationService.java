@@ -9,6 +9,8 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import com.buldreinfo.config.AppConfig;
@@ -18,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ElevationService {
+	private static final Logger logger = LogManager.getLogger();
+
 	private record GoogleResponse(List<ElevationResult> results) {}
 	private record ElevationResult(double elevation, Location location) {}
 	private record Location(double lat, double lng) {}
@@ -38,10 +42,9 @@ public class ElevationService {
 				String locations = chunk.stream()
 						.map(c -> c.getLatitude() + "," + c.getLongitude())
 						.collect(Collectors.joining("%7C")); 
-				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s", locations);
+				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, appConfig.googleApikey());
 				HttpRequest request = HttpRequest.newBuilder()
 						.uri(URI.create(url))
-						.header("X-Goog-Api-Key", appConfig.googleApikey())
 						.GET()
 						.build();
 				HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -50,14 +53,25 @@ public class ElevationService {
 				}
 				GoogleResponse data = objectMapper.readValue(response.body(), GoogleResponse.class);
 				for (ElevationResult res : data.results()) {
-					chunk.stream()
-					.filter(c -> Double.compare(c.getLatitude(), res.location().lat()) == 0 && 
-					Double.compare(c.getLongitude(), res.location().lng()) == 0)
-					.forEach(c -> c.setElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE));
+					boolean found = false;
+					for (Coordinates c : chunk) {
+						if (isClose(c.getLatitude(), res.location().lat()) && isClose(c.getLongitude(), res.location().lng())) {
+							c.setElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE);
+							found = true;
+						}
+					}
+					if (!found) {
+						logger.warn("Google API returned elevtion for {},{} but no local coordinate matched.",  res.location().lat(), res.location().lng());
+					}
 				}
 			}
 		} catch (InterruptedException | IOException e) {
+			logger.error("Elevation service failed", e);
 			throw new RuntimeException(e.getMessage(), e);
 		}
+	}
+
+	private boolean isClose(double a, double b) {
+		return Math.abs(a - b) < 1e-6;
 	}
 }
