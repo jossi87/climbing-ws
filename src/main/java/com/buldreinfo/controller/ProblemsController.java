@@ -18,7 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -30,6 +29,7 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.service.MediaService;
 import com.buldreinfo.service.ProblemService;
 import com.buldreinfo.service.SectorService;
 import com.buldreinfo.tracking.HitTrackingListener;
@@ -50,7 +50,7 @@ public class ProblemsController {
 	private final StorageManager storage;
 	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final ProblemService problemService;
 	private final SectorService sectorService;
 
@@ -60,7 +60,7 @@ public class ProblemsController {
 			StorageManager storage,
 			LeafletPrintService leafletPrintService,
 			AreaService areaService,
-			MediaRepository mediaRepo,
+			MediaService mediaService,
 			ProblemService problemService,
 			SectorService sectorService) {
 		this.eventPublisher = eventPublisher;
@@ -68,7 +68,7 @@ public class ProblemsController {
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
-		this.mediaRepo = mediaRepo;
+		this.mediaService = mediaService;
 		this.problemService = problemService;
 		this.sectorService = sectorService;
 	}
@@ -150,7 +150,7 @@ public class ProblemsController {
 		if (mediaId <= 0) throw new ValidationFailedException("Invalid mediaId=" + mediaId);
 		if (svg == null) throw new ValidationFailedException("Svg payload missing");
 		var authUserId = requestContext.getAuthenticatedUserId();
-		mediaRepo.upsertSvg(authUserId, problemId, pitch, mediaId, svg);
+		mediaService.upsertSvg(authUserId, problemId, pitch, mediaId, svg);
 		return ResponseEntity.ok().build();
 	}
 }

@@ -15,7 +15,6 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.dao.ExternalLinksRepository;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -31,7 +30,7 @@ public class ProblemService {
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final ProblemRepository problemRepo;
 	private final SectorRepository sectorRepo;
 	private final UserRepository userRepo;
@@ -41,7 +40,7 @@ public class ProblemService {
 			ExternalLinksRepository externalLinksRepo,
 			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
-			MediaRepository mediaRepo,
+			MediaService mediaService,
 			ProblemRepository problemRepo,
 			SectorRepository sectorRepo,
 			UserRepository userRepo) {
@@ -49,7 +48,7 @@ public class ProblemService {
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
-		this.mediaRepo = mediaRepo;
+		this.mediaService = mediaService;
 		this.problemRepo = problemRepo;
 		this.sectorRepo = sectorRepo;
 		this.userRepo = userRepo;
@@ -62,9 +61,9 @@ public class ProblemService {
 		Problem p = problemRepo.getProblemBase(authUserId, setup, reqId,
 				linksFuture,
 				sectorId -> sectorRepo.getSectorOutline(sectorId),
-				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaRepo.getMediaTrails(authUserId, trailIds)).get(sectorId),
-				(areaId, sectorId, problemId) -> mediaRepo.getMediaProblem(setup, authUserId, areaId, sectorId, problemId, showHiddenMedia),
-				guestbookId -> mediaRepo.getMediaGuestbook(authUserId, guestbookId)
+				sectorId -> sectorRepo.getSectorTrails(Collections.singleton(sectorId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)).get(sectorId),
+				(areaId, sectorId, problemId) -> mediaService.getMediaProblem(setup, authUserId, areaId, sectorId, problemId, showHiddenMedia),
+				guestbookId -> mediaService.getMediaGuestbook(authUserId, guestbookId)
 				);
 
 		if (p == null) {

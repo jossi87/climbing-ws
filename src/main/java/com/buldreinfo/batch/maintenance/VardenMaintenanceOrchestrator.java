@@ -10,10 +10,10 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 
 import com.buldreinfo.Application;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.service.ImageClassifierService;
 import com.buldreinfo.service.ImageService;
+import com.buldreinfo.service.MediaService;
 
 public class VardenMaintenanceOrchestrator {
 	private static final Logger logger = LogManager.getLogger();
@@ -35,7 +35,7 @@ public class VardenMaintenanceOrchestrator {
 		var imageService = context.getBean(ImageService.class);
 		var imageClassifierService = context.getBean(ImageClassifierService.class);
 		var storage = context.getBean(StorageManager.class);
-		var mediaRepo = context.getBean(MediaRepository.class);
+		var mediaService = context.getBean(MediaService.class);
 		for (Path p : List.of(LOCAL_DB_BASE_PATH, LOCAL_INFRA_PATH, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH)) {
 			if (!Files.exists(p)) {
 				throw new RuntimeException(p.toString() + " not found");
@@ -48,10 +48,10 @@ public class VardenMaintenanceOrchestrator {
 		new S3BucketDownloadBatch(LOCAL_MEDIA_ROOT, storage).run();
 
 		logger.debug("Starting EmbeddedVideoDownloader background embedding sync task.");
-		new EmbeddedVideoDownloader(mediaRepo, imageService, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
+		new EmbeddedVideoDownloader(mediaService, imageService, LOCAL_MEDIA_ROOT, LOCAL_FFMPEG_PATH, LOCAL_YT_DLP_PATH, privateEmbeddedVideosToIgnore).run();
 
 		logger.debug("FixMediaAnalyze started");
-		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, mediaRepo).run();
+		new FixMediaAnalyze(LOCAL_MEDIA_ROOT, imageClassifierService, mediaService).run();
 		logger.debug("S3BucketUploadBatch started");
 		new S3BucketUploadBatch(LOCAL_MEDIA_ROOT, storage).run();
 

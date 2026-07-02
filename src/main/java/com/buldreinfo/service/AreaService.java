@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
@@ -31,18 +30,18 @@ public class AreaService {
 	private final AreaRepository areaRepo;
 	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final SectorRepository sectorRepo;
 
 	public AreaService(AreaRepository areaRepo,
 			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
-			MediaRepository mediaRepo,
+			MediaService mediaService,
 			SectorRepository sectorRepo) {
 		this.areaRepo = areaRepo;
 		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
-		this.mediaRepo = mediaRepo;
+		this.mediaService = mediaService;
 		this.sectorRepo = sectorRepo;
 	}
 
@@ -50,7 +49,7 @@ public class AreaService {
 	public Area getArea(Setup setup, Optional<Integer> authUserId, int reqId) {
 		var start = System.nanoTime();
 
-		var allMedia = mediaRepo.getMediaArea(authUserId, reqId, false);
+		var allMedia = mediaService.getMediaArea(authUserId, reqId, false);
 		var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.areas().stream().anyMatch(MediaArea::trivia)));
 
 		Area a = areaRepo.getAreaBase(setup, authUserId, reqId, partitioned.get(false), partitioned.get(true));
@@ -66,7 +65,7 @@ public class AreaService {
 		}
 
 		var sectorLookup = areaRepo.getAreaSectors(setup, authUserId, a.id(), a.name(), sectorId -> {
-			var x = mediaRepo.getMediaSector(setup, authUserId, sectorId, 0, false, true);
+			var x = mediaService.getMediaSector(setup, authUserId, sectorId, 0, false, true);
 			return x.isEmpty() ? null : x.get(0).identity();
 		});
 
@@ -74,7 +73,7 @@ public class AreaService {
 			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 				var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, reqId, 0), executor);
 				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutlines(sectorLookup.keySet()), executor);
-				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaRepo.getMediaTrails(authUserId, trailIds)), executor);
+				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
 
 				var sectorProblems = problemsFuture.join();
 				sectorProblems.forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));

@@ -21,7 +21,6 @@ import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.ExternalLinksRepository;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.model.CompassDirection;
@@ -38,7 +37,7 @@ public class SectorService {
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final SectorRepository sectorRepo;
 
 	public SectorService(
@@ -46,13 +45,13 @@ public class SectorService {
 			ExternalLinksRepository externalLinksRepo,
 			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
-			MediaRepository mediaRepo,
+			MediaService mediaService,
 			SectorRepository sectorRepo) {
 		this.areaRepo = areaRepo;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
-		this.mediaRepo = mediaRepo;
+		this.mediaService = mediaService;
 		this.sectorRepo = sectorRepo;
 	}
 
@@ -61,8 +60,8 @@ public class SectorService {
 		var startNanos = System.nanoTime();
 		try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			var outlineFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutline(reqId), executor);
-			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(Collections.singleton(reqId), trailIds -> mediaRepo.getMediaTrails(authUserId, trailIds)), executor);
-			var mediaFuture = CompletableFuture.supplyAsync(() -> mediaRepo.getMediaSector(setup, authUserId, reqId, 0, false, false), executor);
+			var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(Collections.singleton(reqId), trailIds -> mediaService.getMediaTrails(authUserId, trailIds)), executor);
+			var mediaFuture = CompletableFuture.supplyAsync(() -> mediaService.getMediaSector(setup, authUserId, reqId, 0, false, false), executor);
 			var linksFuture = CompletableFuture.supplyAsync(() -> externalLinksRepo.getExternalLinks(0, reqId, 0), executor);
 			var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, 0, reqId), executor);
 

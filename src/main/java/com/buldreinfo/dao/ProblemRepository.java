@@ -61,6 +61,31 @@ public class ProblemRepository {
 	}
 
 	@Transactional(readOnly = true)
+	public void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) {
+		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("User not authenticated"));
+
+		boolean ok = jdbcClient.sql("""
+				SELECT ur.admin_write, ur.superadmin_write 
+				FROM problem p
+				JOIN sector s ON p.sector_id = s.id
+				JOIN area a ON s.area_id = a.id
+				JOIN user_region ur ON a.region_id = ur.region_id
+				WHERE p.id = ? AND ur.user_id = ?
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0)) 
+				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				""")
+				.params(problemId, userId)
+				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
+				.optional()
+				.orElse(false);
+
+		if (!ok) {
+			throw new ForbiddenException("Insufficient permissions");
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public Problem getProblemBase(Optional<Integer> authUserId, Setup setup, int reqId,
 			CompletableFuture<List<ExternalLink>> linksFuture,
 			Function<Integer, List<Coordinates>> outlineResolver,
@@ -584,30 +609,5 @@ public class ProblemRepository {
 				.params(userId, sectorId, problemId, rock)
 				.query((rs, _) -> new Neighbour(rs.getInt("id"), rs.getInt("nr"), rs.getString("name"), rs.getString("grade"), rs.getBoolean("tick"), rs.getBoolean("todo")))
 				.list();
-	}
-
-	@Transactional(readOnly = true)
-	protected void ensureAdminWriteProblem(Optional<Integer> authUserId, int problemId) {
-		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("User not authenticated"));
-
-		boolean ok = jdbcClient.sql("""
-				SELECT ur.admin_write, ur.superadmin_write 
-				FROM problem p
-				JOIN sector s ON p.sector_id = s.id
-				JOIN area a ON s.area_id = a.id
-				JOIN user_region ur ON a.region_id = ur.region_id
-				WHERE p.id = ? AND ur.user_id = ?
-				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0)) 
-				  AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0)) 
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				""")
-				.params(problemId, userId)
-				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
-				.optional()
-				.orElse(false);
-
-		if (!ok) {
-			throw new ForbiddenException("Insufficient permissions");
-		}
 	}
 }

@@ -14,26 +14,26 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.dao.TransientDataAccessException;
 
 import com.buldreinfo.beans.S3KeyGenerator;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.MediaRepository.MediaPendingAnalysis;
 import com.buldreinfo.service.ImageClassifierService;
+import com.buldreinfo.service.MediaService;
 
 public class FixMediaAnalyze {
 	private final ImageClassifierService imageClassifierService;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final Path localBucketRoot;
 	private static final Logger logger = LogManager.getLogger();
 	private final ExecutorService executor = Executors.newFixedThreadPool(8);
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 
-	public FixMediaAnalyze(Path localBucketRoot, ImageClassifierService imageClassifierService, MediaRepository mediaRepo) {
+	public FixMediaAnalyze(Path localBucketRoot, ImageClassifierService imageClassifierService, MediaService mediaService) {
 		this.localBucketRoot = localBucketRoot;
 		this.imageClassifierService = imageClassifierService;
-		this.mediaRepo = mediaRepo;
+		this.mediaService = mediaService;
 	}
 
 	public void run() {
-		List<MediaPendingAnalysis> tasks = mediaRepo.getMediaPendingAnalysis();
+		List<MediaPendingAnalysis> tasks = mediaService.getMediaPendingAnalysis();
 		logger.debug("Run MediaAnalyze on {} items", tasks.size());
 		for (MediaPendingAnalysis t : tasks) {
 			executor.submit(() -> {
@@ -55,7 +55,7 @@ public class FixMediaAnalyze {
 			logger.warn(w);
 		}
 		logger.debug("Updating cache columns...");
-		mediaRepo.updateMediaFocusAndActionStatus();
+		mediaService.updateMediaFocusAndActionStatus();
 		logger.debug("Done");
 	}
 
@@ -67,7 +67,7 @@ public class FixMediaAnalyze {
 			boolean saved = false;
 			while (!saved && attempts < 3) {
 				try {
-					mediaRepo.saveMediaAnalysis(t.id(), t.width(), t.height(), result.hexColor(), result.labels(), result.objects(), false);
+					mediaService.saveMediaAnalysis(t.id(), t.width(), t.height(), result.hexColor(), result.labels(), result.objects(), false);
 					saved = true;
 				} catch (TransientDataAccessException e) {
 					attempts++;
@@ -83,7 +83,7 @@ public class FixMediaAnalyze {
 		} catch (Exception e) {
 			warnings.add("Failed to process/analyze media id=" + t.id() + ": " + e.getMessage());
 			try {
-				mediaRepo.saveMediaAnalysis(t.id(), t.width(), t.height(), null, null, null, true);
+				mediaService.saveMediaAnalysis(t.id(), t.width(), t.height(), null, null, null, true);
 			} catch (Exception dbEx) {
 				logger.error("Could not save failure state for id=" + t.id(), dbEx);
 			}

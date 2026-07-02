@@ -21,12 +21,12 @@ import com.auth0.jwt.interfaces.JWTVerifier;
 import com.buldreinfo.beans.Auth0Profile;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.infrastructure.CacheConstants;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Media;
 import com.buldreinfo.model.User;
+import com.buldreinfo.service.MediaService;
 
 @Service
 public class TokenService {
@@ -34,15 +34,15 @@ public class TokenService {
     private static final Logger logger = LogManager.getLogger();
     private final CacheManager cacheManager;
     private final JwkProvider jwkProvider;
-    private final MediaRepository mediaRepo;
+    private final MediaService mediaService;
     private final StorageManager storage;
     private final UserRepository userRepo;
 
-    public TokenService(CacheManager cacheManager, UserRepository userRepo, MediaRepository mediaRepo, StorageManager storage) {
+    public TokenService(CacheManager cacheManager, UserRepository userRepo, MediaService mediaService, StorageManager storage) {
         this.jwkProvider = new UrlJwkProvider("https://" + DOMAIN + "/");
         this.cacheManager = cacheManager;
         this.userRepo = userRepo;
-        this.mediaRepo = mediaRepo;
+        this.mediaService = mediaService;
         this.storage = storage;
     }
     
@@ -77,7 +77,7 @@ public class TokenService {
             }
             var photographer = User.from(userId, null);
             var m = new Media(null, false, 0, 0, false, StorageType.JPG.getExtension(), false, null, null, photographer, null, null, null, 0, null, null, 0, false, null, null, null, null, 0, userId);
-            mediaRepo.addMediaImage(Optional.of(userId), m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
+            mediaService.addMediaImage(Optional.of(userId), m, StorageType.JPG, () -> new ByteArrayInputStream(avatarBytes));
         } catch (Exception e) {
             logger.error("Failed to apply login avatar", e);
         }

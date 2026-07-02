@@ -16,9 +16,9 @@ import org.apache.logging.log4j.Logger;
 
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.StorageType;
-import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.MediaRepository.EmbeddedVideo;
 import com.buldreinfo.service.ImageService;
+import com.buldreinfo.service.MediaService;
 
 public class EmbeddedVideoDownloader {
 	private static final Logger logger = LogManager.getLogger();
@@ -26,13 +26,13 @@ public class EmbeddedVideoDownloader {
 	private final Path ffmpegPath;
 	private final ImageService imageService;
 	private final Path localBucketRoot;
-	private final MediaRepository mediaRepo;
+	private final MediaService mediaService;
 	private final List<Integer> privateEmbeddedVideosToIgnore;
 	private final List<String> warnings = Collections.synchronizedList(new ArrayList<>());
 	private final Path ytDlpPath;
 
-	protected EmbeddedVideoDownloader(MediaRepository mediaRepo, ImageService imageService, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
-		this.mediaRepo = mediaRepo;
+	protected EmbeddedVideoDownloader(MediaService mediaService, ImageService imageService, Path localBucketRoot, Path ffmpegPath, Path ytDlpPath, List<Integer> privateEmbeddedVideosToIgnore) {
+		this.mediaService = mediaService;
 		this.imageService = imageService;
 		this.localBucketRoot = localBucketRoot;
 		this.ffmpegPath = ffmpegPath;
@@ -95,7 +95,7 @@ public class EmbeddedVideoDownloader {
 	}
 
 	protected void run() {
-		for (var task : mediaRepo.getEmbeddedVideos()) {
+		for (var task : mediaService.getEmbeddedVideos()) {
 			executor.submit(() -> {
 				try {
 					processTask(task);
