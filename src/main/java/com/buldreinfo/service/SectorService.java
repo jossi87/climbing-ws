@@ -102,7 +102,18 @@ public class SectorService {
 			if (s.parking().latitude() == 0 || s.parking().longitude() == 0) s = s.withParking(null);
 			else allCoords.add(s.parking());
 		}
-		geoService.ensureConsistency(allCoords);
+		if (!allCoords.isEmpty()) {
+			geoService.ensureConsistency(allCoords);
+			int idx = 0;
+			if (s.outline() != null && !s.outline().isEmpty()) {
+				for (int i = 0; i < s.outline().size(); i++) {
+					s.outline().set(i, allCoords.get(idx++));
+				}
+			}
+			if (s.parking() != null && s.parking().latitude() != 0 && s.parking().longitude() != 0) {
+				s = s.withParking(allCoords.get(idx));
+			}
+		}
 
 		Integer parkingId = (s.parking() != null && s.parking().id() > 0) ? s.parking().id() : null;
 		Integer calcCompass = Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline()))
@@ -163,12 +174,31 @@ public class SectorService {
 			}
 		}
 
+		// Collect all coordinates, ensure they exist in DB with IDs, then propagate IDs back
 		List<Coordinates> allCoords = new ArrayList<>();
-		trails.forEach(t -> {
+		for (Trail t : trails) {
 			if (t.path() != null) allCoords.addAll(t.path());
 			if (t.markers() != null) t.markers().forEach(m -> { if (m.coordinates() != null) allCoords.add(m.coordinates()); });
-		});
-		if (!allCoords.isEmpty()) geoService.ensureConsistency(allCoords);
+		}
+		if (!allCoords.isEmpty()) {
+			geoService.ensureConsistency(allCoords);
+			int idx = 0;
+			for (Trail t : trails) {
+				if (t.path() != null) {
+					for (int i = 0; i < t.path().size(); i++) {
+						t.path().set(i, allCoords.get(idx++));
+					}
+				}
+				if (t.markers() != null) {
+					for (int i = 0; i < t.markers().size(); i++) {
+						Trail.TrailMarker m = t.markers().get(i);
+						if (m.coordinates() != null) {
+							t.markers().set(i, new Trail.TrailMarker(allCoords.get(idx++), m.label()));
+						}
+					}
+				}
+			}
+		}
 
 		sectorRepo.upsertTrailsDb(authUserId, trails);
 	}

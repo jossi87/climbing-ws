@@ -1,5 +1,6 @@
 package com.buldreinfo.service;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -21,6 +22,7 @@ import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.helpers.SectorSort;
 import com.buldreinfo.model.Area;
+import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Area.AreaSectorOrder;
 import com.buldreinfo.model.Media.MediaArea;
 import com.buldreinfo.model.Redirect;
@@ -116,7 +118,9 @@ public class AreaService {
 			if (a.coordinates().latitude() == 0 || a.coordinates().longitude() == 0) {
 				a = a.withCoordinates(null);
 			} else {
-				geoService.ensureConsistency(List.of(a.coordinates()));
+				List<Coordinates> single = new ArrayList<>(List.of(a.coordinates()));
+				geoService.ensureConsistency(single);
+				a = a.withCoordinates(single.getFirst());
 			}
 		}
 		return areaRepo.setArea(s, authUserId, a);
