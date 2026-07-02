@@ -19,7 +19,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -30,6 +29,7 @@ import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.service.SectorService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -49,7 +49,7 @@ public class SectorsController {
 	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
 	private final HierarchyRepository hierarchyRepo;
-	private final SectorRepository sectorRepo;
+	private final SectorService sectorService;
 
 	public SectorsController(
 			ApplicationEventPublisher eventPublisher,
@@ -58,14 +58,14 @@ public class SectorsController {
 			LeafletPrintService leafletPrintService,
 			AreaService areaService,
 			HierarchyRepository hierarchyRepo,
-			SectorRepository sectorRepo) {
+			SectorService sectorService) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
 		this.hierarchyRepo = hierarchyRepo;
-		this.sectorRepo = sectorRepo;
+		this.sectorService = sectorService;
 	}
 
 	@Operation(summary = "Get sector by id")
@@ -81,7 +81,7 @@ public class SectorsController {
 		if (requestContext.isHitTrackingEnabled(request)) {
 			eventPublisher.publishEvent(new HitTrackingListener.SectorHitEvent(id));
 		}
-		return ResponseEntity.ok(sectorRepo.getSector(authUserId, setup.isBouldering(), setup, id));
+		return ResponseEntity.ok(sectorService.getSector(authUserId, setup.isBouldering(), setup, id));
 	}
 
 	@Operation(summary = "Get sector PDF by id")
@@ -93,7 +93,7 @@ public class SectorsController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		final Sector sector = sectorRepo.getSector(authUserId, false, setup, id);
+		final Sector sector = sectorService.getSector(authUserId, false, setup, id);
 		final var gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, 0, id);
 		final Area area = areaService.getArea(setup, authUserId, sector.areaId());
 		String filename = FilenameUtil.generateFilename(sector.name(), StorageType.PDF);
@@ -120,6 +120,6 @@ public class SectorsController {
 		if (s.areaId() <= 0) throw new ValidationFailedException("Invalid areaId=" + s.areaId());
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(sectorRepo.setSector(authUserId, setup, s));
+		return ResponseEntity.ok(sectorService.setSector(authUserId, setup, s));
 	}
 }

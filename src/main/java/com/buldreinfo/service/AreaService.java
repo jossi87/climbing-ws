@@ -71,7 +71,7 @@ public class AreaService {
 			try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 				var problemsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorProblems(setup, authUserId, reqId, 0), executor);
 				var outlinesFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorOutlines(sectorLookup.keySet()), executor);
-				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(authUserId, sectorLookup.keySet()), executor);
+				var trailsFuture = CompletableFuture.supplyAsync(() -> sectorRepo.getSectorTrails(sectorLookup.keySet(), trailIds -> mediaRepo.getMediaTrails(authUserId, trailIds)), executor);
 
 				var sectorProblems = problemsFuture.join();
 				sectorProblems.forEach((sid, problems) -> Optional.ofNullable(sectorLookup.get(sid)).ifPresent(s -> s.problems().addAll(problems)));

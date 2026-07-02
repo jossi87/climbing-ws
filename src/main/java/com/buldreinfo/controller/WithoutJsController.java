@@ -15,9 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.buldreinfo.beans.S3KeyGenerator;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.FrontpageRepository;
-import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -28,6 +26,8 @@ import com.buldreinfo.model.Meta;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.service.AreaService;
+import com.buldreinfo.service.ProblemService;
+import com.buldreinfo.service.SectorService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,24 +41,24 @@ public class WithoutJsController {
 	private static final Logger logger = LogManager.getLogger();
 	private final AreaService areaService;
 	private final FrontpageRepository frontpageRepo;
-	private final ProblemRepository problemRepo;
+	private final ProblemService problemService;
 	private final RegionRepository regionRepo;
-	private final SectorRepository sectorRepo;
+	private final SectorService sectorService;
 	private final UserRepository userRepo;
 
 	public WithoutJsController(RequestContext requestContext,
 			AreaService areaService,
 			FrontpageRepository frontpageRepo,
-			ProblemRepository problemRepo,
+			ProblemService problemService,
 			RegionRepository regionRepo,
-			SectorRepository sectorRepo,
+			SectorService sectorService,
 			UserRepository userRepo) {
 		this.requestContext = requestContext;
 		this.areaService = areaService;
 		this.frontpageRepo = frontpageRepo;
-		this.problemRepo = problemRepo;
+		this.problemService = problemService;
 		this.regionRepo = regionRepo;
-		this.sectorRepo = sectorRepo;
+		this.sectorService = sectorService;
 		this.userRepo = userRepo;
 	}
 
@@ -111,7 +111,7 @@ public class WithoutJsController {
 		if (pitch != null) logger.debug("Ignore pitch {}, just return mediaId {}", pitch, mid);
 
 		var setup = requestContext.getSetup(request);
-		Problem p = problemRepo.getProblem(Optional.empty(), setup, id, false);
+		Problem p = problemService.getProblem(Optional.empty(), setup, id, false);
 		String title = "%s [%s] (%s / %s)".formatted(p.name(), p.grade(), p.areaName(), p.sectorName());
 		String description = p.comment();
 
@@ -136,7 +136,7 @@ public class WithoutJsController {
 	public ResponseEntity<String> getWithoutJsSector(HttpServletRequest request, @PathVariable int id) {
 		if (id <= 0) throw new ValidationFailedException("Invalid id=" + id);
 		var setup = requestContext.getSetup(request);
-		Sector s = sectorRepo.getSector(Optional.empty(), false, setup, id);
+		Sector s = sectorService.getSector(Optional.empty(), false, setup, id);
 		String title = "%s (%s)".formatted(s.name(), s.areaName());
 		String description = "%s in %s / %s (%d %s)%s".formatted(
 				(setup.isBouldering() ? "Bouldering" : "Climbing"), s.areaName(), s.name(),

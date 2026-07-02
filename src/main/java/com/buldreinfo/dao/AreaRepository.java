@@ -28,9 +28,9 @@ import com.buldreinfo.util.StringUtils;
 
 @Repository
 public class AreaRepository {
-	private final JdbcClient jdbcClient;
 	private final ExternalLinksRepository externalLinksRepo;
 	private final GeoRepository geoRepo;
+	private final JdbcClient jdbcClient;
 
 	public AreaRepository(JdbcClient jdbcClient,
 			ExternalLinksRepository externalLinksRepo,
@@ -38,6 +38,26 @@ public class AreaRepository {
 		this.jdbcClient = jdbcClient;
 		this.externalLinksRepo = externalLinksRepo;
 		this.geoRepo = geoRepo;
+	}
+
+	@Transactional(readOnly = true)
+	public void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) {
+		boolean ok = jdbcClient.sql("""
+				SELECT ur.admin_write, ur.superadmin_write
+				FROM area a
+				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
+				WHERE a.id=?
+				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
+				""")
+				.param(1, authUserId.orElseThrow())
+				.param(2, areaId)
+				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
+				.optional()
+				.orElse(false);
+
+		if (!ok) {
+			throw new ForbiddenException("Insufficient permissions");
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -118,6 +138,124 @@ public class AreaRepository {
 				}).list();
 	}
 
+	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName, Function<Integer, MediaIdentity> mediaResolver) {
+		var sqlStr = """
+				WITH req AS (
+				  SELECT ? auth_user_id, ? area_id
+				),
+				ranked_media AS (
+				  SELECT s.id sector_id,
+				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
+				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.is_360, m.is_movie, m.id DESC) rn
+				  FROM req
+				  JOIN area a ON req.area_id=a.id
+				  JOIN sector s ON a.id=s.area_id
+				  JOIN problem p ON s.id=p.sector_id
+				  JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
+				  JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
+				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
+				  LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
+				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
+				)
+				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour,
+				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual,
+				       rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
+				FROM req
+				JOIN area a ON a.id=req.area_id
+				JOIN sector s ON a.id=s.area_id
+				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
+				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
+				LEFT JOIN ranked_media rm ON s.id=rm.sector_id AND rm.rn=1
+				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
+				ORDER BY s.sorting, s.name
+				""";
+
+		Map<Integer, AreaSector> sectorLookup = new LinkedHashMap<>();
+		jdbcClient.sql(sqlStr)
+		.param(1, authUserId.orElse(0))
+		.param(2, areaId)
+		.query(rs -> {
+			int id = rs.getInt("id");
+			int coordId = rs.getInt("coordinates_id");
+			var parking = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+
+			MediaIdentity mediaIdentity = null;
+			int mid = rs.getInt("media_id");
+			if (mid > 0) {
+				mediaIdentity = new MediaIdentity(mid, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"));
+			} else {
+				mediaIdentity = mediaResolver.apply(id);
+			}
+
+			sectorLookup.put(id, new AreaSector(
+					areaName, id, rs.getInt("sorting"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
+					rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"),
+					rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, new ArrayList<>(),
+					setup.getCompassDirection(rs.getInt("compass_direction_id_calculated")),
+					setup.getCompassDirection(rs.getInt("compass_direction_id_manual")),
+					null, mediaIdentity, new ArrayList<>(), 0, new ArrayList<>()
+					));
+		});
+		return sectorLookup;
+	}
+
+	public void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) {
+		var sqlStr = """
+				WITH req AS (
+				  SELECT ? area_id
+				),
+				target_systems AS (
+				  SELECT DISTINCT tgs.grade_system_id 
+				  FROM req 
+				  JOIN area a ON a.id = req.area_id
+				  JOIN region_type rt ON a.region_id = rt.region_id 
+				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
+				),
+				all_labels AS (
+				  SELECT 
+				    g.label_compact, 
+				    g.grade_system_id, 
+				    clr.hex_code, 
+				    MIN(g.weight) as sort_weight
+				  FROM grade g
+				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
+				  JOIN grade_color clr ON g.grade_color_id = clr.id
+				  GROUP BY g.label_compact, g.grade_system_id, clr.hex_code
+				)
+				SELECT 
+				    s.id as sector_id, 
+				    al.label_compact, 
+				    al.hex_code as color, 
+				    COUNT(p.id) as num
+				FROM req
+				JOIN sector s ON s.area_id = req.area_id
+				CROSS JOIN all_labels al
+				LEFT JOIN problem p ON s.id = p.sector_id 
+				    AND EXISTS (
+				        SELECT 1 FROM grade g_p 
+				        WHERE p.consensus_grade_id = g_p.id 
+				        AND g_p.label_compact = al.label_compact 
+				        AND g_p.grade_system_id = al.grade_system_id
+				    )
+				    AND p.trash IS NULL AND p.locked_admin = 0 AND p.locked_superadmin = 0
+				GROUP BY s.id, al.label_compact, al.hex_code, al.sort_weight
+				ORDER BY s.id, al.sort_weight
+				""";
+
+		jdbcClient.sql(sqlStr)
+		.param(1, areaId)
+		.query(rs -> {
+			AreaSector sector = sectorLookup.get(rs.getInt("sector_id"));
+			if (sector != null) {
+				sector.gradeCounts().add(new GradeCount(
+						rs.getString("label_compact"), 
+						rs.getString("color"), 
+						rs.getInt("num")
+						));
+			}
+		});
+	}
+
 	@Transactional
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
@@ -195,143 +333,5 @@ public class AreaRepository {
 
 		externalLinksRepo.upsertExternalLinks(a.externalLinks(), idArea, 0, 0);
 		return a.trash() ? Redirect.fromRoot() : Redirect.fromIdArea(idArea);
-	}
-
-	public Map<Integer, AreaSector> getAreaSectors(Setup setup, Optional<Integer> authUserId, int areaId, String areaName, Function<Integer, MediaIdentity> mediaResolver) {
-		var sqlStr = """
-				WITH req AS (
-				  SELECT ? auth_user_id, ? area_id
-				),
-				ranked_media AS (
-				  SELECT s.id sector_id,
-				         m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, mma.focus_x media_focus_x, mma.focus_y media_focus_y, mma.primary_color_hex media_primary_color_hex,
-				         ROW_NUMBER() OVER (PARTITION BY p.sector_id ORDER BY m.is_360, m.is_movie, m.id DESC) rn
-				  FROM req
-				  JOIN area a ON req.area_id=a.id
-				  JOIN sector s ON a.id=s.area_id
-				  JOIN problem p ON s.id=p.sector_id
-				  JOIN media_problem mp ON p.id=mp.problem_id AND mp.trivia=0
-				  JOIN media m ON mp.media_id=m.id AND m.is_movie=0 AND m.deleted_user_id IS NULL
-				  LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
-				  LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
-				  AND p.trash IS NULL AND ((p.locked_admin=0 AND p.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND p.locked_superadmin=0))
-				)
-				SELECT s.id, s.sorting, s.locked_admin, s.locked_superadmin, s.name, s.description, s.access_info, s.access_closed, s.sun_from_hour, s.sun_to_hour,
-				       c.id coordinates_id, c.latitude, c.longitude, c.elevation, c.elevation_source, s.compass_direction_id_calculated, s.compass_direction_id_manual,
-				       rm.media_id, rm.media_version_stamp, rm.media_focus_x, rm.media_focus_y, rm.media_primary_color_hex
-				FROM req
-				JOIN area a ON a.id=req.area_id
-				JOIN sector s ON a.id=s.area_id
-				LEFT JOIN coordinates c ON s.parking_coordinates_id=c.id
-				LEFT JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=req.auth_user_id
-				LEFT JOIN ranked_media rm ON s.id=rm.sector_id AND rm.rn=1
-				AND s.trash IS NULL AND ((s.locked_admin=0 AND s.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND s.locked_superadmin=0))
-				ORDER BY s.sorting, s.name
-				""";
-
-		Map<Integer, AreaSector> sectorLookup = new LinkedHashMap<>();
-		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, areaId)
-		.query(rs -> {
-			int id = rs.getInt("id");
-			int coordId = rs.getInt("coordinates_id");
-			var parking = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
-
-			MediaIdentity mediaIdentity = null;
-			int mid = rs.getInt("media_id");
-			if (mid > 0) {
-				mediaIdentity = new MediaIdentity(mid, rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex"));
-			} else {
-				mediaIdentity = mediaResolver.apply(id);
-			}
-
-			sectorLookup.put(id, new AreaSector(
-					areaName, id, rs.getInt("sorting"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
-					rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"),
-					rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, new ArrayList<>(),
-					geoRepo.getCompassDirection(setup, rs.getInt("compass_direction_id_calculated")),
-					geoRepo.getCompassDirection(setup, rs.getInt("compass_direction_id_manual")),
-					null, mediaIdentity, new ArrayList<>(), 0, new ArrayList<>()
-					));
-		});
-		return sectorLookup;
-	}
-
-	public void loadSimplifiedGradeCounts(int areaId, Map<Integer, AreaSector> sectorLookup) {
-		var sqlStr = """
-				WITH req AS (
-				  SELECT ? area_id
-				),
-				target_systems AS (
-				  SELECT DISTINCT tgs.grade_system_id 
-				  FROM req 
-				  JOIN area a ON a.id = req.area_id
-				  JOIN region_type rt ON a.region_id = rt.region_id 
-				  JOIN type_grade_system tgs ON rt.type_id = tgs.type_id
-				),
-				all_labels AS (
-				  SELECT 
-				    g.label_compact, 
-				    g.grade_system_id, 
-				    clr.hex_code, 
-				    MIN(g.weight) as sort_weight
-				  FROM grade g
-				  JOIN target_systems ts ON g.grade_system_id = ts.grade_system_id
-				  JOIN grade_color clr ON g.grade_color_id = clr.id
-				  GROUP BY g.label_compact, g.grade_system_id, clr.hex_code
-				)
-				SELECT 
-				    s.id as sector_id, 
-				    al.label_compact, 
-				    al.hex_code as color, 
-				    COUNT(p.id) as num
-				FROM req
-				JOIN sector s ON s.area_id = req.area_id
-				CROSS JOIN all_labels al
-				LEFT JOIN problem p ON s.id = p.sector_id 
-				    AND EXISTS (
-				        SELECT 1 FROM grade g_p 
-				        WHERE p.consensus_grade_id = g_p.id 
-				        AND g_p.label_compact = al.label_compact 
-				        AND g_p.grade_system_id = al.grade_system_id
-				    )
-				    AND p.trash IS NULL AND p.locked_admin = 0 AND p.locked_superadmin = 0
-				GROUP BY s.id, al.label_compact, al.hex_code, al.sort_weight
-				ORDER BY s.id, al.sort_weight
-				""";
-
-		jdbcClient.sql(sqlStr)
-		.param(1, areaId)
-		.query(rs -> {
-			AreaSector sector = sectorLookup.get(rs.getInt("sector_id"));
-			if (sector != null) {
-				sector.gradeCounts().add(new GradeCount(
-						rs.getString("label_compact"), 
-						rs.getString("color"), 
-						rs.getInt("num")
-						));
-			}
-		});
-	}
-
-	@Transactional(readOnly = true)
-	protected void ensureAdminWriteArea(Optional<Integer> authUserId, int areaId) {
-		boolean ok = jdbcClient.sql("""
-				SELECT ur.admin_write, ur.superadmin_write
-				FROM area a
-				JOIN user_region ur ON a.region_id=ur.region_id AND ur.user_id=?
-				WHERE a.id=?
-				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
-				""")
-				.param(1, authUserId.orElseThrow())
-				.param(2, areaId)
-				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
-				.optional()
-				.orElse(false);
-
-		if (!ok) {
-			throw new ForbiddenException("Insufficient permissions");
-		}
 	}
 }

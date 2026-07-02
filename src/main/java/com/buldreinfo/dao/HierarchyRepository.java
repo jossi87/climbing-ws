@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,13 +45,11 @@ import com.buldreinfo.model.Type;
 @Repository
 public class HierarchyRepository {
 	private static final Logger logger = LogManager.getLogger();
-	private final GeoRepository geoRepo;
 	private final JdbcClient jdbcClient;
-	private final ObjectProvider<SectorRepository> sectorRepo;
+	private final SectorRepository sectorRepo;
 
-	public HierarchyRepository(JdbcClient jdbcClient, GeoRepository geoRepo, ObjectProvider<SectorRepository> sectorRepo) {
+	public HierarchyRepository(JdbcClient jdbcClient, SectorRepository sectorRepo) {
 		this.jdbcClient = jdbcClient;
-		this.geoRepo = geoRepo;
 		this.sectorRepo = sectorRepo;
 	}
 
@@ -210,8 +207,8 @@ public class HierarchyRepository {
 					var newSector = new DangerousArea.DangerousSector(
 							id, 
 							rs.getString("sector_name"), 
-							geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_calculated")), 
-							geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_manual")), 
+							setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated")), 
+							setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual")), 
 							rs.getBoolean("sector_locked_admin"), 
 							rs.getBoolean("sector_locked_superadmin"), 
 							rs.getInt("sector_sun_from_hour"), 
@@ -776,8 +773,8 @@ public class HierarchyRepository {
 				int sectorSunToHour = rs.getInt("sector_sun_to_hour");
 				int sectorParkingidCoordinates = rs.getInt("sector_parking_coordinates_id");
 				var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"));
-				var sectorWallDirectionCalculated = geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_calculated"));
-				var sectorWallDirectionManual = geoRepo.getCompassDirection(setup, rs.getInt("sector_compass_direction_id_manual"));
+				var sectorWallDirectionCalculated = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
+				var sectorWallDirectionManual = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
 				var sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
 				var sectorLockedSuperadmin = rs.getBoolean("sector_locked_superadmin");
 				s = new TocSector(sectorId, sectorUrl, sectorName, sectorSorting, sectorParking, new ArrayList<>(), sectorWallDirectionCalculated, sectorWallDirectionManual, sectorLockedAdmin, sectorLockedSuperadmin, sectorSunFromHour, sectorSunToHour, new ArrayList<>());
@@ -813,7 +810,7 @@ public class HierarchyRepository {
 		});
 
 		if (!sectorLookup.isEmpty()) {
-			var idSectorOutline = sectorRepo.getObject().getSectorOutlines(sectorLookup.keySet());
+			var idSectorOutline = sectorRepo.getSectorOutlines(sectorLookup.keySet());
 			for (var idSector : idSectorOutline.keySet()) {
 				sectorLookup.get(idSector).outline().addAll(idSectorOutline.get(idSector));
 			}

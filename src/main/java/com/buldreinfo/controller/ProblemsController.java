@@ -19,8 +19,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.MediaRepository;
-import com.buldreinfo.dao.ProblemRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -32,6 +30,8 @@ import com.buldreinfo.model.Svg;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.service.ProblemService;
+import com.buldreinfo.service.SectorService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -51,8 +51,8 @@ public class ProblemsController {
 	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
 	private final MediaRepository mediaRepo;
-	private final ProblemRepository problemRepo;
-	private final SectorRepository sectorRepo;
+	private final ProblemService problemService;
+	private final SectorService sectorService;
 
 	public ProblemsController(
 			ApplicationEventPublisher eventPublisher,
@@ -61,16 +61,16 @@ public class ProblemsController {
 			LeafletPrintService leafletPrintService,
 			AreaService areaService,
 			MediaRepository mediaRepo,
-			ProblemRepository problemRepo,
-			SectorRepository sectorRepo) {
+			ProblemService problemService,
+			SectorService sectorService) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
 		this.storage = storage;
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
 		this.mediaRepo = mediaRepo;
-		this.problemRepo = problemRepo;
-		this.sectorRepo = sectorRepo;
+		this.problemService = problemService;
+		this.sectorService = sectorService;
 	}
 
 	@Operation(summary = "Get problem by id")
@@ -85,7 +85,7 @@ public class ProblemsController {
 		if (id > 0 && requestContext.isHitTrackingEnabled(request)) {
 			eventPublisher.publishEvent(new HitTrackingListener.ProblemHitEvent(id));
 		}
-		return ResponseEntity.ok(problemRepo.getProblem(authUserId, setup, id, showHiddenMedia));
+		return ResponseEntity.ok(problemService.getProblem(authUserId, setup, id, showHiddenMedia));
 	}
 
 	@Operation(summary = "Get problem PDF by id")
@@ -98,9 +98,9 @@ public class ProblemsController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		final var problem = problemRepo.getProblem(authUserId, setup, id, false);
+		final var problem = problemService.getProblem(authUserId, setup, id, false);
 		final var area = areaService.getArea(setup, authUserId, problem.areaId());
-		final var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
+		final var sector = sectorService.getSector(authUserId, false, setup, problem.sectorId());
 		String filename = FilenameUtil.generateFilename(problem.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {
 			try (var generator = new PdfGenerator(storage, leafletPrintService, output)) {
@@ -125,7 +125,7 @@ public class ProblemsController {
 		if (value == null || value.isBlank()) throw new ValidationFailedException("Search keyword is required");
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(problemRepo.getProblemsSearch(authUserId, setup, value));
+		return ResponseEntity.ok(problemService.getProblemsSearch(authUserId, setup, value));
 	}
 
 	@Operation(summary = "Update problem")
@@ -136,7 +136,7 @@ public class ProblemsController {
 		if (p.sectorId() <= 0) throw new ValidationFailedException("Invalid sectorId=" + p.sectorId());
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(problemRepo.setProblem(authUserId, setup, p));
+		return ResponseEntity.ok(problemService.setProblem(authUserId, setup, p));
 	}
 
 	@Operation(summary = "Update SVG for problem media")

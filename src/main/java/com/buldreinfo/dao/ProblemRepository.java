@@ -3,7 +3,6 @@ package com.buldreinfo.dao;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,10 +12,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -28,7 +27,9 @@ import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.helpers.HitsFormatter;
 import com.buldreinfo.model.Comment;
 import com.buldreinfo.model.Coordinates;
+import com.buldreinfo.model.ExternalLink;
 import com.buldreinfo.model.FaAid;
+import com.buldreinfo.model.Media;
 import com.buldreinfo.model.MediaIdentity;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.Problem.Neighbour;
@@ -37,8 +38,7 @@ import com.buldreinfo.model.ProblemComment;
 import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.ProblemSection;
 import com.buldreinfo.model.ProblemTick;
-import com.buldreinfo.model.Redirect;
-import com.buldreinfo.model.Sector.SectorProblem;
+import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Type;
 import com.buldreinfo.model.User;
 import com.buldreinfo.util.StringUtils;
@@ -48,45 +48,31 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 public class ProblemRepository {
-	private final ActivityRepository activityRepo;
-	private final ExternalLinksRepository externalLinksRepo;
-	private final GeoRepository geoRepo;
-	private final ObjectProvider<HierarchyRepository> hierarchyRepo;
+	@FunctionalInterface
+	public interface MediaProblemResolver {
+		List<Media> resolve(int areaId, int sectorId, int problemId);
+	}
 	private final JdbcClient jdbcClient;
-	private final ObjectProvider<MediaRepository> mediaRepo;
 	private final ObjectMapper objectMapper;
-	private final ObjectProvider<SectorRepository> sectorRepo;
-	private final UserRepository userRepo;
 
-	public ProblemRepository(JdbcClient jdbcClient,
-			ObjectMapper objectMapper,
-			ActivityRepository activityRepo,
-			ExternalLinksRepository externalLinksRepo,
-			GeoRepository geoRepo,
-			ObjectProvider<HierarchyRepository> hierarchyRepo,
-			ObjectProvider<MediaRepository> mediaRepo,
-			ObjectProvider<SectorRepository> sectorRepo,
-			UserRepository userRepo) {
+	public ProblemRepository(JdbcClient jdbcClient, ObjectMapper objectMapper) {
 		this.jdbcClient = jdbcClient;
 		this.objectMapper = objectMapper;
-		this.activityRepo = activityRepo;
-		this.externalLinksRepo = externalLinksRepo;
-		this.geoRepo = geoRepo;
-		this.hierarchyRepo = hierarchyRepo;
-		this.mediaRepo = mediaRepo;
-		this.sectorRepo = sectorRepo;
-		this.userRepo = userRepo;
 	}
 
 	@Transactional(readOnly = true)
-	public Problem getProblem(Optional<Integer> authUserId, Setup s, int reqId, boolean showHiddenMedia) {
+	public Problem getProblemBase(Optional<Integer> authUserId, Setup setup, int reqId,
+			CompletableFuture<List<ExternalLink>> linksFuture,
+			Function<Integer, List<Coordinates>> outlineResolver,
+			Function<Integer, List<Trail>> trailsResolver,
+			MediaProblemResolver mediaResolver,
+			Function<Integer, List<Media>> mediaGuestbookResolver) {
+
 		boolean isTodo = authUserId.isPresent() && jdbcClient.sql("SELECT 1 FROM todo WHERE user_id = ? AND problem_id = ?")
 				.params(authUserId.get(), reqId)
 				.query((_, _) -> true)
 				.optional()
 				.orElse(false);
-
-		var linksFuture = CompletableFuture.supplyAsync(() -> externalLinksRepo.getExternalLinks(0, 0, reqId));
 
 		Problem p = jdbcClient.sql("""
 				WITH req AS (SELECT ? auth_user_id, ? region_id, ? problem_id),
@@ -109,11 +95,11 @@ public class ProblemRepository {
 				              CONCAT('{"id":', u.id, 
 				                     ',"name":"', REPLACE(TRIM(CONCAT(u.firstname, ' ', COALESCE(u.lastname,''))), '"', '\\"'), 
 				                     '",', IF(m.id IS NULL, '"mediaIdentity":null', 
-				                              CONCAT('"mediaIdentity":{"id":', m.id, 
-				                                     ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
-				                                     ',"focusX":', COALESCE(mma.focus_x, 0), 
-				                                     ',"focusY":', COALESCE(mma.focus_y, 0), '}')
-				                           ), '}')
+				                                          CONCAT('"mediaIdentity":{"id":', m.id, 
+				                                                 ',"versionStamp":', COALESCE(UNIX_TIMESTAMP(m.updated_at), 0), 
+				                                                 ',"focusX":', COALESCE(mma.focus_x, 0), 
+				                                                 ',"focusY":', COALESCE(mma.focus_y, 0), '}')
+				                                   ), '}')
 				           ) ORDER BY u.firstname, u.lastname SEPARATOR ',') fa,
 				       p.length_meter,
 				       sc_data.num_ticks, sc_data.stars,
@@ -153,25 +139,25 @@ public class ProblemRepository {
 				GROUP BY a.id, s.id, p.id, sc.id, c.id, ty.id, gf.grade, go.grade, sc_data.num_ticks, sc_data.stars
 				ORDER BY p.name
 				""")
-				.params(authUserId.orElse(0), s.idRegion(), reqId)
+				.params(authUserId.orElse(0), setup.idRegion(), reqId)
 				.query((rs, _) -> {
 					try {
 						int sectorId = rs.getInt("sector_id");
 						String rock = rs.getString("rock");
-						var outline = sectorRepo.getObject().getSectorOutline(sectorId);
-						var trails = sectorRepo.getObject().getSectorTrails(authUserId, Collections.singleton(sectorId)).get(sectorId);
+						var outline = outlineResolver.apply(sectorId);
+						var trails = trailsResolver.apply(sectorId);
 						var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
 						int areaId = rs.getInt("area_id");
 						int parkingId = rs.getInt("sector_parking_coordinates_id");
 						var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"));
-						var wallDirCalc = geoRepo.getCompassDirection(s, rs.getInt("sector_compass_direction_id_calculated"));
-						var wallDirMan = geoRepo.getCompassDirection(s, rs.getInt("sector_compass_direction_id_manual"));
+						var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
+						var wallDirMan = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
 						int id = rs.getInt("id");
 						var faStr = rs.getString("fa");
 						List<User> fa = (faStr == null || faStr.isEmpty()) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
 						int coordId = rs.getInt("coordinates_id");
 						var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
-						var allMedia = mediaRepo.getObject().getMediaProblem(s, authUserId, areaId, sectorId, id, showHiddenMedia);
+						var allMedia = mediaResolver.resolve(areaId, sectorId, id);
 						var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
 						var triviaMedia = partitioned.get(true);
 						var media = partitioned.get(false);
@@ -193,19 +179,13 @@ public class ProblemRepository {
 				.orElse(null);
 
 		if (p == null) {
-			try {
-				var res = hierarchyRepo.getObject().getCanonicalUrl(s, 0, 0, reqId);
-				if (res.redirectUrl() != null && !res.redirectUrl().isEmpty()) {
-					return new Problem(res.redirectUrl(), 0, false, false, null, null, null, false, 0, 0, 0, false, false, null, null, null, 0, 0, null, null, null, null, null, null, 0, null, false, false, false, 0, null, null, null, null, null, null, null, null, 0, null, null, 0, 0.0, false, null, null, null, null, null, false, null, null, null, null, null, null, null, null);
-				}
-			} catch (NoSuchElementException _) {
-			}
-			throw new NoSuchElementException("Could not find problem with id=" + reqId);
+			return null;
 		}
+
 		return p.withTicks(fetchTicks(authUserId, p.id()))
 				.withTodos(fetchTodos(p.id()))
-				.withComments(fetchComments(authUserId, p.id()))
-				.withFaAid(s.isBouldering() ? null : fetchFaAid(p.id()));
+				.withComments(fetchComments(authUserId, p.id(), mediaGuestbookResolver))
+				.withFaAid(setup.isBouldering() ? null : fetchFaAid(p.id()));
 	}
 
 	@Transactional(readOnly = true)
@@ -253,23 +233,7 @@ public class ProblemRepository {
 	}
 
 	@Transactional
-	public Redirect setProblem(Optional<Integer> authUserId, Setup s, Problem p) {
-		if (authUserId.isEmpty()) throw new UnauthorizedException("User not logged in");
-
-		var dt = (p.faDate() == null || p.faDate().isEmpty()) ? null : LocalDate.parse(p.faDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-		var isLockedAdmin = p.lockedSuperadmin() ? false : p.lockedAdmin();
-
-		if (p.coordinates() != null) {
-			if (p.coordinates().getLatitude() == 0 || p.coordinates().getLongitude() == 0) {
-				p = p.withCoordinates(null);
-			} else {
-				geoRepo.ensureCoordinatesInDbWithElevationAndId(List.of(p.coordinates()));
-			}
-		}
-
-		sectorRepo.getObject().tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
-		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
-		var coordinatesId = p.coordinates() == null || p.coordinates().getId() == 0 ? null : p.coordinates().getId();
+	public int setProblemDb(Optional<Integer> authUserId, Setup s, Problem p, boolean isLockedAdmin, LocalDate dt, int gradeId, Integer coordinatesId, int nr, Function<String, Integer> userCreator) {
 		int idProblem = p.id();
 
 		if (idProblem > 0) {
@@ -286,9 +250,6 @@ public class ProblemRepository {
 			.update();
 			updateProblemConsensusGrade(idProblem);
 		} else {
-			sectorRepo.getObject().ensureAdminWriteSector(authUserId, p.sectorId());
-			int nr = p.nr() == 0 ? sectorRepo.getObject().getSector(authUserId, s.isBouldering(), s, p.sectorId())
-					.problems().stream().mapToInt(SectorProblem::nr).max().orElse(0) + 1 : p.nr();
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("""
 					INSERT INTO problem (sector_id, name, rock, description, grade_id, consensus_grade_id, fa_date, 
@@ -315,7 +276,7 @@ public class ProblemRepository {
 			var toDelete = new HashSet<>(existingFa);
 			for (var x : p.fa()) {
 				if (x.id() == 0) throw new IllegalArgumentException("FA user id must not be 0");
-				int userId = x.id() > 0 ? x.id() : userRepo.addUser(null, x.name(), null);
+				int userId = x.id() > 0 ? x.id() : userCreator.apply(x.name());
 				if (userId <= 0) throw new IllegalStateException("Failed to create user");
 				if (!toDelete.remove(userId)) jdbcClient.sql("INSERT INTO fa (problem_id, user_id) VALUES (?, ?)").params(idProblem, userId).update();
 			}
@@ -338,16 +299,14 @@ public class ProblemRepository {
 				var aidDt = (p.faAid().date() == null || p.faAid().date().isEmpty()) ? null : LocalDate.parse(p.faAid().date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				jdbcClient.sql("INSERT INTO fa_aid (problem_id, aid_date, aid_description) VALUES (?, ?, ?)").params(idProblem, aidDt, StringUtils.stripToNull(p.faAid().description())).update();
 				for (var u : p.faAid().users()) {
-					int userId = u.id() > 0 ? u.id() : userRepo.addUser(null, u.name(), null);
+					int userId = u.id() > 0 ? u.id() : userCreator.apply(u.name());
 					if (userId <= 0) throw new IllegalStateException("Failed to create user for faAid");
 					jdbcClient.sql("INSERT INTO fa_aid_user (problem_id, user_id) VALUES (?, ?)").params(idProblem, userId).update();
 				}
 			}
 		}
 
-		externalLinksRepo.upsertExternalLinks(p.externalLinks(), 0, 0, idProblem);
-		activityRepo.fillActivity(idProblem);
-		return p.trash() ? Redirect.fromIdSector(p.sectorId()) : Redirect.fromIdProblem(idProblem);
+		return idProblem;
 	}
 
 	@Transactional
@@ -386,12 +345,10 @@ public class ProblemRepository {
 	}
 
 	@Transactional
-	public int upsertComment(Optional<Integer> authUserId, Setup s, Comment co) {
-		int userId = authUserId.orElseThrow(() -> new UnauthorizedException("Not logged in"));
+	public int upsertCommentDb(int userId, Comment co, Problem p) {
 		int idGuestbook = co.id();
 
 		if (idGuestbook > 0) {
-			Problem p = getProblem(authUserId, s, co.idProblem(), false);
 			ProblemComment comment = p.comments().stream()
 					.filter(x -> x.id() == co.id())
 					.findAny()
@@ -430,11 +387,10 @@ public class ProblemRepository {
 			idGuestbook = keyHolder.getKey().intValue();
 		}
 
-		activityRepo.fillActivity(co.idProblem());
 		return idGuestbook;
 	}
 
-	private List<ProblemComment> fetchComments(Optional<Integer> authUserId, int problemId) {
+	private List<ProblemComment> fetchComments(Optional<Integer> authUserId, int problemId, Function<Integer, List<Media>> mediaGuestbookResolver) {
 		List<ProblemComment> comments = new ArrayList<>();
 		jdbcClient.sql("""
 				SELECT g.id, CAST(g.post_time AS char) date, u.id user_id, m.id media_id, UNIX_TIMESTAMP(m.updated_at) media_version_stamp, 
@@ -460,7 +416,7 @@ public class ProblemRepository {
 					rs.getString("message"), 
 					rs.getBoolean("danger"), 
 					rs.getBoolean("resolved"), 
-					mediaRepo.getObject().getMediaGuestbook(authUserId, rs.getInt("id")), 
+					mediaGuestbookResolver.apply(rs.getInt("id")), 
 					false
 					));
 		});

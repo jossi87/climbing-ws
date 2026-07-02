@@ -11,14 +11,14 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 
 import com.buldreinfo.Application;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.io.StorageManager;
 import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.service.ProblemService;
+import com.buldreinfo.service.SectorService;
 
 public class WritePdf {
 	public static void main(String[] args) throws FileNotFoundException, IOException {
@@ -28,8 +28,8 @@ public class WritePdf {
 		var storage = context.getBean(StorageManager.class);
 		var leafletPrintService = context.getBean(LeafletPrintService.class);
 		var areaService = context.getBean(AreaService.class);
-		var problemRepo = context.getBean(ProblemRepository.class);
-		var sectorRepo = context.getBean(SectorRepository.class);
+		var problemService = context.getBean(ProblemService.class);
+		var sectorService = context.getBean(SectorService.class);
 		var hierarchyRepo = context.getBean(HierarchyRepository.class);
 		var regionRepo = context.getBean(RegionRepository.class);
 
@@ -38,9 +38,9 @@ public class WritePdf {
 				.findAny()
 				.orElseThrow();
 		var authUserId = Optional.of(1);
-		var problem = problemRepo.getProblem(authUserId, setup, 7745, false);
+		var problem = problemService.getProblem(authUserId, setup, 7745, false);
 		var area = areaService.getArea(setup, authUserId, problem.areaId());
-		var sector = sectorRepo.getSector(authUserId, false, setup, problem.sectorId());
+		var sector = sectorService.getSector(authUserId, false, setup, problem.sectorId());
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/problem.pdf");
 				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {
 			generator.writeProblem(setup, area, sector, problem);
@@ -49,7 +49,7 @@ public class WritePdf {
 		var gradeDist = hierarchyRepo.getGradeDistribution(authUserId, area2.id(), 0);
 		var sectors = new ArrayList<Sector>();
 		for (var areaSector : area2.sectors()) {
-			sectors.add(sectorRepo.getSector(authUserId, false, setup, areaSector.id()));
+			sectors.add(sectorService.getSector(authUserId, false, setup, areaSector.id()));
 		}
 		try (var fos = new FileOutputStream("C:/Users/JosteinØygarden/Desktop/area.pdf");
 				PdfGenerator generator = new PdfGenerator(storage, leafletPrintService, fos)) {

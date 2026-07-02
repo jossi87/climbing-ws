@@ -61,7 +61,7 @@ public class ElevationService {
 						}
 					}
 					if (!found) {
-						logger.warn("Google API returned elevtion for {},{} but no local coordinate matched.",  res.location().lat(), res.location().lng());
+						logger.warn("Google API returned elevation for {},{} but no local coordinate matched.",  res.location().lat(), res.location().lng());
 					}
 				}
 			}

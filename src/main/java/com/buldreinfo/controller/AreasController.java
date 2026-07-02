@@ -22,7 +22,6 @@ import com.buldreinfo.beans.StorageType;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.exception.InternalServerErrorException;
 import com.buldreinfo.exception.ValidationFailedException;
 import com.buldreinfo.infrastructure.RequestContext;
@@ -34,6 +33,7 @@ import com.buldreinfo.model.Sector;
 import com.buldreinfo.pdf.PdfGenerator;
 import com.buldreinfo.service.AreaService;
 import com.buldreinfo.service.LeafletPrintService;
+import com.buldreinfo.service.SectorService;
 import com.buldreinfo.tracking.HitTrackingListener;
 import com.buldreinfo.util.FilenameUtil;
 
@@ -53,7 +53,7 @@ public class AreasController {
 	private final LeafletPrintService leafletPrintService;
 	private final AreaService areaService;
 	private final RegionRepository regionRepo;
-	private final SectorRepository sectorRepo;
+	private final SectorService sectorService;
 	private final HierarchyRepository hierarchyRepo;
 
 	public AreasController(
@@ -63,7 +63,7 @@ public class AreasController {
 			LeafletPrintService leafletPrintService,
 			RegionRepository regionRepo,
 			AreaService areaService,
-			SectorRepository sectorRepo,
+			SectorService sectorService,
 			HierarchyRepository hierarchyRepo) {
 		this.eventPublisher = eventPublisher;
 		this.requestContext = requestContext;
@@ -71,7 +71,7 @@ public class AreasController {
 		this.leafletPrintService = leafletPrintService;
 		this.areaService = areaService;
 		this.regionRepo = regionRepo;
-		this.sectorRepo = sectorRepo;
+		this.sectorService = sectorService;
 		this.hierarchyRepo = hierarchyRepo;
 	}
 
@@ -104,7 +104,7 @@ public class AreasController {
 		Area area = areaService.getArea(setup, authUserId, id);
 		Collection<GradeDistribution> gradeDistribution = hierarchyRepo.getGradeDistribution(authUserId, area.id(), 0);
 		List<Sector> sectors = area.sectors().stream()
-				.map(s -> sectorRepo.getSector(authUserId, false, setup, s.id()))
+				.map(s -> sectorService.getSector(authUserId, false, setup, s.id()))
 				.toList();
 		String filename = FilenameUtil.generateFilename(area.name(), StorageType.PDF);
 		StreamingResponseBody stream = output -> {

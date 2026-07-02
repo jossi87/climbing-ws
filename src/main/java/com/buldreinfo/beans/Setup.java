@@ -21,18 +21,18 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 	}
 
 	public static class SetupBuilder {
+		private List<CompassDirection> compassDirections;
+		private LatLng defaultCenter;
+		private int defaultZoom;
+		private String description;
 		private final String domain;
-		private final String url;
+		private GradeConverter gradeConverter;
+		private int idRegion;
 		private final boolean isBouldering;
 		private final boolean isClimbing;
 		private final boolean isIce;
-		private int idRegion;
-		private GradeConverter gradeConverter;
-		private List<CompassDirection> compassDirections;
 		private String title;
-		private String description;
-		private LatLng defaultCenter;
-		private int defaultZoom;
+		private final String url;
 
 		public SetupBuilder(String domain, boolean isBouldering, boolean isClimbing, boolean isIce) {
 			this.domain = domain;
@@ -65,12 +65,12 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 			this.description = description;
 			return this;
 		}
-		
+
 		public SetupBuilder withGradeConverter(GradeConverter gradeConverter) {
 			this.gradeConverter = gradeConverter;
 			return this;
 		}
-		
+
 		public SetupBuilder withIdRegion(int idRegion) {
 			this.idRegion = idRegion;
 			return this;
@@ -80,5 +80,16 @@ public record Setup(String domain, String url, int idRegion, boolean isBoulderin
 			this.title = title;
 			return this;
 		}
+	}
+
+	public CompassDirection getCompassDirection(int id) {
+		if (id == 0) {
+			return null;
+		}
+		return compassDirections()
+				.stream()
+				.filter(cd -> cd.id() == id)
+				.findAny()
+				.orElse(null);
 	}
 }

@@ -958,7 +958,7 @@ public class UserRepository {
 		return res;
 	}
 
-	protected int addUser(String email, String firstname, String lastname) {
+	private int addUser(String email, String firstname, String lastname) {
 		var keyHolder = new GeneratedKeyHolder();
 
 		jdbcClient.sql("INSERT INTO user (firstname, lastname) VALUES (?, ?)")
@@ -985,7 +985,8 @@ public class UserRepository {
 		return id;
 	}
 
-	protected int getExistingOrInsertUser(String name) {
+	@Transactional
+	public int getExistingOrInsertUser(String name) {
 		if (name == null || name.isBlank()) {
 			return USER_ID_UNKNOWN;
 		}

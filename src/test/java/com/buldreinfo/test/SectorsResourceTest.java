@@ -16,12 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.buldreinfo.controller.SectorsController;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.model.Sector;
+import com.buldreinfo.service.SectorService;
 
 public class SectorsResourceTest extends BaseResourceTest {
 	@Autowired private SectorsController tester;
-	@Autowired private SectorRepository sectorRepo;
+	@Autowired private SectorService sectorService;
 
 	@Test
 	public void testGetSector() {
@@ -50,8 +50,8 @@ public class SectorsResourceTest extends BaseResourceTest {
 
 		var setup = getSetup(Region.buldreinfo);
 		assertThrows(NoSuchElementException.class, () -> 
-		sectorRepo.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID));
-		Sector s = sectorRepo.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID);
+		sectorService.getSector(Optional.of(USER_ID_NORMAL), false, setup, BULDREINFO_HIDDEN_SECTOR_ID));
+		Sector s = sectorService.getSector(Optional.of(USER_ID_SUPERADMIN), false, setup, BULDREINFO_HIDDEN_SECTOR_ID);
 		assertNotNull(s);
 		assertFalse(s.name() == null || s.name().isBlank());
 	}

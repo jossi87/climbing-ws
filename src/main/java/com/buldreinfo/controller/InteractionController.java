@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.dao.HierarchyRepository;
-import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.dao.RegionRepository;
-import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.TodoRepository;
 import com.buldreinfo.dao.TrashRepository;
 import com.buldreinfo.dao.UserRepository;
@@ -34,6 +32,8 @@ import com.buldreinfo.model.Todo;
 import com.buldreinfo.model.Top;
 import com.buldreinfo.model.Trail;
 import com.buldreinfo.model.Trash;
+import com.buldreinfo.service.ProblemService;
+import com.buldreinfo.service.SectorService;
 import com.buldreinfo.service.TickService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,9 +47,9 @@ public class InteractionController {
 	private final RequestContext requestContext;
 	private final TickService tickService;
 	private final HierarchyRepository hierarchyRepo;
-	private final ProblemRepository problemRepo;
+	private final ProblemService problemService;
 	private final RegionRepository regionRepo;
-	private final SectorRepository sectorRepo;
+	private final SectorService sectorService;
 	private final TodoRepository todoRepo;
 	private final TrashRepository trashRepo;
 	private final UserRepository userRepo;
@@ -57,8 +57,8 @@ public class InteractionController {
 	public InteractionController(RequestContext requestContext,
 			TickService tickService,
 			HierarchyRepository hierarchyRepo,
-			ProblemRepository problemRepo,
-			SectorRepository sectorRepo,
+			ProblemService problemService,
+			SectorService sectorService,
 			RegionRepository regionRepo,
 			TodoRepository todoRepo,
 			TrashRepository trashRepo,
@@ -66,9 +66,9 @@ public class InteractionController {
 		this.requestContext = requestContext;
 		this.tickService = tickService;
 		this.hierarchyRepo = hierarchyRepo;
-		this.problemRepo = problemRepo;
+		this.problemService = problemService;
 		this.regionRepo = regionRepo;
-		this.sectorRepo = sectorRepo;
+		this.sectorService = sectorService;
 		this.todoRepo = todoRepo;
 		this.trashRepo = trashRepo;
 		this.userRepo = userRepo;
@@ -152,7 +152,7 @@ public class InteractionController {
 		}
 		var setup = requestContext.getSetup(request);
 		var authUserId = requestContext.getAuthenticatedUserId();
-		return ResponseEntity.ok(problemRepo.upsertComment(authUserId, setup, co));
+		return ResponseEntity.ok(problemService.upsertComment(authUserId, setup, co));
 	}
 
 	@Operation(summary = "Update user privileges")
@@ -204,7 +204,7 @@ public class InteractionController {
 	public ResponseEntity<Void> postTrails(@RequestBody List<Trail> trails) {
 		if (trails == null || trails.isEmpty()) throw new ValidationFailedException("Trails empty");
 		var authUserId = requestContext.getAuthenticatedUserId();
-		sectorRepo.upsertTrails(authUserId, trails);
+		sectorService.upsertTrails(authUserId, trails);
 		return ResponseEntity.ok().build();
 	}
 

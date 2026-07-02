@@ -21,12 +21,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.buldreinfo.controller.ProblemsController;
-import com.buldreinfo.dao.ProblemRepository;
 import com.buldreinfo.model.Problem;
+import com.buldreinfo.service.ProblemService;
 
 public class ProblemsResourceTest extends BaseResourceTest {
 	@Autowired private ProblemsController tester;
-	@Autowired private ProblemRepository problemRepo;
+	@Autowired private ProblemService problemService;
 
 	@Test
 	public void testGetProblem() {
@@ -54,8 +54,8 @@ public class ProblemsResourceTest extends BaseResourceTest {
 
 		var setup = getSetup(Region.buldreinfo);
 		assertThrows(NoSuchElementException.class, () -> 
-		problemRepo.getProblem(Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false));
-		Problem p = problemRepo.getProblem(Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false);
+		problemService.getProblem(Optional.of(USER_ID_NORMAL), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false));
+		Problem p = problemService.getProblem(Optional.of(USER_ID_SUPERADMIN), setup, BULDREINFO_HIDDEN_PROBLEM_ID, false);
 		assertNotNull(p);
 		assertFalse(p.name() == null || p.name().isBlank());
 	}

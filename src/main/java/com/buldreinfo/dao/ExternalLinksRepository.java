@@ -22,7 +22,7 @@ public class ExternalLinksRepository {
 	}
 
 	@Transactional(readOnly = true)
-	protected List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) {
+	public List<ExternalLink> getExternalLinks(int areaId, int sectorId, int problemId) {
 		var start = System.nanoTime();
 		var sql = """
 				WITH req AS (
@@ -84,7 +84,7 @@ public class ExternalLinksRepository {
 	}
 
 	@Transactional
-	protected void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) {
+	public void upsertExternalLinks(List<ExternalLink> newLinks, int areaId, int sectorId, int problemId) {
 		if (areaId <= 0 && sectorId <= 0 && problemId <= 0) {
 			throw new UnsupportedOperationException("areaId=0, sectorId=0, problemId=0");
 		}

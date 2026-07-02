@@ -9,8 +9,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.buldreinfo.beans.Setup;
-import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.service.ElevationService;
 
@@ -52,7 +50,7 @@ public class GeoRepository {
 	}
 
 	@Transactional
-	protected void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
+	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return;
 
 		for (var coord : coordinates) {
@@ -100,16 +98,5 @@ public class GeoRepository {
 				}
 			}
 		});
-	}
-
-	protected CompassDirection getCompassDirection(Setup s, int id) {
-		if (id == 0) {
-			return null;
-		}
-		return s.compassDirections()
-				.stream()
-				.filter(cd -> cd.id() == id)
-				.findAny()
-				.orElse(null);
 	}
 }
