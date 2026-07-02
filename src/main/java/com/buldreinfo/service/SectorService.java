@@ -95,23 +95,24 @@ public class SectorService {
 
 		final boolean isLockedAdmin = !s.lockedSuperadmin() && s.lockedAdmin();
 		boolean setPermissionRecursive = false;
-		List<Coordinates> allCoords = new ArrayList<>();
 
-		if (s.outline() != null && !s.outline().isEmpty()) allCoords.addAll(s.outline());
-		if (s.parking() != null) {
-			if (s.parking().latitude() == 0 || s.parking().longitude() == 0) s = s.withParking(null);
-			else allCoords.add(s.parking());
-		}
-		if (!allCoords.isEmpty()) {
-			geoService.ensureConsistency(allCoords);
-			int idx = 0;
-			if (s.outline() != null && !s.outline().isEmpty()) {
-				for (int i = 0; i < s.outline().size(); i++) {
-					s.outline().set(i, allCoords.get(idx++));
-				}
+		if (s.outline() != null && !s.outline().isEmpty()) {
+			var outlineMap = geoService.ensureConsistency(s.outline());
+			for (int i = 0; i < s.outline().size(); i++) {
+				var c = s.outline().get(i);
+				var key = c.latitude() + "," + c.longitude();
+				var dbCoord = outlineMap.get(key);
+				if (dbCoord != null) s.outline().set(i, dbCoord);
 			}
-			if (s.parking() != null && s.parking().latitude() != 0 && s.parking().longitude() != 0) {
-				s = s.withParking(allCoords.get(idx));
+		}
+		if (s.parking() != null) {
+			if (s.parking().latitude() == 0 || s.parking().longitude() == 0) {
+				s = s.withParking(null);
+			} else {
+				var parkingMap = geoService.ensureConsistency(List.of(s.parking()));
+				var key = s.parking().latitude() + "," + s.parking().longitude();
+				var dbCoord = parkingMap.get(key);
+				if (dbCoord != null) s = s.withParking(dbCoord);
 			}
 		}
 
@@ -174,26 +175,32 @@ public class SectorService {
 			}
 		}
 
-		// Collect all coordinates, ensure they exist in DB with IDs, then propagate IDs back
+		// Collect all coordinates, ensure they exist in DB with IDs, then replace with DB-persisted versions
 		List<Coordinates> allCoords = new ArrayList<>();
 		for (Trail t : trails) {
 			if (t.path() != null) allCoords.addAll(t.path());
 			if (t.markers() != null) t.markers().forEach(m -> { if (m.coordinates() != null) allCoords.add(m.coordinates()); });
 		}
 		if (!allCoords.isEmpty()) {
-			geoService.ensureConsistency(allCoords);
-			int idx = 0;
+			var coordMap = geoService.ensureConsistency(allCoords);
 			for (Trail t : trails) {
 				if (t.path() != null) {
 					for (int i = 0; i < t.path().size(); i++) {
-						t.path().set(i, allCoords.get(idx++));
+						var c = t.path().get(i);
+						var key = c.latitude() + "," + c.longitude();
+						var dbCoord = coordMap.get(key);
+						if (dbCoord != null) t.path().set(i, dbCoord);
 					}
 				}
 				if (t.markers() != null) {
 					for (int i = 0; i < t.markers().size(); i++) {
-						Trail.TrailMarker m = t.markers().get(i);
+						var m = t.markers().get(i);
 						if (m.coordinates() != null) {
-							t.markers().set(i, new Trail.TrailMarker(allCoords.get(idx++), m.label()));
+							var key = m.coordinates().latitude() + "," + m.coordinates().longitude();
+							var dbCoord = coordMap.get(key);
+							if (dbCoord != null) {
+								t.markers().set(i, new Trail.TrailMarker(dbCoord, m.label()));
+							}
 						}
 					}
 				}

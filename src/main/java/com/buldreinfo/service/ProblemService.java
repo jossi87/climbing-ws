@@ -2,7 +2,6 @@ package com.buldreinfo.service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -22,7 +21,6 @@ import com.buldreinfo.dao.SectorRepository;
 import com.buldreinfo.dao.UserRepository;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.model.Comment;
-import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.model.Problem;
 import com.buldreinfo.model.ProblemSearchResult;
 import com.buldreinfo.model.Redirect;
@@ -97,9 +95,10 @@ public class ProblemService {
 			if (p.coordinates().latitude() == 0 || p.coordinates().longitude() == 0) {
 				p = p.withCoordinates(null);
 			} else {
-				List<Coordinates> single = new ArrayList<>(List.of(p.coordinates()));
-				geoService.ensureConsistency(single);
-				p = p.withCoordinates(single.getFirst());
+				var coordMap = geoService.ensureConsistency(List.of(p.coordinates()));
+				var key = p.coordinates().latitude() + "," + p.coordinates().longitude();
+				var dbCoord = coordMap.get(key);
+				if (dbCoord != null) p = p.withCoordinates(dbCoord);
 			}
 		}
 

@@ -24,16 +24,16 @@ public class GeoRepository {
 	}
 
 	@Transactional
-	public void ensureCoordinatesInDbWithId(List<Coordinates> coordinates) {
-		if (coordinates == null || coordinates.isEmpty()) return;
+	public Map<String, Coordinates> ensureCoordinatesInDbWithId(List<Coordinates> coordinates) {
+		if (coordinates == null || coordinates.isEmpty()) return Map.of();
 
-		for (int i = 0; i < coordinates.size(); i++) {
-			coordinates.set(i, coordinates.get(i).roundTo10Digits());
-		}
+		var rounded = coordinates.stream()
+				.map(Coordinates::roundTo10Digits)
+				.toList();
 
 		jdbcTemplate.batchUpdate(
 				"INSERT IGNORE INTO coordinates (latitude, longitude, elevation, elevation_source) VALUES (?, ?, ?, ?)",
-				coordinates,
+				rounded,
 				100,
 				(ps, coord) -> {
 					ps.setDouble(1, coord.latitude());
@@ -47,14 +47,14 @@ public class GeoRepository {
 					}
 				});
 
-		String placeholders = String.join(",", Collections.nCopies(coordinates.size(), "(?,?)"));
+		String placeholders = String.join(",", Collections.nCopies(rounded.size(), "(?,?)"));
 		var sql = "SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE (latitude, longitude) IN (" + placeholders + ")";
 
-		var params = coordinates.stream()
+		var params = rounded.stream()
 				.flatMap(c -> Stream.of(c.latitude(), c.longitude()))
 				.toList();
 
-		Map<String, Coordinates> dbResults = jdbcClient.sql(sql)
+		return jdbcClient.sql(sql)
 				.params(params)
 				.query((rs, _) -> new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0))
 				.list()
@@ -63,15 +63,6 @@ public class GeoRepository {
 						c -> c.latitude() + "," + c.longitude(), 
 						c -> c
 						));
-
-		for (int i = 0; i < coordinates.size(); i++) {
-			Coordinates c = coordinates.get(i);
-			String key = c.latitude() + "," + c.longitude();
-			if (dbResults.containsKey(key)) {
-				Coordinates dbCoord = dbResults.get(key);
-				coordinates.set(i, c.withId(dbCoord.id()).withElevation(dbCoord.elevation(), dbCoord.elevationSource()));
-			}
-		}
 	}
 
 	@Transactional(readOnly = true)
