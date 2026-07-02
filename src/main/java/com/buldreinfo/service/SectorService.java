@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.AreaRepository;
 import com.buldreinfo.dao.ExternalLinksRepository;
-import com.buldreinfo.dao.GeoRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.SectorRepository;
@@ -37,7 +36,7 @@ public class SectorService {
 	private static final Logger logger = LogManager.getLogger();
 	private final AreaRepository areaRepo;
 	private final ExternalLinksRepository externalLinksRepo;
-	private final GeoRepository geoRepo;
+	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
 	private final MediaRepository mediaRepo;
 	private final SectorRepository sectorRepo;
@@ -45,13 +44,13 @@ public class SectorService {
 	public SectorService(
 			AreaRepository areaRepo,
 			ExternalLinksRepository externalLinksRepo,
-			GeoRepository geoRepo,
+			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
 			MediaRepository mediaRepo,
 			SectorRepository sectorRepo) {
 		this.areaRepo = areaRepo;
 		this.externalLinksRepo = externalLinksRepo;
-		this.geoRepo = geoRepo;
+		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaRepo = mediaRepo;
 		this.sectorRepo = sectorRepo;
@@ -100,12 +99,12 @@ public class SectorService {
 
 		if (s.outline() != null && !s.outline().isEmpty()) allCoords.addAll(s.outline());
 		if (s.parking() != null) {
-			if (s.parking().getLatitude() == 0 || s.parking().getLongitude() == 0) s = s.withParking(null);
+			if (s.parking().latitude() == 0 || s.parking().longitude() == 0) s = s.withParking(null);
 			else allCoords.add(s.parking());
 		}
-		geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
+		geoService.ensureConsistency(allCoords);
 
-		Integer parkingId = (s.parking() != null && s.parking().getId() > 0) ? s.parking().getId() : null;
+		Integer parkingId = (s.parking() != null && s.parking().id() > 0) ? s.parking().id() : null;
 		Integer calcCompass = Optional.ofNullable(GeoHelper.calculateCompassDirection(setup, s.outline()))
 				.map(CompassDirection::id)
 				.filter(id -> id > 0)
@@ -153,8 +152,8 @@ public class SectorService {
 			if (t.path() != null && t.path().size() >= 2 && t.sectors() != null && !t.sectors().isEmpty()) {
 				Coordinates parkingCoord = sectorRepo.getFirstParkingCoordinateForSectors(t.sectors().stream().map(Trail.TrailSector::sectorId).toList());
 				if (parkingCoord != null) {
-					double distToStart = GeoUtils.getHaversineDistanceInMeters(parkingCoord.getLatitude(), parkingCoord.getLongitude(), t.path().getFirst().getLatitude(), t.path().getFirst().getLongitude());
-					double distToEnd = GeoUtils.getHaversineDistanceInMeters(parkingCoord.getLatitude(), parkingCoord.getLongitude(), t.path().getLast().getLatitude(), t.path().getLast().getLongitude());
+					double distToStart = GeoUtils.getHaversineDistanceInMeters(parkingCoord.latitude(), parkingCoord.longitude(), t.path().getFirst().latitude(), t.path().getFirst().longitude());
+					double distToEnd = GeoUtils.getHaversineDistanceInMeters(parkingCoord.latitude(), parkingCoord.longitude(), t.path().getLast().latitude(), t.path().getLast().longitude());
 					boolean shouldReverse = t.isDescent() ? (distToStart < distToEnd) : (distToEnd < distToStart);
 					if (shouldReverse) {
 						Collections.reverse(t.path());
@@ -169,7 +168,7 @@ public class SectorService {
 			if (t.path() != null) allCoords.addAll(t.path());
 			if (t.markers() != null) t.markers().forEach(m -> { if (m.coordinates() != null) allCoords.add(m.coordinates()); });
 		});
-		if (!allCoords.isEmpty()) geoRepo.ensureCoordinatesInDbWithElevationAndId(allCoords);
+		if (!allCoords.isEmpty()) geoService.ensureConsistency(allCoords);
 
 		sectorRepo.upsertTrailsDb(authUserId, trails);
 	}

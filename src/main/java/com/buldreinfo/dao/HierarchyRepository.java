@@ -754,7 +754,7 @@ public class HierarchyRepository {
 				var areaUrl = rs.getString("area_url");
 				var areaName = rs.getString("area_name");
 				int areaidCoordinates = rs.getInt("area_coordinates_id");
-				var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"));
+				var areaCoordinates = areaidCoordinates == 0 ? null : new Coordinates(areaidCoordinates, rs.getDouble("area_latitude"), rs.getDouble("area_longitude"), rs.getDouble("area_elevation"), rs.getString("area_elevation_source"), 0.0);
 				var areaLockedAdmin = rs.getBoolean("area_locked_admin");
 				var areaLockedSuperadmin = rs.getBoolean("area_locked_superadmin");
 				int areaSunFromHour = rs.getInt("area_sun_from_hour");
@@ -772,7 +772,7 @@ public class HierarchyRepository {
 				int sectorSunFromHour = rs.getInt("sector_sun_from_hour");
 				int sectorSunToHour = rs.getInt("sector_sun_to_hour");
 				int sectorParkingidCoordinates = rs.getInt("sector_parking_coordinates_id");
-				var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"));
+				var sectorParking = sectorParkingidCoordinates == 0 ? null : new Coordinates(sectorParkingidCoordinates, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
 				var sectorWallDirectionCalculated = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
 				var sectorWallDirectionManual = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
 				var sectorLockedAdmin = rs.getBoolean("sector_locked_admin");
@@ -792,7 +792,7 @@ public class HierarchyRepository {
 			int lengthMeter = rs.getInt("length_meter");
 			int startingAltitude = rs.getInt("starting_altitude");
 			int idCoordinates = rs.getInt("coordinates_id");
-			var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+			var coordinates = idCoordinates == 0 ? null : new Coordinates(idCoordinates, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 			var grade = rs.getString("grade");
 			var faUser = rs.getString("fa_user");
 			int faYear = rs.getInt("fa_year");

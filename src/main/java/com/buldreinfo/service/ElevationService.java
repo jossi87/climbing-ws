@@ -40,7 +40,7 @@ public class ElevationService {
 		try {
 			for (List<Coordinates> chunk : CollectionUtils.partition(allCoordinates, 500)) {
 				String locations = chunk.stream()
-						.map(c -> c.getLatitude() + "," + c.getLongitude())
+						.map(c -> c.latitude() + "," + c.longitude())
 						.collect(Collectors.joining("%7C")); 
 				String url = String.format("https://maps.googleapis.com/maps/api/elevation/json?locations=%s&key=%s", locations, appConfig.googleApikey());
 				HttpRequest request = HttpRequest.newBuilder()
@@ -52,16 +52,18 @@ public class ElevationService {
 					throw new IllegalArgumentException("Google API error: " + response.statusCode());
 				}
 				GoogleResponse data = objectMapper.readValue(response.body(), GoogleResponse.class);
+				
 				for (ElevationResult res : data.results()) {
 					boolean found = false;
-					for (Coordinates c : chunk) {
-						if (isClose(c.getLatitude(), res.location().lat()) && isClose(c.getLongitude(), res.location().lng())) {
-							c.setElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE);
+					for (int i = 0; i < chunk.size(); i++) {
+						Coordinates c = chunk.get(i);
+						if (isClose(c.latitude(), res.location().lat()) && isClose(c.longitude(), res.location().lng())) {
+							chunk.set(i, c.withElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE));
 							found = true;
 						}
 					}
 					if (!found) {
-						logger.warn("Google API returned elevation for {},{} but no local coordinate matched.",  res.location().lat(), res.location().lng());
+						logger.warn("Google API returned elevation for {},{} but no local coordinate matched.", res.location().lat(), res.location().lng());
 					}
 				}
 			}

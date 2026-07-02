@@ -2,6 +2,8 @@ package com.buldreinfo.dao;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,51 +12,23 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.service.ElevationService;
 
 @Repository
 public class GeoRepository {
 	private final JdbcClient jdbcClient;
 	private final JdbcTemplate jdbcTemplate;
-	private final ElevationService elevationService;
 
-	public GeoRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate, ElevationService elevationService) {
+	public GeoRepository(JdbcClient jdbcClient, JdbcTemplate jdbcTemplate) {
 		this.jdbcClient = jdbcClient;
 		this.jdbcTemplate = jdbcTemplate;
-		this.elevationService = elevationService;
-	}
-
-	private void fillMissingElevations() {
-		var coordinatesMissingElevation = jdbcClient.sql("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL OR elevation_source IS NULL")
-				.query((rs, _) -> new Coordinates(
-						rs.getInt("id"), 
-						rs.getDouble("latitude"), 
-						rs.getDouble("longitude"), 
-						rs.getDouble("elevation"), 
-						rs.getString("elevation_source")
-						)).list();
-
-		if (!coordinatesMissingElevation.isEmpty()) {
-			elevationService.fillElevations(coordinatesMissingElevation);
-			jdbcTemplate.batchUpdate(
-					"UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?",
-					coordinatesMissingElevation,
-					100,
-					(ps, coord) -> {
-						ps.setDouble(1, coord.getElevation());
-						ps.setString(2, coord.getElevationSource());
-						ps.setInt(3, coord.getId());
-					}
-					);
-		}
 	}
 
 	@Transactional
 	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return;
 
-		for (var coord : coordinates) {
-			coord.roundCoordinatesToMaximum10digitsAfterComma();
+		for (int i = 0; i < coordinates.size(); i++) {
+			coordinates.set(i, coordinates.get(i).roundTo10Digits());
 		}
 
 		jdbcTemplate.batchUpdate(
@@ -62,41 +36,68 @@ public class GeoRepository {
 				coordinates,
 				100,
 				(ps, coord) -> {
-					ps.setDouble(1, coord.getLatitude());
-					ps.setDouble(2, coord.getLongitude());
-					if (coord.getElevationSource() != null) {
-						ps.setDouble(3, coord.getElevation());
-						ps.setString(4, coord.getElevationSource());
+					ps.setDouble(1, coord.latitude());
+					ps.setDouble(2, coord.longitude());
+					if (coord.elevationSource() != null) {
+						ps.setDouble(3, coord.elevation());
+						ps.setString(4, coord.elevationSource());
 					} else {
 						ps.setObject(3, null);
 						ps.setObject(4, null);
 					}
 				});
 
-		fillMissingElevations();
-
 		String placeholders = String.join(",", Collections.nCopies(coordinates.size(), "(?,?)"));
 		var sql = "SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE (latitude, longitude) IN (" + placeholders + ")";
 
 		var params = coordinates.stream()
-				.flatMap(c -> Stream.of(c.getLatitude(), c.getLongitude()))
+				.flatMap(c -> Stream.of(c.latitude(), c.longitude()))
 				.toList();
 
-		jdbcClient.sql(sql)
-		.params(params)
-		.query(rs -> {
-			double lat = rs.getDouble("latitude");
-			double lon = rs.getDouble("longitude");
-			int id = rs.getInt("id");
-			double elev = rs.getDouble("elevation");
-			String src = rs.getString("elevation_source");
+		Map<String, Coordinates> dbResults = jdbcClient.sql(sql)
+				.params(params)
+				.query((rs, _) -> new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0))
+				.list()
+				.stream()
+				.collect(Collectors.toMap(
+						c -> c.latitude() + "," + c.longitude(), 
+						c -> c
+						));
 
-			for (Coordinates c : coordinates) {
-				if (Math.abs(c.getLatitude() - lat) < 1e-10 && Math.abs(c.getLongitude() - lon) < 1e-10) {
-					c.setId(id);
-					c.setElevation(elev, src);
-				}
+		for (int i = 0; i < coordinates.size(); i++) {
+			Coordinates c = coordinates.get(i);
+			String key = c.latitude() + "," + c.longitude();
+			if (dbResults.containsKey(key)) {
+				Coordinates dbCoord = dbResults.get(key);
+				coordinates.set(i, c.withId(dbCoord.id()).withElevation(dbCoord.elevation(), dbCoord.elevationSource()));
 			}
-		});
+		}
+	}
+
+	@Transactional(readOnly = true)
+	public List<Coordinates> getCoordinatesMissingElevation() {
+		return jdbcClient.sql("SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE elevation IS NULL OR elevation_source IS NULL")
+				.query((rs, _) -> new Coordinates(
+						rs.getInt("id"), 
+						rs.getDouble("latitude"), 
+						rs.getDouble("longitude"), 
+						rs.getDouble("elevation"), 
+						rs.getString("elevation_source"),
+						0.0
+						)).list();
+	}
+
+	@Transactional
+	public void updateCoordinatesBatch(List<Coordinates> coordinates) {
+		jdbcTemplate.batchUpdate(
+				"UPDATE coordinates SET elevation=?, elevation_source=? WHERE id=?",
+				coordinates,
+				100,
+				(ps, coord) -> {
+					ps.setDouble(1, coord.elevation());
+					ps.setString(2, coord.elevationSource());
+					ps.setInt(3, coord.id());
+				}
+				);
 	}
 }

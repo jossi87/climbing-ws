@@ -179,7 +179,7 @@ public class RegionRepository {
 		.query(rs -> {
 			int idRegion = rs.getInt("region_id");
 			res.computeIfAbsent(idRegion, _ -> new ArrayList<>())
-			.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")));
+			.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0));
 		});
 		return res;
 	}

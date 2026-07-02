@@ -72,7 +72,7 @@ public class SectorRepository {
 		var inClause = Collections.nCopies(sectorIds.size(), "?").stream().collect(Collectors.joining(","));
 		return jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (" + inClause + ") LIMIT 1")
 				.params(sectorIds)
-				.query((rs, _) -> new Coordinates(0, rs.getDouble("latitude"), rs.getDouble("longitude"), 0.0, null))
+				.query((rs, _) -> new Coordinates(0, rs.getDouble("latitude"), rs.getDouble("longitude"), 0.0, null, 0.0))
 				.optional()
 				.orElse(null);
 	}
@@ -111,7 +111,7 @@ public class SectorRepository {
 				.params(setup.idRegion(), authUserId.orElse(0), reqId)
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
-					var parking = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+					var parking = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 					var mediaRes = mediaSupplier.get();
 					var partitioned = Optional.ofNullable(mediaRes).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.sectors().stream().anyMatch(MediaSector::trivia)));
 					return new Sector(null, orderByGrade, rs.getInt("area_id"), rs.getBoolean("area_locked_admin"), rs.getBoolean("area_locked_superadmin"), rs.getString("area_access_info"), rs.getString("area_access_closed"), rs.getBoolean("area_no_dogs_allowed"), rs.getInt("area_sun_from_hour"), rs.getInt("area_sun_to_hour"), rs.getString("area_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getString("name"), rs.getString("description"), rs.getString("access_info"), rs.getString("access_closed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), parking, outlineSupplier.get(), setup.getCompassDirection(rs.getInt("compass_direction_id_calculated")), setup.getCompassDirection(rs.getInt("compass_direction_id_manual")), trailsSupplier.get().get(reqId), partitioned.get(false), partitioned.get(true), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), linksSupplier.get(), HitsFormatter.formatHits(rs.getLong("hits")));
@@ -172,7 +172,8 @@ public class SectorRepository {
 					rs.getDouble("latitude"),
 					rs.getDouble("longitude"),
 					rs.getDouble("elevation"),
-					rs.getString("elevation_source")
+					rs.getString("elevation_source"),
+					0.0
 					));
 		});
 		return res;
@@ -235,7 +236,7 @@ public class SectorRepository {
 		.query(rs -> {
 			int sid = rs.getInt("sector_id");
 			int cid = rs.getInt("coordinates_id");
-			var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+			var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 			var p = new SectorProblem(
 					rs.getInt("id"), rs.getString("broken"), rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"),
 					rs.getInt("nr"), rs.getString("name"), rs.getString("rock"), rs.getString("description"),
@@ -287,13 +288,13 @@ public class SectorRepository {
 		jdbcClient.sql("SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_coordinate tc JOIN coordinates c ON tc.coordinates_id = c.id WHERE tc.trail_id IN (" + pathInClause + ") ORDER BY tc.trail_id, tc.sorting")
 		.params(trailIdsList)
 		.query(rs -> {
-			trailBuilders.get(rs.getInt("trail_id")).path.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")));
+			trailBuilders.get(rs.getInt("trail_id")).path.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0));
 		});
 
 		jdbcClient.sql("SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_marker tm JOIN coordinates c ON tm.coordinates_id = c.id WHERE tm.trail_id IN (" + pathInClause + ")")
 		.params(trailIdsList)
 		.query(rs -> {
-			trailBuilders.get(rs.getInt("trail_id")).markers.add(new Trail.TrailMarker(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source")), rs.getString("label")));
+			trailBuilders.get(rs.getInt("trail_id")).markers.add(new Trail.TrailMarker(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0), rs.getString("label")));
 		});
 
 		var mediaMap = mediaTrailsResolver.apply(trailIdsList);
@@ -371,7 +372,7 @@ public class SectorRepository {
 			int[] sorting = {0};
 			for (Coordinates coord : s.outline()) {
 				jdbcClient.sql("INSERT INTO sector_outline (sector_id, coordinates_id, sorting) VALUES (?, ?, ?)")
-				.params(idSector, coord.getId(), ++sorting[0])
+				.params(idSector, coord.id(), ++sorting[0])
 				.update();
 			}
 		}
@@ -471,13 +472,13 @@ public class SectorRepository {
 			if (t.path() != null) {
 				int[] sort = {0};
 				for (Coordinates coord : t.path()) 
-					jdbcClient.sql("INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)").params(trailId, coord.getId(), sort[0]++).update();
+					jdbcClient.sql("INSERT INTO trail_coordinate (trail_id, coordinates_id, sorting) VALUES (?, ?, ?)").params(trailId, coord.id(), sort[0]++).update();
 			}
 
 			jdbcClient.sql("DELETE FROM trail_marker WHERE trail_id = ?").param(1, trailId).update();
 			if (t.markers() != null) {
 				for (Trail.TrailMarker m : t.markers()) 
-					if (m.coordinates() != null) jdbcClient.sql("INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)").params(trailId, m.coordinates().getId(), m.label()).update();
+					if (m.coordinates() != null) jdbcClient.sql("INSERT INTO trail_marker (trail_id, coordinates_id, label) VALUES (?, ?, ?)").params(trailId, m.coordinates().id(), m.label()).update();
 			}
 
 			jdbcClient.sql("DELETE FROM sector_trail WHERE trail_id = ?").param(1, trailId).update();

@@ -561,7 +561,7 @@ public class UserRepository {
 
 			int coordId = rs.getInt("coord_id");
 			Coordinates coords = (!rs.wasNull() && coordId > 0) 
-					? new Coordinates(coordId, rs.getDouble("lat"), rs.getDouble("lon"), rs.getDouble("ele"), rs.getString("ele_src"))
+					? new Coordinates(coordId, rs.getDouble("lat"), rs.getDouble("lon"), rs.getDouble("ele"), rs.getString("ele_src"), 0.0)
 							: null;
 
 			List<User> partners = new ArrayList<>();
@@ -903,7 +903,8 @@ public class UserRepository {
 									rs.getDouble("latitude"), 
 									rs.getDouble("longitude"), 
 									rs.getDouble("elevation"), 
-									rs.getString("elevation_source")
+									rs.getString("elevation_source"),
+									0.0
 									)) 
 									: null;
 				})

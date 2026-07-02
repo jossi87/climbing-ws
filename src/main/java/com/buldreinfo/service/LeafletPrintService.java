@@ -40,8 +40,8 @@ public class LeafletPrintService {
 
 		double x = 0.0, y = 0.0, z = 0.0;
 		for (SectorProblem p : problems) {
-			double lat = p.coordinates().getLatitude() * Math.PI / 180;
-			double lon = p.coordinates().getLongitude() * Math.PI / 180;
+			double lat = p.coordinates().latitude() * Math.PI / 180;
+			double lon = p.coordinates().longitude() * Math.PI / 180;
 			x += Math.cos(lat) * Math.cos(lon);
 			y += Math.cos(lat) * Math.sin(lon);
 			z += Math.sin(lat);

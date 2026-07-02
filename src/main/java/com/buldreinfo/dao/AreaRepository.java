@@ -29,15 +29,12 @@ import com.buldreinfo.util.StringUtils;
 @Repository
 public class AreaRepository {
 	private final ExternalLinksRepository externalLinksRepo;
-	private final GeoRepository geoRepo;
 	private final JdbcClient jdbcClient;
 
 	public AreaRepository(JdbcClient jdbcClient,
-			ExternalLinksRepository externalLinksRepo,
-			GeoRepository geoRepo) {
+			ExternalLinksRepository externalLinksRepo) {
 		this.jdbcClient = jdbcClient;
 		this.externalLinksRepo = externalLinksRepo;
-		this.geoRepo = geoRepo;
 	}
 
 	@Transactional(readOnly = true)
@@ -85,7 +82,7 @@ public class AreaRepository {
 				.param(3, reqId)
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
-					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 					return new Area(null, rs.getString("region_name"), reqId, false, rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), rs.getString("access_info"), rs.getString("access_closed"), rs.getBoolean("no_dogs_allowed"), rs.getInt("sun_from_hour"), rs.getInt("sun_to_hour"), rs.getString("name"), rs.getString("description"), coords, -1, -1, new ArrayList<>(), new ArrayList<>(), partitionedFalse, partitionedTrue, externalLinksRepo.getExternalLinks(reqId, 0, 0), HitsFormatter.formatHits(rs.getLong("hits")));
 				}).optional()
 				.orElse(null);
@@ -127,7 +124,7 @@ public class AreaRepository {
 					}
 
 					int cid = rs.getInt("coordinates_id");
-					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 
 					return new Area(null, rs.getString("region_name"), rs.getInt("id"), false, 
 							rs.getBoolean("locked_admin"), rs.getBoolean("locked_superadmin"), rs.getBoolean("for_developers"), 
@@ -177,7 +174,7 @@ public class AreaRepository {
 		.query(rs -> {
 			int id = rs.getInt("id");
 			int coordId = rs.getInt("coordinates_id");
-			var parking = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+			var parking = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 
 			MediaIdentity mediaIdentity = null;
 			int mid = rs.getInt("media_id");
@@ -264,14 +261,6 @@ public class AreaRepository {
 		final boolean isLockedAdmin = !a.lockedSuperadmin() && a.lockedAdmin();
 		boolean setPermissionRecursive = false;
 
-		if (a.coordinates() != null) {
-			if (a.coordinates().getLatitude() == 0 || a.coordinates().getLongitude() == 0) {
-				a = a.withCoordinates(null);
-			} else {
-				geoRepo.ensureCoordinatesInDbWithElevationAndId(List.of(a.coordinates()));
-			}
-		}
-
 		int idArea;
 		if (a.id() > 0) {
 			ensureAdminWriteArea(authUserId, a.id());
@@ -284,7 +273,7 @@ public class AreaRepository {
 					trash=CASE WHEN ? THEN NOW() ELSE NULL END, trash_by=? WHERE id=?
 					""")
 			.params(StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
-					a.coordinates() == null ? 0 : a.coordinates().getId(), isLockedAdmin, a.lockedSuperadmin(), 
+					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
 							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed(), a.sunFromHour(), 
 							a.sunToHour(), a.trash(), a.trash() ? authUserId.get() : 0, a.id())
@@ -324,7 +313,7 @@ public class AreaRepository {
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
 					""")
 			.params(s.idRegion(), StringUtils.stripToNull(a.name()), StringUtils.stripToNull(a.comment()), 
-					a.coordinates() == null ? 0 : a.coordinates().getId(), isLockedAdmin, a.lockedSuperadmin(), 
+					a.coordinates() == null ? 0 : a.coordinates().id(), isLockedAdmin, a.lockedSuperadmin(), 
 							a.forDevelopers(), StringUtils.stripToNull(a.accessInfo()), 
 							StringUtils.stripToNull(a.accessClosed()), a.noDogsAllowed())
 			.update(keyHolder, "id");

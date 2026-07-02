@@ -53,21 +53,34 @@ public record Trail(
 		long distance = 0;
 		long elevationGain = 0;
 		long elevationLoss = 0;
+
+		List<Coordinates> processedPath = path;
+
 		if (path != null && !path.isEmpty()) {
+			List<Coordinates> newPath = new ArrayList<>();
 			double totalDistance = 0;
-			path.get(0).setDistance(0.0);
+
+			newPath.add(path.get(0).withDistance(0.0));
+
 			for (int i = 1; i < path.size(); i++) {
-				Coordinates prev = path.get(i - 1);
+				Coordinates prev = newPath.get(i - 1);
 				Coordinates curr = path.get(i);
-				double distanceDelta = GeoUtils.getHaversineDistanceInMeters(prev.getLatitude(), prev.getLongitude(), curr.getLatitude(), curr.getLongitude());
+
+				double distanceDelta = GeoUtils.getHaversineDistanceInMeters(
+						prev.latitude(), prev.longitude(), 
+						curr.latitude(), curr.longitude()
+						);
 				totalDistance += distanceDelta;
-				curr.setDistance(totalDistance);
+				newPath.add(curr.withDistance(totalDistance));
 			}
+
+			processedPath = newPath;
 			distance = Math.round(totalDistance);
-			calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(path);
+			calculatedDurationInMinutes = GeoHelper.calculateHikingDurationInMinutes(processedPath);
+
 			double gain = 0, loss = 0;
-			for (int i = 1; i < path.size(); i++) {
-				double elevationDiff = path.get(i).getElevation() - path.get(i - 1).getElevation();
+			for (int i = 1; i < processedPath.size(); i++) {
+				double elevationDiff = processedPath.get(i).elevation() - processedPath.get(i - 1).elevation();
 				if (elevationDiff > 0) {
 					gain += elevationDiff;
 				} else if (elevationDiff < 0) {
@@ -78,6 +91,7 @@ public record Trail(
 			elevationLoss = Math.round(loss);
 		}
 
-		return new Trail(id, isDescent, delete, title, description, path, markers, media, sectors, calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
+		return new Trail(id, isDescent, delete, title, description, processedPath, markers, media, sectors, 
+				calculatedDurationInMinutes, distance, elevationGain, elevationLoss);
 	}
 }

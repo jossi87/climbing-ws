@@ -697,16 +697,16 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (area.coordinates() != null && area.coordinates().getLatitude() > 0 && area.coordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.coordinates().getLatitude(), area.coordinates().getLongitude());
+			if (area.coordinates() != null && area.coordinates().latitude() > 0 && area.coordinates().longitude() > 0) {
+				defaultCenter = new LatLng(area.coordinates().latitude(), area.coordinates().longitude());
 			}
 			int defaultZoom = 14;
 
 			boolean useLegend = sectors.size()>1;
 			List<String> legends = new ArrayList<>();
 			for (Sector sector : sectors) {
-				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
-					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
+				if (sector.parking() != null && sector.parking().latitude() > 0 && sector.parking().longitude() > 0) {
+					markers.add(new Marker(sector.parking().latitude(), sector.parking().longitude(), IconType.PARKING, null));
 				}
 				if (sector.trails() != null && !sector.trails().isEmpty()) {
 					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
@@ -721,7 +721,7 @@ public class PdfGenerator implements AutoCloseable {
 					else {
 						label = name;
 					}
-					String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+					String polygonCoords = sector.outline().stream().map(o -> o.latitude() + "," + o.longitude()).collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}
 			}
@@ -751,30 +751,30 @@ public class PdfGenerator implements AutoCloseable {
 			List<Outline> outlines = new ArrayList<>();
 			List<PrintSlope> slopes = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (problem.coordinates() != null && problem.coordinates().getLatitude() > 0 && problem.coordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(problem.coordinates().getLatitude(), problem.coordinates().getLongitude());
+			if (problem.coordinates() != null && problem.coordinates().latitude() > 0 && problem.coordinates().longitude() > 0) {
+				defaultCenter = new LatLng(problem.coordinates().latitude(), problem.coordinates().longitude());
 			}
-			else if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
-				defaultCenter = new LatLng(sector.parking().getLatitude(), sector.parking().getLongitude());
+			else if (sector.parking() != null && sector.parking().latitude() > 0 && sector.parking().longitude() > 0) {
+				defaultCenter = new LatLng(sector.parking().latitude(), sector.parking().longitude());
 			}
-			else if (area.coordinates() != null && area.coordinates().getLatitude() > 0 && area.coordinates().getLongitude() > 0) {
-				defaultCenter = new LatLng(area.coordinates().getLatitude(), area.coordinates().getLongitude());
+			else if (area.coordinates() != null && area.coordinates().latitude() > 0 && area.coordinates().longitude() > 0) {
+				defaultCenter = new LatLng(area.coordinates().latitude(), area.coordinates().longitude());
 			}
 			int defaultZoom = 15;
 
-			if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
-				markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
+			if (sector.parking() != null && sector.parking().latitude() > 0 && sector.parking().longitude() > 0) {
+				markers.add(new Marker(sector.parking().latitude(), sector.parking().longitude(), IconType.PARKING, null));
 			}
-			if (problem.coordinates() != null && problem.coordinates().getLatitude() > 0 && problem.coordinates().getLongitude() > 0) {
+			if (problem.coordinates() != null && problem.coordinates().latitude() > 0 && problem.coordinates().longitude() > 0) {
 				String name = FilenameUtil.sanitize(problem.name());
-				markers.add(new Marker(problem.coordinates().getLatitude(), problem.coordinates().getLongitude(), IconType.DEFAULT, name));
+				markers.add(new Marker(problem.coordinates().latitude(), problem.coordinates().longitude(), IconType.DEFAULT, name));
 			}
 			if (sector.trails() != null && !sector.trails().isEmpty()) {
 				sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
 			}
 			if (sector.outline() != null && !sector.outline().isEmpty()) {
 				String label = FilenameUtil.sanitize(sector.name());
-				String polygonCoords = sector.outline().stream().map(o -> o.getLatitude() + "," + o.getLongitude()).collect(Collectors.joining(";"));
+				String polygonCoords = sector.outline().stream().map(o -> o.latitude() + "," + o.longitude()).collect(Collectors.joining(";"));
 				outlines.add(new Outline(label, polygonCoords));
 			}
 
@@ -819,8 +819,8 @@ public class PdfGenerator implements AutoCloseable {
 			List<PrintSlope> slopes = new ArrayList<>();
 			List<Marker> markers = new ArrayList<>();
 			LatLng defaultCenter = null;
-			if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
-				defaultCenter = new LatLng(sector.parking().getLatitude(), sector.parking().getLongitude());
+			if (sector.parking() != null && sector.parking().latitude() > 0 && sector.parking().longitude() > 0) {
+				defaultCenter = new LatLng(sector.parking().latitude(), sector.parking().longitude());
 			}
 			int defaultZoom = 14;
 			List<String> legends = new ArrayList<>();
@@ -828,7 +828,7 @@ public class PdfGenerator implements AutoCloseable {
 			Map<String, List<SectorProblem>> problemsWithCoordinatesGroupedByRock = new HashMap<>();
 			List<SectorProblem> problemsWithoutRock = new ArrayList<>();
 			for (SectorProblem p : sector.problems()) {
-				if (p.coordinates() != null && p.coordinates().getLatitude() > 0 && p.coordinates().getLongitude() > 0) {
+				if (p.coordinates() != null && p.coordinates().latitude() > 0 && p.coordinates().longitude() > 0) {
 					if (p.rock() != null) {
 						problemsWithCoordinatesGroupedByRock.computeIfAbsent(p.rock(), _ -> new ArrayList<>()).add(p);
 					}
@@ -843,11 +843,11 @@ public class PdfGenerator implements AutoCloseable {
 				markers.add(new Marker(latLng.lat(), latLng.lng(), IconType.ROCK, rock));
 			}
 			for (SectorProblem p : problemsWithoutRock) {
-				markers.add(new Marker(p.coordinates().getLatitude(), p.coordinates().getLongitude(), IconType.DEFAULT, String.valueOf(p.nr())));
+				markers.add(new Marker(p.coordinates().latitude(), p.coordinates().longitude(), IconType.DEFAULT, String.valueOf(p.nr())));
 			}
 			if (markers.size() >= 1 && markers.size() <= 3) {
-				if (sector.parking() != null && sector.parking().getLatitude() > 0 && sector.parking().getLongitude() > 0) {
-					markers.add(new Marker(sector.parking().getLatitude(), sector.parking().getLongitude(), IconType.PARKING, null));
+				if (sector.parking() != null && sector.parking().latitude() > 0 && sector.parking().longitude() > 0) {
+					markers.add(new Marker(sector.parking().latitude(), sector.parking().longitude(), IconType.PARKING, null));
 				}
 				if (sector.trails() != null && !sector.trails().isEmpty()) {
 					sector.trails().forEach(t -> slopes.add(PrintSlope.of(t)));
@@ -855,7 +855,7 @@ public class PdfGenerator implements AutoCloseable {
 				if (sector.outline() != null && !sector.outline().isEmpty()) {
 					final String label = FilenameUtil.sanitize(sector.name());
 					String polygonCoords = sector.outline().stream()
-						    .map(o -> o.getLatitude() + "," + o.getLongitude())
+						    .map(o -> o.latitude() + "," + o.longitude())
 						    .collect(Collectors.joining(";"));
 					outlines.add(new Outline(label, polygonCoords));
 				}

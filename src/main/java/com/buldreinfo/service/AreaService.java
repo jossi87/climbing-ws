@@ -29,15 +29,18 @@ import com.buldreinfo.model.Redirect;
 public class AreaService {
 	private static final Logger logger = LogManager.getLogger();
 	private final AreaRepository areaRepo;
+	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
 	private final MediaRepository mediaRepo;
 	private final SectorRepository sectorRepo;
 
 	public AreaService(AreaRepository areaRepo,
+			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
 			MediaRepository mediaRepo,
 			SectorRepository sectorRepo) {
 		this.areaRepo = areaRepo;
+		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaRepo = mediaRepo;
 		this.sectorRepo = sectorRepo;
@@ -109,6 +112,13 @@ public class AreaService {
 
 	@Transactional
 	public Redirect setArea(Setup s, Optional<Integer> authUserId, Area a) {
+		if (a.coordinates() != null) {
+			if (a.coordinates().latitude() == 0 || a.coordinates().longitude() == 0) {
+				a = a.withCoordinates(null);
+			} else {
+				geoService.ensureConsistency(List.of(a.coordinates()));
+			}
+		}
 		return areaRepo.setArea(s, authUserId, a);
 	}
 }

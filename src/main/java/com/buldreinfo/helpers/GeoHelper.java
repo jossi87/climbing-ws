@@ -9,7 +9,6 @@ import org.apache.logging.log4j.Logger;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.model.CompassDirection;
 import com.buldreinfo.model.Coordinates;
-import com.buldreinfo.service.ElevationService;
 import com.buldreinfo.util.GeoUtils;
 
 public class GeoHelper {
@@ -85,8 +84,8 @@ public class GeoHelper {
 		for (int i = 1; i < approach.size(); i++) {
 			Coordinates prevCoord = approach.get(i-1);
 			Coordinates coord = approach.get(i);
-			double elevation = coord.getElevation()-prevCoord.getElevation();
-			double distance = coord.getDistance()-prevCoord.getDistance();
+			double elevation = coord.elevation()-prevCoord.elevation();
+			double distance = coord.distance()-prevCoord.distance();
 			double distanceMultiplier = 1.0 / (c * Math.exp(e * Math.abs(elevation / distance + a)));
 			totalCalculatedDistance += (Math.min(maxLimit, distanceMultiplier) * distance);
 		}
@@ -96,15 +95,8 @@ public class GeoHelper {
 		return durationMinutes;
 	}
 	
-	public static int getElevation(ElevationService elevationService, double latitude, double longitude) {
-        List<Coordinates> coords = new ArrayList<>(List.of(new Coordinates(latitude, longitude)));
-        coords.getFirst().roundCoordinatesToMaximum10digitsAfterComma();
-        elevationService.fillElevations(coords);
-        return (int) Math.round(coords.getFirst().getElevation());
-    }
-	
 	private static String calculateWallDirection(Setup setup, List<Coordinates> outline) {
-		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.getElevation() == 0).findAny().isPresent()) {
+		if (!setup.isClimbing() || outline == null || outline.isEmpty() || outline.stream().filter(x -> x.elevation() == 0).findAny().isPresent()) {
 			return null;
 		}
 		try {
@@ -230,7 +222,7 @@ public class GeoHelper {
 
 	private String getWallDirection(List<Coordinates> outline) {
 		for (Coordinates coord : outline) {
-			geoPoints.add(new GeoPoint(coord.getLatitude(), coord.getLongitude(), coord.getElevation()));
+			geoPoints.add(new GeoPoint(coord.latitude(), coord.longitude(), coord.elevation()));
 		}
 		calculateDistanceToCenter();
 		calculateBoundingBox();

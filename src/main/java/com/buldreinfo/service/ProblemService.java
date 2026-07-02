@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.buldreinfo.beans.Setup;
 import com.buldreinfo.dao.ActivityRepository;
 import com.buldreinfo.dao.ExternalLinksRepository;
-import com.buldreinfo.dao.GeoRepository;
 import com.buldreinfo.dao.HierarchyRepository;
 import com.buldreinfo.dao.MediaRepository;
 import com.buldreinfo.dao.ProblemRepository;
@@ -30,7 +29,7 @@ import com.buldreinfo.model.Redirect;
 public class ProblemService {
 	private final ActivityRepository activityRepo;
 	private final ExternalLinksRepository externalLinksRepo;
-	private final GeoRepository geoRepo;
+	private final GeoService geoService;
 	private final HierarchyRepository hierarchyRepo;
 	private final MediaRepository mediaRepo;
 	private final ProblemRepository problemRepo;
@@ -40,7 +39,7 @@ public class ProblemService {
 	public ProblemService(
 			ActivityRepository activityRepo,
 			ExternalLinksRepository externalLinksRepo,
-			GeoRepository geoRepo,
+			GeoService geoService,
 			HierarchyRepository hierarchyRepo,
 			MediaRepository mediaRepo,
 			ProblemRepository problemRepo,
@@ -48,7 +47,7 @@ public class ProblemService {
 			UserRepository userRepo) {
 		this.activityRepo = activityRepo;
 		this.externalLinksRepo = externalLinksRepo;
-		this.geoRepo = geoRepo;
+		this.geoService = geoService;
 		this.hierarchyRepo = hierarchyRepo;
 		this.mediaRepo = mediaRepo;
 		this.problemRepo = problemRepo;
@@ -93,16 +92,16 @@ public class ProblemService {
 		var isLockedAdmin = p.lockedSuperadmin() ? false : p.lockedAdmin();
 
 		if (p.coordinates() != null) {
-			if (p.coordinates().getLatitude() == 0 || p.coordinates().getLongitude() == 0) {
+			if (p.coordinates().latitude() == 0 || p.coordinates().longitude() == 0) {
 				p = p.withCoordinates(null);
 			} else {
-				geoRepo.ensureCoordinatesInDbWithElevationAndId(List.of(p.coordinates()));
+				geoService.ensureConsistency(List.of(p.coordinates()));
 			}
 		}
 
 		sectorRepo.tryFixSectorOrdering(p.sectorId(), p.id(), p.nr());
 		var gradeId = s.gradeConverter().getIdGradeFromGrade(p.originalGrade());
-		var coordinatesId = p.coordinates() == null || p.coordinates().getId() == 0 ? null : p.coordinates().getId();
+		var coordinatesId = p.coordinates() == null || p.coordinates().id() == 0 ? null : p.coordinates().id();
 
 		int nr = p.nr();
 		if (p.id() <= 0) {

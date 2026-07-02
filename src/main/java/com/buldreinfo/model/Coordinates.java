@@ -3,91 +3,33 @@ package com.buldreinfo.model;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-public class Coordinates {
-	public final static String ELEVATION_SOURCE_GOOGLE = "Google Elevation API";
-	private double distance;
-	private double elevation;
-	private String elevationSource;
-	private int id;
-	private double latitude;
-	private double longitude;
-	
-	public Coordinates() {
-	}
-	
-	public Coordinates(double latitude, double longitude) {
-		this.latitude = latitude;
-		this.longitude = longitude;
-	}
-	
-	public Coordinates(int id, double latitude, double longitude, double elevation, String elevationSource) {
-		this.id = id;
-		this.latitude = latitude;
-		this.longitude = longitude;
-		this.elevation = elevation;
-		this.elevationSource = elevationSource;
+public record Coordinates(int id, double latitude, double longitude, double elevation, String elevationSource, double distance) {
+	public static final String ELEVATION_SOURCE_GOOGLE = "Google Elevation API";
+
+	public Coordinates withId(int id) {
+		return new Coordinates(id, latitude, longitude, elevation, elevationSource, distance);
 	}
 
-	public double getDistance() {
-		return distance;
+	public Coordinates withElevation(double elevation, String elevationSource) {
+		return new Coordinates(id, latitude, longitude, elevation, elevationSource, distance);
 	}
 
-	public double getElevation() {
-		return elevation;
+	public Coordinates withDistance(double distance) {
+		return new Coordinates(id, latitude, longitude, elevation, elevationSource, distance);
 	}
 
-	public String getElevationSource() {
-		return elevationSource;
-	}
-	
-	public int getId() {
-		return id;
-	}
-	
-	public double getLatitude() {
-		return latitude;
-	}
-	
-	public double getLongitude() {
-		return longitude;
+	public Coordinates roundTo10Digits() {
+		return new Coordinates(
+				id,
+				round(latitude, 10),
+				round(longitude, 10),
+				elevation,
+				elevationSource,
+				distance
+				);
 	}
 
-	public void roundCoordinatesToMaximum10digitsAfterComma() {
-		this.latitude = round(latitude, 10);
-		this.longitude = round(longitude, 10);
-	}
-
-	public void setDistance(double distance) {
-		this.distance = distance;
-	}
-
-	public void setElevation(double elevation, String elevationSource) {
-		this.elevation = elevation;
-		this.elevationSource = elevationSource;
-	}
-	
-	public void setId(int id) {
-		this.id = id;
-	}
-	
-	public void setLatitude(double latitude) {
-		this.latitude = latitude;
-	}
-	
-	public void setLongitude(double longitude) {
-		this.longitude = longitude;
-	}
-	
-	@Override
-	public String toString() {
-		return "Coordinates [id=" + id + ", latitude=" + latitude + ", longitude=" + longitude + ", elevation="
-				+ elevation + ", elevationSource=" + elevationSource + ", distance=" + distance + "]";
-	}
-
-	private double round(double value, int places) {
-	    if (places < 0) throw new IllegalArgumentException();
-	    BigDecimal bd = new BigDecimal(Double.toString(value));
-	    bd = bd.setScale(places, RoundingMode.HALF_UP);
-	    return bd.doubleValue();
+	private static double round(double value, int places) {
+		return BigDecimal.valueOf(value).setScale(places, RoundingMode.HALF_UP).doubleValue();
 	}
 }

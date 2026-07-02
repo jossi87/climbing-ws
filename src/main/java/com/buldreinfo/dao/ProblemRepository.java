@@ -149,14 +149,14 @@ public class ProblemRepository {
 						var neighbours = getProblemNeighbours(authUserId, sectorId, reqId, rock);
 						int areaId = rs.getInt("area_id");
 						int parkingId = rs.getInt("sector_parking_coordinates_id");
-						var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"));
+						var parking = parkingId == 0 ? null : new Coordinates(parkingId, rs.getDouble("sector_parking_latitude"), rs.getDouble("sector_parking_longitude"), rs.getDouble("sector_parking_elevation"), rs.getString("sector_parking_elevation_source"), 0.0);
 						var wallDirCalc = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_calculated"));
 						var wallDirMan = setup.getCompassDirection(rs.getInt("sector_compass_direction_id_manual"));
 						int id = rs.getInt("id");
 						var faStr = rs.getString("fa");
 						List<User> fa = (faStr == null || faStr.isEmpty()) ? null : objectMapper.readValue("[" + faStr + "]", new TypeReference<List<User>>() {});
 						int coordId = rs.getInt("coordinates_id");
-						var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"));
+						var coords = coordId == 0 ? null : new Coordinates(coordId, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
 						var allMedia = mediaResolver.resolve(areaId, sectorId, id);
 						var partitioned = Optional.ofNullable(allMedia).orElse(List.of()).stream().collect(Collectors.partitioningBy(x -> x.problems().stream().anyMatch(mp -> mp.trivia() && mp.problemId() == reqId)));
 						var triviaMedia = partitioned.get(true);

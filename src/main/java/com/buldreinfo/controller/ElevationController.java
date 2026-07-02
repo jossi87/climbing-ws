@@ -10,9 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.buldreinfo.config.OpenApiConfig;
 import com.buldreinfo.exception.UnauthorizedException;
 import com.buldreinfo.exception.ValidationFailedException;
-import com.buldreinfo.helpers.GeoHelper;
 import com.buldreinfo.infrastructure.RequestContext;
-import com.buldreinfo.service.ElevationService;
+import com.buldreinfo.service.GeoService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,11 +22,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/elevation")
 public class ElevationController {
 	private final RequestContext requestContext;
-	private final ElevationService elevationService;
+	private final GeoService geoService;
 
-	public ElevationController(RequestContext requestContext, ElevationService elevationService) {
+	public ElevationController(RequestContext requestContext, GeoService geoService) {
 		this.requestContext = requestContext;
-		this.elevationService = elevationService;
+		this.geoService = geoService;
 	}
 
 	@Operation(summary = "Get elevation by latitude and longitude")
@@ -50,7 +49,7 @@ public class ElevationController {
 		if (authUserId.isEmpty()) {
 			throw new UnauthorizedException("Authentication required");
 		}
-		int elevation = GeoHelper.getElevation(elevationService, latitude, longitude);
-		return ResponseEntity.ok(elevation);
+		int elevation = geoService.getElevationAt(latitude, longitude);
+        return ResponseEntity.ok(elevation);
 	}
 }
