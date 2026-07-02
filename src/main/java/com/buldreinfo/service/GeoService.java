@@ -1,8 +1,6 @@
 package com.buldreinfo.service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,20 +26,15 @@ public class GeoService {
 
 	@Transactional
 	public List<Coordinates> resolveCoordinates(List<Coordinates> coords) {
-		var result = geoRepo.resolveCoordinates(coords);
-		var missing = geoRepo.getCoordinatesMissingElevation();
-		if (!missing.isEmpty()) {
-			elevationService.fillElevations(missing);
-			geoRepo.updateCoordinatesBatch(missing);
-			Map<Integer, Coordinates> missingById = missing.stream()
-					.collect(Collectors.toMap(Coordinates::id, c -> c));
-			result = result.stream()
-					.map(c -> {
-						var filled = missingById.get(c.id());
-						return filled != null ? c.withElevation(filled.elevation(), filled.elevationSource()) : c;
-					})
-					.toList();
-		}
-		return result;
+		// Round and get elevation from Google API (throws if unavailable → transaction rolls back)
+		var withElevation = elevationService.resolveElevations(coords.stream()
+				.map(Coordinates::roundTo10Digits)
+				.toList());
+
+		// Insert into DB with elevation
+		geoRepo.insertCoordinates(withElevation);
+
+		// Query back to get DB IDs
+		return geoRepo.getCoordinatesByLatLng(withElevation);
 	}
 }
