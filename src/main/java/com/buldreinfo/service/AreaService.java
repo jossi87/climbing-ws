@@ -116,10 +116,8 @@ public class AreaService {
 			if (a.coordinates().latitude() == 0 || a.coordinates().longitude() == 0) {
 				a = a.withCoordinates(null);
 			} else {
-				var coordMap = geoService.ensureConsistency(List.of(a.coordinates()));
-				var key = a.coordinates().latitude() + "," + a.coordinates().longitude();
-				var dbCoord = coordMap.get(key);
-				if (dbCoord != null) a = a.withCoordinates(dbCoord);
+				var result = geoService.resolveCoordinates(List.of(a.coordinates()));
+				a = a.withCoordinates(result.getFirst());
 			}
 		}
 		return areaRepo.setArea(s, authUserId, a);

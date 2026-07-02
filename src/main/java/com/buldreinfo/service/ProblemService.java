@@ -95,10 +95,8 @@ public class ProblemService {
 			if (p.coordinates().latitude() == 0 || p.coordinates().longitude() == 0) {
 				p = p.withCoordinates(null);
 			} else {
-				var coordMap = geoService.ensureConsistency(List.of(p.coordinates()));
-				var key = p.coordinates().latitude() + "," + p.coordinates().longitude();
-				var dbCoord = coordMap.get(key);
-				if (dbCoord != null) p = p.withCoordinates(dbCoord);
+				var result = geoService.resolveCoordinates(List.of(p.coordinates()));
+				p = p.withCoordinates(result.getFirst());
 			}
 		}
 

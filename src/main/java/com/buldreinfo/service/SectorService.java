@@ -97,22 +97,17 @@ public class SectorService {
 		boolean setPermissionRecursive = false;
 
 		if (s.outline() != null && !s.outline().isEmpty()) {
-			var outlineMap = geoService.ensureConsistency(s.outline());
+			var result = geoService.resolveCoordinates(s.outline());
 			for (int i = 0; i < s.outline().size(); i++) {
-				var c = s.outline().get(i);
-				var key = c.latitude() + "," + c.longitude();
-				var dbCoord = outlineMap.get(key);
-				if (dbCoord != null) s.outline().set(i, dbCoord);
+				s.outline().set(i, result.get(i));
 			}
 		}
 		if (s.parking() != null) {
 			if (s.parking().latitude() == 0 || s.parking().longitude() == 0) {
 				s = s.withParking(null);
 			} else {
-				var parkingMap = geoService.ensureConsistency(List.of(s.parking()));
-				var key = s.parking().latitude() + "," + s.parking().longitude();
-				var dbCoord = parkingMap.get(key);
-				if (dbCoord != null) s = s.withParking(dbCoord);
+				var result = geoService.resolveCoordinates(List.of(s.parking()));
+				s = s.withParking(result.getFirst());
 			}
 		}
 
@@ -182,25 +177,19 @@ public class SectorService {
 			if (t.markers() != null) t.markers().forEach(m -> { if (m.coordinates() != null) allCoords.add(m.coordinates()); });
 		}
 		if (!allCoords.isEmpty()) {
-			var coordMap = geoService.ensureConsistency(allCoords);
+			var result = geoService.resolveCoordinates(allCoords);
+			int idx = 0;
 			for (Trail t : trails) {
 				if (t.path() != null) {
 					for (int i = 0; i < t.path().size(); i++) {
-						var c = t.path().get(i);
-						var key = c.latitude() + "," + c.longitude();
-						var dbCoord = coordMap.get(key);
-						if (dbCoord != null) t.path().set(i, dbCoord);
+						t.path().set(i, result.get(idx++));
 					}
 				}
 				if (t.markers() != null) {
 					for (int i = 0; i < t.markers().size(); i++) {
 						var m = t.markers().get(i);
 						if (m.coordinates() != null) {
-							var key = m.coordinates().latitude() + "," + m.coordinates().longitude();
-							var dbCoord = coordMap.get(key);
-							if (dbCoord != null) {
-								t.markers().set(i, new Trail.TrailMarker(dbCoord, m.label()));
-							}
+							t.markers().set(i, new Trail.TrailMarker(result.get(idx++), m.label()));
 						}
 					}
 				}

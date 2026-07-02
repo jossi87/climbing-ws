@@ -1,5 +1,6 @@
 package com.buldreinfo.dao;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,8 @@ public class GeoRepository {
 	}
 
 	@Transactional
-	public Map<String, Coordinates> ensureCoordinatesInDbWithId(List<Coordinates> coordinates) {
-		if (coordinates == null || coordinates.isEmpty()) return Map.of();
+	public List<Coordinates> resolveCoordinates(List<Coordinates> coordinates) {
+		if (coordinates == null || coordinates.isEmpty()) return List.of();
 
 		var rounded = coordinates.stream()
 				.map(Coordinates::roundTo10Digits)
@@ -54,7 +55,7 @@ public class GeoRepository {
 				.flatMap(c -> Stream.of(c.latitude(), c.longitude()))
 				.toList();
 
-		return jdbcClient.sql(sql)
+		Map<String, Coordinates> dbResults = jdbcClient.sql(sql)
 				.params(params)
 				.query((rs, _) -> new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0))
 				.list()
@@ -63,6 +64,14 @@ public class GeoRepository {
 						c -> c.latitude() + "," + c.longitude(), 
 						c -> c
 						));
+
+		List<Coordinates> result = new ArrayList<>(coordinates.size());
+		for (var c : rounded) {
+			var key = c.latitude() + "," + c.longitude();
+			var dbCoord = dbResults.get(key);
+			result.add(dbCoord != null ? dbCoord : c);
+		}
+		return result;
 	}
 
 	@Transactional(readOnly = true)
