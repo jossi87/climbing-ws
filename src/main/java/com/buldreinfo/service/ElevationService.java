@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.buldreinfo.config.AppConfig;
 import com.buldreinfo.model.Coordinates;
 import com.buldreinfo.util.CollectionUtils;
+import com.buldreinfo.util.GeoUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -52,18 +53,21 @@ public class ElevationService {
 					throw new IllegalArgumentException("Google API error: " + response.statusCode());
 				}
 				GoogleResponse data = objectMapper.readValue(response.body(), GoogleResponse.class);
-				
+
 				for (ElevationResult res : data.results()) {
+					double googleLat = GeoUtils.roundToTenDigits(res.location().lat());
+					double googleLng = GeoUtils.roundToTenDigits(res.location().lng());
 					boolean found = false;
 					for (int i = 0; i < chunk.size(); i++) {
 						Coordinates c = chunk.get(i);
-						if (isClose(c.latitude(), res.location().lat()) && isClose(c.longitude(), res.location().lng())) {
+						if (isClose(c.latitude(), googleLat) && isClose(c.longitude(), googleLng)) {
 							chunk.set(i, c.withElevation(res.elevation(), Coordinates.ELEVATION_SOURCE_GOOGLE));
 							found = true;
+							break;
 						}
 					}
 					if (!found) {
-						logger.warn("Google API returned elevation for {},{} but no local coordinate matched.", res.location().lat(), res.location().lng());
+						logger.warn("Google API returned {},{} but no local match found.", googleLat, googleLng);
 					}
 				}
 			}
@@ -73,7 +77,7 @@ public class ElevationService {
 		}
 	}
 
-	private boolean isClose(double a, double b) {
-		return Math.abs(a - b) < 1e-6;
+	private static boolean isClose(double a, double b) {
+		return Math.abs(a - b) < 1e-9;
 	}
 }

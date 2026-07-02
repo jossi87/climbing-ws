@@ -24,7 +24,7 @@ public class GeoRepository {
 	}
 
 	@Transactional
-	public void ensureCoordinatesInDbWithElevationAndId(List<Coordinates> coordinates) {
+	public void ensureCoordinatesInDbWithId(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return;
 
 		for (int i = 0; i < coordinates.size(); i++) {

@@ -1,4 +1,8 @@
 package com.buldreinfo.util;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 public final class GeoUtils {
     private static final double EARTH_RADIUS_METERS = 6371000.0;
 
@@ -11,5 +15,9 @@ public final class GeoUtils {
                  * Math.sin(lngDistance / 2) * Math.sin(lngDistance / 2);
                  
         return 2 * EARTH_RADIUS_METERS * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    public static double roundToTenDigits(double value) {
+        return BigDecimal.valueOf(value).setScale(10, RoundingMode.HALF_UP).doubleValue();
     }
 }

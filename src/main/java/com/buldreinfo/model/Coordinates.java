@@ -1,7 +1,6 @@
 package com.buldreinfo.model;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import com.buldreinfo.util.GeoUtils;
 
 public record Coordinates(int id, double latitude, double longitude, double elevation, String elevationSource, double distance) {
 	public static final String ELEVATION_SOURCE_GOOGLE = "Google Elevation API";
@@ -19,17 +18,6 @@ public record Coordinates(int id, double latitude, double longitude, double elev
 	}
 
 	public Coordinates roundTo10Digits() {
-		return new Coordinates(
-				id,
-				round(latitude, 10),
-				round(longitude, 10),
-				elevation,
-				elevationSource,
-				distance
-				);
-	}
-
-	private static double round(double value, int places) {
-		return BigDecimal.valueOf(value).setScale(places, RoundingMode.HALF_UP).doubleValue();
+		return new Coordinates(id, GeoUtils.roundToTenDigits(latitude), GeoUtils.roundToTenDigits(longitude), elevation, elevationSource, distance);
 	}
 }

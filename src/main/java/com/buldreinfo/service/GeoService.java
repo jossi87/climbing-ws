@@ -20,15 +20,15 @@ public class GeoService {
 	}
 
 	public int getElevationAt(double lat, double lon) {
-        var coord = new Coordinates(0, lat, lon, 0, null, 0).roundTo10Digits();
-        List<Coordinates> list = new ArrayList<>(List.of(coord));
-        elevationService.fillElevations(list);
-        return (int) Math.round(list.get(0).elevation());
-    }
+		var coord = new Coordinates(0, lat, lon, 0, null, 0).roundTo10Digits();
+		List<Coordinates> list = new ArrayList<>(List.of(coord));
+		elevationService.fillElevations(list);
+		return (int) Math.round(list.get(0).elevation());
+	}
 
 	@Transactional
 	public void ensureConsistency(List<Coordinates> coords) {
-		geoRepo.ensureCoordinatesInDbWithElevationAndId(coords);
+		geoRepo.ensureCoordinatesInDbWithId(coords);
 		var missing = geoRepo.getCoordinatesMissingElevation();
 		if (!missing.isEmpty()) {
 			elevationService.fillElevations(missing);
