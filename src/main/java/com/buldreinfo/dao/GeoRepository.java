@@ -69,7 +69,10 @@ public class GeoRepository {
 		for (var c : rounded) {
 			var key = c.latitude() + "," + c.longitude();
 			var dbCoord = dbResults.get(key);
-			result.add(dbCoord != null ? dbCoord : c);
+			if (dbCoord == null) {
+				throw new IllegalStateException("Coordinate (" + c.latitude() + ", " + c.longitude() + ") was not persisted after INSERT IGNORE");
+			}
+			result.add(dbCoord);
 		}
 		return result;
 	}
