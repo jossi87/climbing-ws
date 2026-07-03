@@ -69,9 +69,8 @@ public class SectorRepository {
 	@Transactional(readOnly = true)
 	public Coordinates getFirstParkingCoordinateForSectors(List<Integer> sectorIds) {
 		if (sectorIds == null || sectorIds.isEmpty()) return null;
-		var inClause = Collections.nCopies(sectorIds.size(), "?").stream().collect(Collectors.joining(","));
-		return jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (" + inClause + ") LIMIT 1")
-				.params(sectorIds)
+		return jdbcClient.sql("SELECT c.latitude, c.longitude FROM sector s JOIN coordinates c ON s.parking_coordinates_id = c.id WHERE s.id IN (:sectorIds) LIMIT 1")
+				.param("sectorIds", sectorIds)
 				.query((rs, _) -> new Coordinates(0, rs.getDouble("latitude"), rs.getDouble("longitude"), 0.0, null, 0.0))
 				.optional()
 				.orElse(null);
@@ -263,9 +262,8 @@ public class SectorRepository {
 
 	@Transactional(readOnly = true)
 	public List<Integer> getSectorsForTrails(List<Integer> existingTrailIds) {
-		var inClause = Collections.nCopies(existingTrailIds.size(), "?").stream().collect(Collectors.joining(","));
-		return jdbcClient.sql("SELECT sector_id FROM sector_trail WHERE trail_id IN (" + inClause + ")")
-				.params(existingTrailIds)
+		return jdbcClient.sql("SELECT sector_id FROM sector_trail WHERE trail_id IN (:trailIds)")
+				.param("trailIds", existingTrailIds)
 				.query((rs, _) -> rs.getInt("sector_id"))
 				.list();
 	}
@@ -277,9 +275,8 @@ public class SectorRepository {
 		var trailBuilders = new LinkedHashMap<Integer, TrailBuilder>();
 		var sectorToTrailIds = new HashMap<Integer, List<Integer>>();
 
-		var inClause = Collections.nCopies(sectorIds.size(), "?").stream().collect(Collectors.joining(","));
-		jdbcClient.sql("SELECT st.sector_id, t.id, t.is_descent, t.title, t.description FROM sector_trail st JOIN trail t ON st.trail_id = t.id WHERE st.sector_id IN (" + inClause + ") AND t.trash IS NULL ORDER BY t.is_descent, t.title")
-		.params(new ArrayList<>(sectorIds))
+		jdbcClient.sql("SELECT st.sector_id, t.id, t.is_descent, t.title, t.description FROM sector_trail st JOIN trail t ON st.trail_id = t.id WHERE st.sector_id IN (:sectorIds) AND t.trash IS NULL ORDER BY t.is_descent, t.title")
+		.param("sectorIds", sectorIds)
 		.query(rs -> {
 			int sid = rs.getInt("sector_id");
 			int tid = rs.getInt("id");
@@ -291,18 +288,16 @@ public class SectorRepository {
 		});
 
 		if (trailBuilders.isEmpty()) return new HashMap<>();
-
-		var trailIdsList = new ArrayList<>(trailBuilders.keySet());
-		var pathInClause = Collections.nCopies(trailBuilders.size(), "?").stream().collect(Collectors.joining(","));
-
-		jdbcClient.sql("SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_coordinate tc JOIN coordinates c ON tc.coordinates_id = c.id WHERE tc.trail_id IN (" + pathInClause + ") ORDER BY tc.trail_id, tc.sorting")
-		.params(trailIdsList)
+		var trailIdsList = List.copyOf(trailBuilders.keySet());
+		
+		jdbcClient.sql("SELECT tc.trail_id, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_coordinate tc JOIN coordinates c ON tc.coordinates_id = c.id WHERE tc.trail_id IN (:trailIds) ORDER BY tc.trail_id, tc.sorting")
+		.param("trailIds", trailIdsList)
 		.query(rs -> {
 			trailBuilders.get(rs.getInt("trail_id")).path.add(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0));
 		});
 
-		jdbcClient.sql("SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_marker tm JOIN coordinates c ON tm.coordinates_id = c.id WHERE tm.trail_id IN (" + pathInClause + ")")
-		.params(trailIdsList)
+		jdbcClient.sql("SELECT tm.trail_id, tm.label, c.id, c.latitude, c.longitude, c.elevation, c.elevation_source FROM trail_marker tm JOIN coordinates c ON tm.coordinates_id = c.id WHERE tm.trail_id IN (:trailIds)")
+		.param("trailIds", trailIdsList)
 		.query(rs -> {
 			trailBuilders.get(rs.getInt("trail_id")).markers.add(new Trail.TrailMarker(new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0), rs.getString("label")));
 		});

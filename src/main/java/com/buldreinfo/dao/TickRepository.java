@@ -62,10 +62,7 @@ public class TickRepository {
 
 		var totalCount = new int[]{0};
 		var ticks = jdbcClient.sql(sqlStr)
-				.param(1, setup.idRegion())
-				.param(2, authUserId.orElse(0))
-				.param(3, take)
-				.param(4, skip)
+				.params(setup.idRegion(), authUserId.orElse(0), take, skip)
 				.query((rs, _) -> {
 					if (totalCount[0] == 0) totalCount[0] = rs.getInt("total_count");
 
@@ -88,8 +85,7 @@ public class TickRepository {
 		int userId = authUserId.orElseThrow(() -> new IllegalArgumentException("Not logged in"));
 
 		jdbcClient.sql("DELETE FROM todo WHERE user_id=? AND problem_id=?")
-		.param(1, userId)
-		.param(2, t.idProblem())
+		.params(userId, t.idProblem())
 		.update();
 
 		final var dt = (t.date() == null || t.date().isBlank()) ? null : LocalDate.parse(t.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -98,30 +94,19 @@ public class TickRepository {
 			if (t.id() <= 0) throw new IllegalArgumentException("Cannot delete tick without id");
 
 			int affected = jdbcClient.sql("DELETE FROM tick WHERE id=? AND user_id=? AND problem_id=?")
-					.param(1, t.id()).param(2, userId).param(3, t.idProblem())
+					.params(t.id(), userId, t.idProblem())
 					.update();
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
 		} else if (t.id() == -1) {
 			var keyHolder = new GeneratedKeyHolder();
 			jdbcClient.sql("INSERT INTO tick (problem_id, user_id, date, grade_id, comment, stars) VALUES (?, ?, ?, ?, ?, ?)")
-			.param(1, t.idProblem())
-			.param(2, userId)
-			.param(3, dt)
-			.param(4, setup.gradeConverter().getIdGradeFromGrade(t.grade()))
-			.param(5, StringUtils.stripToNull(t.comment()))
-			.param(6, t.stars())
+			.params(t.idProblem(), userId, dt, setup.gradeConverter().getIdGradeFromGrade(t.grade()), StringUtils.stripToNull(t.comment()), t.stars())
 			.update(keyHolder, "id");
 
 			upsertTickRepeats(keyHolder.getKey().intValue(), t.repeats());
 		} else if (t.id() > 0) {
 			int affected = jdbcClient.sql("UPDATE tick SET date=?, grade_id=?, comment=?, stars=? WHERE id=? AND problem_id=? AND user_id=?")
-					.param(1, dt)
-					.param(2, setup.gradeConverter().getIdGradeFromGrade(t.grade()))
-					.param(3, StringUtils.stripToNull(t.comment()))
-					.param(4, t.stars())
-					.param(5, t.id())
-					.param(6, t.idProblem())
-					.param(7, userId)
+					.params(dt, setup.gradeConverter().getIdGradeFromGrade(t.grade()), StringUtils.stripToNull(t.comment()), t.stars(), t.id(), t.idProblem(), userId)
 					.update();
 			if (affected != 1) throw new IllegalStateException("Invalid tick=" + t);
 			upsertTickRepeats(t.id(), t.repeats());
@@ -132,7 +117,7 @@ public class TickRepository {
 		var idsToKeep = repeats == null ? List.<Integer>of() : repeats.stream().filter(x -> x.id() > 0).map(TickRepeat::id).toList();
 
 		if (idsToKeep.isEmpty()) {
-			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=?").param(1, idTick).update();
+			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=?").param(idTick).update();
 		} else {
 			jdbcClient.sql("DELETE FROM tick_repeat WHERE tick_id=? AND id NOT IN (:ids)")
 			.param("tick_id", idTick).param("ids", idsToKeep).update();
@@ -143,11 +128,11 @@ public class TickRepository {
 				final var dt = (r.date() == null || r.date().isBlank()) ? null : LocalDate.parse(r.date(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 				if (r.id() > 0) {
 					jdbcClient.sql("UPDATE tick_repeat SET date=?, comment=? WHERE id=?")
-					.param(1, dt).param(2, StringUtils.stripToNull(r.comment())).param(3, r.id())
+					.params(dt, StringUtils.stripToNull(r.comment()), r.id())
 					.update();
 				} else {
 					jdbcClient.sql("INSERT INTO tick_repeat (tick_id, date, comment) VALUES (?, ?, ?)")
-					.param(1, idTick).param(2, dt).param(3, StringUtils.stripToNull(r.comment()))
+					.params(idTick, dt, StringUtils.stripToNull(r.comment()))
 					.update();
 				}
 			}

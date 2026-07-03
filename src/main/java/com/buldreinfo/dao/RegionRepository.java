@@ -37,8 +37,7 @@ public class RegionRepository {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 
 		var authorized = jdbcClient.sql("SELECT admin_write, superadmin_write FROM user_region WHERE region_id=? AND user_id=?")
-				.param(setup.idRegion())
-				.param(authUserId.get())
+				.params(setup.idRegion(), authUserId.get())
 				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
 				.optional()
 				.orElse(false);
@@ -51,8 +50,7 @@ public class RegionRepository {
 		if (authUserId.isEmpty()) throw new UnauthorizedException("Not logged in");
 
 		var authorized = jdbcClient.sql("SELECT superadmin_write FROM user_region WHERE region_id=? AND user_id=?")
-				.param(setup.idRegion())
-				.param(authUserId.get())
+				.params(setup.idRegion(), authUserId.get())
 				.query((rs, _) -> rs.getBoolean("superadmin_write"))
 				.optional()
 				.orElse(false);

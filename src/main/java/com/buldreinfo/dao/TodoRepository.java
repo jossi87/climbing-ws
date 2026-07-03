@@ -59,8 +59,7 @@ public class TodoRepository {
 		var problemLookup = new HashMap<Integer, TodoProblem>();
 
 		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, id)
+		.params(authUserId.orElse(0), id)
 		.query(rs -> {
 			int sectorId = rs.getInt("sector_id");
 			var s = sectorLookup.get(sectorId);
@@ -100,19 +99,17 @@ public class TodoRepository {
 		if (problemId <= 0) throw new IllegalArgumentException("Problem id not set");
 
 		var todoId = jdbcClient.sql("SELECT id FROM todo WHERE user_id=? AND problem_id=?")
-				.param(1, authUserId.get())
-				.param(2, problemId)
+				.params(authUserId.get(), problemId)
 				.query(Integer.class)
 				.optional();
 
 		if (todoId.isPresent()) {
 			jdbcClient.sql("DELETE FROM todo WHERE id=?")
-			.param(1, todoId.get())
+			.param(todoId.get())
 			.update();
 		} else {
 			jdbcClient.sql("INSERT INTO todo (user_id, problem_id, created) VALUES (?, ?, now())")
-			.param(1, authUserId.get())
-			.param(2, problemId)
+			.params(authUserId.get(), problemId)
 			.update();
 		}
 	}

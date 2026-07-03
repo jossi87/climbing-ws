@@ -30,7 +30,7 @@ public class HitTrackingListener {
 	public void handleAreaHit(AreaHitEvent event) {
 		try {
 			jdbcClient.sql("UPDATE area SET hits=hits+1 WHERE id=?")
-			.param(1, event.areaId())
+			.param(event.areaId())
 			.update();
 			logger.debug("Incremented hits for Area ID={}", event.areaId());
 		} catch (Exception e) {
@@ -44,7 +44,7 @@ public class HitTrackingListener {
 	public void handleSectorHit(SectorHitEvent event) {
 		try {
 			jdbcClient.sql("UPDATE sector SET hits=hits+1 WHERE id=?")
-			.param(1, event.sectorId())
+			.param(event.sectorId())
 			.update();
 			logger.debug("Incremented hits for Sector ID={}", event.sectorId());
 		} catch (Exception e) {
@@ -58,7 +58,7 @@ public class HitTrackingListener {
 	public void handleProblemHit(ProblemHitEvent event) {
 		try {
 			jdbcClient.sql("UPDATE problem SET hits=hits+1 WHERE id=?")
-			.param(1, event.problemId())
+			.param(event.problemId())
 			.update();
 			logger.debug("Incremented hits for Problem ID={}", event.problemId());
 		} catch (Exception e) {

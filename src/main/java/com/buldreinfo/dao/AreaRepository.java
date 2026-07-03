@@ -45,8 +45,7 @@ public class AreaRepository {
 				WHERE a.id=?
 				  AND a.trash IS NULL AND ((a.locked_admin=0 AND a.locked_superadmin=0) OR (ur.superadmin_read=1) OR (ur.admin_read=1 AND a.locked_superadmin=0))
 				""")
-				.param(1, authUserId.orElseThrow())
-				.param(2, areaId)
+				.params(authUserId.orElseThrow(), areaId)
 				.query((rs, _) -> rs.getBoolean("admin_write") || rs.getBoolean("superadmin_write"))
 				.optional()
 				.orElse(false);
@@ -76,9 +75,7 @@ public class AreaRepository {
 				GROUP BY r.name, a.locked_admin, a.locked_superadmin, a.for_developers, a.access_info, a.access_closed, a.no_dogs_allowed, a.name, a.sun_from_hour, a.sun_to_hour, a.description,
 				         c.id, c.latitude, c.longitude, c.elevation, c.elevation_source, a.hits
 				""")
-				.param(1, setup.idRegion())
-				.param(2, authUserId.orElse(0))
-				.param(3, reqId)
+				.params(setup.idRegion(), authUserId.orElse(0), reqId)
 				.query((rs, _) -> {
 					int cid = rs.getInt("coordinates_id");
 					var coords = cid == 0 ? null : new Coordinates(cid, rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0);
@@ -184,8 +181,7 @@ public class AreaRepository {
 
 		Map<Integer, AreaSector> sectorLookup = new LinkedHashMap<>();
 		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, areaId)
+		.params(authUserId.orElse(0), areaId)
 		.query(rs -> {
 			int id = rs.getInt("id");
 			int coordId = rs.getInt("coordinates_id");
@@ -253,7 +249,7 @@ public class AreaRepository {
 				""";
 
 		jdbcClient.sql(sqlStr)
-		.param(1, areaId)
+		.param(areaId)
 		.query(rs -> {
 			AreaSector sector = sectorLookup.get(rs.getInt("sector_id"));
 			if (sector != null) {
@@ -315,7 +311,7 @@ public class AreaRepository {
 						UPDATE area a LEFT JOIN sector s ON a.id=s.area_id LEFT JOIN problem p ON s.id=p.sector_id 
 						SET a.last_updated=now(), s.last_updated=now(), p.last_updated=now() WHERE a.id=?
 						""")
-				.param(1, idArea)
+				.param(idArea)
 				.update();
 			}
 		} else {

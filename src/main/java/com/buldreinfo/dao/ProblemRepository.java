@@ -430,7 +430,7 @@ public class ProblemRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE g.problem_id=? ORDER BY g.post_time DESC
 				""")
-		.param(1, problemId)
+		.param(problemId)
 		.query(rs -> {
 			MediaIdentity mId = rs.getInt("media_id") > 0 
 					? new MediaIdentity(rs.getInt("media_id"), rs.getLong("media_version_stamp"), rs.getInt("media_focus_x"), rs.getInt("media_focus_y"), rs.getString("media_primary_color_hex")) 
@@ -468,7 +468,7 @@ public class ProblemRepository {
 				LEFT JOIN media_ml_analysis mma ON m.id=mma.media_id
 				WHERE a.problem_id=?
 				""")
-		.param(1, problemId)
+		.param(problemId)
 		.query(rs -> {
 			if (faAidRef.get() == null) {
 				faAidRef.set(new FaAid(problemId, rs.getString("aid_date"), rs.getString("aid_date_hr"), rs.getString("aid_description"), new ArrayList<>()));
@@ -499,7 +499,7 @@ public class ProblemRepository {
 				WHERE t.problem_id=?
 				ORDER BY t.date DESC, t.id DESC
 				""")
-		.param(1, problemId)
+		.param(problemId)
 		.query(rs -> {
 			int id = rs.getInt("id_tick");
 			MediaIdentity mId = rs.getInt("media_id") > 0 
@@ -525,7 +525,7 @@ public class ProblemRepository {
 				WHERE t.problem_id=? AND t.id=r.tick_id 
 				ORDER BY r.tick_id, r.date, r.id
 				""")
-		.param(1, problemId)
+		.param(problemId)
 		.query(rs -> {
 			ProblemTick tick = tickLookup.get(rs.getInt("tick_id"));
 			if (tick != null) {

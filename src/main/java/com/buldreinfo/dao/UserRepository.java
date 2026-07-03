@@ -163,7 +163,7 @@ public class UserRepository {
 	@Transactional
 	public Optional<Integer> getAuthUserId(Auth0Profile profile) {
 		return jdbcClient.sql("SELECT user_id FROM user_email WHERE lower(email)=?")
-				.param(1, profile.email().toLowerCase())
+				.param(profile.email().toLowerCase())
 				.query(Integer.class)
 				.optional()
 				.or(() -> Optional.of(addUser(profile.email(), profile.firstname(), profile.lastname())));
@@ -458,7 +458,7 @@ public class UserRepository {
 				LEFT JOIN (SELECT user_id, MAX(`when`) AS last_login FROM user_login GROUP BY user_id) l ON l.user_id = u.id
 				WHERE u.id = ?
 				""")
-				.param(1, userId)
+				.param(userId)
 				.query((rs, _) -> {
 					int mediaId = rs.getInt("media_id");
 					MediaIdentity mediaIdentity = (mediaId > 0)
@@ -512,7 +512,7 @@ public class UserRepository {
 				CROSS JOIN valid_media vm
 				LEFT JOIN media_user mu ON vm.id = mu.media_id AND mu.user_id = req.user_id
 				""")
-				.param(1, userId)
+				.param(userId)
 				.query((rs, _) -> new ProfileKpis(
 						rs.getInt("created_img"),
 						rs.getInt("created_vid"),
@@ -620,7 +620,7 @@ public class UserRepository {
 				WHERE regexp_like(TRIM(CONCAT(u.firstname,' ',COALESCE(u.lastname,''))),?,'i')
 				ORDER BY u.firstname, u.lastname
 				""")
-				.param(1, searchRegexPattern)
+				.param(searchRegexPattern)
 				.query((rs, _) -> User.from(rs.getInt("id"), rs.getString("name")))
 				.list();
 
@@ -863,7 +863,6 @@ public class UserRepository {
 			throw new IllegalArgumentException("idProblems is empty");
 		}
 
-		String in = Collections.nCopies(idProblems.size(), "?").stream().collect(Collectors.joining(","));
 		String sql = """
 				SELECT p.id id_problem, COALESCE(pc.id,c.id,sc.id,ac.id) coordinates_id, 
 				       COALESCE(pc.latitude,c.latitude,sc.latitude,ac.latitude) latitude, 
@@ -871,18 +870,18 @@ public class UserRepository {
 				       COALESCE(pc.elevation,c.elevation,sc.elevation,ac.elevation) elevation, 
 				       COALESCE(pc.elevation_source,c.elevation_source,sc.elevation_source,ac.elevation_source) elevation_source 
 				FROM problem p 
-				INNER JOIN sector s ON p.sector_id=s.id 
-				INNER JOIN area a ON s.area_id=a.id 
+				JOIN sector s ON p.sector_id=s.id 
+				JOIN area a ON s.area_id=a.id 
 				LEFT JOIN coordinates ac ON a.coordinates_id=ac.id 
 				LEFT JOIN coordinates sc ON s.parking_coordinates_id=sc.id 
 				LEFT JOIN coordinates pc ON p.coordinates_id=pc.id 
 				LEFT JOIN sector_outline so ON s.id=so.sector_id AND so.sorting=1 
 				LEFT JOIN coordinates c ON so.coordinates_id=c.id 
-				WHERE p.id IN (%s)
-				""".formatted(in);
+				WHERE p.id IN (:problemIds)
+				""";
 
 		Map<Integer, Coordinates> res = jdbcClient.sql(sql)
-				.params(idProblems)
+				.param("problemIds", idProblems)
 				.query((rs, _) -> {
 					int idCoordinates = rs.getInt("coordinates_id");
 					return (idCoordinates > 0) 
@@ -976,7 +975,7 @@ public class UserRepository {
 		}
 
 		Integer existingId = jdbcClient.sql("SELECT id FROM user WHERE CONCAT(firstname, ' ', COALESCE(lastname,''))=?")
-				.param(1, name)
+				.param(name)
 				.query(Integer.class)
 				.optional()
 				.orElse(null);

@@ -1,9 +1,8 @@
 package com.buldreinfo.dao;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -41,25 +40,35 @@ public class GeoRepository {
 	@Transactional(readOnly = true)
 	public List<Coordinates> getCoordinatesByLatLng(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return List.of();
-		String placeholders = String.join(",", Collections.nCopies(coordinates.size(), "(?,?)"));
-		var sql = "SELECT id, latitude, longitude, elevation, elevation_source FROM coordinates WHERE (latitude, longitude) IN (" + placeholders + ")";
-		var params = coordinates.stream()
-				.flatMap(c -> Stream.of(c.latitude(), c.longitude()))
-				.toList();
-		var dbResults = jdbcClient.sql(sql)
-				.params(params)
-				.query((rs, _) -> new Coordinates(rs.getInt("id"), rs.getDouble("latitude"), rs.getDouble("longitude"), rs.getDouble("elevation"), rs.getString("elevation_source"), 0.0))
+
+		var dbResults = jdbcClient.sql("""
+				SELECT id, latitude, longitude, elevation, elevation_source 
+				FROM coordinates 
+				WHERE (latitude, longitude) IN (:coords)
+				""")
+				.param("coords", coordinates.stream()
+						.map(c -> Map.of("lat", c.latitude(), "lon", c.longitude()))
+						.toList())
+				.query((rs, _) -> new Coordinates(
+						rs.getInt("id"), 
+						rs.getDouble("latitude"), 
+						rs.getDouble("longitude"), 
+						rs.getDouble("elevation"), 
+						rs.getString("elevation_source"), 
+						0.0))
 				.list();
+
 		var lookup = dbResults.stream()
 				.collect(Collectors.toMap(
 						c -> c.latitude() + "," + c.longitude(),
 						c -> c));
+
 		return coordinates.stream()
 				.map(c -> {
 					var key = c.latitude() + "," + c.longitude();
 					var dbCoord = lookup.get(key);
 					if (dbCoord == null) {
-						throw new IllegalStateException("Coordinate (" + c.latitude() + ", " + c.longitude() + ") was not persisted after INSERT IGNORE");
+						throw new IllegalStateException("Coordinate (" + c.latitude() + ", " + c.longitude() + ") was not persisted");
 					}
 					return dbCoord;
 				})

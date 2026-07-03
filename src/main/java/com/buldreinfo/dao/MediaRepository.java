@@ -3,7 +3,6 @@ package com.buldreinfo.dao;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -61,15 +60,15 @@ public class MediaRepository {
 
 	@Transactional
 	public void deleteMediaAnalysis(int idMedia) {
-		jdbcClient.sql("DELETE FROM media_ml_label WHERE media_id=?").param(1, idMedia).update();
-		jdbcClient.sql("DELETE FROM media_ml_object WHERE media_id=?").param(1, idMedia).update();
-		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id=?").param(1, idMedia).update();
+		jdbcClient.sql("DELETE FROM media_ml_label WHERE media_id=?").param(idMedia).update();
+		jdbcClient.sql("DELETE FROM media_ml_object WHERE media_id=?").param(idMedia).update();
+		jdbcClient.sql("DELETE FROM media_ml_analysis WHERE media_id=?").param(idMedia).update();
 	}
 
 	@Transactional(readOnly = true)
 	public int getDailyInstagramScrapeCount(Optional<Integer> authUserId) {
 		return jdbcClient.sql("SELECT COUNT(*) FROM instagram_scrape_log WHERE user_id = ? AND created_at >= NOW() - INTERVAL 1 DAY")
-				.param(1, authUserId.orElseThrow())
+				.param(authUserId.orElseThrow())
 				.query(Integer.class)
 				.single();
 	}
@@ -796,10 +795,9 @@ public class MediaRepository {
 			return res;
 		}
 
-		var inClause = String.join(",", Collections.nCopies(trailIds.size(), "?"));
-		var sql = """
-				WITH req AS (
-				    SELECT ? auth_user_id
+		jdbcClient.sql("""
+					WITH req AS (
+				    SELECT :authUserId auth_user_id
 				)
 				SELECT mt.trail_id, m.id, m.uploader_user_id, UNIX_TIMESTAMP(m.updated_at) version_stamp, mma.focus_x, mma.focus_y, mma.primary_color_hex media_primary_color_hex, m.description,
 				       m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds,
@@ -912,29 +910,23 @@ public class MediaRepository {
 				JOIN media m ON (mt.media_id = m.id AND m.deleted_user_id IS NULL)
 				LEFT JOIN media_ml_analysis mma ON m.id = mma.media_id
 				LEFT JOIN user ph ON m.photographer_user_id = ph.id
-				WHERE mt.trail_id IN (%s)
+				WHERE mt.trail_id IN (:trailIds)
 				GROUP BY req.auth_user_id, mt.trail_id, m.id, mma.focus_x, mma.focus_y, mma.primary_color_hex, m.uploader_user_id, m.updated_at, m.description, m.width, m.height, m.is_movie, m.suffix, m.is_360, m.embed_url, m.thumbnail_seconds, m.date_created, m.date_taken, ph.id, ph.firstname, ph.lastname, mt.sorting
 				ORDER BY m.is_movie, m.embed_url, -mt.sorting DESC, m.id
-				""".formatted(inClause);
-
-		List<Object> args = new ArrayList<>();
-		args.add(authUserId.orElse(0));
-		args.addAll(trailIds);
-
-		jdbcClient.sql(sql)
-		.params(args)
+				""")
+		.param("authUserId", authUserId.orElse(0))
+		.param("trailIds", trailIds)
 		.query((rs) -> {
 			var trailId = rs.getInt("trail_id");
 			res.computeIfAbsent(trailId, _ -> new ArrayList<>()).add(Media.fromResultSet(objectMapper, rs, authUserId));
 		});
 		return res;
-
 	}
 
 	@Transactional(readOnly = true)
 	public List<Integer> getProblemIdsForMedia(int idMedia) {
 		return jdbcClient.sql("SELECT problem_id FROM media_problem WHERE media_id=?")
-				.param(1, idMedia)
+				.param(idMedia)
 				.query((rs, _) -> rs.getInt("problem_id"))
 				.list();
 	}

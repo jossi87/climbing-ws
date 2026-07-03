@@ -64,9 +64,7 @@ public class ExternalLinksRepository {
 				""";
 
 		var res = jdbcClient.sql(sql)
-				.param(1, areaId)
-				.param(2, sectorId)
-				.param(3, problemId)
+				.params(areaId, sectorId, problemId)
 				.query((rs, _) -> new ExternalLink(
 						rs.getInt("id"),
 						rs.getString("url"),
@@ -92,9 +90,8 @@ public class ExternalLinksRepository {
 				.toList();
 
 		if (!toRemove.isEmpty()) {
-			var idsToRemove = toRemove.stream().map(ExternalLink::id).toList();
 			jdbcClient.sql("DELETE FROM external_link WHERE id IN (:ids)")
-			.param("ids", idsToRemove)
+			.param("ids", toRemove.stream().map(ExternalLink::id).toList())
 			.update();
 		}
 
@@ -109,9 +106,7 @@ public class ExternalLinksRepository {
 
 			for (var l : newLinksUpdate) {
 				jdbcClient.sql("UPDATE external_link SET url=?, title=? WHERE id=?")
-				.param(1, l.url())
-				.param(2, l.title())
-				.param(3, l.id())
+				.params(l.url(), l.title(), l.id())
 				.update();
 			}
 
@@ -133,14 +128,12 @@ public class ExternalLinksRepository {
 				for (var l : newLinksCreate) {
 					var keyHolder = new GeneratedKeyHolder();
 					jdbcClient.sql("INSERT INTO external_link (url, title) VALUES (?, ?)")
-					.param(1, l.url())
-					.param(2, l.title())
+					.params(l.url(), l.title())
 					.update(keyHolder, "id");
 
 					if (keyHolder.getKey() != null) {
 						jdbcClient.sql(junctionSql)
-						.param(1, keyHolder.getKey().intValue())
-						.param(2, targetId)
+						.params(keyHolder.getKey().intValue(), targetId)
 						.update();
 					}
 				}

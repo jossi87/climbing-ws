@@ -89,8 +89,7 @@ public class HierarchyRepository {
 		}
 
 		return jdbcClient.sql(sqlStr)
-				.param(1, setup.idRegion())
-				.param(2, id)
+				.params(setup.idRegion(), id)
 				.query(String.class)
 				.optional()
 				.map(Redirect::fromRedirectUrl)
@@ -131,8 +130,7 @@ public class HierarchyRepository {
 				""";
 		Map<String, GradeDistribution> res = new LinkedHashMap<>();
 		jdbcClient.sql(sql)
-		.param(1, authUserId.orElse(0))
-		.param(2, setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion())
 		.query(rs -> {
 			var label = rs.getString("grade");
 			var color = rs.getString("color");
@@ -176,8 +174,7 @@ public class HierarchyRepository {
 		Map<Integer, DangerousArea.DangerousSector> sectorLookup = new HashMap<>();
 
 		jdbcClient.sql(sql)
-		.param(1, authUserId.orElse(0))
-		.param(2, setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion())
 		.query(rs -> {
 			int areaId = rs.getInt("area_id");
 			int sectorId = rs.getInt("sector_id");
@@ -316,8 +313,7 @@ public class HierarchyRepository {
 		Map<Integer, RestrictionsArea> areasLookup = new LinkedHashMap<>();
 
 		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion())
 		.query(rs -> {
 			int regionId = rs.getInt("region_id");
 			var r = regionsLookup.computeIfAbsent(regionId, id -> {
@@ -483,9 +479,7 @@ public class HierarchyRepository {
 				""";
 
 		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, setup.idRegion())
-		.param(3, wildCardSearch)
+		.params(authUserId.orElse(0), setup.idRegion(), wildCardSearch)
 		.query(rs -> {
 			var type = rs.getString("result_type");
 			int id = rs.getInt("id");
@@ -596,7 +590,7 @@ public class HierarchyRepository {
 				""";
 
 		urls.addAll(jdbcClient.sql(sql1)
-				.param(1, setup.idRegion())
+				.param(setup.idRegion())
 				.query((rs, _) -> setup.url() + "/user/" + rs.getInt("user_id"))
 				.list());
 
@@ -624,7 +618,7 @@ public class HierarchyRepository {
 				""";
 
 		urls.addAll(jdbcClient.sql(sql2)
-				.param(1, setup.idRegion())
+				.param(setup.idRegion())
 				.query((rs, _) -> setup.url() + rs.getString("suffix"))
 				.list());
 
@@ -731,8 +725,7 @@ public class HierarchyRepository {
 		int[] numProblems = {0};
 
 		jdbcClient.sql(sqlStr)
-		.param(1, authUserId.orElse(0))
-		.param(2, setup.idRegion())
+		.params(authUserId.orElse(0), setup.idRegion())
 		.query(rs -> {
 			int regionId = rs.getInt("region_id");
 			var r = regionLookup.get(regionId);
@@ -837,9 +830,7 @@ public class HierarchyRepository {
 				""";
 
 		return jdbcClient.sql(sqlStr)
-				.param(1, setup.idRegion())
-				.param(2, authUserId.orElse(0))
-				.param(3, setup.idRegion())
+				.params(setup.idRegion(), authUserId.orElse(0), setup.idRegion())
 				.query((rs, _) -> {
 					var regionName = rs.getString("region_name");
 					var url = rs.getString("url");
