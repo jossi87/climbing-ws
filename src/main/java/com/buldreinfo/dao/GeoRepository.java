@@ -1,8 +1,10 @@
 package com.buldreinfo.dao;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -41,14 +43,23 @@ public class GeoRepository {
 	public List<Coordinates> getCoordinatesByLatLng(List<Coordinates> coordinates) {
 		if (coordinates == null || coordinates.isEmpty()) return List.of();
 
-		var dbResults = jdbcClient.sql("""
+		Map<String, Object> params = new HashMap<>();
+		String inSql = IntStream.range(0, coordinates.size())
+				.mapToObj(i -> {
+					params.put("lat" + i, coordinates.get(i).latitude());
+					params.put("lon" + i, coordinates.get(i).longitude());
+					return "(:lat" + i + ", :lon" + i + ")";
+				})
+				.collect(Collectors.joining(", "));
+
+		String sql = """
 				SELECT id, latitude, longitude, elevation, elevation_source 
 				FROM coordinates 
-				WHERE (latitude, longitude) IN (:coords)
-				""")
-				.param("coords", coordinates.stream()
-						.map(c -> Map.of("lat", c.latitude(), "lon", c.longitude()))
-						.toList())
+				WHERE (latitude, longitude) IN (%s)
+				""".formatted(inSql);
+
+		var dbResults = jdbcClient.sql(sql)
+				.params(params)
 				.query((rs, _) -> new Coordinates(
 						rs.getInt("id"), 
 						rs.getDouble("latitude"), 
