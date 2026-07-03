@@ -14,12 +14,15 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
@@ -54,7 +57,9 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 public final class StorageManager {
 	public static final String BUCKET_NAME = "climbing-web";
 	public static final long MAX_IMAGE_UPLOAD_BYTES = 100L * 1024L * 1024L;
+
 	public static final long MAX_VIDEO_UPLOAD_BYTES = 800L * 1024L * 1024L;
+	private static final Logger logger = LoggerFactory.getLogger(StorageManager.class);
 	private static final String PROXY_PATH = "/media-proxy/";
 
 	public static String getDirectStorageUrl(String objectKey) {
@@ -223,39 +228,8 @@ public final class StorageManager {
 
 	public void uploadImage(String objectKey, BufferedImage image, StorageType type) {
 		try {
-			boolean shouldCompress = S3KeyGenerator.shouldCompress(objectKey);
-			ByteArrayOutputStream os = new ByteArrayOutputStream();
-			Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
-			if (!writers.hasNext()) throw new IOException("No writer found for type: " + type.getExtension());
-			ImageWriter writer = writers.next();
-			try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
-				writer.setOutput(ios);
-				ImageWriteParam param = writer.getDefaultWriteParam();
-				if (shouldCompress && param.canWriteCompressed()) {
-					param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-					if (type == StorageType.WEBP) {
-						String[] types = param.getCompressionTypes();
-						if (types != null) {
-							for (String t : types) {
-								if (t.equalsIgnoreCase("Lossy")) {
-									param.setCompressionType(t);
-									break;
-								}
-							}
-						}
-						param.setCompressionQuality(0.75f);
-					} else {
-						String[] types = param.getCompressionTypes();
-						if (types != null && types.length > 0) param.setCompressionType(types[0]);
-						param.setCompressionQuality(0.80f);
-					}
-				}
-				writer.write(null, new IIOImage(image, null, null), param);
-				ios.flush();
-			} finally {
-				writer.dispose();
-			}
-			uploadBytes(objectKey, os.toByteArray(), type);
+			byte[] imageBytes = writeImageToBytes(objectKey, image, type);
+			uploadBytes(objectKey, imageBytes, type);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e.getMessage(), e);
 		}
@@ -271,5 +245,75 @@ public final class StorageManager {
 				.acl(ObjectCannedACL.PUBLIC_READ).build();
 		cacheManager.getCache(CacheConstants.EXISTS_CACHE_NAME).evict(objectKey);
 		s3Client.putObject(putRequest, body);
+	}
+
+	private byte[] writeImageToBytes(String objectKey, BufferedImage image, StorageType type) throws IOException {
+		BufferedImage imageToProcess = image;
+		// Proactive check: If it's JPEG and has Alpha, flatten it immediately to avoid Huffman table issues
+		if (type.getExtension().equalsIgnoreCase("jpg") || type.getExtension().equalsIgnoreCase("jpeg")) {
+			if (image.getColorModel().hasAlpha()) {
+				logger.debug("Flattening alpha channel for JPEG image: {}", objectKey);
+				imageToProcess = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+				var g = imageToProcess.createGraphics();
+				try {
+					g.drawImage(image, 0, 0, java.awt.Color.WHITE, null);
+				} finally {
+					g.dispose();
+				}
+			}
+		}
+
+		try {
+			return writeImageToBytesInternal(objectKey, imageToProcess, type);
+		} catch (IIOException e) {
+			if (e.getMessage() != null && e.getMessage().contains("Huffman")) {
+				logger.warn("JPEG Huffman table error detected after alpha flattening, retrying with fresh image copy: {}", e.getMessage());
+				BufferedImage freshCopy = new BufferedImage(imageToProcess.getWidth(), imageToProcess.getHeight(), BufferedImage.TYPE_INT_RGB);
+				var g = freshCopy.createGraphics();
+				try {
+					g.drawImage(imageToProcess, 0, 0, null);
+				} finally {
+					g.dispose();
+				}
+				return writeImageToBytesInternal(objectKey, freshCopy, type);
+			}
+			throw e;
+		}
+	}
+
+	private byte[] writeImageToBytesInternal(String objectKey, BufferedImage image, StorageType type) throws IOException {
+		boolean shouldCompress = S3KeyGenerator.shouldCompress(objectKey);
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(type.getExtension());
+		if (!writers.hasNext()) throw new IOException("No writer found for type: " + type.getExtension());
+		ImageWriter writer = writers.next();
+		try (ImageOutputStream ios = ImageIO.createImageOutputStream(os)) {
+			writer.setOutput(ios);
+			ImageWriteParam param = writer.getDefaultWriteParam();
+			if (shouldCompress && param.canWriteCompressed()) {
+				param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+				if (type == StorageType.WEBP) {
+					String[] types = param.getCompressionTypes();
+					if (types != null) {
+						for (String t : types) {
+							if (t.equalsIgnoreCase("Lossy")) {
+								param.setCompressionType(t);
+								break;
+							}
+						}
+					}
+					param.setCompressionQuality(0.75f);
+				} else {
+					String[] types = param.getCompressionTypes();
+					if (types != null && types.length > 0) param.setCompressionType(types[0]);
+					param.setCompressionQuality(0.80f);
+				}
+			}
+			writer.write(null, new IIOImage(image, null, null), param);
+			ios.flush();
+		} finally {
+			writer.dispose();
+		}
+		return os.toByteArray();
 	}
 }
