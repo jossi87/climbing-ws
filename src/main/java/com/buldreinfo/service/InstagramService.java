@@ -10,8 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -25,7 +23,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 @Service
 public class InstagramService {
 	public record InstagramMedia(String cdnUrl, boolean isVideo, int mediaIndex) {}
-	private static final Pattern ALLOWED_CDN_PATTERN = Pattern.compile("^https://[^/]+\\.(cdninstagram\\.com|fbcdn\\.net)/.*$");
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public static String extractInstagramShortcode(String url) {
 		String cleanUrl = url.split("\\?")[0];
@@ -45,11 +42,16 @@ public class InstagramService {
 		if (urlString == null) {
 			throw new IllegalArgumentException("URL cannot be null");
 		}
-		var matcher = ALLOWED_CDN_PATTERN.matcher(urlString);
-		if (!matcher.matches()) {
-			throw new IllegalArgumentException("Unauthorized or malicious media storage URL");
+		try {
+			URI uri = URI.create(urlString);
+			String host = uri.getHost();
+			if (host != null && (host.endsWith(".cdninstagram.com") || host.endsWith(".fbcdn.net"))) {
+				return uri;
+			}
+		} catch (IllegalArgumentException _) {
+			// Fall through to throw below
 		}
-		return URI.create(matcher.group(0));
+		throw new IllegalArgumentException("Unauthorized or malicious media storage URL: " + urlString);
 	}
 
 	private final AppConfig appConfig;

@@ -48,24 +48,37 @@ public class TokenService {
     }
     
     public Optional<Integer> processAuthentication(String accessToken, Setup setup, String headerJson) {
+        var cache = cacheManager.getCache(CacheConstants.AUTH_CACHE_NAME);
+        Auth0Profile profile = cache.get(accessToken, Auth0Profile.class);
+
+        if (profile != null) {
+            // Cache hit — return immediately (INVALID → empty, valid → userId)
+            return (profile == Auth0Profile.INVALID)
+                    ? Optional.empty()
+                    : userRepo.getAuthUserId(profile);
+        }
+
+        // Cache miss — verify the token
         try {
-            var cache = cacheManager.getCache(CacheConstants.AUTH_CACHE_NAME);
-            Auth0Profile profile = cache.get(accessToken, Auth0Profile.class);
-            boolean isNewToken = (profile == null);
-            if (isNewToken) {
-                profile = verifyAndLoad(accessToken);
-                cache.put(accessToken, profile);
-            }
+            profile = verifyAndLoad(accessToken);
             int userId = userRepo.getAuthUserId(profile).orElseThrow();
-            if (isNewToken) {
-                userRepo.upsertUserLogin(setup, userId, headerJson);
-                if (profile.picture() != null && !userRepo.hasAvatar(userId)) {
-                    applyAvatarFromUrl(userId, profile.picture());
-                }
+
+            cache.put(accessToken, profile);
+            userRepo.upsertUserLogin(setup, userId, headerJson);
+
+            if (profile.picture() != null && !userRepo.hasAvatar(userId)) {
+                applyAvatarFromUrl(userId, profile.picture());
             }
+
             return Optional.of(userId);
         } catch (Exception e) {
             logger.warn("Authentication failed: {}", e.getMessage());
+            // Cache negative result to avoid repeated verification of invalid tokens
+            try {
+                cache.put(accessToken, Auth0Profile.INVALID);
+            } catch (Exception cacheEx) {
+                logger.warn("Failed to cache negative auth result", cacheEx);
+            }
             return Optional.empty();
         }
     }

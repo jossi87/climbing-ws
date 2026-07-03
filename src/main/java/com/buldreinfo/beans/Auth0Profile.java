@@ -5,6 +5,8 @@ import java.util.Objects;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 public record Auth0Profile(String email, String firstname, String lastname, String picture) {
+    public static final Auth0Profile INVALID = new Auth0Profile(null, null, null, null);
+
     public static Auth0Profile from(DecodedJWT jwt) {
         String email = jwt.getClaim("email").asString();
         if (email == null) {
